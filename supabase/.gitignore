@@ -1,0 +1,4 @@
+# Supabase CLI runtime files
+.branches
+.temp
+.env

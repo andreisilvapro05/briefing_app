@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+/.playwright-mcp
 
 # next.js
 /.next/
@@ -23,6 +24,8 @@
 # misc
 .DS_Store
 *.pem
+.idea/
+.vscode/
 
 # debug
 npm-debug.log*
@@ -30,8 +33,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# screenshots de teste deixados na raiz
+/*.png
+/*.jpg
+/*.jpeg
+
+# env files — NUNCA comite (.env.local contém SERVICE_ROLE_KEY, CLICKUP_TOKEN, etc.)
+.env
+.env.*
+!.env.example
 
 # vercel
 .vercel
@@ -39,3 +49,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Claude Code IDE state (configurações locais)
+.claude/
+
+# Supabase CLI runtime
+supabase/.branches
+supabase/.temp
+supabase/.env

@@ -1,65 +1,161 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
+import { Shell, ContentFrame } from "@/components/layout/shell";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Eyebrow } from "@/components/ui/pill";
+import { saveCliente, loadCliente } from "@/lib/storage";
+
+interface FormState {
+  nome: string;
+  email: string;
+  empresa: string;
+  whatsapp: string;
+}
+
+interface FormErrors {
+  nome?: string;
+  email?: string;
+  empresa?: string;
+  whatsapp?: string;
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function validate(values: FormState): FormErrors {
+  const errors: FormErrors = {};
+  if (!values.nome.trim()) errors.nome = "Informe seu nome.";
+  if (!values.email.trim()) errors.email = "Informe seu e-mail.";
+  else if (!EMAIL_REGEX.test(values.email))
+    errors.email = "E-mail em formato inválido.";
+  if (!values.empresa.trim())
+    errors.empresa = "Informe o nome da empresa ou projeto.";
+  if (!values.whatsapp.trim()) errors.whatsapp = "Informe um WhatsApp.";
+  else if (values.whatsapp.replace(/\D/g, "").length < 10)
+    errors.whatsapp = "Número incompleto.";
+  return errors;
+}
+
+export default function IdentificacaoPage() {
+  const router = useRouter();
+  const [values, setValues] = useState<FormState>(() => {
+    const cliente = loadCliente();
+    return {
+      nome: cliente?.nome ?? "",
+      email: cliente?.email ?? "",
+      empresa: cliente?.empresa ?? "",
+      whatsapp: cliente?.whatsapp ?? "",
+    };
+  });
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [submitting, setSubmitting] = useState(false);
+
+  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setValues((v) => ({ ...v, [key]: value }));
+    if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    const found = validate(values);
+    if (Object.keys(found).length) {
+      setErrors(found);
+      return;
+    }
+    setSubmitting(true);
+    saveCliente(values);
+
+    // Best-effort: cria cliente no Supabase e dispara magic link.
+    // Falha silenciosa em modo demo (sem env vars).
+    void fetch("/api/auth/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(values),
+    }).catch(() => {
+      // ignora — fluxo continua via localStorage
+    });
+
+    setTimeout(() => router.push("/projeto"), 300);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <Shell tone="aurora" sectionLabel="01 · Identificação">
+      <ContentFrame size="md">
+        <div className="flex flex-col gap-3 mb-10">
+          <Eyebrow>Onboarding · Briefing</Eyebrow>
+          <h1 className="fysi-display text-4xl md:text-5xl">
+            Bem-vindo à Fysi Lab.
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-fysi-muted text-base md:text-lg leading-relaxed max-w-xl">
+            Este é o ponto de partida do seu projeto. Antes de qualquer
+            decisão de design ou copy, estruturamos as informações que vão
+            sustentar tudo o que vem a seguir.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-5"
+        >
+          <Input
+            label="Nome completo"
+            name="nome"
+            autoComplete="name"
+            value={values.nome}
+            onChange={(e) => update("nome", e.target.value)}
+            error={errors.nome}
+            placeholder="Como gostaria de ser chamado"
+          />
+          <Input
+            label="E-mail"
+            name="email"
+            type="email"
+            autoComplete="email"
+            value={values.email}
+            onChange={(e) => update("email", e.target.value)}
+            error={errors.email}
+            hint="Usaremos para enviar o link de retomada do briefing."
+            placeholder="seu@email.com"
+          />
+          <Input
+            label="Empresa ou projeto"
+            name="empresa"
+            autoComplete="organization"
+            value={values.empresa}
+            onChange={(e) => update("empresa", e.target.value)}
+            error={errors.empresa}
+            placeholder="Nome da empresa, marca pessoal ou projeto"
+          />
+          <Input
+            label="WhatsApp"
+            name="whatsapp"
+            type="tel"
+            autoComplete="tel"
+            value={values.whatsapp}
+            onChange={(e) => update("whatsapp", e.target.value)}
+            error={errors.whatsapp}
+            placeholder="(11) 90000-0000"
+          />
+
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-fysi-line">
+            <span className="text-xs text-fysi-muted leading-relaxed">
+              Ao continuar, você concorda em receber comunicação da Fysi Lab
+              sobre o andamento do seu projeto.
+            </span>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={submitting}
+              className="sm:w-auto w-full"
+            >
+              {submitting ? "Continuando…" : "Continuar"}
+            </Button>
+          </div>
+        </form>
+      </ContentFrame>
+    </Shell>
   );
 }

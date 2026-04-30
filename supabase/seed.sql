@@ -1,0 +1,19 @@
+-- ============================================================
+-- Seed local · fysi-briefing
+--
+-- Roda automaticamente quando você executa `supabase start` localmente.
+-- Use este arquivo para popular dados de teste (ex: cliente de demonstração).
+-- Em produção, este arquivo NÃO é executado.
+-- ============================================================
+
+-- Exemplo de cliente de teste (descomente para ativar):
+-- insert into public.clients (nome, email, empresa, whatsapp, project_type, status)
+-- values (
+--   'Maria Silva',
+--   'maria@empresa-teste.com',
+--   'Empresa Teste',
+--   '(11) 91234-5678',
+--   'landing-com-copy',
+--   'em-andamento'
+-- )
+-- on conflict do nothing;
