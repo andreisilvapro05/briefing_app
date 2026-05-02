@@ -17,8 +17,13 @@ const Body = z.object({
   email: z.string().email(),
   empresa: z.string().min(1),
   whatsapp: z.string().min(8),
-  // Identificadores anti-spam: token Turnstile do client
+  // Identificadores anti-spam:
+  // - turnstileToken: opcional (legado, manter pra quando Turnstile estiver ativo)
+  // - hp: campo honeypot — humanos deixam vazio, bots preenchem
+  // - elapsedMs: tempo entre abrir a tela e submeter — bots submetem em <2s
   turnstileToken: z.string().optional(),
+  hp: z.string().optional(),
+  elapsedMs: z.number().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -36,8 +41,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ mode: "demo" }, { status: 200 });
   }
 
+  // Honeypot anti-spam: campo invisível que humanos não preenchem.
+  if (parsed.hp && parsed.hp.trim().length > 0) {
+    logServerError(
+      "auth.start.honeypot",
+      new Error("honeypot triggered")
+    );
+    // Resposta genérica fingindo sucesso — não dá feedback ao bot.
+    return NextResponse.json({ ok: true });
+  }
+
+  // Timing check: form preenchido em <2s = provavelmente bot.
+  if (
+    typeof parsed.elapsedMs === "number" &&
+    parsed.elapsedMs > 0 &&
+    parsed.elapsedMs < 2000
+  ) {
+    logServerError(
+      "auth.start.timing",
+      new Error(`form too fast (${parsed.elapsedMs}ms)`)
+    );
+    return NextResponse.json({ ok: true });
+  }
+
   // Captcha — obrigatório em produção (anti-spam de criação de clientes
-  // e flood de magic-links).
+  // e flood de magic-links). BYPASS_CAPTCHA=true desabilita; honeypot acima
+  // já dá proteção razoável pra apps de baixo volume.
   if (isProduction() && !env.bypassCaptcha) {
     if (!env.turnstileSecret) {
       logServerError(

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, useEffect, type FormEvent } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +62,12 @@ export default function IdentificacaoPage() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [honeypot, setHoneypot] = useState("");
+  const mountedAt = useRef<number | null>(null);
+
+  useEffect(() => {
+    mountedAt.current = Date.now();
+  }, []);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -78,13 +84,16 @@ export default function IdentificacaoPage() {
     setSubmitting(true);
     saveCliente(values);
 
+    const elapsedMs = mountedAt.current
+      ? Date.now() - mountedAt.current
+      : undefined;
+
     // Cria cliente no Supabase e dispara magic link.
-    // Aguarda a resposta pra alinhar o id local com o id do servidor —
-    // crítico pro upload de arquivos depois (ele usa esse id como dono).
+    // hp = honeypot (campo invisível). elapsedMs = anti-bot timing.
     fetch("/api/auth/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(values),
+      body: JSON.stringify({ ...values, hp: honeypot, elapsedMs }),
     })
       .then(async (res) => {
         if (!res.ok) return;
@@ -158,6 +167,31 @@ export default function IdentificacaoPage() {
             error={errors.whatsapp}
             placeholder="(11) 90000-0000"
           />
+
+          {/* Honeypot — invisível pra humanos, bots costumam preencher.
+              aria-hidden + tabIndex=-1 + position absolute fora da tela. */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: "-9999px",
+              top: "-9999px",
+              width: 0,
+              height: 0,
+              overflow: "hidden",
+            }}
+          >
+            <label htmlFor="company_website">Site (deixe vazio)</label>
+            <input
+              type="text"
+              id="company_website"
+              name="company_website"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
 
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-fysi-line">
             <span className="text-xs text-fysi-muted leading-relaxed">
