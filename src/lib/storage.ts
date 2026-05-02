@@ -56,6 +56,24 @@ export function setProjectType(projectType: ProjectType): Cliente | null {
   return updated;
 }
 
+
+/**
+ * Substitui o id local do cliente pelo id do servidor (Supabase) após
+ * o /api/auth/start retornar. Mantém o resto dos dados intactos.
+ */
+export function setClientId(serverId: string): Cliente | null {
+  const existing = loadCliente();
+  if (!existing) return null;
+  if (existing.id === serverId) return existing;
+  const updated: Cliente = {
+    ...existing,
+    id: serverId,
+    updatedAt: new Date().toISOString(),
+  };
+  window.localStorage.setItem(KEY, JSON.stringify(updated));
+  return updated;
+}
+
 export function clearCliente() {
   if (!isBrowser()) return;
   window.localStorage.removeItem(KEY);

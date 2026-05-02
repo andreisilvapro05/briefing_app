@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
   const formData = await request.formData();
   const file = formData.get("file");
   const pathPrefix = (formData.get("pathPrefix") as string) || "";
+  const clientIdInput = (formData.get("clientId") as string) || "";
 
   // Bucket é SEMPRE o configurado pelo servidor — não confiamos no client.
   const bucket = env.storageBucket;
@@ -86,25 +87,46 @@ export async function POST(request: NextRequest) {
     return errorResponse("invalid-path-prefix", 400);
   }
 
-  // Resolve identidade
+  // Resolve identidade. 3 caminhos possíveis (em ordem de preferência):
+  // 1) Cliente já autenticado via magic-link (cookie Supabase).
+  // 2) Cliente identificado mas SEM auth ainda — passa clientId no FormData.
+  //    O backend valida que o clientId existe na tabela `clients`.
+  // 3) Modo demo (apenas em dev): owner = "demo".
+  const service = createSupabaseServiceRoleClient();
   let owner: string;
   let clientId: string | null = null;
+
+  // (1) tenta sessão Supabase
   try {
     const supabase = await createSupabaseServerClient();
     const { data: userData } = await supabase.auth.getUser();
     if (userData.user) {
       owner = userData.user.id;
-      const { data: client } = await supabase
+      const { data: client } = await service
         .from("clients")
         .select("id")
         .eq("auth_user_id", userData.user.id)
         .maybeSingle();
       clientId = client?.id ?? null;
+    } else if (clientIdInput) {
+      // (2) sem sessão mas com clientId conhecido
+      const isUuid =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          clientIdInput
+        );
+      if (!isUuid) return errorResponse("invalid-client-id", 400);
+      const { data: client } = await service
+        .from("clients")
+        .select("id")
+        .eq("id", clientIdInput)
+        .maybeSingle();
+      if (!client) return errorResponse("client-not-found", 404);
+      owner = `clients/${client.id}`;
+      clientId = client.id;
     } else if (isProduction()) {
-      // Em produção, exigimos auth — sem auth, recusa.
+      // (3) prod sem nenhuma identificação — recusa
       return errorResponse("unauthenticated", 401);
     } else {
-      // Em dev, permite modo demo para facilitar desenvolvimento local.
       owner = "demo";
     }
   } catch (err) {
@@ -121,7 +143,6 @@ export async function POST(request: NextRequest) {
   const prefix = safePrefix ? `${safePrefix}/` : "";
   const objectPath = `${owner}/${prefix}${ts}-${safeName}`;
 
-  const service = createSupabaseServiceRoleClient();
   const arrayBuffer = await file.arrayBuffer();
   const { error } = await service.storage
     .from(bucket)

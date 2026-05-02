@@ -22,7 +22,7 @@ export const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
   {
     id: "site-completo",
     title: "Site completo",
-    description: "Múltiplas páginas, com ou sem copy. Definimos a próximo.",
+    description: "Múltiplas páginas, com ou sem copy. Definimos a seguir.",
     durationLabel: "≈ 5 semanas",
     hasCopyStep: true,
   },

@@ -6,7 +6,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eyebrow } from "@/components/ui/pill";
-import { saveCliente, loadCliente } from "@/lib/storage";
+import { saveCliente, loadCliente, setClientId } from "@/lib/storage";
 
 interface FormState {
   nome: string;
@@ -30,8 +30,19 @@ function validate(values: FormState): FormErrors {
   if (!values.email.trim()) errors.email = "Informe seu e-mail.";
   else if (!EMAIL_REGEX.test(values.email))
     errors.email = "E-mail em formato inválido.";
-  if (!values.empresa.trim())
+  if (!values.empresa.trim()) {
     errors.empresa = "Informe o nome da empresa ou projeto.";
+  } else {
+    // Rejeita CPF (11 dígitos) ou CNPJ (14 dígitos) usados como nome.
+    const onlyDigits = values.empresa.replace(/\D/g, "");
+    const stripped = values.empresa.replace(/[\d.\-/\s]/g, "");
+    if (onlyDigits.length === 11 || onlyDigits.length === 14) {
+      errors.empresa =
+        "Use o nome da empresa ou marca, não CPF/CNPJ.";
+    } else if (stripped.length < 2) {
+      errors.empresa = "Use um nome legível (mínimo 2 letras).";
+    }
+  }
   if (!values.whatsapp.trim()) errors.whatsapp = "Informe um WhatsApp.";
   else if (values.whatsapp.replace(/\D/g, "").length < 10)
     errors.whatsapp = "Número incompleto.";
@@ -67,17 +78,25 @@ export default function IdentificacaoPage() {
     setSubmitting(true);
     saveCliente(values);
 
-    // Best-effort: cria cliente no Supabase e dispara magic link.
-    // Falha silenciosa em modo demo (sem env vars).
-    void fetch("/api/auth/start", {
+    // Cria cliente no Supabase e dispara magic link.
+    // Aguarda a resposta pra alinhar o id local com o id do servidor —
+    // crítico pro upload de arquivos depois (ele usa esse id como dono).
+    fetch("/api/auth/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(values),
-    }).catch(() => {
-      // ignora — fluxo continua via localStorage
-    });
-
-    setTimeout(() => router.push("/projeto"), 300);
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { clientId?: string };
+        if (data.clientId) setClientId(data.clientId);
+      })
+      .catch(() => {
+        // Modo demo / offline — segue só com localStorage
+      })
+      .finally(() => {
+        router.push("/projeto");
+      });
   }
 
   return (

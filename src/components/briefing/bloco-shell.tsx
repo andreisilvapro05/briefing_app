@@ -47,6 +47,7 @@ export function BlocoShell({
           steps={steps}
           currentStepId={currentStepId}
           completedIds={completedIds}
+          onStepClick={(id) => router.push(`/briefing/${id}`)}
           className="mb-10"
         />
 

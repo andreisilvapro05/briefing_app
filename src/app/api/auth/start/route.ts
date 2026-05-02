@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
 
   // Captcha — obrigatório em produção (anti-spam de criação de clientes
   // e flood de magic-links).
-  if (isProduction()) {
+  if (isProduction() && !env.bypassCaptcha) {
     if (!env.turnstileSecret) {
       logServerError(
         "auth.start",

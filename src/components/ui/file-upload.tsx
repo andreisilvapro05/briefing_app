@@ -2,6 +2,7 @@
 
 import { useRef, useState, type DragEvent } from "react";
 import { cn } from "@/lib/cn";
+import { loadCliente } from "@/lib/storage";
 
 export interface UploadedFile {
   // url retornada pela rota de upload (Supabase Storage)
@@ -61,14 +62,19 @@ export function FileUpload({
       return;
     }
 
+    // Pega o id do cliente atual (criado em /api/auth/start) pra atrelar
+    // o upload ao registro mesmo antes do cliente clicar no magic link.
+    const cliente = loadCliente();
+    const clientId = cliente?.id ?? "";
+
     setUploading(true);
     try {
       const uploaded = await Promise.all(
         accepted.map(async (file) => {
           const formData = new FormData();
           formData.append("file", file);
-          formData.append("bucket", bucket);
           formData.append("pathPrefix", pathPrefix);
+          if (clientId) formData.append("clientId", clientId);
 
           const res = await fetch("/api/upload", {
             method: "POST",

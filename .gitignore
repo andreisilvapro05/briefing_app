@@ -53,6 +53,9 @@ next-env.d.ts
 # Claude Code IDE state (configurações locais)
 .claude/
 
+# Serena CLI local project state
+.serena/
+
 # Supabase CLI runtime
 supabase/.branches
 supabase/.temp

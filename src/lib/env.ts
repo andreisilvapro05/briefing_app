@@ -50,6 +50,11 @@ export function getServerEnv() {
     clickupToken: process.env.CLICKUP_API_TOKEN ?? "",
     clickupListId: process.env.CLICKUP_LIST_ID ?? "",
     turnstileSecret: process.env.TURNSTILE_SECRET_KEY ?? "",
+    // Bypass do gate de captcha em produção quando Turnstile ainda não está
+    // configurado. Use BYPASS_CAPTCHA=true no Vercel pra liberar o app
+    // enquanto aguarda Cloudflare. NÃO use em produção real com tráfego.
+    bypassCaptcha:
+      (process.env.BYPASS_CAPTCHA ?? "").toLowerCase() === "true",
     adminEmails: (process.env.ADMIN_EMAILS ?? "")
       .split(",")
       .map((e) => e.trim().toLowerCase())

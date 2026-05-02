@@ -165,6 +165,7 @@ export function AudioRecorder({
         type="button"
         disabled={disabled}
         onClick={recording ? stop : start}
+        aria-label={recording ? "Parar gravação" : "Gravar áudio"}
         className={cn(
           "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition",
           "uppercase tracking-[0.08em]",
@@ -174,13 +175,35 @@ export function AudioRecorder({
           disabled && "opacity-50 cursor-not-allowed"
         )}
       >
-        <span
-          aria-hidden
-          className={cn(
-            "h-2 w-2 rounded-full",
-            recording ? "bg-fysi-mint-vivid" : "bg-fysi-deep"
-          )}
-        />
+        {recording ? (
+          // Quadradinho de "stop"
+          <svg
+            aria-hidden
+            width="10"
+            height="10"
+            viewBox="0 0 10 10"
+            fill="currentColor"
+          >
+            <rect x="1" y="1" width="8" height="8" rx="1.5" />
+          </svg>
+        ) : (
+          // Microfone (minimalista, stroke fino — coerente com a marca)
+          <svg
+            aria-hidden
+            width="11"
+            height="13"
+            viewBox="0 0 11 13"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3.5" y="0.75" width="4" height="7" rx="2" />
+            <path d="M1.25 6.5a4.25 4.25 0 0 0 8.5 0" />
+            <path d="M5.5 10.75v1.5" />
+          </svg>
+        )}
         {recording ? "Parar" : "Gravar"}
       </button>
     </div>
