@@ -13,39 +13,17 @@ import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 
 interface FormState {
   nome: string;
-  email: string;
-  empresa: string;
   whatsapp: string;
 }
 
 interface FormErrors {
   nome?: string;
-  email?: string;
-  empresa?: string;
   whatsapp?: string;
 }
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validate(values: FormState): FormErrors {
   const errors: FormErrors = {};
   if (!values.nome.trim()) errors.nome = "Informe seu nome.";
-  if (!values.email.trim()) errors.email = "Informe seu e-mail.";
-  else if (!EMAIL_REGEX.test(values.email))
-    errors.email = "E-mail em formato inválido.";
-  if (!values.empresa.trim()) {
-    errors.empresa = "Informe o nome da empresa ou projeto.";
-  } else {
-    // Rejeita CPF (11 dígitos) ou CNPJ (14 dígitos) usados como nome.
-    const onlyDigits = values.empresa.replace(/\D/g, "");
-    const stripped = values.empresa.replace(/[\d.\-/\s]/g, "");
-    if (onlyDigits.length === 11 || onlyDigits.length === 14) {
-      errors.empresa =
-        "Use o nome da empresa ou marca, não CPF/CNPJ.";
-    } else if (stripped.length < 2) {
-      errors.empresa = "Use um nome legível (mínimo 2 letras).";
-    }
-  }
   if (!values.whatsapp.trim()) errors.whatsapp = "Informe um WhatsApp.";
   else if (values.whatsapp.replace(/\D/g, "").length < 10)
     errors.whatsapp = "Número incompleto.";
@@ -58,8 +36,6 @@ export default function IdentificacaoPage() {
     const cliente = loadCliente();
     return {
       nome: cliente?.nome ?? "",
-      email: cliente?.email ?? "",
-      empresa: cliente?.empresa ?? "",
       whatsapp: cliente?.whatsapp ?? "",
     };
   });
@@ -88,17 +64,19 @@ export default function IdentificacaoPage() {
       return;
     }
     setSubmitting(true);
-    saveCliente(values);
+    saveCliente({ nome: values.nome, whatsapp: values.whatsapp });
 
     const elapsedMs = mountedAt.current
       ? Date.now() - mountedAt.current
       : undefined;
 
+    // Tela 1 enxuta — só nome + whatsapp. Email/empresa/contrato vêm em /contrato.
     fetch("/api/auth/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ...values,
+        nome: values.nome,
+        whatsapp: values.whatsapp,
         hp: honeypot,
         elapsedMs,
         turnstileToken: turnstileToken || undefined,
@@ -120,7 +98,7 @@ export default function IdentificacaoPage() {
   return (
     <Shell tone="aurora" sectionLabel="01 · Identificação">
       <ContentFrame size="md">
-        {/* Toggle no topo: cliente (default, mostra form) ou admin (link login) */}
+        {/* Toggle no topo: cliente (default) ou admin */}
         <div className="flex items-center gap-2 mb-8">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-fysi-deep text-fysi-cream px-4 py-1.5 text-xs font-medium uppercase tracking-[0.08em]">
             <span className="h-1.5 w-1.5 rounded-full bg-fysi-yellow" />
@@ -140,9 +118,8 @@ export default function IdentificacaoPage() {
             Bem-vindo à Fysi Lab.
           </h1>
           <p className="text-fysi-muted text-base md:text-lg leading-relaxed max-w-xl">
-            Este é o ponto de partida do seu projeto. Antes de qualquer
-            decisão de design ou copy, estruturamos as informações que vão
-            sustentar tudo o que vem a seguir.
+            Vamos começar com o básico. Os outros dados (e-mail, endereço,
+            CPF para o contrato) ficam pra próxima etapa, no painel.
           </p>
         </div>
 
@@ -161,26 +138,6 @@ export default function IdentificacaoPage() {
             placeholder="Como gostaria de ser chamado"
           />
           <Input
-            label="E-mail"
-            name="email"
-            type="email"
-            autoComplete="email"
-            value={values.email}
-            onChange={(e) => update("email", e.target.value)}
-            error={errors.email}
-            hint="Usaremos para enviar o link de retomada do briefing."
-            placeholder="seu@email.com"
-          />
-          <Input
-            label="Empresa ou projeto"
-            name="empresa"
-            autoComplete="organization"
-            value={values.empresa}
-            onChange={(e) => update("empresa", e.target.value)}
-            error={errors.empresa}
-            placeholder="Nome da empresa, marca pessoal ou projeto"
-          />
-          <Input
             label="WhatsApp"
             name="whatsapp"
             type="tel"
@@ -188,11 +145,11 @@ export default function IdentificacaoPage() {
             value={values.whatsapp}
             onChange={(e) => update("whatsapp", e.target.value)}
             error={errors.whatsapp}
+            hint="Vamos usar pra te avisar quando o time iniciar a produção."
             placeholder="(11) 90000-0000"
           />
 
-          {/* Honeypot — invisível pra humanos, bots costumam preencher.
-              aria-hidden + tabIndex=-1 + position absolute fora da tela. */}
+          {/* Honeypot — invisível pra humanos, bots preenchem. */}
           <div
             aria-hidden="true"
             style={{

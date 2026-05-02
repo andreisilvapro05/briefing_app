@@ -5,11 +5,12 @@ import { useRouter } from "next/navigation";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Eyebrow } from "@/components/ui/pill";
+import { Eyebrow, Pill } from "@/components/ui/pill";
 import { loadCliente } from "@/lib/storage";
 
 interface FormState {
+  email: string;
+  empresa: string;
   endereco: string;
   cep: string;
   rg: string;
@@ -29,12 +30,16 @@ const COMO_CONHECEU_OPCOES = [
   "Outro",
 ];
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function ContratoPage() {
   const router = useRouter();
   const [clientId, setClientId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<FormState>({
+    email: "",
+    empresa: "",
     endereco: "",
     cep: "",
     rg: "",
@@ -51,6 +56,12 @@ export default function ContratoPage() {
       return;
     }
     setClientId(c.id);
+    // Pré-preenche com dados que o cliente tenha em localStorage
+    setValues((v) => ({
+      ...v,
+      email: c.email ?? v.email,
+      empresa: c.empresa ?? v.empresa,
+    }));
   }, [router]);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -62,9 +73,29 @@ export default function ContratoPage() {
     if (!clientId) return;
     setError(null);
 
-    // Mínimos obrigatórios: endereço, CEP, CPF, como conheceu
-    if (!values.endereco.trim() || !values.cep.trim() || !values.cpf.trim() || !values.como_conheceu) {
-      setError("Preencha endereço, CEP, CPF e como nos conheceu.");
+    // Mínimos obrigatórios pra emitir contrato:
+    // email, empresa, endereço, CEP, CPF, como conheceu
+    if (!values.email.trim()) {
+      setError("Informe seu e-mail.");
+      return;
+    }
+    if (!EMAIL_REGEX.test(values.email)) {
+      setError("E-mail em formato inválido.");
+      return;
+    }
+    if (!values.empresa.trim()) {
+      setError("Informe o nome da empresa ou projeto.");
+      return;
+    }
+    if (
+      !values.endereco.trim() ||
+      !values.cep.trim() ||
+      !values.cpf.trim() ||
+      !values.como_conheceu
+    ) {
+      setError(
+        "Preencha endereço, CEP, CPF e como nos conheceu (campos com *)."
+      );
       return;
     }
 
@@ -89,93 +120,134 @@ export default function ContratoPage() {
   return (
     <Shell tone="cream" sectionLabel="Contrato · Dados">
       <ContentFrame size="lg">
+        <div className="flex items-center gap-2 mb-3">
+          <Pill tone="yellow">⚡ Importante</Pill>
+          <span className="text-xs text-fysi-muted uppercase tracking-[0.1em] font-medium">
+            Etapa 01 do projeto
+          </span>
+        </div>
+
         <div className="flex flex-col gap-3 mb-10">
           <Eyebrow>Etapa do contrato</Eyebrow>
           <h1 className="fysi-display text-3xl md:text-4xl">
             Dados pra contrato
           </h1>
           <p className="text-fysi-muted text-base leading-relaxed max-w-2xl">
-            Estes dados são usados para gerar seu contrato e nota fiscal.
-            Tudo fica em sigilo no nosso sistema. Pode pular agora se quiser
-            preencher depois — basta voltar ao painel.
+            Sem esses dados não conseguimos emitir seu contrato e iniciar a
+            produção. Leva 3 minutos. Tudo fica em sigilo no nosso sistema.
           </p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-5"
+          className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-6"
         >
-          <Input
-            label="Endereço completo"
-            name="endereco"
-            value={values.endereco}
-            onChange={(e) => update("endereco", e.target.value)}
-            placeholder="Rua, número, bairro, cidade, estado"
-          />
-
-          <div className="grid sm:grid-cols-2 gap-4">
+          {/* Bloco 1 — contato */}
+          <div className="flex flex-col gap-5">
+            <h2 className="text-sm font-medium text-fysi-deep uppercase tracking-[0.1em]">
+              Contato
+            </h2>
             <Input
-              label="CEP"
-              name="cep"
-              value={values.cep}
-              onChange={(e) => update("cep", e.target.value)}
-              placeholder="00000-000"
+              label="E-mail*"
+              name="email"
+              type="email"
+              autoComplete="email"
+              value={values.email}
+              onChange={(e) => update("email", e.target.value)}
+              placeholder="seu@email.com"
+              hint="Usaremos pra enviar o contrato e link de retomada do briefing."
             />
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-fysi-deep">
-                Como nos conheceu?
-              </label>
-              <select
-                value={values.como_conheceu}
-                onChange={(e) => update("como_conheceu", e.target.value)}
-                className="h-12 rounded-[12px] border border-fysi-line bg-white px-4 text-[0.95rem] text-fysi-deep focus:outline-none focus:border-fysi-green/40"
-              >
-                <option value="">Selecionar opção…</option>
-                {COMO_CONHECEU_OPCOES.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
+            <Input
+              label="Empresa ou projeto*"
+              name="empresa"
+              autoComplete="organization"
+              value={values.empresa}
+              onChange={(e) => update("empresa", e.target.value)}
+              placeholder="Nome da empresa, marca pessoal ou projeto"
+            />
+          </div>
+
+          {/* Bloco 2 — endereço */}
+          <div className="flex flex-col gap-5 pt-6 border-t border-fysi-line">
+            <h2 className="text-sm font-medium text-fysi-deep uppercase tracking-[0.1em]">
+              Endereço
+            </h2>
+            <Input
+              label="Endereço completo*"
+              name="endereco"
+              value={values.endereco}
+              onChange={(e) => update("endereco", e.target.value)}
+              placeholder="Rua, número, bairro, cidade, estado"
+            />
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                label="CEP*"
+                name="cep"
+                value={values.cep}
+                onChange={(e) => update("cep", e.target.value)}
+                placeholder="00000-000"
+              />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-fysi-deep">
+                  Como nos conheceu?*
+                </label>
+                <select
+                  value={values.como_conheceu}
+                  onChange={(e) => update("como_conheceu", e.target.value)}
+                  className="h-12 rounded-[12px] border border-fysi-line bg-white px-4 text-[0.95rem] text-fysi-deep focus:outline-none focus:border-fysi-green/40"
+                >
+                  <option value="">Selecionar opção…</option>
+                  {COMO_CONHECEU_OPCOES.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Input
-              label="CPF"
-              name="cpf"
-              value={values.cpf}
-              onChange={(e) => update("cpf", e.target.value)}
-              placeholder="000.000.000-00"
-            />
-            <Input
-              label="RG"
-              name="rg"
-              optional
-              value={values.rg}
-              onChange={(e) => update("rg", e.target.value)}
-              placeholder="00.000.000-0"
-            />
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Input
-              label="CNPJ"
-              name="cnpj"
-              optional
-              value={values.cnpj}
-              onChange={(e) => update("cnpj", e.target.value)}
-              placeholder="00.000.000/0001-00"
-              hint="Preencha se for emitir NF como pessoa jurídica."
-            />
-            <Input
-              label="Razão social"
-              name="razao_social"
-              optional
-              value={values.razao_social}
-              onChange={(e) => update("razao_social", e.target.value)}
-              placeholder="Nome da empresa no CNPJ"
-            />
+          {/* Bloco 3 — documentos */}
+          <div className="flex flex-col gap-5 pt-6 border-t border-fysi-line">
+            <h2 className="text-sm font-medium text-fysi-deep uppercase tracking-[0.1em]">
+              Documentos
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                label="CPF*"
+                name="cpf"
+                value={values.cpf}
+                onChange={(e) => update("cpf", e.target.value)}
+                placeholder="000.000.000-00"
+              />
+              <Input
+                label="RG"
+                name="rg"
+                optional
+                value={values.rg}
+                onChange={(e) => update("rg", e.target.value)}
+                placeholder="00.000.000-0"
+              />
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                label="CNPJ"
+                name="cnpj"
+                optional
+                value={values.cnpj}
+                onChange={(e) => update("cnpj", e.target.value)}
+                placeholder="00.000.000/0001-00"
+                hint="Preencha se for emitir NF como pessoa jurídica."
+              />
+              <Input
+                label="Razão social"
+                name="razao_social"
+                optional
+                value={values.razao_social}
+                onChange={(e) => update("razao_social", e.target.value)}
+                placeholder="Nome da empresa no CNPJ"
+              />
+            </div>
           </div>
 
           {error ? (

@@ -21,8 +21,9 @@ export interface ProjectTypeOption {
 export interface Cliente {
   id: string;
   nome: string;
-  email: string;
-  empresa: string;
+  // Email e empresa migraram pra etapa /contrato — opcionais até preencher.
+  email?: string;
+  empresa?: string;
   whatsapp: string;
   projectType?: ProjectType;
   createdAt: string;

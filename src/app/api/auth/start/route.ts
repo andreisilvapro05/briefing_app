@@ -14,13 +14,11 @@ import { errorResponse, isProduction, logServerError } from "@/lib/api-helpers";
 
 const Body = z.object({
   nome: z.string().min(1),
-  email: z.string().email(),
-  empresa: z.string().min(1),
+  // Email e empresa agora opcionais (vêm depois em /contrato).
+  email: z.string().email().optional(),
+  empresa: z.string().min(1).optional(),
   whatsapp: z.string().min(8),
-  // Identificadores anti-spam:
-  // - turnstileToken: opcional (legado, manter pra quando Turnstile estiver ativo)
-  // - hp: campo honeypot — humanos deixam vazio, bots preenchem
-  // - elapsedMs: tempo entre abrir a tela e submeter — bots submetem em <2s
+  // Anti-spam:
   turnstileToken: z.string().optional(),
   hp: z.string().optional(),
   elapsedMs: z.number().optional(),
@@ -93,12 +91,15 @@ export async function POST(request: NextRequest) {
 
   const service = createSupabaseServiceRoleClient();
 
-  // Upsert por email (não usamos auth_user_id ainda — vem no callback do magic-link)
-  const { data: existing } = await service
-    .from("clients")
-    .select("id")
-    .eq("email", parsed.email)
-    .maybeSingle();
+  // Sem email na Tela 1 — não dá pra fazer upsert por email. Sempre cria
+  // um novo registro. Caso queira de-duplicar, faz por whatsapp:
+  const { data: existing } = parsed.email
+    ? await service
+        .from("clients")
+        .select("id")
+        .eq("email", parsed.email)
+        .maybeSingle()
+    : { data: null };
 
   let clientId: string;
   if (existing) {
@@ -107,7 +108,7 @@ export async function POST(request: NextRequest) {
       .from("clients")
       .update({
         nome: parsed.nome,
-        empresa: parsed.empresa,
+        empresa: parsed.empresa ?? undefined,
         whatsapp: parsed.whatsapp,
         ip_address: ip as never,
         user_agent: ua,
@@ -118,8 +119,8 @@ export async function POST(request: NextRequest) {
       .from("clients")
       .insert({
         nome: parsed.nome,
-        email: parsed.email,
-        empresa: parsed.empresa,
+        email: parsed.email ?? null,
+        empresa: parsed.empresa ?? null,
         whatsapp: parsed.whatsapp,
         status: "em-andamento",
         ip_address: ip as never,
@@ -134,7 +135,11 @@ export async function POST(request: NextRequest) {
     clientId = data.id;
   }
 
-  // Dispara magic link via Supabase Auth (signInWithOtp)
+  // Magic link só dispara se temos email (Tela 1 não pede mais email).
+  if (!parsed.email) {
+    return NextResponse.json({ clientId, ok: true });
+  }
+
   const { error: authErr } = await service.auth.signInWithOtp({
     email: parsed.email,
     options: {

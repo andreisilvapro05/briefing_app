@@ -125,53 +125,81 @@ export default function DashboardPage() {
           </Pill>
         </div>
 
-        {/* Card "Próximos passos" — 3 fases clicáveis */}
+        {/* Sequência de próximos passos — 3 fases ordenadas com setas.
+            A "ativa" (próxima a fazer) ganha destaque visual.
+            A "01 Contrato" ganha selo IMPORTANTE até estar pronta. */}
         <section className="mb-10">
-          <Eyebrow className="mb-3 block">Próximos passos</Eyebrow>
-          <div className="grid sm:grid-cols-3 gap-3">
-            <PhaseCard
-              numero="01"
-              titulo="Dados pra contrato"
-              descricao={
-                contratoPreenchido
-                  ? "Informações enviadas. Você pode atualizar quando quiser."
-                  : "Endereço, CPF e razão social pra emitir contrato."
-              }
-              done={contratoPreenchido}
-              actionLabel={contratoPreenchido ? "Editar dados →" : "Preencher agora →"}
-              onClick={() => router.push("/contrato")}
-            />
-            <PhaseCard
-              numero="02"
-              titulo="Agendar chamada"
-              descricao={
-                chamadaAgendada
-                  ? "Chamada confirmada. Você recebe os detalhes por e-mail."
-                  : "30 min com a Karine pra alinhar moodboard e cronograma."
-              }
-              done={chamadaAgendada}
-              actionLabel={chamadaAgendada ? "Reagendar →" : "Escolher horário →"}
-              onClick={() => router.push("/agendar")}
-            />
-            <PhaseCard
-              numero="03"
-              titulo="Preencher briefing"
-              descricao={
-                blocosPreenchidos === blocosTotal && blocosTotal > 0
-                  ? "Briefing completo. Aguarde retorno do time Fysi."
-                  : `${blocosPreenchidos} de ${blocosTotal} blocos preenchidos.`
-              }
-              done={blocosPreenchidos === blocosTotal && blocosTotal > 0}
-              actionLabel={
-                blocosPreenchidos === 0
-                  ? "Iniciar briefing →"
-                  : blocosPreenchidos === blocosTotal
-                    ? "Revisar →"
-                    : "Continuar →"
-              }
-              onClick={() => router.push("/briefing")}
-              highlighted={contratoPreenchido && !chamadaAgendada ? false : !contratoPreenchido ? false : true}
-            />
+          <div className="flex items-baseline justify-between mb-4">
+            <Eyebrow>Próximos passos · siga nessa ordem</Eyebrow>
+            <span className="text-xs text-fysi-muted hidden md:inline">
+              {[contratoPreenchido, chamadaAgendada, blocosPreenchidos === blocosTotal && blocosTotal > 0].filter(Boolean).length}/3 concluídos
+            </span>
+          </div>
+
+          {/* Layout responsivo: empilhado no mobile, lado a lado com setas no desktop */}
+          <div className="flex flex-col md:flex-row md:items-stretch gap-3 md:gap-2">
+            <div className="flex-1">
+              <PhaseCard
+                numero="01"
+                titulo="Dados pra contrato"
+                descricao={
+                  contratoPreenchido
+                    ? "Informações enviadas. Você pode atualizar quando quiser."
+                    : "Endereço, CPF e razão social pra emitir contrato."
+                }
+                done={contratoPreenchido}
+                active={!contratoPreenchido}
+                important={!contratoPreenchido}
+                actionLabel={contratoPreenchido ? "Editar dados →" : "Preencher agora →"}
+                onClick={() => router.push("/contrato")}
+              />
+            </div>
+
+            <PhaseArrow />
+
+            <div className="flex-1">
+              <PhaseCard
+                numero="02"
+                titulo="Agendar chamada"
+                descricao={
+                  chamadaAgendada
+                    ? "Chamada confirmada. Você recebe os detalhes por e-mail."
+                    : !contratoPreenchido
+                      ? "Disponível depois do contrato. Pode agendar agora se preferir."
+                      : "30 min com a Karine pra alinhar moodboard e cronograma."
+                }
+                done={chamadaAgendada}
+                active={contratoPreenchido && !chamadaAgendada}
+                actionLabel={chamadaAgendada ? "Reagendar →" : "Escolher horário →"}
+                onClick={() => router.push("/agendar")}
+              />
+            </div>
+
+            <PhaseArrow />
+
+            <div className="flex-1">
+              <PhaseCard
+                numero="03"
+                titulo="Preencher briefing"
+                descricao={
+                  blocosPreenchidos === blocosTotal && blocosTotal > 0
+                    ? "Briefing completo. Aguarde retorno do time Fysi."
+                    : !contratoPreenchido || !chamadaAgendada
+                      ? `Disponível após contrato + chamada. ${blocosPreenchidos > 0 ? `${blocosPreenchidos}/${blocosTotal} já preenchidos.` : ""}`
+                      : `${blocosPreenchidos} de ${blocosTotal} blocos preenchidos.`
+                }
+                done={blocosPreenchidos === blocosTotal && blocosTotal > 0}
+                active={contratoPreenchido && chamadaAgendada && blocosPreenchidos < blocosTotal}
+                actionLabel={
+                  blocosPreenchidos === 0
+                    ? "Iniciar briefing →"
+                    : blocosPreenchidos === blocosTotal
+                      ? "Revisar →"
+                      : "Continuar →"
+                }
+                onClick={() => router.push("/briefing")}
+              />
+            </div>
           </div>
         </section>
 
@@ -188,46 +216,8 @@ export default function DashboardPage() {
             <ProjectTimeline etapas={etapas} />
           </section>
 
-          {/* Coluna direita — Próximo passo + Briefing status */}
+          {/* Coluna direita — Status do briefing + Suporte */}
           <aside className="flex flex-col gap-6">
-            {/* Bloco de ação principal — CTA */}
-            <section className="fysi-aurora-dark rounded-[24px] p-6 md:p-8 text-fysi-cream relative overflow-hidden">
-              <div className="flex items-center gap-2 mb-3">
-                <FysiMark
-                  size={18}
-                  className="text-fysi-mint-vivid"
-                  title="Fysi"
-                />
-                <span className="text-[0.7rem] uppercase tracking-[0.14em] font-medium text-fysi-mint/70">
-                  Próximo passo
-                </span>
-              </div>
-
-              <h2 className="fysi-display text-2xl md:text-3xl mb-3">
-                Iniciar briefing
-              </h2>
-              <p className="text-fysi-mint/80 text-sm leading-relaxed mb-6 max-w-md">
-                {projectInfo.hasCopyStep ? "5" : "5"} blocos curtos. Tempo
-                médio de preenchimento: 20 minutos. Pode pausar e retomar
-                quando quiser — salvamos automaticamente.
-              </p>
-
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="accent"
-                  size="lg"
-                  leadingIcon={<FysiMark size={16} />}
-                  onClick={() => router.push("/briefing")}
-                  type="button"
-                >
-                  Iniciar briefing
-                </Button>
-                <span className="text-[0.7rem] uppercase tracking-[0.14em] text-fysi-mint/50">
-                  Salvamento automático
-                </span>
-              </div>
-            </section>
-
             {/* Status do briefing */}
             <section className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8">
               <Eyebrow className="mb-4 block">Status do briefing</Eyebrow>
@@ -315,9 +305,10 @@ interface PhaseCardProps {
   titulo: string;
   descricao: string;
   done: boolean;
+  active?: boolean;
+  important?: boolean;
   actionLabel: string;
   onClick: () => void;
-  highlighted?: boolean;
 }
 
 function PhaseCard({
@@ -325,20 +316,21 @@ function PhaseCard({
   titulo,
   descricao,
   done,
+  active,
+  important,
   actionLabel,
   onClick,
-  highlighted,
 }: PhaseCardProps) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={
-        "text-left rounded-[20px] border p-5 transition flex flex-col gap-2 " +
+        "w-full h-full text-left rounded-[20px] border p-5 transition flex flex-col gap-2 " +
         (done
           ? "bg-fysi-mint border-fysi-mint-vivid/40 hover:border-fysi-deep/30"
-          : highlighted
-            ? "bg-fysi-deep text-fysi-cream border-fysi-deep hover:bg-fysi-deep/95"
+          : active
+            ? "bg-fysi-deep text-fysi-cream border-fysi-deep hover:bg-fysi-deep/95 shadow-[0_20px_60px_-30px_rgba(4,43,48,0.5)]"
             : "bg-white border-fysi-line hover:border-fysi-deep/30")
       }
     >
@@ -348,24 +340,30 @@ function PhaseCard({
             "text-[0.7rem] uppercase tracking-[0.14em] font-medium " +
             (done
               ? "text-fysi-deep/70"
-              : highlighted
+              : active
                 ? "text-fysi-mint/70"
                 : "text-fysi-muted")
           }
         >
           Etapa {numero}
         </span>
+
         {done ? (
           <span className="inline-flex items-center gap-1 text-[0.65rem] uppercase tracking-[0.1em] font-medium text-fysi-deep">
             <span className="h-1.5 w-1.5 rounded-full bg-fysi-deep" />
             Pronto
           </span>
+        ) : important ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-fysi-yellow text-fysi-deep px-2 py-0.5 text-[0.65rem] uppercase tracking-[0.1em] font-semibold">
+            ⚡ Importante
+          </span>
         ) : null}
       </div>
+
       <h3
         className={
           "text-base font-medium tracking-tight " +
-          (highlighted && !done ? "text-fysi-cream" : "text-fysi-deep")
+          (active && !done ? "text-fysi-cream" : "text-fysi-deep")
         }
       >
         {titulo}
@@ -375,7 +373,7 @@ function PhaseCard({
           "text-xs leading-relaxed " +
           (done
             ? "text-fysi-deep/70"
-            : highlighted
+            : active
               ? "text-fysi-mint/80"
               : "text-fysi-muted")
         }
@@ -384,10 +382,10 @@ function PhaseCard({
       </p>
       <span
         className={
-          "mt-2 text-xs font-medium " +
+          "mt-auto pt-2 text-xs font-medium " +
           (done
             ? "text-fysi-deep"
-            : highlighted
+            : active
               ? "text-fysi-yellow"
               : "text-fysi-deep")
         }
@@ -395,5 +393,28 @@ function PhaseCard({
         {actionLabel}
       </span>
     </button>
+  );
+}
+
+/**
+ * Seta entre os cards mostrando a sequência. Aparece como traço fino
+ * no desktop, e sumida no mobile (cards empilhados verticalmente).
+ */
+function PhaseArrow() {
+  return (
+    <div
+      aria-hidden
+      className="hidden md:flex items-center justify-center text-fysi-deep/30"
+    >
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M5 10 H15 M11 6 L15 10 L11 14"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
   );
 }
