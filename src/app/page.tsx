@@ -6,6 +6,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eyebrow } from "@/components/ui/pill";
+import Link from "next/link";
 import { saveCliente, loadCliente, setClientId } from "@/lib/storage";
 import { env } from "@/lib/env";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
@@ -119,6 +120,20 @@ export default function IdentificacaoPage() {
   return (
     <Shell tone="aurora" sectionLabel="01 · Identificação">
       <ContentFrame size="md">
+        {/* Toggle no topo: cliente (default, mostra form) ou admin (link login) */}
+        <div className="flex items-center gap-2 mb-8">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-fysi-deep text-fysi-cream px-4 py-1.5 text-xs font-medium uppercase tracking-[0.08em]">
+            <span className="h-1.5 w-1.5 rounded-full bg-fysi-yellow" />
+            Sou cliente Fysi
+          </span>
+          <Link
+            href="/admin/login"
+            className="inline-flex items-center gap-1.5 rounded-full border border-fysi-deep/15 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.08em] text-fysi-muted hover:text-fysi-deep hover:border-fysi-deep/30 transition"
+          >
+            Sou da equipe Fysi →
+          </Link>
+        </div>
+
         <div className="flex flex-col gap-3 mb-10">
           <Eyebrow>Onboarding · Briefing</Eyebrow>
           <h1 className="fysi-display text-4xl md:text-5xl">
