@@ -98,7 +98,13 @@ export default async function AdminPage({
               Briefings ativos
             </h1>
             <p className="text-fysi-muted text-sm mt-2">
-              Logado como {user.email}
+              Logado como {user.email}{" "}
+              <Link
+                href="/api/auth/admin-logout"
+                className="ml-2 underline hover:text-fysi-deep"
+              >
+                sair
+              </Link>
             </p>
           </div>
 

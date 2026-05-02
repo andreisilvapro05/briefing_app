@@ -55,6 +55,9 @@ export function getServerEnv() {
     // enquanto aguarda Cloudflare. NÃO use em produção real com tráfego.
     bypassCaptcha:
       (process.env.BYPASS_CAPTCHA ?? "").toLowerCase() === "true",
+    // Senha compartilhada do painel admin. Default fysi-2026 só pra dev —
+    // SEMPRE setar via env em produção (e remover esse default).
+    adminPassword: process.env.ADMIN_PASSWORD ?? "fysi-2026",
     adminEmails: (process.env.ADMIN_EMAILS ?? "")
       .split(",")
       .map((e) => e.trim().toLowerCase())
