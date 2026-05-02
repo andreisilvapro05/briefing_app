@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eyebrow } from "@/components/ui/pill";
 import Link from "next/link";
-import { saveCliente, loadCliente, setClientId } from "@/lib/storage";
+import {
+  saveCliente,
+  loadCliente,
+  setClientId,
+  setProjectType,
+} from "@/lib/storage";
+import type { ProjectType } from "@/lib/types";
 import { env } from "@/lib/env";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 
@@ -46,8 +52,15 @@ export default function IdentificacaoPage() {
   const mountedAt = useRef<number | null>(null);
 
   useEffect(() => {
+    // Se cliente já tem tipo de projeto salvo localmente, vai direto pro
+    // dashboard — evita repreencher passos que já foram feitos.
+    const c = loadCliente();
+    if (c?.projectType) {
+      router.replace("/dashboard");
+      return;
+    }
     mountedAt.current = Date.now();
-  }, []);
+  }, [router]);
 
   const turnstileEnabled = !!env.turnstileSiteKey;
 
@@ -71,6 +84,7 @@ export default function IdentificacaoPage() {
       : undefined;
 
     // Tela 1 enxuta — só nome + whatsapp. Email/empresa/contrato vêm em /contrato.
+    let nextRoute = "/projeto";
     fetch("/api/auth/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -84,14 +98,25 @@ export default function IdentificacaoPage() {
     })
       .then(async (res) => {
         if (!res.ok) return;
-        const data = (await res.json()) as { clientId?: string };
+        const data = (await res.json()) as {
+          clientId?: string;
+          isExisting?: boolean;
+          projectType?: ProjectType | null;
+        };
         if (data.clientId) setClientId(data.clientId);
+
+        // Se cliente já existe E tem tipo de projeto, sincroniza local e
+        // pula direto pro dashboard (evita repreencher /projeto).
+        if (data.isExisting && data.projectType) {
+          setProjectType(data.projectType);
+          nextRoute = "/dashboard";
+        }
       })
       .catch(() => {
         // Modo demo / offline — segue só com localStorage
       })
       .finally(() => {
-        router.push("/projeto");
+        router.push(nextRoute);
       });
   }
 

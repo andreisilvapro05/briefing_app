@@ -91,19 +91,47 @@ export async function POST(request: NextRequest) {
 
   const service = createSupabaseServiceRoleClient();
 
-  // Sem email na Tela 1 — não dá pra fazer upsert por email. Sempre cria
-  // um novo registro. Caso queira de-duplicar, faz por whatsapp:
-  const { data: existing } = parsed.email
-    ? await service
-        .from("clients")
-        .select("id")
-        .eq("email", parsed.email)
-        .maybeSingle()
-    : { data: null };
+  // Dedup: tenta encontrar cliente existente por email OU por WhatsApp.
+  // WhatsApp é normalizado pra só dígitos pra evitar miss por formatação.
+  const whatsappDigits = parsed.whatsapp.replace(/\D/g, "");
+  let existing: {
+    id: string;
+    project_type: string | null;
+    contrato_preenchido_at: string | null;
+    chamada_agendada_at: string | null;
+  } | null = null;
+
+  if (parsed.email) {
+    const { data } = await service
+      .from("clients")
+      .select("id, project_type, contrato_preenchido_at, chamada_agendada_at")
+      .eq("email", parsed.email)
+      .maybeSingle();
+    existing = data;
+  }
+
+  if (!existing && whatsappDigits) {
+    // Procura por whatsapp normalizado — comparamos versões com e sem caracteres
+    // de formatação pra cobrir registros antigos.
+    const { data: candidates } = await service
+      .from("clients")
+      .select("id, whatsapp, project_type, contrato_preenchido_at, chamada_agendada_at");
+    if (candidates) {
+      const found = candidates.find(
+        (c) => (c.whatsapp ?? "").replace(/\D/g, "") === whatsappDigits
+      );
+      if (found) existing = found;
+    }
+  }
 
   let clientId: string;
+  let isExisting = false;
+  let projectType: string | null = null;
+
   if (existing) {
     clientId = existing.id;
+    projectType = existing.project_type;
+    isExisting = true;
     await service
       .from("clients")
       .update({
@@ -137,7 +165,7 @@ export async function POST(request: NextRequest) {
 
   // Magic link só dispara se temos email (Tela 1 não pede mais email).
   if (!parsed.email) {
-    return NextResponse.json({ clientId, ok: true });
+    return NextResponse.json({ clientId, ok: true, isExisting, projectType });
   }
 
   const { error: authErr } = await service.auth.signInWithOtp({
@@ -158,7 +186,7 @@ export async function POST(request: NextRequest) {
     return errorResponse("otp-failed", 500, authErr);
   }
 
-  return NextResponse.json({ clientId, ok: true });
+  return NextResponse.json({ clientId, ok: true, isExisting, projectType });
 }
 
 async function verifyTurnstile(secret: string, token: string): Promise<boolean> {
