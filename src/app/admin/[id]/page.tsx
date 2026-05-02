@@ -31,12 +31,22 @@ interface BriefingFile {
 
 export default async function AdminClientPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ key?: string }>;
 }) {
   const { id } = await params;
-  const user = await getAdminUser();
+  const sp = await searchParams;
+  const urlKey = sp.key ?? null;
+  const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
+
+  // Se autenticou via URL key, mantém em links e forms.
+  const keyParam =
+    user.source === "url-key" && urlKey
+      ? `?key=${encodeURIComponent(urlKey)}`
+      : "";
 
   const service = createSupabaseServiceRoleClient();
 
@@ -79,7 +89,7 @@ export default async function AdminClientPage({
     <Shell tone="cream" sectionLabel={`Briefing · ${client.empresa}`}>
       <ContentFrame size="xl">
         <Link
-          href="/admin"
+          href={`/admin${keyParam}`}
           className="text-xs text-fysi-muted hover:text-fysi-deep mb-6 inline-block"
         >
           ← Voltar à lista
@@ -104,6 +114,9 @@ export default async function AdminClientPage({
                 className="mt-2 flex items-center gap-2"
               >
                 <input type="hidden" name="clientId" value={client.id} />
+                {urlKey ? (
+                  <input type="hidden" name="key" value={urlKey} />
+                ) : null}
                 <select
                   name="status"
                   defaultValue={client.status}
@@ -132,6 +145,9 @@ export default async function AdminClientPage({
             <div className="flex flex-wrap gap-2 pt-3 border-t border-fysi-line">
               <form action={resendClientLinkAction}>
                 <input type="hidden" name="email" value={client.email} />
+                {urlKey ? (
+                  <input type="hidden" name="key" value={urlKey} />
+                ) : null}
                 <Button type="submit" size="sm" variant="secondary">
                   Reenviar link
                 </Button>
@@ -139,6 +155,9 @@ export default async function AdminClientPage({
               {!client.clickup_task_id ? (
                 <form action={sendToClickupAction}>
                   <input type="hidden" name="clientId" value={client.id} />
+                  {urlKey ? (
+                    <input type="hidden" name="key" value={urlKey} />
+                  ) : null}
                   <Button type="submit" size="sm" variant="primary">
                     Enviar ao ClickUp
                   </Button>
@@ -171,6 +190,9 @@ export default async function AdminClientPage({
                         value={client.id}
                       />
                       <input type="hidden" name="target" value={String(idx)} />
+                      {urlKey ? (
+                        <input type="hidden" name="key" value={urlKey} />
+                      ) : null}
                       <button
                         type="submit"
                         className={`w-full text-left rounded-[12px] border px-3 py-2 transition ${
@@ -198,6 +220,9 @@ export default async function AdminClientPage({
               <form action={setStageAction}>
                 <input type="hidden" name="clientId" value={client.id} />
                 <input type="hidden" name="direction" value="prev" />
+                {urlKey ? (
+                  <input type="hidden" name="key" value={urlKey} />
+                ) : null}
                 <Button
                   type="submit"
                   size="sm"
@@ -215,6 +240,9 @@ export default async function AdminClientPage({
               <form action={setStageAction}>
                 <input type="hidden" name="clientId" value={client.id} />
                 <input type="hidden" name="direction" value="next" />
+                {urlKey ? (
+                  <input type="hidden" name="key" value={urlKey} />
+                ) : null}
                 <Button
                   type="submit"
                   size="sm"

@@ -30,6 +30,7 @@ interface SearchParams {
   q?: string;
   status?: string;
   tipo?: string;
+  key?: string;
 }
 
 export default async function AdminPage({
@@ -37,13 +38,18 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
-  const user = await getAdminUser();
+  const params = await searchParams;
+  const urlKey = params.key ?? null;
+  const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
-  const params = await searchParams;
   const q = (params.q ?? "").trim();
   const statusFilter = params.status ?? "";
   const tipoFilter = params.tipo ?? "";
+
+  // Se autenticou via URL key, mantém ele em todos os links pra preservar sessão.
+  const keyParam = user.source === "url-key" && urlKey ? `&key=${encodeURIComponent(urlKey)}` : "";
+  const keyParamFirst = user.source === "url-key" && urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
   const service = createSupabaseServiceRoleClient();
   let query = service
@@ -120,6 +126,10 @@ export default async function AdminPage({
           method="get"
           className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 grid sm:grid-cols-[1fr_auto_auto_auto] gap-3"
         >
+          {/* Preserva ?key= entre filtros se for esse o método de auth */}
+          {user.source === "url-key" && urlKey ? (
+            <input type="hidden" name="key" value={urlKey} />
+          ) : null}
           <input
             type="search"
             name="q"
@@ -251,7 +261,7 @@ export default async function AdminPage({
                       </td>
                       <td className="px-5 py-4 text-right">
                         <Link
-                          href={`/admin/${c.id}`}
+                          href={`/admin/${c.id}${keyParamFirst}`}
                           className="text-xs font-medium text-fysi-deep hover:underline"
                         >
                           Ver briefing →

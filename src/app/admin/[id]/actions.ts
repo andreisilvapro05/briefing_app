@@ -12,7 +12,8 @@ import { getServerEnv } from "@/lib/env";
  * Reenviar magic link para o cliente (acionado pelo admin).
  */
 export async function resendClientLinkAction(formData: FormData) {
-  const user = await getAdminUser();
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
   const email = String(formData.get("email") ?? "");
@@ -50,7 +51,8 @@ export async function resendClientLinkAction(formData: FormData) {
  * Útil quando o auto-envio na conclusão falhou ou ainda não rodou.
  */
 export async function sendToClickupAction(formData: FormData) {
-  const user = await getAdminUser();
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
   const clientId = String(formData.get("clientId") ?? "");
@@ -103,7 +105,8 @@ export async function sendToClickupAction(formData: FormData) {
  * Avança ou retrocede o stage do projeto. Aceita 'next', 'prev' ou número absoluto.
  */
 export async function setStageAction(formData: FormData) {
-  const user = await getAdminUser();
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
   const clientId = String(formData.get("clientId") ?? "");
@@ -150,7 +153,8 @@ export async function setStageAction(formData: FormData) {
  * Atualiza o status geral do cliente (em-andamento/concluido/abandonado).
  */
 export async function setClientStatusAction(formData: FormData) {
-  const user = await getAdminUser();
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
   const clientId = String(formData.get("clientId") ?? "");
