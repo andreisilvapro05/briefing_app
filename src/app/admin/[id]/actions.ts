@@ -97,3 +97,73 @@ export async function sendToClickupAction(formData: FormData) {
 
   revalidatePath(`/admin/${clientId}`);
 }
+
+
+/**
+ * Avança ou retrocede o stage do projeto. Aceita 'next', 'prev' ou número absoluto.
+ */
+export async function setStageAction(formData: FormData) {
+  const user = await getAdminUser();
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  const direction = String(formData.get("direction") ?? "");
+  const targetStr = String(formData.get("target") ?? "");
+
+  if (!clientId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: client } = await service
+    .from("clients")
+    .select("current_stage_index, project_type")
+    .eq("id", clientId)
+    .maybeSingle();
+  if (!client) return;
+
+  // Calcula stage máximo a partir do project_type. Sem chamada cara — números fixos.
+  // landing-sem-copy = 5 stages (índices 0–4); demais = 6 stages (0–5).
+  const maxIndex = client.project_type === "landing-sem-copy" ? 4 : 5;
+
+  let next = client.current_stage_index ?? 0;
+  if (direction === "next") next = Math.min(maxIndex, next + 1);
+  else if (direction === "prev") next = Math.max(0, next - 1);
+  else if (targetStr) {
+    const target = parseInt(targetStr, 10);
+    if (!Number.isNaN(target)) next = Math.max(0, Math.min(maxIndex, target));
+  }
+
+  if (next === (client.current_stage_index ?? 0)) {
+    revalidatePath(`/admin/${clientId}`);
+    return;
+  }
+
+  await service
+    .from("clients")
+    .update({ current_stage_index: next })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin");
+}
+
+/**
+ * Atualiza o status geral do cliente (em-andamento/concluido/abandonado).
+ */
+export async function setClientStatusAction(formData: FormData) {
+  const user = await getAdminUser();
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  const status = String(formData.get("status") ?? "");
+  const allowed = ["nao-iniciado", "em-andamento", "concluido", "abandonado"];
+  if (!clientId || !allowed.includes(status)) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("clients")
+    .update({ status })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin");
+}

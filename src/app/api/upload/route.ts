@@ -170,6 +170,11 @@ export async function POST(request: NextRequest) {
       mime_type: file.type,
       size_bytes: file.size,
     });
+    // Atualiza marker de atividade do cliente (indicador "parado" no admin).
+    await service
+      .from("clients")
+      .update({ last_client_activity_at: new Date().toISOString() })
+      .eq("id", clientId);
   }
 
   return NextResponse.json({

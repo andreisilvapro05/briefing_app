@@ -5,7 +5,13 @@ import { Eyebrow, Pill } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { resendClientLinkAction, sendToClickupAction } from "./actions";
+import { buildTimeline } from "@/lib/project-types";
+import {
+  resendClientLinkAction,
+  sendToClickupAction,
+  setClientStatusAction,
+  setStageAction,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +68,13 @@ export default async function AdminClientPage({
   const byBloco = groupByBloco((responses as BriefingResponse[]) ?? []);
   const filesList: BriefingFile[] = (files as BriefingFile[]) ?? [];
 
+  // Resolve stages a partir do project_type. Se project_type estiver nulo,
+  // mostra placeholder vazio.
+  const etapas = client.project_type
+    ? buildTimeline(client.project_type)
+    : [];
+  const currentStage = client.current_stage_index ?? 0;
+
   return (
     <Shell tone="cream" sectionLabel={`Briefing · ${client.empresa}`}>
       <ContentFrame size="xl">
@@ -83,13 +96,30 @@ export default async function AdminClientPage({
             </p>
           </div>
 
-          <aside className="bg-white border border-fysi-line rounded-[16px] p-5 flex flex-col gap-3 text-sm">
+          <aside className="bg-white border border-fysi-line rounded-[16px] p-5 flex flex-col gap-4 text-sm">
             <div>
-              <Eyebrow>Status</Eyebrow>
-              <p className="mt-1 text-fysi-deep font-medium capitalize">
-                {client.status.replace("-", " ")}
-              </p>
+              <Eyebrow>Status do briefing</Eyebrow>
+              <form
+                action={setClientStatusAction}
+                className="mt-2 flex items-center gap-2"
+              >
+                <input type="hidden" name="clientId" value={client.id} />
+                <select
+                  name="status"
+                  defaultValue={client.status}
+                  className="text-sm rounded-[10px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep focus:outline-none focus:border-fysi-deep/40 flex-1"
+                >
+                  <option value="nao-iniciado">Não iniciado</option>
+                  <option value="em-andamento">Em andamento</option>
+                  <option value="concluido">Concluído</option>
+                  <option value="abandonado">Abandonado</option>
+                </select>
+                <Button type="submit" size="sm" variant="secondary">
+                  Salvar
+                </Button>
+              </form>
             </div>
+
             {client.clickup_task_id ? (
               <div>
                 <Eyebrow>ClickUp</Eyebrow>
@@ -98,7 +128,8 @@ export default async function AdminClientPage({
                 </p>
               </div>
             ) : null}
-            <div className="flex flex-wrap gap-2 pt-2 border-t border-fysi-line mt-2">
+
+            <div className="flex flex-wrap gap-2 pt-3 border-t border-fysi-line">
               <form action={resendClientLinkAction}>
                 <input type="hidden" name="email" value={client.email} />
                 <Button type="submit" size="sm" variant="secondary">
@@ -116,6 +147,86 @@ export default async function AdminClientPage({
             </div>
           </aside>
         </header>
+
+        {/* Pipeline / stage management — só aparece se project_type definido */}
+        {etapas.length > 0 ? (
+          <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+            <div className="flex items-baseline justify-between mb-4">
+              <Eyebrow>Pipeline do projeto</Eyebrow>
+              <span className="text-xs text-fysi-muted">
+                Stage {currentStage + 1} de {etapas.length}
+              </span>
+            </div>
+
+            <ol className="grid sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-5">
+              {etapas.map((etapa, idx) => {
+                const isDone = idx < currentStage;
+                const isCurrent = idx === currentStage;
+                return (
+                  <li key={`${etapa.numero}-${etapa.titulo}`}>
+                    <form action={setStageAction}>
+                      <input
+                        type="hidden"
+                        name="clientId"
+                        value={client.id}
+                      />
+                      <input type="hidden" name="target" value={String(idx)} />
+                      <button
+                        type="submit"
+                        className={`w-full text-left rounded-[12px] border px-3 py-2 transition ${
+                          isCurrent
+                            ? "bg-fysi-deep text-fysi-cream border-fysi-deep"
+                            : isDone
+                              ? "bg-fysi-mint border-fysi-mint-vivid/40 text-fysi-deep"
+                              : "bg-white border-fysi-line text-fysi-muted hover:border-fysi-deep/30 hover:text-fysi-deep"
+                        }`}
+                      >
+                        <span className="block text-[0.65rem] uppercase tracking-[0.12em] font-medium opacity-70">
+                          Etapa {String(idx + 1).padStart(2, "0")}
+                        </span>
+                        <span className="block text-xs font-medium leading-tight mt-0.5">
+                          {etapa.titulo}
+                        </span>
+                      </button>
+                    </form>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="flex items-center justify-between gap-3 pt-4 border-t border-fysi-line">
+              <form action={setStageAction}>
+                <input type="hidden" name="clientId" value={client.id} />
+                <input type="hidden" name="direction" value="prev" />
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="ghost"
+                  disabled={currentStage <= 0}
+                >
+                  ← Stage anterior
+                </Button>
+              </form>
+
+              <span className="text-sm text-fysi-deep font-medium">
+                {etapas[currentStage]?.titulo ?? "—"}
+              </span>
+
+              <form action={setStageAction}>
+                <input type="hidden" name="clientId" value={client.id} />
+                <input type="hidden" name="direction" value="next" />
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="primary"
+                  disabled={currentStage >= etapas.length - 1}
+                >
+                  Avançar stage →
+                </Button>
+              </form>
+            </div>
+          </section>
+        ) : null}
 
         <div className="flex flex-col gap-6">
           {Array.from(byBloco.entries()).map(([blocoId, fields]) => (

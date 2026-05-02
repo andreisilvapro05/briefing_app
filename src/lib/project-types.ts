@@ -32,7 +32,10 @@ export const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
  * Timeline de etapas mostrada ao cliente no dashboard.
  * Onboarding sempre está em-andamento — é onde o cliente está agora.
  */
-export function buildTimeline(projectType: ProjectType): EtapaProjeto[] {
+export function buildTimeline(
+  projectType: ProjectType,
+  currentStageIndex: number = 0
+): EtapaProjeto[] {
   const onboarding: EtapaProjeto = {
     numero: 1,
     titulo: "Onboarding",
@@ -43,7 +46,7 @@ export function buildTimeline(projectType: ProjectType): EtapaProjeto[] {
       "Envio de fotos, links e dados",
       "Chamada de alinhamento com moodboard",
     ],
-    status: "em-andamento",
+    status: "pendente",
   };
 
   const copyStep: EtapaProjeto = {
@@ -104,6 +107,15 @@ export function buildTimeline(projectType: ProjectType): EtapaProjeto[] {
       ? [onboarding, designStep, ajustes, implementacao, entrega]
       : [onboarding, copyStep, designStep, ajustes, implementacao, entrega];
 
-  // Renumera sequencialmente (já que landing-sem-copy pula a etapa 2 do PRD)
-  return etapas.map((etapa, idx) => ({ ...etapa, numero: idx + 1 }));
+  // Renumera sequencialmente e aplica o status com base no currentStageIndex
+  return etapas.map((etapa, idx) => ({
+    ...etapa,
+    numero: idx + 1,
+    status:
+      idx < currentStageIndex
+        ? "concluida"
+        : idx === currentStageIndex
+          ? "em-andamento"
+          : "pendente",
+  }));
 }

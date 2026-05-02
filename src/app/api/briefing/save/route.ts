@@ -69,5 +69,11 @@ export async function POST(request: NextRequest) {
     return errorResponse("save-failed", 500, error);
   }
 
+  // Toca last_client_activity_at pro indicador de "parado" no /admin.
+  await supabase
+    .from("clients")
+    .update({ last_client_activity_at: new Date().toISOString() })
+    .eq("id", client.id);
+
   return NextResponse.json({ ok: true });
 }

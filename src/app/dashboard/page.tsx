@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [responses, setResponses] = useState<Record<string, unknown>>({});
+  const [serverStageIndex, setServerStageIndex] = useState<number>(0);
 
   useEffect(() => {
     const c = loadCliente();
@@ -35,6 +36,25 @@ export default function DashboardPage() {
     setCliente(c);
     setResponses(getAllResponses());
     setLoaded(true);
+
+    // Busca stage real do servidor (atualizado pelo time Fysi via /admin).
+    // UUID local pode não ainda existir no banco em modo demo — fail silent.
+    if (c.id) {
+      fetch("/api/me/stage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: c.id }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data && typeof data.stageIndex === "number") {
+            setServerStageIndex(data.stageIndex);
+          }
+        })
+        .catch(() => {
+          // Sem servidor / sem cliente no banco — mantém stage 0
+        });
+    }
   }, [router]);
 
   const projectInfo = useMemo(
@@ -46,8 +66,11 @@ export default function DashboardPage() {
   );
 
   const etapas = useMemo(
-    () => (cliente?.projectType ? buildTimeline(cliente.projectType) : []),
-    [cliente]
+    () =>
+      cliente?.projectType
+        ? buildTimeline(cliente.projectType, serverStageIndex)
+        : [],
+    [cliente, serverStageIndex]
   );
 
   if (!loaded || !cliente || !projectInfo) {
