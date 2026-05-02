@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
     const service = createSupabaseServiceRoleClient();
     const { data, error } = await service
       .from("clients")
-      .select("current_stage_index, status, project_type")
+      .select(
+        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at"
+      )
       .eq("id", parsed.clientId)
       .maybeSingle();
 
@@ -52,6 +54,10 @@ export async function POST(request: NextRequest) {
       stageIndex: data.current_stage_index ?? 0,
       status: data.status,
       projectType: data.project_type,
+      contratoPreenchido: !!data.contrato_preenchido_at,
+      chamadaAgendada: !!data.chamada_agendada_at,
+      chamadaData: data.chamada_data,
+      briefingSubmetido: !!data.briefing_submitted_at,
     });
   } catch (err) {
     logServerError("me.stage.unexpected", err);

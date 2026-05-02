@@ -22,6 +22,8 @@ export default function DashboardPage() {
   const [loaded, setLoaded] = useState(false);
   const [responses, setResponses] = useState<Record<string, unknown>>({});
   const [serverStageIndex, setServerStageIndex] = useState<number>(0);
+  const [contratoPreenchido, setContratoPreenchido] = useState(false);
+  const [chamadaAgendada, setChamadaAgendada] = useState(false);
 
   useEffect(() => {
     const c = loadCliente();
@@ -37,8 +39,7 @@ export default function DashboardPage() {
     setResponses(getAllResponses());
     setLoaded(true);
 
-    // Busca stage real do servidor (atualizado pelo time Fysi via /admin).
-    // UUID local pode não ainda existir no banco em modo demo — fail silent.
+    // Busca stage + flags do servidor.
     if (c.id) {
       fetch("/api/me/stage", {
         method: "POST",
@@ -50,9 +51,11 @@ export default function DashboardPage() {
           if (data && typeof data.stageIndex === "number") {
             setServerStageIndex(data.stageIndex);
           }
+          if (data?.contratoPreenchido) setContratoPreenchido(true);
+          if (data?.chamadaAgendada) setChamadaAgendada(true);
         })
         .catch(() => {
-          // Sem servidor / sem cliente no banco — mantém stage 0
+          // Sem servidor / sem cliente no banco — mantém defaults
         });
     }
   }, [router]);
@@ -121,6 +124,56 @@ export default function DashboardPage() {
             {projectInfo.title}
           </Pill>
         </div>
+
+        {/* Card "Próximos passos" — 3 fases clicáveis */}
+        <section className="mb-10">
+          <Eyebrow className="mb-3 block">Próximos passos</Eyebrow>
+          <div className="grid sm:grid-cols-3 gap-3">
+            <PhaseCard
+              numero="01"
+              titulo="Dados pra contrato"
+              descricao={
+                contratoPreenchido
+                  ? "Informações enviadas. Você pode atualizar quando quiser."
+                  : "Endereço, CPF e razão social pra emitir contrato."
+              }
+              done={contratoPreenchido}
+              actionLabel={contratoPreenchido ? "Editar dados →" : "Preencher agora →"}
+              onClick={() => router.push("/contrato")}
+            />
+            <PhaseCard
+              numero="02"
+              titulo="Agendar chamada"
+              descricao={
+                chamadaAgendada
+                  ? "Chamada confirmada. Você recebe os detalhes por e-mail."
+                  : "30 min com a Karine pra alinhar moodboard e cronograma."
+              }
+              done={chamadaAgendada}
+              actionLabel={chamadaAgendada ? "Reagendar →" : "Escolher horário →"}
+              onClick={() => router.push("/agendar")}
+            />
+            <PhaseCard
+              numero="03"
+              titulo="Preencher briefing"
+              descricao={
+                blocosPreenchidos === blocosTotal && blocosTotal > 0
+                  ? "Briefing completo. Aguarde retorno do time Fysi."
+                  : `${blocosPreenchidos} de ${blocosTotal} blocos preenchidos.`
+              }
+              done={blocosPreenchidos === blocosTotal && blocosTotal > 0}
+              actionLabel={
+                blocosPreenchidos === 0
+                  ? "Iniciar briefing →"
+                  : blocosPreenchidos === blocosTotal
+                    ? "Revisar →"
+                    : "Continuar →"
+              }
+              onClick={() => router.push("/briefing")}
+              highlighted={contratoPreenchido && !chamadaAgendada ? false : !contratoPreenchido ? false : true}
+            />
+          </div>
+        </section>
 
         <div className="grid lg:grid-cols-[1.1fr_1fr] gap-8">
           {/* Coluna esquerda — Timeline */}
@@ -253,5 +306,94 @@ export default function DashboardPage() {
         </div>
       </ContentFrame>
     </Shell>
+  );
+}
+
+
+interface PhaseCardProps {
+  numero: string;
+  titulo: string;
+  descricao: string;
+  done: boolean;
+  actionLabel: string;
+  onClick: () => void;
+  highlighted?: boolean;
+}
+
+function PhaseCard({
+  numero,
+  titulo,
+  descricao,
+  done,
+  actionLabel,
+  onClick,
+  highlighted,
+}: PhaseCardProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        "text-left rounded-[20px] border p-5 transition flex flex-col gap-2 " +
+        (done
+          ? "bg-fysi-mint border-fysi-mint-vivid/40 hover:border-fysi-deep/30"
+          : highlighted
+            ? "bg-fysi-deep text-fysi-cream border-fysi-deep hover:bg-fysi-deep/95"
+            : "bg-white border-fysi-line hover:border-fysi-deep/30")
+      }
+    >
+      <div className="flex items-center justify-between">
+        <span
+          className={
+            "text-[0.7rem] uppercase tracking-[0.14em] font-medium " +
+            (done
+              ? "text-fysi-deep/70"
+              : highlighted
+                ? "text-fysi-mint/70"
+                : "text-fysi-muted")
+          }
+        >
+          Etapa {numero}
+        </span>
+        {done ? (
+          <span className="inline-flex items-center gap-1 text-[0.65rem] uppercase tracking-[0.1em] font-medium text-fysi-deep">
+            <span className="h-1.5 w-1.5 rounded-full bg-fysi-deep" />
+            Pronto
+          </span>
+        ) : null}
+      </div>
+      <h3
+        className={
+          "text-base font-medium tracking-tight " +
+          (highlighted && !done ? "text-fysi-cream" : "text-fysi-deep")
+        }
+      >
+        {titulo}
+      </h3>
+      <p
+        className={
+          "text-xs leading-relaxed " +
+          (done
+            ? "text-fysi-deep/70"
+            : highlighted
+              ? "text-fysi-mint/80"
+              : "text-fysi-muted")
+        }
+      >
+        {descricao}
+      </p>
+      <span
+        className={
+          "mt-2 text-xs font-medium " +
+          (done
+            ? "text-fysi-deep"
+            : highlighted
+              ? "text-fysi-yellow"
+              : "text-fysi-deep")
+        }
+      >
+        {actionLabel}
+      </span>
+    </button>
   );
 }
