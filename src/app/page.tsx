@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eyebrow } from "@/components/ui/pill";
 import { saveCliente, loadCliente, setClientId } from "@/lib/storage";
+import { env } from "@/lib/env";
+import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 
 interface FormState {
   nome: string;
@@ -63,11 +65,14 @@ export default function IdentificacaoPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const [honeypot, setHoneypot] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState<string>("");
   const mountedAt = useRef<number | null>(null);
 
   useEffect(() => {
     mountedAt.current = Date.now();
   }, []);
+
+  const turnstileEnabled = !!env.turnstileSiteKey;
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -88,12 +93,15 @@ export default function IdentificacaoPage() {
       ? Date.now() - mountedAt.current
       : undefined;
 
-    // Cria cliente no Supabase e dispara magic link.
-    // hp = honeypot (campo invisível). elapsedMs = anti-bot timing.
     fetch("/api/auth/start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...values, hp: honeypot, elapsedMs }),
+      body: JSON.stringify({
+        ...values,
+        hp: honeypot,
+        elapsedMs,
+        turnstileToken: turnstileToken || undefined,
+      }),
     })
       .then(async (res) => {
         if (!res.ok) return;
@@ -192,6 +200,14 @@ export default function IdentificacaoPage() {
               onChange={(e) => setHoneypot(e.target.value)}
             />
           </div>
+
+          {turnstileEnabled ? (
+            <TurnstileWidget
+              siteKey={env.turnstileSiteKey}
+              onToken={setTurnstileToken}
+              onExpire={() => setTurnstileToken("")}
+            />
+          ) : null}
 
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-fysi-line">
             <span className="text-xs text-fysi-muted leading-relaxed">
