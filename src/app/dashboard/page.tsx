@@ -12,8 +12,12 @@ import {
   PROJECT_TYPE_OPTIONS,
 } from "@/lib/project-types";
 import { blocosForProject } from "@/lib/briefing-schema";
-import { loadCliente } from "@/lib/storage";
-import { getAllResponses } from "@/lib/briefing-store";
+import { loadCliente, clearCliente } from "@/lib/storage";
+import {
+  getAllResponses,
+  clearAllResponses,
+  pullResponsesFromServer,
+} from "@/lib/briefing-store";
 import type { Cliente } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -35,12 +39,27 @@ export default function DashboardPage() {
       router.replace("/projeto");
       return;
     }
+    // Robustez: tipo de projeto inválido/legado — manda re-escolher em vez
+    // de travar a tela em "Carregando…".
+    const tipoConhecido = PROJECT_TYPE_OPTIONS.some(
+      (p) => p.id === c.projectType
+    );
+    if (!tipoConhecido) {
+      router.replace("/projeto");
+      return;
+    }
     setCliente(c);
     setResponses(getAllResponses());
     setLoaded(true);
 
     // Busca stage + flags do servidor.
     if (c.id) {
+      // Puxa respostas salvas no servidor — continua de onde parou em
+      // qualquer aparelho (ou um sócio convidado vê o que já foi preenchido).
+      void pullResponsesFromServer(c.id).then(() =>
+        setResponses(getAllResponses())
+      );
+
       fetch("/api/me/stage", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,6 +94,14 @@ export default function DashboardPage() {
         : [],
     [cliente, serverStageIndex]
   );
+
+  function handleSair() {
+    // Limpa a sessão local. Essencial em computador compartilhado pra não
+    // vazar o briefing pra próxima pessoa. O cliente reentra em /entrar.
+    clearCliente();
+    clearAllResponses();
+    router.replace("/");
+  }
 
   if (!loaded || !cliente || !projectInfo) {
     return (
@@ -120,9 +147,16 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          <Pill tone="mint" className="self-start md:self-end">
-            {projectInfo.title}
-          </Pill>
+          <div className="flex flex-col items-start md:items-end gap-2">
+            <Pill tone="mint">{projectInfo.title}</Pill>
+            <button
+              type="button"
+              onClick={handleSair}
+              className="text-xs text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
+            >
+              Sair deste briefing
+            </button>
+          </div>
         </div>
 
         {/* Sequência de próximos passos — 3 fases ordenadas com setas.

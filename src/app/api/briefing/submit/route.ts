@@ -59,18 +59,35 @@ export async function POST(request: NextRequest) {
   // 1+2 — Persistência Supabase
   let clientId: string | undefined;
   try {
-    const supabase = await createSupabaseServerClient();
-    const { data: userData } = await supabase.auth.getUser();
-
     const service = createSupabaseServiceRoleClient();
-    if (userData.user) {
-      // Cliente já autenticado
-      const { data: existing } = await service
+
+    // Prefere o clientId que o cliente já tem (de /api/auth/start ou
+    // /api/auth/login) — evita criar um cliente duplicado no envio.
+    if (parsed.cliente.id) {
+      const { data: byId } = await service
         .from("clients")
         .select("id")
-        .eq("auth_user_id", userData.user.id)
+        .eq("id", parsed.cliente.id)
         .maybeSingle();
-      clientId = existing?.id;
+      clientId = byId?.id;
+    }
+
+    // Compat: fluxo legado por magic-link (sessão Supabase Auth).
+    if (!clientId) {
+      try {
+        const supabase = await createSupabaseServerClient();
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) {
+          const { data: existing } = await service
+            .from("clients")
+            .select("id")
+            .eq("auth_user_id", userData.user.id)
+            .maybeSingle();
+          clientId = existing?.id;
+        }
+      } catch {
+        // sem auth — segue pro caminho de criação
+      }
     }
 
     if (!clientId) {

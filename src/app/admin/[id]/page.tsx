@@ -1,11 +1,23 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { buildTimeline } from "@/lib/project-types";
+import { blocosForProject } from "@/lib/briefing-schema";
+import {
+  BLOCO_LABELS,
+  BLOCO_NUMBERS,
+  PROJECT_TYPE_LABELS,
+  fieldLabel,
+  valueLabel,
+  isFileField,
+  isEmpty,
+} from "@/lib/briefing-labels";
+import type { ProjectType } from "@/lib/types";
 import {
   resendClientLinkAction,
   sendToClickupAction,
@@ -85,8 +97,40 @@ export default async function AdminClientPage({
     : [];
   const currentStage = client.current_stage_index ?? 0;
 
+  // --- Visualização do briefing preenchido ---
+  // Blocos esperados, na ordem lógica do projeto. Mais quaisquer blocos com
+  // respostas que não pertençam ao tipo atual (ex.: tipo mudou depois).
+  const projectType = (client.project_type as ProjectType | null) ?? null;
+  const blocosBase = projectType ? blocosForProject(projectType) : [];
+  const baseIds = new Set(blocosBase.map((b) => b.id));
+  const blocosExtras = [...byBloco.keys()]
+    .filter((blocoId) => !baseIds.has(blocoId))
+    .map((blocoId) => ({
+      id: blocoId,
+      numero: BLOCO_NUMBERS[blocoId] ?? 0,
+      titulo: BLOCO_LABELS[blocoId] ?? blocoId,
+    }));
+  const blocosOrdenados = [...blocosBase, ...blocosExtras];
+
+  // Conta campos efetivamente preenchidos (ignora vazios) por bloco.
+  const camposPorBloco = new Map<string, number>();
+  let camposPreenchidos = 0;
+  for (const [blocoId, fields] of byBloco) {
+    const n = fields.filter((f) => !isEmpty(f.value)).length;
+    camposPorBloco.set(blocoId, n);
+    camposPreenchidos += n;
+  }
+  const briefingVazio = camposPreenchidos === 0;
+
+  const headerLinha = [client.nome, client.email, client.whatsapp]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <Shell tone="cream" sectionLabel={`Briefing · ${client.empresa}`}>
+    <Shell
+      tone="cream"
+      sectionLabel={`Briefing · ${client.empresa || client.nome}`}
+    >
       <ContentFrame size="xl">
         <Link
           href={`/admin${keyParam}`}
@@ -97,13 +141,16 @@ export default async function AdminClientPage({
 
         <header className="grid md:grid-cols-[2fr_1fr] gap-8 mb-10">
           <div>
-            <Eyebrow>{client.project_type ?? "—"}</Eyebrow>
+            <Eyebrow>
+              {client.project_type
+                ? PROJECT_TYPE_LABELS[client.project_type] ??
+                  client.project_type
+                : "Tipo a definir"}
+            </Eyebrow>
             <h1 className="fysi-display text-3xl md:text-4xl mt-2">
-              {client.empresa}
+              {client.empresa || client.nome}
             </h1>
-            <p className="text-fysi-muted text-sm mt-1">
-              {client.nome} · {client.email} · {client.whatsapp}
-            </p>
+            <p className="text-fysi-muted text-sm mt-1">{headerLinha}</p>
           </div>
 
           <aside className="bg-white border border-fysi-line rounded-[16px] p-5 flex flex-col gap-4 text-sm">
@@ -143,15 +190,17 @@ export default async function AdminClientPage({
             ) : null}
 
             <div className="flex flex-wrap gap-2 pt-3 border-t border-fysi-line">
-              <form action={resendClientLinkAction}>
-                <input type="hidden" name="email" value={client.email} />
-                {urlKey ? (
-                  <input type="hidden" name="key" value={urlKey} />
-                ) : null}
-                <Button type="submit" size="sm" variant="secondary">
-                  Reenviar link
-                </Button>
-              </form>
+              {client.email ? (
+                <form action={resendClientLinkAction}>
+                  <input type="hidden" name="email" value={client.email} />
+                  {urlKey ? (
+                    <input type="hidden" name="key" value={urlKey} />
+                  ) : null}
+                  <Button type="submit" size="sm" variant="secondary">
+                    Reenviar link
+                  </Button>
+                </form>
+              ) : null}
               {!client.clickup_task_id ? (
                 <form action={sendToClickupAction}>
                   <input type="hidden" name="clientId" value={client.id} />
@@ -256,62 +305,151 @@ export default async function AdminClientPage({
           </section>
         ) : null}
 
-        <div className="flex flex-col gap-6">
-          {Array.from(byBloco.entries()).map(([blocoId, fields]) => (
-            <section
-              key={blocoId}
-              className="bg-white border border-fysi-line rounded-[20px] p-6"
-            >
-              <Eyebrow>{blocoId}</Eyebrow>
-              <div className="mt-3 flex flex-col gap-4">
-                {fields.map((f) => (
-                  <div
-                    key={f.field_id}
-                    className="border-b border-fysi-line last:border-b-0 pb-4 last:pb-0"
-                  >
-                    <p className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
-                      {f.field_id.replace(`${blocoId}.`, "")}
-                    </p>
-                    <pre className="text-sm text-fysi-deep mt-1 whitespace-pre-wrap break-words font-sans">
-                      {renderValue(f.value)}
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
+        {/* Resumo de preenchimento do briefing */}
+        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <div className="flex items-baseline justify-between mb-4">
+            <Eyebrow>Preenchimento do briefing</Eyebrow>
+            <span className="text-xs text-fysi-muted">
+              {camposPreenchidos}{" "}
+              {camposPreenchidos === 1 ? "campo preenchido" : "campos preenchidos"}
+              {filesList.length > 0
+                ? ` · ${filesList.length} ${
+                    filesList.length === 1 ? "arquivo" : "arquivos"
+                  }`
+                : ""}
+            </span>
+          </div>
 
-          {filesList.length > 0 ? (
-            <section className="bg-white border border-fysi-line rounded-[20px] p-6">
-              <Eyebrow>Arquivos enviados</Eyebrow>
-              <ul className="mt-3 flex flex-col gap-2">
-                {filesList.map((f, i) => (
+          {blocosOrdenados.length > 0 ? (
+            <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {blocosOrdenados.map((bloco) => {
+                const n = camposPorBloco.get(bloco.id) ?? 0;
+                const feito = n > 0;
+                return (
                   <li
-                    key={i}
-                    className="flex items-center justify-between gap-3 border border-fysi-line rounded-[12px] px-3 py-2"
+                    key={bloco.id}
+                    className={`rounded-[12px] border px-3 py-2 ${
+                      feito
+                        ? "bg-fysi-mint border-fysi-mint-vivid/40"
+                        : "bg-fysi-cream/40 border-fysi-line"
+                    }`}
                   >
-                    <div className="flex flex-col min-w-0">
-                      <a
-                        href={f.public_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-fysi-deep font-medium hover:underline truncate"
-                      >
-                        {f.file_name}
-                      </a>
-                      <span className="text-xs text-fysi-muted">
-                        {f.field_id} · {f.mime_type ?? "—"}
+                    <span className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          feito ? "bg-fysi-deep" : "bg-fysi-line-strong"
+                        }`}
+                      />
+                      <span className="text-sm text-fysi-deep font-medium">
+                        {bloco.titulo}
                       </span>
-                    </div>
-                    <Pill tone="outline">
-                      {humanSize(f.size_bytes ?? 0)}
-                    </Pill>
+                    </span>
+                    <span className="block pl-4 text-xs text-fysi-muted mt-0.5">
+                      {feito
+                        ? `${n} ${n === 1 ? "campo" : "campos"}`
+                        : "Pendente"}
+                    </span>
                   </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </div>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-fysi-muted">
+              Tipo de projeto ainda não definido — sem blocos pra exibir.
+            </p>
+          )}
+        </section>
+
+        {/* Respostas detalhadas, bloco a bloco */}
+        {briefingVazio ? (
+          <section className="bg-white border border-fysi-line rounded-[20px] p-8 text-center">
+            <p className="text-fysi-deep font-medium mb-1">
+              Briefing ainda não preenchido
+            </p>
+            <p className="text-sm text-fysi-muted">
+              Este cliente ainda não enviou nenhuma resposta do briefing.
+            </p>
+          </section>
+        ) : (
+          <div className="flex flex-col gap-6">
+            {blocosOrdenados.map((bloco) => {
+              const fields = (byBloco.get(bloco.id) ?? []).filter(
+                (f) => !isEmpty(f.value)
+              );
+              return (
+                <section
+                  key={bloco.id}
+                  className="bg-white border border-fysi-line rounded-[20px] p-6"
+                >
+                  <div className="flex items-baseline justify-between gap-3">
+                    <Eyebrow>
+                      {bloco.numero ? `Bloco ${bloco.numero} · ` : ""}
+                      {bloco.titulo}
+                    </Eyebrow>
+                    <span className="text-xs text-fysi-muted shrink-0">
+                      {fields.length > 0
+                        ? `${fields.length} ${
+                            fields.length === 1 ? "resposta" : "respostas"
+                          }`
+                        : "Não preenchido"}
+                    </span>
+                  </div>
+
+                  {fields.length > 0 ? (
+                    <div className="mt-3 flex flex-col gap-4">
+                      {fields.map((f) => (
+                        <div
+                          key={f.field_id}
+                          className="border-b border-fysi-line last:border-b-0 pb-4 last:pb-0"
+                        >
+                          <p className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium mb-1">
+                            {fieldLabel(f.field_id)}
+                          </p>
+                          {renderFieldValue(f.field_id, f.value)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-fysi-muted mt-3">
+                      O cliente ainda não preencheu este bloco.
+                    </p>
+                  )}
+                </section>
+              );
+            })}
+
+            {filesList.length > 0 ? (
+              <section className="bg-white border border-fysi-line rounded-[20px] p-6">
+                <Eyebrow>Arquivos enviados</Eyebrow>
+                <ul className="mt-3 flex flex-col gap-2">
+                  {filesList.map((f, i) => (
+                    <li
+                      key={i}
+                      className="flex items-center justify-between gap-3 border border-fysi-line rounded-[12px] px-3 py-2"
+                    >
+                      <div className="flex flex-col min-w-0">
+                        <a
+                          href={f.public_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-fysi-deep font-medium hover:underline truncate"
+                        >
+                          {f.file_name}
+                        </a>
+                        <span className="text-xs text-fysi-muted">
+                          {fieldLabel(f.field_id)} · {f.mime_type ?? "—"}
+                        </span>
+                      </div>
+                      <Pill tone="outline">
+                        {humanSize(f.size_bytes ?? 0)}
+                      </Pill>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
+        )}
       </ContentFrame>
     </Shell>
   );
@@ -325,6 +463,46 @@ function groupByBloco(rows: BriefingResponse[]) {
     map.set(r.bloco_id, list);
   }
   return map;
+}
+
+/**
+ * Renderiza o valor de um campo da forma mais legível possível:
+ * uploads viram links, categóricos viram a label humana, o resto vira texto.
+ */
+function renderFieldValue(fullFieldId: string, value: unknown): ReactNode {
+  // Campo de upload — guarda [{ url, name, size, ... }]
+  if (isFileField(value)) {
+    const arquivos = value as Array<{ url: string; name: string }>;
+    return (
+      <ul className="flex flex-col gap-1">
+        {arquivos.map((arq, i) => (
+          <li key={i}>
+            <a
+              href={arq.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-fysi-deep underline underline-offset-2 hover:text-fysi-green break-words"
+            >
+              {arq.name}
+            </a>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  // Campo categórico (radio/select) — mostra a label humana.
+  const human = valueLabel(fullFieldId, value);
+  if (human) {
+    return <span className="text-sm text-fysi-deep">{human}</span>;
+  }
+
+  // Texto livre / número / objeto.
+  return (
+    <pre className="text-sm text-fysi-deep whitespace-pre-wrap break-words font-sans">
+      {renderValue(value)}
+    </pre>
+  );
 }
 
 function renderValue(value: unknown): string {

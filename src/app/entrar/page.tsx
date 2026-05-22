@@ -1,21 +1,29 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eyebrow } from "@/components/ui/pill";
+import { hydrateCliente } from "@/lib/storage";
+import { pullResponsesFromServer } from "@/lib/briefing-store";
+import type { ProjectType } from "@/lib/types";
 
 /**
- * Tela para reentrar pelo magic-link quando o cliente perdeu a sessão.
- * Não é a porta de entrada principal (essa é a Tela 1 — Identificação).
+ * Entrar no briefing de qualquer aparelho — WhatsApp + código de acesso.
+ *
+ * Permite reentrar depois de trocar de celular/computador e também que outra
+ * pessoa (um sócio) acesse o mesmo briefing. Ao entrar, baixa as respostas
+ * já salvas pra continuar de onde parou.
  */
 
 export default function EntrarPage() {
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "sent" | "error"
-  >("idle");
+  const router = useRouter();
+  const [whatsapp, setWhatsapp] = useState("");
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent) {
@@ -23,69 +31,100 @@ export default function EntrarPage() {
     setStatus("loading");
     setError(null);
     try {
-      const res = await fetch("/api/auth/resend", {
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ whatsapp, code }),
       });
+
       if (!res.ok) {
-        const body = await res.text();
-        throw new Error(body || "Não foi possível enviar o link.");
+        setStatus("error");
+        if (res.status === 401) {
+          setError("Código de acesso incorreto.");
+        } else if (res.status === 404) {
+          setError(
+            "Nenhum briefing encontrado com esse número de WhatsApp."
+          );
+        } else if (res.status === 503) {
+          setError("Acesso ainda não configurado. Fale com a equipe Fysi.");
+        } else {
+          setError("Não foi possível entrar. Tente novamente.");
+        }
+        return;
       }
-      setStatus("sent");
-    } catch (err) {
+
+      const data = (await res.json()) as {
+        id: string;
+        nome: string;
+        whatsapp: string;
+        email?: string;
+        empresa?: string;
+        projectType?: ProjectType;
+      };
+
+      hydrateCliente(data);
+      // Continua de onde parou — em qualquer aparelho.
+      await pullResponsesFromServer(data.id);
+      router.replace(data.projectType ? "/dashboard" : "/projeto");
+    } catch {
       setStatus("error");
-      setError(err instanceof Error ? err.message : "Erro inesperado.");
+      setError("Erro de conexão. Tente novamente.");
     }
   }
 
   return (
-    <Shell tone="aurora" sectionLabel="Acesso · Magic link">
+    <Shell tone="aurora" sectionLabel="Acesso · Entrar">
       <ContentFrame size="sm">
-        <Eyebrow>Reentrar no briefing</Eyebrow>
+        <Eyebrow>Entrar no seu briefing</Eyebrow>
         <h1 className="fysi-display text-3xl md:text-4xl mt-2 mb-3">
-          Vamos te enviar um link.
+          Acesse de qualquer aparelho.
         </h1>
         <p className="text-fysi-muted leading-relaxed mb-8">
-          Use o e-mail que você usou ao iniciar o briefing. O link chega na
-          sua caixa de entrada e te leva direto pro painel.
+          Use o WhatsApp que você informou ao começar o briefing e o código de
+          acesso que a equipe Fysi te passou. Funciona em qualquer celular ou
+          computador.
         </p>
 
-        {status === "sent" ? (
-          <div className="bg-white border border-fysi-line rounded-[20px] p-6">
-            <p className="text-fysi-deep font-medium mb-2">Link enviado.</p>
-            <p className="text-fysi-muted text-sm leading-relaxed">
-              Confira sua caixa de entrada (e a pasta de spam, por garantia).
-              O link expira em 24 horas.
-            </p>
-          </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white border border-fysi-line rounded-[20px] p-6 flex flex-col gap-5"
+        <form
+          onSubmit={handleSubmit}
+          className="bg-white border border-fysi-line rounded-[20px] p-6 flex flex-col gap-5"
+        >
+          <Input
+            label="WhatsApp"
+            name="whatsapp"
+            type="tel"
+            autoComplete="tel"
+            required
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            placeholder="(11) 90000-0000"
+          />
+          <Input
+            label="Código de acesso"
+            name="code"
+            required
+            autoComplete="off"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            placeholder="Código que a Fysi te passou"
+          />
+          {error ? <p className="text-xs text-red-600">{error}</p> : null}
+          <Button
+            type="submit"
+            disabled={status === "loading" || !whatsapp || !code}
+            fullWidth
           >
-            <Input
-              label="E-mail"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="seu@email.com"
-            />
-            {error ? (
-              <p className="text-xs text-red-600">{error}</p>
-            ) : null}
-            <Button
-              type="submit"
-              disabled={status === "loading"}
-              fullWidth
-            >
-              {status === "loading" ? "Enviando…" : "Enviar link"}
-            </Button>
-          </form>
-        )}
+            {status === "loading" ? "Entrando…" : "Entrar"}
+          </Button>
+        </form>
+
+        <p className="text-fysi-muted text-xs mt-6 leading-relaxed">
+          Ainda não começou um briefing?{" "}
+          <Link href="/" className="underline hover:text-fysi-deep">
+            Começar agora
+          </Link>
+          .
+        </p>
       </ContentFrame>
     </Shell>
   );

@@ -74,6 +74,33 @@ export function setClientId(serverId: string): Cliente | null {
   return updated;
 }
 
+/**
+ * Grava um cliente completo vindo do servidor (login por telefone + código,
+ * via /api/auth/login). Substitui qualquer cliente local. Usado pela /entrar.
+ */
+export function hydrateCliente(data: {
+  id: string;
+  nome: string;
+  whatsapp: string;
+  email?: string;
+  empresa?: string;
+  projectType?: ProjectType;
+}): Cliente {
+  const now = new Date().toISOString();
+  const cliente: Cliente = {
+    id: data.id,
+    nome: data.nome,
+    whatsapp: data.whatsapp,
+    email: data.email,
+    empresa: data.empresa,
+    projectType: data.projectType,
+    createdAt: now,
+    updatedAt: now,
+  };
+  if (isBrowser()) window.localStorage.setItem(KEY, JSON.stringify(cliente));
+  return cliente;
+}
+
 export function clearCliente() {
   if (!isBrowser()) return;
   window.localStorage.removeItem(KEY);

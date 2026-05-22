@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import { loadCliente } from "./storage";
 
 /**
  * Persistência das respostas do briefing.
@@ -45,6 +46,31 @@ export function clearAllResponses() {
   window.localStorage.removeItem(STORAGE_KEY);
 }
 
+/**
+ * Puxa as respostas salvas no servidor pra um clientId e funde no localStorage.
+ *
+ * Usado ao entrar de outro aparelho (/entrar) e ao abrir o painel — assim o
+ * cliente, ou um sócio convidado, continua de onde parou. Edições locais
+ * (autosave recente ainda não confirmado) vencem em caso de conflito.
+ */
+export async function pullResponsesFromServer(clientId: string): Promise<void> {
+  if (typeof window === "undefined" || !clientId) return;
+  try {
+    const res = await fetch("/api/briefing/load", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId }),
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { responses?: ResponsesMap };
+    if (!data.responses) return;
+    const local = readAll();
+    writeAll({ ...data.responses, ...local });
+  } catch {
+    // offline / modo demo — mantém o localStorage como está.
+  }
+}
+
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 /**
@@ -70,21 +96,22 @@ export function useBriefingField<T>(
       all[fullKey] = next as ResponseValue;
       writeAll(all);
 
-      // Tentativa de envio remoto. Se estiver em modo demo, ignora silenciosamente.
-      void fetch("/api/briefing/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ blocoId, fieldId, value: next }),
-      })
-        .then((res) => {
-          if (res.ok) setStatus("saved");
-          else if (res.status === 401)
-            setStatus("saved"); // demo mode: sem auth, mas localStorage OK
-          else setStatus("error");
+      // Envio remoto identificado pelo clientId (o cliente já tem em
+      // localStorage, vindo de /api/auth/start ou /api/auth/login). Sem
+      // clientId só dá pra guardar local — modo demo.
+      const clientId = loadCliente()?.id;
+      if (clientId) {
+        void fetch("/api/briefing/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId, blocoId, fieldId, value: next }),
         })
-        .catch(() => setStatus("saved")); // offline/demo: localStorage já salvou
+          // 4xx/5xx não é fatal — o localStorage já guardou a resposta.
+          .then(() => setStatus("saved"))
+          .catch(() => setStatus("saved")); // offline/demo: localStorage já salvou
+      }
 
-      // Em modo demo, marcar como saved imediatamente
+      // localStorage já garantiu a persistência local.
       setStatus("saved");
     },
     [blocoId, fieldId, fullKey]

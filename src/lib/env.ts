@@ -58,6 +58,10 @@ export function getServerEnv() {
     // Senha compartilhada do painel admin. Default fysi-2026 só pra dev —
     // SEMPRE setar via env em produção (e remover esse default).
     adminPassword: process.env.ADMIN_PASSWORD ?? "fysi-2026",
+    // Código de acesso global do cliente (telefone + código pra reentrar no
+    // briefing de qualquer aparelho). Default só pra dev — SEMPRE setar
+    // CLIENT_ACCESS_CODE via env em produção.
+    clientAccessCode: process.env.CLIENT_ACCESS_CODE ?? "fysi",
     adminEmails: (process.env.ADMIN_EMAILS ?? "")
       .split(",")
       .map((e) => e.trim().toLowerCase())

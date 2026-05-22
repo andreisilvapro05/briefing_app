@@ -12,8 +12,10 @@ import {
   loadCliente,
   setClientId,
   setProjectType,
+  clearCliente,
 } from "@/lib/storage";
-import type { ProjectType } from "@/lib/types";
+import { clearAllResponses } from "@/lib/briefing-store";
+import type { Cliente, ProjectType } from "@/lib/types";
 import { env } from "@/lib/env";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 
@@ -49,18 +51,29 @@ export default function IdentificacaoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [honeypot, setHoneypot] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string>("");
+  const [existing, setExisting] = useState<Cliente | null>(null);
   const mountedAt = useRef<number | null>(null);
 
   useEffect(() => {
-    // Se cliente já tem tipo de projeto salvo localmente, vai direto pro
-    // dashboard — evita repreencher passos que já foram feitos.
+    // Se já existe briefing neste navegador, mostra a escolha (continuar x
+    // começar novo) em vez de redirecionar automático e travar o acesso.
+    // Feito no efeito (não no init do useState) pra evitar hydration mismatch:
+    // o servidor não tem localStorage e renderiza o formulário.
     const c = loadCliente();
-    if (c?.projectType) {
-      router.replace("/dashboard");
-      return;
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (c) setExisting(c);
     mountedAt.current = Date.now();
-  }, [router]);
+  }, []);
+
+  function handleComecarNovo() {
+    // Limpa a sessão local — libera a Tela 1 pra um briefing do zero
+    // (cliente novo no mesmo navegador, ou o mesmo cliente em outro projeto).
+    clearCliente();
+    clearAllResponses();
+    setExisting(null);
+    setValues({ nome: "", whatsapp: "" });
+    setErrors({});
+  }
 
   const turnstileEnabled = !!env.turnstileSiteKey;
 
@@ -137,6 +150,63 @@ export default function IdentificacaoPage() {
           </Link>
         </div>
 
+        {existing ? (
+          <div className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <Eyebrow>Bem-vindo de volta</Eyebrow>
+              <h1 className="fysi-display text-3xl md:text-4xl">
+                Você já tem um briefing.
+              </h1>
+              <p className="text-fysi-muted leading-relaxed">
+                Encontramos um briefing em andamento neste navegador
+                {existing.empresa ? (
+                  <>
+                    {" "}
+                    de{" "}
+                    <strong className="text-fysi-deep">
+                      {existing.empresa}
+                    </strong>
+                  </>
+                ) : null}
+                . Quer continuar de onde parou ou começar um novo?
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                type="button"
+                size="lg"
+                onClick={() =>
+                  router.push(
+                    existing.projectType ? "/dashboard" : "/projeto"
+                  )
+                }
+                className="sm:w-auto w-full"
+              >
+                Continuar este briefing →
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                onClick={handleComecarNovo}
+                className="sm:w-auto w-full"
+              >
+                Começar um briefing novo
+              </Button>
+            </div>
+            <p className="text-xs text-fysi-muted border-t border-fysi-line pt-4">
+              Quer acessar de outro aparelho?{" "}
+              <Link
+                href="/entrar"
+                className="underline hover:text-fysi-deep font-medium"
+              >
+                Entrar com WhatsApp + código
+              </Link>
+              .
+            </p>
+          </div>
+        ) : (
+          <>
         <div className="flex flex-col gap-3 mb-10">
           <Eyebrow>Onboarding · Briefing</Eyebrow>
           <h1 className="fysi-display text-4xl md:text-5xl">
@@ -221,6 +291,18 @@ export default function IdentificacaoPage() {
             </Button>
           </div>
         </form>
+
+        <p className="text-xs text-fysi-muted mt-5 text-center">
+          Já começou um briefing antes?{" "}
+          <Link
+            href="/entrar"
+            className="underline hover:text-fysi-deep font-medium"
+          >
+            Entrar com WhatsApp + código
+          </Link>
+        </p>
+          </>
+        )}
       </ContentFrame>
     </Shell>
   );
