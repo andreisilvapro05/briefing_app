@@ -162,7 +162,20 @@ export async function POST(request: NextRequest) {
       .single();
     if (error) {
       logServerError("auth.start.create", error);
-      return errorResponse("create-failed", 500, error);
+      // DIAGNÓSTICO TEMPORÁRIO — expõe o erro do Postgres pra identificar a
+      // causa do 500 em produção. Remover depois.
+      return NextResponse.json(
+        {
+          error: "create-failed",
+          _debug: {
+            message: error.message,
+            code: (error as { code?: string }).code,
+            details: (error as { details?: string }).details,
+            hint: (error as { hint?: string }).hint,
+          },
+        },
+        { status: 500 }
+      );
     }
     clientId = data.id;
   }
