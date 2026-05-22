@@ -99,8 +99,9 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     id: found.id,
     nome: found.nome,
-    email: found.email ?? undefined,
-    empresa: found.empresa ?? undefined,
+    // email/empresa podem vir como "" (cliente ainda não fez /contrato).
+    email: found.email || undefined,
+    empresa: found.empresa || undefined,
     whatsapp: found.whatsapp,
     projectType: found.project_type ?? undefined,
   });

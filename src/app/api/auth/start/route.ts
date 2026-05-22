@@ -147,8 +147,12 @@ export async function POST(request: NextRequest) {
       .from("clients")
       .insert({
         nome: parsed.nome,
-        email: parsed.email ?? null,
-        empresa: parsed.empresa ?? null,
+        // email/empresa só são coletados depois, em /contrato. Inserimos
+        // string vazia (não null) pra funcionar mesmo que a migração que
+        // torna essas colunas nullable não tenha sido aplicada no banco.
+        // /contrato sobrescreve com os valores reais depois.
+        email: parsed.email ?? "",
+        empresa: parsed.empresa ?? "",
         whatsapp: parsed.whatsapp,
         status: "em-andamento",
         ip_address: ip as never,
