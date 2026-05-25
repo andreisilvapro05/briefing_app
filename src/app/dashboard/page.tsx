@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [serverStageIndex, setServerStageIndex] = useState<number>(0);
   const [contratoPreenchido, setContratoPreenchido] = useState(false);
   const [chamadaAgendada, setChamadaAgendada] = useState(false);
+  const [fysiDriveLink, setFysiDriveLink] = useState<string | null>(null);
 
   useEffect(() => {
     const c = loadCliente();
@@ -93,6 +94,7 @@ export default function DashboardPage() {
         }
         if (data?.contratoPreenchido) setContratoPreenchido(true);
         if (data?.chamadaAgendada) setChamadaAgendada(true);
+        if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
 
         // Puxa respostas salvas no servidor — continua de onde parou em
         // qualquer aparelho (ou um sócio convidado vê o que já foi preenchido).
@@ -348,6 +350,25 @@ export default function DashboardPage() {
                 })}
               </ul>
             </section>
+
+            {/* Drive da Fysi (só aparece se o admin já colou o link) */}
+            {fysiDriveLink ? (
+              <section className="bg-white border border-fysi-line rounded-[24px] p-6">
+                <Eyebrow className="mb-2 block">Sua pasta no Drive</Eyebrow>
+                <p className="text-sm text-fysi-muted leading-relaxed mb-3">
+                  A Fysi criou uma pasta no Drive pro seu projeto — é onde
+                  vamos compartilhar entregas e materiais.
+                </p>
+                <a
+                  href={fysiDriveLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+                >
+                  Abrir pasta no Drive →
+                </a>
+              </section>
+            ) : null}
 
             {/* Suporte */}
             <section className="bg-fysi-mint rounded-[24px] p-6">

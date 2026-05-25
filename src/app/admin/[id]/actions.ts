@@ -175,6 +175,41 @@ export async function setProjectTypeAction(formData: FormData) {
 }
 
 /**
+ * Salva os links de Drive (manual). Pode salvar um ou os dois.
+ * Aceita string vazia pra limpar; valida URL simples.
+ */
+export async function setDriveLinksAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const fysiRaw = String(formData.get("fysiDriveLink") ?? "").trim();
+  const clienteRaw = String(formData.get("clienteDriveLink") ?? "").trim();
+
+  // Sanitização leve: precisa começar com http(s):// ou ser vazio.
+  function clean(v: string): string | null {
+    if (!v) return null;
+    if (!/^https?:\/\//i.test(v)) return null;
+    return v.slice(0, 1000);
+  }
+
+  const update: Record<string, string | null> = {};
+  if (formData.has("fysiDriveLink")) update.fysi_drive_link = clean(fysiRaw);
+  if (formData.has("clienteDriveLink"))
+    update.cliente_drive_link = clean(clienteRaw);
+
+  if (Object.keys(update).length === 0) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service.from("clients").update(update).eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
  * Atualiza o status geral do cliente (em-andamento/concluido/abandonado).
  */
 export async function setClientStatusAction(formData: FormData) {

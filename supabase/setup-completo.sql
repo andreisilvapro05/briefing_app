@@ -87,6 +87,10 @@ alter table public.clients add column if not exists contrato_status text;
 alter table public.clients add column if not exists contrato_signed_url text;
 alter table public.clients add column if not exists contrato_dados jsonb;
 
+-- Links Drive (manual — sem integração com Google API)
+alter table public.clients add column if not exists fysi_drive_link text;
+alter table public.clients add column if not exists cliente_drive_link text;
+
 create index if not exists clients_email_idx on public.clients(email);
 create index if not exists clients_status_idx on public.clients(status);
 create index if not exists clients_auth_user_idx on public.clients(auth_user_id);

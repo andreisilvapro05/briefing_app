@@ -23,6 +23,7 @@ import {
   resendClientLinkAction,
   sendToClickupAction,
   setClientStatusAction,
+  setDriveLinksAction,
   setProjectTypeAction,
   setStageAction,
 } from "./actions";
@@ -349,6 +350,90 @@ export default async function AdminClientPage({
           }
           urlKey={urlKey ?? undefined}
         />
+
+        {/* Drive — links manuais (Fysi + cliente) */}
+        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <Eyebrow>Drive</Eyebrow>
+
+          <div className="mt-4 flex flex-col gap-5">
+            <form
+              action={setDriveLinksAction}
+              className="flex flex-col gap-2"
+            >
+              <input type="hidden" name="clientId" value={client.id} />
+              {urlKey ? (
+                <input type="hidden" name="key" value={urlKey} />
+              ) : null}
+              <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                🗂️ Pasta da Fysi
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  name="fysiDriveLink"
+                  defaultValue={client.fysi_drive_link ?? ""}
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  className="flex-1 rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                />
+                <Button type="submit" size="sm" variant="secondary">
+                  Salvar
+                </Button>
+              </div>
+              <p className="text-[0.65rem] text-fysi-muted">
+                Pasta criada no Drive da Fysi pra esse cliente. O cliente
+                também vê esse link no painel dele.
+              </p>
+              {client.fysi_drive_link ? (
+                <a
+                  href={client.fysi_drive_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-fysi-deep underline underline-offset-2 hover:text-fysi-green"
+                >
+                  Abrir pasta da Fysi →
+                </a>
+              ) : null}
+            </form>
+
+            <form
+              action={setDriveLinksAction}
+              className="flex flex-col gap-2 border-t border-fysi-line pt-4"
+            >
+              <input type="hidden" name="clientId" value={client.id} />
+              {urlKey ? (
+                <input type="hidden" name="key" value={urlKey} />
+              ) : null}
+              <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                📂 Drive do cliente (materiais dele)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  name="clienteDriveLink"
+                  defaultValue={client.cliente_drive_link ?? ""}
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  className="flex-1 rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                />
+                <Button type="submit" size="sm" variant="secondary">
+                  Salvar
+                </Button>
+              </div>
+              <p className="text-[0.65rem] text-fysi-muted">
+                Pasta Drive que o cliente já tem com logos, fotos, etc.
+              </p>
+              {client.cliente_drive_link ? (
+                <a
+                  href={client.cliente_drive_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-fysi-deep underline underline-offset-2 hover:text-fysi-green"
+                >
+                  Abrir pasta do cliente →
+                </a>
+              ) : null}
+            </form>
+          </div>
+        </section>
 
         {/* Resumo de preenchimento do briefing */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
