@@ -24,6 +24,8 @@ const Body = z.object({
   pacoteNome: z.string().min(1).max(200),
   valorParcelamento: z.string().min(1).max(500),
   prazoExecucao: z.string().min(1).max(200),
+  escopoProjeto: z.string().min(1).max(5000),
+  linkParcelamento: z.string().min(1).max(500),
 });
 
 const DOCX_MIME =
@@ -79,6 +81,8 @@ export async function POST(
     pacote_nome: body.pacoteNome,
     valor_parcelamento: body.valorParcelamento,
     prazo_execucao: body.prazoExecucao,
+    escopo_projeto: body.escopoProjeto,
+    link_parcelamento: body.linkParcelamento,
   };
 
   // Preenche o .docx

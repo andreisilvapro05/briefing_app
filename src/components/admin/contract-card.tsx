@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 
 /**
@@ -54,6 +55,12 @@ export function ContractCard(props: ContractCardProps) {
   const [prazo, setPrazo] = useState(
     (initial["prazo_execucao"] as string) ?? ""
   );
+  const [escopo, setEscopo] = useState(
+    (initial["escopo_projeto"] as string) ?? ""
+  );
+  const [linkPagamento, setLinkPagamento] = useState(
+    (initial["link_parcelamento"] as string) ?? ""
+  );
   const [status, setStatus] = useState<
     "idle" | "sending" | "refreshing" | "error"
   >("idle");
@@ -73,6 +80,8 @@ export function ContractCard(props: ContractCardProps) {
             pacoteNome: pacote,
             valorParcelamento: valor,
             prazoExecucao: prazo,
+            escopoProjeto: escopo,
+            linkParcelamento: linkPagamento,
           }),
         }
       );
@@ -141,32 +150,61 @@ export function ContractCard(props: ContractCardProps) {
           </div>
 
           {props.contratoDados ? (
-            <div className="grid sm:grid-cols-3 gap-3 bg-fysi-cream/40 rounded-[12px] p-3 text-sm">
-              <div>
-                <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
-                  Pacote
-                </span>
-                <span className="text-fysi-deep">
-                  {(props.contratoDados["pacote_nome"] as string) ?? "—"}
-                </span>
+            <div className="bg-fysi-cream/40 rounded-[12px] p-3 text-sm flex flex-col gap-3">
+              <div className="grid sm:grid-cols-3 gap-3">
+                <div>
+                  <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                    Pacote
+                  </span>
+                  <span className="text-fysi-deep">
+                    {(props.contratoDados["pacote_nome"] as string) ?? "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                    Valor
+                  </span>
+                  <span className="text-fysi-deep">
+                    {(props.contratoDados["valor_parcelamento"] as string) ??
+                      "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                    Prazo
+                  </span>
+                  <span className="text-fysi-deep">
+                    {(props.contratoDados["prazo_execucao"] as string) ?? "—"}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
-                  Valor
-                </span>
-                <span className="text-fysi-deep">
-                  {(props.contratoDados["valor_parcelamento"] as string) ??
-                    "—"}
-                </span>
-              </div>
-              <div>
-                <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
-                  Prazo
-                </span>
-                <span className="text-fysi-deep">
-                  {(props.contratoDados["prazo_execucao"] as string) ?? "—"}
-                </span>
-              </div>
+              {props.contratoDados["escopo_projeto"] ? (
+                <div>
+                  <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                    Escopo
+                  </span>
+                  <pre className="text-fysi-deep text-sm whitespace-pre-wrap font-sans mt-1">
+                    {props.contratoDados["escopo_projeto"] as string}
+                  </pre>
+                </div>
+              ) : null}
+              {props.contratoDados["link_parcelamento"] ? (
+                <div>
+                  <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                    Link de parcelamento
+                  </span>
+                  <a
+                    href={
+                      props.contratoDados["link_parcelamento"] as string
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-fysi-deep underline text-sm break-all"
+                  >
+                    {props.contratoDados["link_parcelamento"] as string}
+                  </a>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -225,6 +263,27 @@ export function ContractCard(props: ContractCardProps) {
             value={valor}
             onChange={(e) => setValor(e.target.value)}
             placeholder="Ex: R$1.800,00 à vista ou 7x de R$260"
+          />
+          <Textarea
+            label="Escopo do projeto"
+            name="escopo"
+            required
+            rows={5}
+            value={escopo}
+            onChange={(e) => setEscopo(e.target.value)}
+            hint="Uma linha por item. Vai entrar logo abaixo do nome do pacote, na proposta."
+            placeholder={
+              "Página profissional com conteúdo pronto\nDesign responsivo e escaneável\nOtimização de velocidade\nInstalação de pixel e Tags\nPublicação completa + backup"
+            }
+          />
+          <Input
+            label="Link de parcelamento (cartão)"
+            name="linkParcelamento"
+            required
+            value={linkPagamento}
+            onChange={(e) => setLinkPagamento(e.target.value)}
+            placeholder="https://www.asaas.com/c/..."
+            hint="Link Asaas (ou outro) gerado pra esse cliente específico."
           />
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
           <div>
