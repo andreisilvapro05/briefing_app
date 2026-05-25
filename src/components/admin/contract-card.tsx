@@ -62,7 +62,7 @@ export function ContractCard(props: ContractCardProps) {
     (initial["link_parcelamento"] as string) ?? ""
   );
   const [status, setStatus] = useState<
-    "idle" | "sending" | "refreshing" | "error"
+    "idle" | "sending" | "refreshing" | "previewing" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -92,6 +92,52 @@ export function ContractCard(props: ContractCardProps) {
         return;
       }
       router.refresh();
+      setStatus("idle");
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Erro inesperado");
+    }
+  }
+
+  async function preview() {
+    // Valida que os campos da proposta estão preenchidos antes de chamar.
+    if (!pacote || !valor || !prazo || !escopo || !linkPagamento) {
+      setStatus("error");
+      setError("Preenche todos os campos da proposta primeiro.");
+      return;
+    }
+    setStatus("previewing");
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/contracts/preview/${props.clientId}${keyParam}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pacoteNome: pacote,
+            valorParcelamento: valor,
+            prazoExecucao: prazo,
+            escopoProjeto: escopo,
+            linkParcelamento: linkPagamento,
+          }),
+        }
+      );
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setStatus("error");
+        setError(humanError(data.error, data.details));
+        return;
+      }
+      const blob = await res.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = downloadUrl;
+      a.download = `preview-${props.clientId.slice(0, 8)}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(downloadUrl);
       setStatus("idle");
     } catch (err) {
       setStatus("error");
@@ -286,16 +332,28 @@ export function ContractCard(props: ContractCardProps) {
             hint="Link Asaas (ou outro) gerado pra esse cliente específico."
           />
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
-          <div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <Button
+              type="button"
+              size="md"
+              variant="secondary"
+              disabled={status === "previewing" || status === "sending"}
+              onClick={preview}
+            >
+              {status === "previewing" ? "Gerando…" : "Pré-visualizar (.docx)"}
+            </Button>
             <Button
               type="submit"
               size="md"
-              disabled={status === "sending" || noEmail}
+              disabled={status === "sending" || status === "previewing" || noEmail}
             >
               {status === "sending"
                 ? "Gerando e enviando…"
                 : "Gerar e enviar contrato"}
             </Button>
+            <span className="text-xs text-fysi-muted">
+              Pré-visualizar baixa o .docx sem enviar — pra você conferir.
+            </span>
           </div>
         </form>
       )}
