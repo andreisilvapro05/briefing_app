@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
+// NextResponse usado no catch do Autentique pra expor o erro temporariamente.
 import { getServerEnv } from "@/lib/env";
 import {
   buildClientTemplateVars,
@@ -136,7 +137,14 @@ export async function POST(
     });
   } catch (err) {
     logServerError("contracts.send.autentique", err);
-    return errorResponse("autentique-failed", 502, err);
+    // DIAG temporário: expõe a mensagem do Autentique pra debug.
+    return NextResponse.json(
+      {
+        error: "autentique-failed",
+        _debug: err instanceof Error ? err.message : String(err),
+      },
+      { status: 502 }
+    );
   }
 
   // Persiste. Se o admin digitou um nome/email diferente do cadastro, salva
