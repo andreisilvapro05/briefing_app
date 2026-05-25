@@ -36,11 +36,6 @@ export function BlocoIdentidadeVisual() {
     ""
   );
   const [fonteNome, setFonteNome] = useBriefingField(BLOCO, "fonte-nome", "");
-  const [fonteArquivos, setFonteArquivos] = useBriefingField<UploadedFile[]>(
-    BLOCO,
-    "fonte-arquivos",
-    []
-  );
   const [estiloTipografico, setEstiloTipografico] = useBriefingField(
     BLOCO,
     "estilo-tipografico",
@@ -124,7 +119,7 @@ export function BlocoIdentidadeVisual() {
 
       <FieldGroup
         title="Tipografia"
-        description="Se já tem fonte definida, informe o nome (ex: Inter, Söhne, Manrope) e, se possível, anexe o arquivo."
+        description="Se já tem fonte definida, informe o nome (ex: Inter, Söhne, Manrope). Os arquivos da fonte você pode colocar direto na pasta do Drive."
       >
         <Input
           label="Nome da fonte"
@@ -133,14 +128,6 @@ export function BlocoIdentidadeVisual() {
           value={fonteNome}
           onChange={(e) => setFonteNome(e.target.value)}
           placeholder="Ex: Inter, Söhne, ou ainda não tenho"
-        />
-        <FileUpload
-          label="Arquivo da fonte"
-          accept=".ttf,.otf,.woff,.woff2,application/zip"
-          value={fonteArquivos}
-          onChange={setFonteArquivos}
-          pathPrefix="fontes"
-          maxFiles={5}
         />
         <RadioGroup
           name="estilo-tipografico"

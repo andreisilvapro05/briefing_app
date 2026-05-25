@@ -61,6 +61,11 @@ export function ContractCard(props: ContractCardProps) {
   const [linkPagamento, setLinkPagamento] = useState(
     (initial["link_parcelamento"] as string) ?? ""
   );
+  // Email do destinatário (pra Autentique enviar o link de assinatura).
+  // Default = email cadastrado do cliente; admin pode trocar / preencher.
+  const [recipientEmail, setRecipientEmail] = useState(
+    props.clientEmail ?? ""
+  );
   const [status, setStatus] = useState<
     "idle" | "sending" | "refreshing" | "previewing" | "error"
   >("idle");
@@ -82,6 +87,7 @@ export function ContractCard(props: ContractCardProps) {
             prazoExecucao: prazo,
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
+            recipientEmail: recipientEmail || undefined,
           }),
         }
       );
@@ -120,6 +126,7 @@ export function ContractCard(props: ContractCardProps) {
             prazoExecucao: prazo,
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
+            recipientEmail: recipientEmail || undefined,
           }),
         }
       );
@@ -168,7 +175,8 @@ export function ContractCard(props: ContractCardProps) {
   }
 
   const hasContract = !!props.autentiqueDocumentId;
-  const noEmail = !props.clientEmail;
+  // Bloqueia enviar só se nenhum email (cadastrado nem digitado) tiver valor.
+  const noEmail = !recipientEmail.trim();
 
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
@@ -181,10 +189,11 @@ export function ContractCard(props: ContractCardProps) {
         ) : null}
       </div>
 
-      {noEmail ? (
-        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-[12px] px-4 py-3 mb-4">
-          Cliente ainda não preencheu o e-mail (etapa /contrato). Sem e-mail
-          não dá pra enviar pra assinatura.
+      {noEmail && !hasContract ? (
+        <p className="text-xs text-fysi-muted bg-fysi-cream/40 border border-fysi-line rounded-[12px] px-3 py-2 mb-4">
+          Preencha o <strong>e-mail do destinatário</strong> abaixo pra enviar.
+          Se o cliente ainda não cadastrou um e-mail, digite o que você quiser
+          usar — fica salvo no cliente automaticamente.
         </p>
       ) : null}
 
@@ -284,6 +293,20 @@ export function ContractCard(props: ContractCardProps) {
             Preencha os dados específicos da proposta. O resto (nome, CPF,
             endereço) vem do cadastro do cliente.
           </p>
+          <Input
+            label="E-mail do destinatário (signatário)"
+            name="recipientEmail"
+            type="email"
+            required
+            value={recipientEmail}
+            onChange={(e) => setRecipientEmail(e.target.value)}
+            placeholder="cliente@exemplo.com"
+            hint={
+              props.clientEmail
+                ? "Já vem com o email do cliente. Edite se quiser enviar pra outro."
+                : "Cliente ainda não tem email cadastrado — digite aqui e salvamos junto."
+            }
+          />
           <div className="grid sm:grid-cols-2 gap-3">
             <Input
               label="Pacote"

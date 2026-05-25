@@ -26,6 +26,9 @@ const Body = z.object({
   prazoExecucao: z.string().min(1).max(200),
   escopoProjeto: z.string().min(1).max(5000),
   linkParcelamento: z.string().min(1).max(500),
+  // Email do signatário. Se omitido, usa client.email do banco. Útil pro admin
+  // mandar o contrato pra um cliente que ainda não preencheu o /contrato.
+  recipientEmail: z.string().email().optional(),
 });
 
 const DOCX_MIME =
@@ -62,8 +65,12 @@ export async function POST(
     return errorResponse("client-query-failed", 500, clientErr);
   }
   if (!client) return errorResponse("client-not-found", 404);
-  if (!client.email || !client.email.trim()) {
-    return errorResponse("client-missing-email", 400);
+
+  // Prioriza email digitado pelo admin no form; fallback pro cadastrado.
+  const signerEmail =
+    body.recipientEmail?.trim() || (client.email ?? "").trim();
+  if (!signerEmail) {
+    return errorResponse("recipient-email-missing", 400);
   }
 
   // Template
@@ -102,23 +109,27 @@ export async function POST(
       file: filledBuffer,
       fileName: `contrato-${client.id}.docx`,
       fileMime: DOCX_MIME,
-      signers: [
-        { email: client.email, name: client.nome, action: "SIGN" },
-      ],
+      signers: [{ email: signerEmail, name: client.nome, action: "SIGN" }],
     });
   } catch (err) {
     logServerError("contracts.send.autentique", err);
     return errorResponse("autentique-failed", 502, err);
   }
 
-  // Persiste
+  // Persiste. Se o cliente ainda não tinha email salvo e o admin digitou
+  // um agora, salva pra não precisar digitar de novo.
+  const updatePayload: Record<string, unknown> = {
+    autentique_document_id: result.id,
+    contrato_status: "pendente",
+    contrato_dados: vars,
+  };
+  if (!client.email && body.recipientEmail) {
+    updatePayload.email = body.recipientEmail.trim();
+  }
+
   const { error: updErr } = await service
     .from("clients")
-    .update({
-      autentique_document_id: result.id,
-      contrato_status: "pendente",
-      contrato_dados: vars,
-    })
+    .update(updatePayload)
     .eq("id", id);
   if (updErr) {
     logServerError("contracts.send.persist", updErr);

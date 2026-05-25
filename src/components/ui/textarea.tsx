@@ -88,7 +88,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             {...rest}
           />
 
-          {audioTranscribe ? (
+          {/* Áudio + transcrição temporariamente desativados — projeto sem
+              sistema de IA configurado. Pra religar, troque `false` por
+              `audioTranscribe` e configure OPENAI_API_KEY na Vercel. */}
+          {false && audioTranscribe ? (
             <div className="flex items-center justify-between gap-3 border-t border-fysi-line px-3 py-2">
               <span className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
                 {transcribing
