@@ -23,6 +23,7 @@ import {
   resendClientLinkAction,
   sendToClickupAction,
   setClientStatusAction,
+  setProjectTypeAction,
   setStageAction,
 } from "./actions";
 
@@ -156,6 +157,37 @@ export default async function AdminClientPage({
 
           <aside className="bg-white border border-fysi-line rounded-[16px] p-5 flex flex-col gap-4 text-sm">
             <div>
+              <Eyebrow>Tipo de projeto</Eyebrow>
+              <form
+                action={setProjectTypeAction}
+                className="mt-2 flex items-center gap-2"
+              >
+                <input type="hidden" name="clientId" value={client.id} />
+                {urlKey ? (
+                  <input type="hidden" name="key" value={urlKey} />
+                ) : null}
+                <select
+                  name="projectType"
+                  defaultValue={client.project_type ?? ""}
+                  className="text-sm rounded-[10px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep focus:outline-none focus:border-fysi-deep/40 flex-1"
+                >
+                  <option value="" disabled>
+                    — escolher —
+                  </option>
+                  <option value="landing-com-copy">Landing com copy</option>
+                  <option value="landing-sem-copy">Landing sem copy</option>
+                  <option value="site-completo">Site completo</option>
+                </select>
+                <Button type="submit" size="sm" variant="secondary">
+                  Salvar
+                </Button>
+              </form>
+              <p className="text-[0.65rem] text-fysi-muted mt-1.5">
+                Define a timeline do projeto. O cliente vê no painel dele.
+              </p>
+            </div>
+
+            <div className="border-t border-fysi-line pt-4">
               <Eyebrow>Status do briefing</Eyebrow>
               <form
                 action={setClientStatusAction}

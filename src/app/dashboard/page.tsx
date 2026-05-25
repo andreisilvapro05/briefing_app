@@ -12,13 +12,13 @@ import {
   PROJECT_TYPE_OPTIONS,
 } from "@/lib/project-types";
 import { blocosForProject } from "@/lib/briefing-schema";
-import { loadCliente, clearCliente } from "@/lib/storage";
+import { loadCliente, clearCliente, setProjectType } from "@/lib/storage";
 import {
   getAllResponses,
   clearAllResponses,
   pullResponsesFromServer,
 } from "@/lib/briefing-store";
-import type { Cliente } from "@/lib/types";
+import type { Cliente, ProjectType } from "@/lib/types";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -35,48 +35,79 @@ export default function DashboardPage() {
       router.replace("/");
       return;
     }
-    if (!c.projectType) {
-      router.replace("/projeto");
-      return;
-    }
-    // Robustez: tipo de projeto inválido/legado — manda re-escolher em vez
-    // de travar a tela em "Carregando…".
-    const tipoConhecido = PROJECT_TYPE_OPTIONS.some(
-      (p) => p.id === c.projectType
-    );
-    if (!tipoConhecido) {
-      router.replace("/projeto");
-      return;
-    }
-    setCliente(c);
-    setResponses(getAllResponses());
-    setLoaded(true);
 
-    // Busca stage + flags do servidor.
-    if (c.id) {
-      // Puxa respostas salvas no servidor — continua de onde parou em
-      // qualquer aparelho (ou um sócio convidado vê o que já foi preenchido).
-      void pullResponsesFromServer(c.id).then(() =>
-        setResponses(getAllResponses())
+    // Finaliza o load assim que sabemos qual é o projectType válido
+    // (do localStorage OU do servidor).
+    function finalize(cliente: Cliente, projectType: ProjectType) {
+      const tipoConhecido = PROJECT_TYPE_OPTIONS.some(
+        (p) => p.id === projectType
       );
-
-      fetch("/api/me/stage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: c.id }),
-      })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data && typeof data.stageIndex === "number") {
-            setServerStageIndex(data.stageIndex);
-          }
-          if (data?.contratoPreenchido) setContratoPreenchido(true);
-          if (data?.chamadaAgendada) setChamadaAgendada(true);
-        })
-        .catch(() => {
-          // Sem servidor / sem cliente no banco — mantém defaults
-        });
+      if (!tipoConhecido) {
+        router.replace("/projeto");
+        return;
+      }
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCliente({ ...cliente, projectType });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setResponses(getAllResponses());
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoaded(true);
     }
+
+    // Sem id (cliente legacy só-localStorage) — só dá pra confiar em local.
+    if (!c.id) {
+      if (!c.projectType) {
+        router.replace("/projeto");
+        return;
+      }
+      finalize(c, c.projectType);
+      return;
+    }
+
+    // Com id — sempre busca do servidor pra pegar projectType/stage atuais
+    // (o admin pode ter definido/mudado o tipo, ou avançado a fase).
+    fetch("/api/me/stage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId: c.id }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const serverPT = data?.projectType as ProjectType | undefined;
+        const effectivePT = serverPT ?? c.projectType;
+
+        if (!effectivePT) {
+          router.replace("/projeto");
+          return;
+        }
+
+        // Servidor passa a ser a fonte da verdade do tipo — admin pode mudar.
+        if (serverPT && serverPT !== c.projectType) {
+          setProjectType(serverPT);
+        }
+
+        finalize(c, effectivePT);
+
+        if (typeof data?.stageIndex === "number") {
+          setServerStageIndex(data.stageIndex);
+        }
+        if (data?.contratoPreenchido) setContratoPreenchido(true);
+        if (data?.chamadaAgendada) setChamadaAgendada(true);
+
+        // Puxa respostas salvas no servidor — continua de onde parou em
+        // qualquer aparelho (ou um sócio convidado vê o que já foi preenchido).
+        void pullResponsesFromServer(c.id).then(() =>
+          setResponses(getAllResponses())
+        );
+      })
+      .catch(() => {
+        // Servidor offline — fallback no localStorage.
+        if (!c.projectType) {
+          router.replace("/projeto");
+          return;
+        }
+        finalize(c, c.projectType);
+      });
   }, [router]);
 
   const projectInfo = useMemo(

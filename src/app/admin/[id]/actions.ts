@@ -150,6 +150,31 @@ export async function setStageAction(formData: FormData) {
 }
 
 /**
+ * Define ou troca o tipo de projeto do cliente. Faz o pipeline do projeto
+ * aparecer (e ficar editável) no admin, e o dashboard do cliente passa a
+ * mostrar a timeline correta.
+ */
+export async function setProjectTypeAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  const projectType = String(formData.get("projectType") ?? "");
+  const allowed = ["landing-com-copy", "landing-sem-copy", "site-completo"];
+  if (!clientId || !allowed.includes(projectType)) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("clients")
+    .update({ project_type: projectType })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin");
+}
+
+/**
  * Atualiza o status geral do cliente (em-andamento/concluido/abandonado).
  */
 export async function setClientStatusAction(formData: FormData) {
