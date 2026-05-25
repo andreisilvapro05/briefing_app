@@ -18,6 +18,7 @@ import { Eyebrow, Pill } from "@/components/ui/pill";
 
 interface ContractCardProps {
   clientId: string;
+  clientName: string | null;
   clientEmail: string | null;
   autentiqueDocumentId: string | null;
   contratoStatus: string | null;
@@ -66,6 +67,9 @@ export function ContractCard(props: ContractCardProps) {
   const [recipientEmail, setRecipientEmail] = useState(
     props.clientEmail ?? ""
   );
+  // Nome completo do signatário (vai pro contrato e pro Autentique).
+  // Default = nome cadastrado; admin digita o nome legal completo.
+  const [signerName, setSignerName] = useState(props.clientName ?? "");
   const [status, setStatus] = useState<
     "idle" | "sending" | "refreshing" | "previewing" | "error"
   >("idle");
@@ -88,6 +92,7 @@ export function ContractCard(props: ContractCardProps) {
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
             recipientEmail: recipientEmail || undefined,
+            signerName: signerName || undefined,
           }),
         }
       );
@@ -127,6 +132,7 @@ export function ContractCard(props: ContractCardProps) {
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
             recipientEmail: recipientEmail || undefined,
+            signerName: signerName || undefined,
           }),
         }
       );
@@ -175,8 +181,9 @@ export function ContractCard(props: ContractCardProps) {
   }
 
   const hasContract = !!props.autentiqueDocumentId;
-  // Bloqueia enviar só se nenhum email (cadastrado nem digitado) tiver valor.
+  // Bloqueia enviar se faltar email OU nome do signatário.
   const noEmail = !recipientEmail.trim();
+  const noName = !signerName.trim();
 
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
@@ -293,20 +300,35 @@ export function ContractCard(props: ContractCardProps) {
             Preencha os dados específicos da proposta. O resto (nome, CPF,
             endereço) vem do cadastro do cliente.
           </p>
-          <Input
-            label="E-mail do destinatário (signatário)"
-            name="recipientEmail"
-            type="email"
-            required
-            value={recipientEmail}
-            onChange={(e) => setRecipientEmail(e.target.value)}
-            placeholder="cliente@exemplo.com"
-            hint={
-              props.clientEmail
-                ? "Já vem com o email do cliente. Edite se quiser enviar pra outro."
-                : "Cliente ainda não tem email cadastrado — digite aqui e salvamos junto."
-            }
-          />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input
+              label="Nome completo do signatário"
+              name="signerName"
+              required
+              value={signerName}
+              onChange={(e) => setSignerName(e.target.value)}
+              placeholder="Nome completo legal"
+              hint={
+                props.clientName
+                  ? "Vem do cadastro. Edite se quiser o nome legal completo."
+                  : "Digite o nome completo legal — salvamos no cliente."
+              }
+            />
+            <Input
+              label="E-mail do destinatário"
+              name="recipientEmail"
+              type="email"
+              required
+              value={recipientEmail}
+              onChange={(e) => setRecipientEmail(e.target.value)}
+              placeholder="cliente@exemplo.com"
+              hint={
+                props.clientEmail
+                  ? "Vem do cadastro. Edite se quiser enviar pra outro."
+                  : "Digite o email — salvamos no cliente."
+              }
+            />
+          </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <Input
               label="Pacote"
@@ -368,7 +390,12 @@ export function ContractCard(props: ContractCardProps) {
             <Button
               type="submit"
               size="md"
-              disabled={status === "sending" || status === "previewing" || noEmail}
+              disabled={
+                status === "sending" ||
+                status === "previewing" ||
+                noEmail ||
+                noName
+              }
             >
               {status === "sending"
                 ? "Gerando e enviando…"

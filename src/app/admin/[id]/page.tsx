@@ -423,6 +423,7 @@ export default async function AdminClientPage({
 
         <ContractCard
           clientId={client.id}
+          clientName={client.nome ?? null}
           clientEmail={client.email ?? null}
           autentiqueDocumentId={client.autentique_document_id ?? null}
           contratoStatus={client.contrato_status ?? null}

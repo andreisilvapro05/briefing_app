@@ -29,6 +29,9 @@ const Body = z.object({
   // Email do signatário. Se omitido, usa client.email do banco. Útil pro admin
   // mandar o contrato pra um cliente que ainda não preencheu o /contrato.
   recipientEmail: z.string().email().optional(),
+  // Nome completo do signatário (vai pro template e pro Autentique).
+  // Se omitido, usa client.nome do banco.
+  signerName: z.string().min(1).max(200).optional(),
 });
 
 const DOCX_MIME =
@@ -73,6 +76,13 @@ export async function POST(
     return errorResponse("recipient-email-missing", 400);
   }
 
+  // Nome completo pro contrato/Autentique. Admin digita no form; fallback no cadastro.
+  const effectiveNome =
+    body.signerName?.trim() || (client.nome ?? "").trim();
+  if (!effectiveNome) {
+    return errorResponse("signer-name-missing", 400);
+  }
+
   // Template
   const { data: tplBlob, error: tplErr } = await service.storage
     .from("contracts-templates")
@@ -82,9 +92,12 @@ export async function POST(
   }
   const tplBuffer = Buffer.from(await tplBlob.arrayBuffer());
 
-  // Vars (cliente + dados que o admin digitou)
+  // Vars (cliente + dados que o admin digitou). signerName e recipientEmail
+  // sobrescrevem o que vem do banco — admin tem a palavra final.
   const vars = {
     ...buildClientTemplateVars(client),
+    nome_cliente: effectiveNome,
+    email_cliente: signerEmail,
     pacote_nome: body.pacoteNome,
     valor_parcelamento: body.valorParcelamento,
     prazo_execucao: body.prazoExecucao,
@@ -105,26 +118,29 @@ export async function POST(
   let result;
   try {
     result = await createDocument({
-      name: `Contrato Fysi — ${client.empresa || client.nome}`,
+      name: `Contrato Fysi — ${client.empresa || effectiveNome}`,
       file: filledBuffer,
       fileName: `contrato-${client.id}.docx`,
       fileMime: DOCX_MIME,
-      signers: [{ email: signerEmail, name: client.nome, action: "SIGN" }],
+      signers: [{ email: signerEmail, name: effectiveNome, action: "SIGN" }],
     });
   } catch (err) {
     logServerError("contracts.send.autentique", err);
     return errorResponse("autentique-failed", 502, err);
   }
 
-  // Persiste. Se o cliente ainda não tinha email salvo e o admin digitou
-  // um agora, salva pra não precisar digitar de novo.
+  // Persiste. Se o admin digitou um nome/email diferente do cadastro, salva
+  // pra ficar refletido no painel também (próxima geração não precisa digitar).
   const updatePayload: Record<string, unknown> = {
     autentique_document_id: result.id,
     contrato_status: "pendente",
     contrato_dados: vars,
   };
-  if (!client.email && body.recipientEmail) {
+  if (body.recipientEmail && body.recipientEmail.trim() !== client.email) {
     updatePayload.email = body.recipientEmail.trim();
+  }
+  if (body.signerName && body.signerName.trim() !== client.nome) {
+    updatePayload.nome = body.signerName.trim();
   }
 
   const { error: updErr } = await service
