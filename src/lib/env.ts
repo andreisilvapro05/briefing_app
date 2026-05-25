@@ -62,6 +62,9 @@ export function getServerEnv() {
     // briefing de qualquer aparelho). Default só pra dev — SEMPRE setar
     // CLIENT_ACCESS_CODE via env em produção.
     clientAccessCode: process.env.CLIENT_ACCESS_CODE ?? "fysi",
+    // Autentique — token Bearer da API (Conta → Integrações → API no painel).
+    // Sem isso, /api/admin/contracts/send retorna 503 e o admin vê aviso.
+    autentiqueToken: process.env.AUTENTIQUE_API_TOKEN ?? "",
     adminEmails: (process.env.ADMIN_EMAILS ?? "")
       .split(",")
       .map((e) => e.trim().toLowerCase())

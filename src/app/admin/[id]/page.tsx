@@ -18,6 +18,7 @@ import {
   isEmpty,
 } from "@/lib/briefing-labels";
 import type { ProjectType } from "@/lib/types";
+import { ContractCard } from "@/components/admin/contract-card";
 import {
   resendClientLinkAction,
   sendToClickupAction,
@@ -304,6 +305,18 @@ export default async function AdminClientPage({
             </div>
           </section>
         ) : null}
+
+        <ContractCard
+          clientId={client.id}
+          clientEmail={client.email ?? null}
+          autentiqueDocumentId={client.autentique_document_id ?? null}
+          contratoStatus={client.contrato_status ?? null}
+          contratoSignedUrl={client.contrato_signed_url ?? null}
+          contratoDados={
+            (client.contrato_dados as Record<string, unknown> | null) ?? null
+          }
+          urlKey={urlKey ?? undefined}
+        />
 
         {/* Resumo de preenchimento do briefing */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">

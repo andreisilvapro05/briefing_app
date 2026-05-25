@@ -81,12 +81,19 @@ alter table public.clients add column if not exists chamada_agendada_at timestam
 alter table public.clients add column if not exists chamada_data timestamptz;
 alter table public.clients add column if not exists chamada_observacoes text;
 
+-- Integração Autentique (assinatura digital do contrato)
+alter table public.clients add column if not exists autentique_document_id text;
+alter table public.clients add column if not exists contrato_status text;
+alter table public.clients add column if not exists contrato_signed_url text;
+alter table public.clients add column if not exists contrato_dados jsonb;
+
 create index if not exists clients_email_idx on public.clients(email);
 create index if not exists clients_status_idx on public.clients(status);
 create index if not exists clients_auth_user_idx on public.clients(auth_user_id);
 create index if not exists clients_current_stage_idx on public.clients(current_stage_index);
 create index if not exists clients_contrato_idx on public.clients(contrato_preenchido_at);
 create index if not exists clients_chamada_idx on public.clients(chamada_agendada_at);
+create index if not exists clients_contrato_status_idx on public.clients(contrato_status);
 
 create table if not exists public.briefing_responses (
   id uuid primary key default gen_random_uuid(),
@@ -199,6 +206,11 @@ create policy files_self_all on public.briefing_files
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('briefing-uploads', 'briefing-uploads', true, 26214400, null)
+on conflict (id) do nothing;
+
+-- Bucket privado pros modelos de contrato (.docx). Apenas service role acessa.
+insert into storage.buckets (id, name, public)
+values ('contracts-templates', 'contracts-templates', false)
 on conflict (id) do nothing;
 
 drop policy if exists "briefing_uploads_public_read" on storage.objects;

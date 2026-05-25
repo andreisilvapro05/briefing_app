@@ -7,6 +7,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   PROJECT_TYPE_LABELS,
 } from "@/lib/briefing-labels";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +121,8 @@ export default async function AdminPage({
             <Pill tone="mint">{concluidoCount} concluídos</Pill>
           </div>
         </header>
+
+        <AdminTabs active="clientes" keyParam={keyParamFirst} />
 
         {/* Filtros */}
         <form
