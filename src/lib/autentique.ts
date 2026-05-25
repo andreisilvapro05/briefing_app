@@ -60,6 +60,9 @@ export async function createDocument(opts: {
   fileName: string;
   fileMime: string;
   signers: AutentiqueSigner[];
+  // Se true, signatários assinam na ordem em que aparecem no array.
+  // Ex: Fysi assina primeiro, depois email vai pro cliente.
+  sortable?: boolean;
 }): Promise<CreateDocumentResult> {
   const bearer = token();
 
@@ -82,7 +85,10 @@ export async function createDocument(opts: {
   `;
 
   const variables = {
-    document: { name: opts.name },
+    document: {
+      name: opts.name,
+      ...(opts.sortable ? { sortable: true } : {}),
+    },
     signers: opts.signers.map((s) => ({
       email: s.email,
       name: s.name,

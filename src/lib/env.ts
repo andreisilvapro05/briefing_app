@@ -65,6 +65,12 @@ export function getServerEnv() {
     // Autentique — token Bearer da API (Conta → Integrações → API no painel).
     // Sem isso, /api/admin/contracts/send retorna 503 e o admin vê aviso.
     autentiqueToken: process.env.AUTENTIQUE_API_TOKEN ?? "",
+    // Signatário Fysi (assina antes do cliente, sequencial). Default = team email.
+    fysiSignerEmail:
+      process.env.FYSI_SIGNER_EMAIL ??
+      process.env.TEAM_EMAIL ??
+      "fysilabdigital@gmail.com",
+    fysiSignerName: process.env.FYSI_SIGNER_NAME ?? "Equipe Fysi Lab",
     adminEmails: (process.env.ADMIN_EMAILS ?? "")
       .split(",")
       .map((e) => e.trim().toLowerCase())

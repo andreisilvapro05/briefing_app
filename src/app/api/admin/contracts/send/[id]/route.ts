@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
+import { getServerEnv } from "@/lib/env";
 import {
   buildClientTemplateVars,
   fillDocxTemplate,
@@ -114,7 +115,8 @@ export async function POST(
     return errorResponse("template-fill-failed", 500, err);
   }
 
-  // Envia ao Autentique
+  // Envia ao Autentique — Fysi assina primeiro (sortable), depois cliente.
+  const env = getServerEnv();
   let result;
   try {
     result = await createDocument({
@@ -122,7 +124,15 @@ export async function POST(
       file: filledBuffer,
       fileName: `contrato-${client.id}.docx`,
       fileMime: DOCX_MIME,
-      signers: [{ email: signerEmail, name: effectiveNome, action: "SIGN" }],
+      sortable: true,
+      signers: [
+        {
+          email: env.fysiSignerEmail,
+          name: env.fysiSignerName,
+          action: "SIGN",
+        },
+        { email: signerEmail, name: effectiveNome, action: "SIGN" },
+      ],
     });
   } catch (err) {
     logServerError("contracts.send.autentique", err);
