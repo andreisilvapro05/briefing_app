@@ -175,6 +175,74 @@ export async function setProjectTypeAction(formData: FormData) {
 }
 
 /**
+ * Edita os dados do cliente (usados pra montar o contrato). Permite o admin
+ * preencher tudo sem depender do cliente passar por /contrato — útil pra
+ * onboarding manual.
+ *
+ * Se email + cpf + endereço ficarem preenchidos, marca contrato_preenchido_at
+ * (assim o dashboard do cliente mostra a Etapa 01 como pronta).
+ */
+export async function setClientContractDataAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  function val(key: string): string {
+    return String(formData.get(key) ?? "").trim();
+  }
+
+  const nome = val("nome");
+  const email = val("email");
+  const empresa = val("empresa");
+  const endereco = val("endereco");
+  const cep = val("cep");
+  const cpf = val("cpf");
+  const rg = val("rg");
+  const cnpj = val("cnpj");
+  const razaoSocial = val("razao_social");
+
+  const update: Record<string, string | null> = {
+    email: email || null,
+    empresa: empresa || null,
+    endereco: endereco || null,
+    cep: cep || null,
+    cpf: cpf || null,
+    rg: rg || null,
+    cnpj: cnpj || null,
+    razao_social: razaoSocial || null,
+  };
+  if (nome) update.nome = nome;
+
+  const service = createSupabaseServiceRoleClient();
+
+  // Se os dados mínimos pro contrato estão preenchidos, marca como pronto
+  // (espelha o que o /api/cliente/contrato faz quando o cliente preenche).
+  const { data: current } = await service
+    .from("clients")
+    .select("contrato_preenchido_at")
+    .eq("id", clientId)
+    .maybeSingle();
+
+  if (
+    email &&
+    cpf &&
+    endereco &&
+    !(current as { contrato_preenchido_at: string | null } | null)
+      ?.contrato_preenchido_at
+  ) {
+    (update as Record<string, unknown>).contrato_preenchido_at =
+      new Date().toISOString();
+  }
+
+  await service.from("clients").update(update).eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
  * Salva os links de Drive (manual). Pode salvar um ou os dois.
  * Aceita string vazia pra limpar; valida URL simples.
  */

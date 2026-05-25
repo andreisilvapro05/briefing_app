@@ -22,6 +22,7 @@ import { ContractCard } from "@/components/admin/contract-card";
 import {
   resendClientLinkAction,
   sendToClickupAction,
+  setClientContractDataAction,
   setClientStatusAction,
   setDriveLinksAction,
   setProjectTypeAction,
@@ -339,6 +340,87 @@ export default async function AdminClientPage({
           </section>
         ) : null}
 
+        {/* Dados do cliente — editáveis pelo admin (pra contrato) */}
+        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <Eyebrow>Dados do cliente (para contrato)</Eyebrow>
+          <p className="text-sm text-fysi-muted mt-1 mb-4">
+            Edite aqui os dados que vão no contrato. Se preencher e-mail, CPF
+            e endereço, a Etapa &ldquo;Dados pra contrato&rdquo; do cliente
+            é marcada como concluída.
+          </p>
+          <form
+            action={setClientContractDataAction}
+            className="grid sm:grid-cols-2 gap-3"
+          >
+            <input type="hidden" name="clientId" value={client.id} />
+            {urlKey ? (
+              <input type="hidden" name="key" value={urlKey} />
+            ) : null}
+
+            <FieldInput
+              label="Nome completo"
+              name="nome"
+              defaultValue={client.nome ?? ""}
+              required
+              colSpan={2}
+            />
+            <FieldInput
+              label="E-mail"
+              name="email"
+              type="email"
+              defaultValue={client.email ?? ""}
+              placeholder="exemplo@cliente.com"
+            />
+            <FieldInput
+              label="Empresa"
+              name="empresa"
+              defaultValue={client.empresa ?? ""}
+            />
+            <FieldInput
+              label="Endereço completo"
+              name="endereco"
+              defaultValue={client.endereco ?? ""}
+              placeholder="Rua, número, bairro, cidade, estado"
+              colSpan={2}
+            />
+            <FieldInput
+              label="CEP"
+              name="cep"
+              defaultValue={client.cep ?? ""}
+              placeholder="00000-000"
+            />
+            <FieldInput
+              label="CPF"
+              name="cpf"
+              defaultValue={client.cpf ?? ""}
+              placeholder="000.000.000-00"
+            />
+            <FieldInput
+              label="RG (opcional)"
+              name="rg"
+              defaultValue={client.rg ?? ""}
+            />
+            <FieldInput
+              label="CNPJ (opcional)"
+              name="cnpj"
+              defaultValue={client.cnpj ?? ""}
+              placeholder="00.000.000/0001-00"
+            />
+            <FieldInput
+              label="Razão social (opcional)"
+              name="razao_social"
+              defaultValue={client.razao_social ?? ""}
+              colSpan={2}
+            />
+
+            <div className="sm:col-span-2 pt-2">
+              <Button type="submit" size="sm" variant="secondary">
+                Salvar dados do cliente
+              </Button>
+            </div>
+          </form>
+        </section>
+
         <ContractCard
           clientId={client.id}
           clientEmail={client.email ?? null}
@@ -582,6 +664,40 @@ export default async function AdminClientPage({
         )}
       </ContentFrame>
     </Shell>
+  );
+}
+
+function FieldInput({
+  label,
+  name,
+  defaultValue,
+  type = "text",
+  placeholder,
+  required,
+  colSpan,
+}: {
+  label: string;
+  name: string;
+  defaultValue?: string;
+  type?: string;
+  placeholder?: string;
+  required?: boolean;
+  colSpan?: 1 | 2;
+}) {
+  return (
+    <div className={colSpan === 2 ? "sm:col-span-2" : ""}>
+      <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium block mb-1">
+        {label}
+      </label>
+      <input
+        type={type}
+        name={name}
+        defaultValue={defaultValue}
+        placeholder={placeholder}
+        required={required}
+        className="w-full rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+      />
+    </div>
   );
 }
 
