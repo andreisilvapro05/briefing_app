@@ -30,12 +30,11 @@ export function ClientHydrator({ cliente }: { cliente: ClienteData }) {
       hydrateCliente(cliente);
       // Busca respostas no servidor antes de redirecionar (cliente pode
       // ter preenchido coisas em outro aparelho).
+      // Sempre vai pro /dashboard — se faltar projectType, o dashboard mostra
+      // uma mensagem amigável "aguardando definição da equipe" em vez de
+      // forçar o cliente a escolher tipo de projeto.
       void pullResponsesFromServer(cliente.id).finally(() => {
-        if (cliente.projectType) {
-          router.replace("/dashboard");
-        } else {
-          router.replace("/projeto");
-        }
+        router.replace("/dashboard");
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar.");

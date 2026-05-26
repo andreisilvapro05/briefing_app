@@ -71,6 +71,10 @@ export default function DashboardPage() {
       return;
     }
 
+    // Cliente tem id mas o projectType não foi definido nem local nem server.
+    // Vamos buscar do server abaixo; se servidor também não tiver, renderizamos
+    // estado "aguardando equipe definir tipo" em vez de jogar pro /projeto.
+
     // Com id — sempre busca do servidor pra pegar projectType/stage atuais
     // (o admin pode ter definido/mudado o tipo, ou avançado a fase).
     fetch("/api/me/stage", {
@@ -84,7 +88,16 @@ export default function DashboardPage() {
         const effectivePT = serverPT ?? c.projectType;
 
         if (!effectivePT) {
-          router.replace("/projeto");
+          // Sem tipo definido nem local nem server — renderiza placeholder
+          // amigável (admin ainda não definiu o tipo de projeto).
+          setCliente(c);
+          setResponses(getAllResponses());
+          setLoaded(true);
+          if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
+          if (data?.copyReviewLink) setCopyReviewLink(data.copyReviewLink);
+          if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
+          if (data?.contratoSignedUrl)
+            setContratoSignedUrl(data.contratoSignedUrl);
           return;
         }
 
@@ -147,11 +160,42 @@ export default function DashboardPage() {
     router.replace("/");
   }
 
-  if (!loaded || !cliente || !projectInfo) {
+  if (!loaded || !cliente) {
     return (
       <Shell tone="cream" hideHeader>
         <ContentFrame size="md">
           <p className="text-fysi-muted text-sm">Carregando…</p>
+        </ContentFrame>
+      </Shell>
+    );
+  }
+
+  // Cliente carregou mas a equipe Fysi ainda não definiu o tipo de projeto.
+  // Mostra boas-vindas amigáveis em vez de jogar pro /projeto.
+  if (!projectInfo) {
+    return (
+      <Shell tone="cream" sectionLabel="Painel · em configuração">
+        <ContentFrame size="md">
+          <div className="text-center py-12">
+            <Eyebrow>Painel</Eyebrow>
+            <h1 className="fysi-display text-3xl md:text-4xl mt-3 mb-4">
+              Olá, {cliente.nome.split(" ")[0]} 👋
+            </h1>
+            <p className="text-fysi-muted leading-relaxed mb-2">
+              Seu projeto ainda está sendo configurado pela equipe Fysi.
+            </p>
+            <p className="text-fysi-muted leading-relaxed">
+              Em breve, sua timeline e as próximas etapas vão aparecer aqui.
+              Você pode fechar essa aba — quando estiver pronto, te avisamos.
+            </p>
+            <button
+              type="button"
+              onClick={handleSair}
+              className="text-xs text-fysi-muted hover:text-fysi-deep underline underline-offset-2 mt-6"
+            >
+              Sair deste briefing
+            </button>
+          </div>
         </ContentFrame>
       </Shell>
     );

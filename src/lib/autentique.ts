@@ -152,8 +152,8 @@ export async function getDocument(documentId: string): Promise<DocumentStatus> {
         signatures {
           name
           email
-          signed { event created_at }
-          rejected { event created_at }
+          signed { created_at }
+          rejected { created_at }
         }
       }
     }
