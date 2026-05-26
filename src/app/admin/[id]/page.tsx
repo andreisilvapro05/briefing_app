@@ -19,6 +19,7 @@ import {
 } from "@/lib/briefing-labels";
 import type { ProjectType } from "@/lib/types";
 import { ContractCard } from "@/components/admin/contract-card";
+import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import {
   resendClientLinkAction,
   sendToClickupAction,
@@ -247,6 +248,14 @@ export default async function AdminClientPage({
                   </Button>
                 </form>
               ) : null}
+            </div>
+
+            <div className="border-t border-fysi-line pt-3">
+              <DeleteClientButton
+                clientId={client.id}
+                clientName={client.empresa || client.nome}
+                urlKey={urlKey ?? undefined}
+              />
             </div>
           </aside>
         </header>

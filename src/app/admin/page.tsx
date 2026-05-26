@@ -119,6 +119,12 @@ export default async function AdminPage({
             <Pill tone="muted">{totalCount} no total</Pill>
             <Pill tone="outline">{emAndamentoCount} em andamento</Pill>
             <Pill tone="mint">{concluidoCount} concluídos</Pill>
+            <Link
+              href={`/admin/novo${keyParamFirst}`}
+              className="ml-2 inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+            >
+              + Novo cliente
+            </Link>
           </div>
         </header>
 

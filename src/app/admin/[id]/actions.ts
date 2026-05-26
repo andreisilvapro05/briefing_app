@@ -278,6 +278,102 @@ export async function setDriveLinksAction(formData: FormData) {
 }
 
 /**
+ * Apaga o cliente e tudo associado (briefing_responses, briefing_files via
+ * CASCADE no FK). Não toca em arquivos do Supabase Storage — admin pode
+ * limpar manualmente se quiser.
+ *
+ * Redireciona pra /admin depois — então invocado a partir de /admin/[id].
+ */
+export async function deleteClientAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service.from("clients").delete().eq("id", clientId);
+
+  revalidatePath("/admin");
+  redirect(
+    `/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`
+  );
+}
+
+/**
+ * Cria um cliente manualmente pelo admin (pra cliente que não vai
+ * passar pelo fluxo público / Tela 1). Faz dedup por WhatsApp normalizado:
+ * se já existe um cliente com o mesmo número, redireciona pra ele.
+ *
+ * Redireciona pra /admin/[novo-id] depois.
+ */
+export async function createClientAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  function val(key: string): string {
+    return String(formData.get(key) ?? "").trim();
+  }
+
+  const nome = val("nome");
+  const whatsapp = val("whatsapp");
+  if (!nome || !whatsapp) return;
+
+  const email = val("email");
+  const empresa = val("empresa");
+  const projectTypeRaw = val("project_type");
+  const allowedTypes = [
+    "landing-com-copy",
+    "landing-sem-copy",
+    "site-completo",
+  ];
+  const projectType = allowedTypes.includes(projectTypeRaw)
+    ? projectTypeRaw
+    : null;
+
+  const service = createSupabaseServiceRoleClient();
+  const keySuffix = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+
+  // Dedup por WhatsApp normalizado (só dígitos)
+  const digits = whatsapp.replace(/\D/g, "");
+  const { data: candidates } = await service
+    .from("clients")
+    .select("id, whatsapp");
+  const found = (candidates ?? []).find(
+    (c) => (c.whatsapp ?? "").replace(/\D/g, "") === digits
+  );
+
+  if (found) {
+    revalidatePath("/admin");
+    redirect(`/admin/${found.id}${keySuffix}`);
+  }
+
+  const { data: created, error: insertErr } = await service
+    .from("clients")
+    .insert({
+      nome,
+      email: email || "",
+      empresa: empresa || "",
+      whatsapp,
+      project_type: projectType,
+      status: "em-andamento",
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !created) {
+    // Não há um caminho de erro elegante pra server action — re-tenta levando
+    // pra /admin/novo com query (frontend pode mostrar mensagem genérica).
+    redirect(`/admin/novo${keySuffix}`);
+  }
+
+  revalidatePath("/admin");
+  redirect(`/admin/${created!.id}${keySuffix}`);
+}
+
+/**
  * Atualiza o status geral do cliente (em-andamento/concluido/abandonado).
  */
 export async function setClientStatusAction(formData: FormData) {
