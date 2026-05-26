@@ -8,7 +8,13 @@ import { Eyebrow } from "@/components/ui/pill";
  * Permite o admin subir o modelo de contrato (.docx). Substitui o atual.
  * Aparece no topo de /admin/contratos.
  */
-export function TemplateUploader({ urlKey }: { urlKey?: string }) {
+export function TemplateUploader({
+  urlKey,
+  currentTemplateUpdatedAt,
+}: {
+  urlKey?: string;
+  currentTemplateUpdatedAt?: string;
+}) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<
     "idle" | "uploading" | "success" | "error"
@@ -51,7 +57,18 @@ export function TemplateUploader({ urlKey }: { urlKey?: string }) {
 
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
-      <Eyebrow>Modelo do contrato</Eyebrow>
+      <div className="flex items-baseline justify-between mb-2">
+        <Eyebrow>Modelo do contrato</Eyebrow>
+        {currentTemplateUpdatedAt ? (
+          <span className="text-xs text-fysi-deep">
+            ✅ modelo atualizado em {formatDate(currentTemplateUpdatedAt)}
+          </span>
+        ) : (
+          <span className="text-xs text-amber-700">
+            ⚠️ nenhum modelo subido ainda
+          </span>
+        )}
+      </div>
       <p className="text-sm text-fysi-muted mt-2 mb-4">
         Suba o <code className="font-mono text-xs">.docx</code> com as tags{" "}
         <code className="font-mono text-xs">{`{{nome_cliente}}`}</code>,{" "}
@@ -88,4 +105,18 @@ export function TemplateUploader({ urlKey }: { urlKey?: string }) {
       </div>
     </section>
   );
+}
+
+function formatDate(iso: string) {
+  try {
+    return new Date(iso).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
 }

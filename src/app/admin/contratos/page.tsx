@@ -68,6 +68,12 @@ export default async function ContractsPage({
   const { data } = await query;
   const contracts: ContractRow[] = (data as ContractRow[]) ?? [];
 
+  // Metadados do modelo de contrato atual (se já foi subido).
+  const { data: tplList } = await service.storage
+    .from("contracts-templates")
+    .list();
+  const modeloAtual = (tplList ?? []).find((f) => f.name === "modelo.docx");
+
   // Totais (sem filtro de status) só pra header
   const { data: allData } = await service
     .from("clients")
@@ -108,7 +114,12 @@ export default async function ContractsPage({
 
         <AdminTabs active="contratos" keyParam={keyParam} />
 
-        <TemplateUploader urlKey={urlKey ?? undefined} />
+        <TemplateUploader
+          urlKey={urlKey ?? undefined}
+          currentTemplateUpdatedAt={
+            modeloAtual?.updated_at ?? modeloAtual?.created_at ?? undefined
+          }
+        />
 
         <form
           method="get"
