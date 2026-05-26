@@ -32,8 +32,12 @@ export default function AdminLoginPage() {
         const text = await res.text();
         throw new Error(text || "Falha no login.");
       }
-      // Redirect duro pra refazer o middleware com o cookie novo
-      window.location.href = "/admin";
+      // Redireciona com a senha como ?key= na URL. Isso garante acesso ao
+      // admin mesmo quando o cookie é descartado pelo navegador (Brave,
+      // Safari ITP, extensões de privacidade). Os links internos do admin
+      // preservam o ?key= em toda a navegação.
+      // ⚠️ A senha fica visível na URL — não compartilhe o link.
+      window.location.href = `/admin?key=${encodeURIComponent(password)}`;
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Erro inesperado.");
@@ -48,8 +52,9 @@ export default function AdminLoginPage() {
           Acesso da equipe Fysi.
         </h1>
         <p className="text-fysi-mint/80 leading-relaxed mb-8">
-          Use a senha compartilhada do painel. Sessão dura 30 dias por
-          dispositivo — pode fechar o navegador sem perder o acesso.
+          Use a senha compartilhada do painel. Depois de entrar, a URL na
+          barra terá a sua chave — <strong>bookmark essa URL</strong> pra
+          acessar direto sem precisar logar de novo.
         </p>
 
         <form

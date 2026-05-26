@@ -20,6 +20,8 @@ import {
 import type { ProjectType } from "@/lib/types";
 import { ContractCard } from "@/components/admin/contract-card";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
+import { ClientPreviewButton } from "@/components/admin/client-preview-button";
+import { getServerEnv } from "@/lib/env";
 import {
   resendClientLinkAction,
   sendToClickupAction,
@@ -94,6 +96,11 @@ export default async function AdminClientPage({
 
   const byBloco = groupByBloco((responses as BriefingResponse[]) ?? []);
   const filesList: BriefingFile[] = (files as BriefingFile[]) ?? [];
+
+  // Credenciais de acesso do cliente (pra admin compartilhar com ele).
+  const env = getServerEnv();
+  const entrarUrl = `${env.appUrl}/entrar`;
+  const accessCode = env.clientAccessCode;
 
   // Resolve stages a partir do project_type. Se project_type estiver nulo,
   // mostra placeholder vazio.
@@ -250,7 +257,11 @@ export default async function AdminClientPage({
               ) : null}
             </div>
 
-            <div className="border-t border-fysi-line pt-3">
+            <div className="border-t border-fysi-line pt-3 flex flex-col gap-2">
+              <ClientPreviewButton
+                clientId={client.id}
+                urlKey={urlKey ?? undefined}
+              />
               <DeleteClientButton
                 clientId={client.id}
                 clientName={client.empresa || client.nome}
@@ -259,6 +270,60 @@ export default async function AdminClientPage({
             </div>
           </aside>
         </header>
+
+        {/* Link de acesso pro cliente — pra mandar via WhatsApp */}
+        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <Eyebrow>Acesso do cliente</Eyebrow>
+          <p className="text-sm text-fysi-muted mt-1 mb-4">
+            Compartilhe esses dados com o cliente pra ele entrar no painel
+            dele de qualquer aparelho. Ele pode salvar como bookmark.
+          </p>
+          <div className="grid sm:grid-cols-3 gap-3 bg-fysi-cream/40 rounded-[12px] p-4 mb-4 text-sm">
+            <div>
+              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                Link
+              </span>
+              <a
+                href={entrarUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-fysi-deep underline break-all"
+              >
+                {entrarUrl}
+              </a>
+            </div>
+            <div>
+              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                WhatsApp
+              </span>
+              <code className="font-mono text-fysi-deep">
+                {client.whatsapp}
+              </code>
+            </div>
+            <div>
+              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                Código
+              </span>
+              <code className="font-mono text-fysi-deep">{accessCode}</code>
+            </div>
+          </div>
+          <details className="text-sm">
+            <summary className="cursor-pointer text-fysi-deep font-medium hover:text-fysi-green">
+              📋 Mensagem pronta pra copiar (WhatsApp)
+            </summary>
+            <pre className="mt-3 bg-fysi-cream/40 border border-fysi-line rounded-[12px] p-3 text-xs whitespace-pre-wrap font-sans text-fysi-deep">
+{`Oi ${client.nome?.split(" ")[0] ?? ""}! Aqui é da Fysi 👋
+
+Seu painel de briefing está pronto. Acesse:
+${entrarUrl}
+
+WhatsApp: ${client.whatsapp}
+Código: ${accessCode}
+
+Qualquer dúvida, é só responder por aqui.`}
+            </pre>
+          </details>
+        </section>
 
         {/* Pipeline / stage management — só aparece se project_type definido */}
         {etapas.length > 0 ? (
