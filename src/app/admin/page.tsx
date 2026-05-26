@@ -48,9 +48,11 @@ export default async function AdminPage({
   const statusFilter = params.status ?? "";
   const tipoFilter = params.tipo ?? "";
 
-  // Se autenticou via URL key, mantém ele em todos os links pra preservar sessão.
-  const keyParam = user.source === "url-key" && urlKey ? `&key=${encodeURIComponent(urlKey)}` : "";
-  const keyParamFirst = user.source === "url-key" && urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+  // Sempre que veio com ?key= na URL, preserva nos links internos —
+  // mesmo se o cookie tiver autenticado (cookie pode cair no próximo clique).
+  // Garante navegação confiável em navegadores que descartam cookie.
+  const keyParam = urlKey ? `&key=${encodeURIComponent(urlKey)}` : "";
+  const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
   const service = createSupabaseServiceRoleClient();
   let query = service

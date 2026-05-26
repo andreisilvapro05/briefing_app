@@ -61,11 +61,9 @@ export default async function AdminClientPage({
   const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
-  // Se autenticou via URL key, mantém em links e forms.
-  const keyParam =
-    user.source === "url-key" && urlKey
-      ? `?key=${encodeURIComponent(urlKey)}`
-      : "";
+  // Sempre que veio com ?key=, preserva nos links/forms (mesmo se cookie
+  // também autenticou — cookie pode cair no próximo clique).
+  const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
   const service = createSupabaseServiceRoleClient();
 

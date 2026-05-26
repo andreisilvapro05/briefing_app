@@ -49,10 +49,8 @@ export default async function ContractsPage({
   const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
-  const keyParam =
-    user.source === "url-key" && urlKey
-      ? `?key=${encodeURIComponent(urlKey)}`
-      : "";
+  // Sempre preserva ?key= se veio na URL (mesmo se cookie também autenticou).
+  const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
   const service = createSupabaseServiceRoleClient();
   let query = service
