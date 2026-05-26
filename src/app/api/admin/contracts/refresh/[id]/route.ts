@@ -37,7 +37,14 @@ export async function POST(
     status = await getDocument(client.autentique_document_id);
   } catch (err) {
     logServerError("contracts.refresh.autentique", err);
-    return errorResponse("autentique-failed", 502, err);
+    return NextResponse.json(
+      {
+        error: "autentique-failed",
+        _debug: err instanceof Error ? err.message : String(err),
+        docId: client.autentique_document_id,
+      },
+      { status: 502 }
+    );
   }
 
   const rejected = status.signers.some((s) => s.rejectedAt);

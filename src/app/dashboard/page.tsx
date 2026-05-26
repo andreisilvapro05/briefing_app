@@ -193,6 +193,16 @@ export default function DashboardPage() {
 
           <div className="flex flex-col items-start md:items-end gap-2">
             <Pill tone="mint">{projectInfo.title}</Pill>
+            {fysiDriveLink ? (
+              <a
+                href={fysiDriveLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+              >
+                🗂️ Abrir pasta no Drive →
+              </a>
+            ) : null}
             <button
               type="button"
               onClick={handleSair}
