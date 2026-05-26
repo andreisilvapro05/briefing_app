@@ -7,6 +7,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { createClickUpBriefingTask } from "@/lib/clickup";
 import { htmlMagicLink, sendEmail } from "@/lib/email";
 import { getServerEnv } from "@/lib/env";
+import { generateMagicSlug } from "@/lib/slug";
 
 /**
  * Reenviar magic link para o cliente (acionado pelo admin).
@@ -359,6 +360,7 @@ export async function createClientAction(formData: FormData) {
       whatsapp,
       project_type: projectType,
       status: "em-andamento",
+      magic_slug: generateMagicSlug({ nome, empresa: empresa || null }),
     })
     .select("id")
     .single();
@@ -371,6 +373,91 @@ export async function createClientAction(formData: FormData) {
 
   revalidatePath("/admin");
   redirect(`/admin/${created!.id}${keySuffix}`);
+}
+
+/**
+ * Toggle do chamada_agendada_at (admin marca/desmarca chamada como feita).
+ */
+export async function toggleChamadaFeitaAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("clients")
+    .select("chamada_agendada_at")
+    .eq("id", clientId)
+    .maybeSingle();
+  await service
+    .from("clients")
+    .update({
+      chamada_agendada_at: (data as { chamada_agendada_at: string | null })
+        ?.chamada_agendada_at
+        ? null
+        : new Date().toISOString(),
+    })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Toggle do briefing_submitted_at (admin marca/desmarca briefing como concluído).
+ * Quando marca: também seta status = "concluido".
+ */
+export async function toggleBriefingConcluidoAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("clients")
+    .select("briefing_submitted_at")
+    .eq("id", clientId)
+    .maybeSingle();
+  const wasSubmitted = !!(
+    data as { briefing_submitted_at: string | null } | null
+  )?.briefing_submitted_at;
+
+  await service
+    .from("clients")
+    .update({
+      briefing_submitted_at: wasSubmitted ? null : new Date().toISOString(),
+      status: wasSubmitted ? "em-andamento" : "concluido",
+    })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Salva o link da copy pra cliente revisar (aparece no dashboard, na etapa
+ * "Criação da copy" da timeline).
+ */
+export async function setCopyReviewLinkAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const link = String(formData.get("copyReviewLink") ?? "").trim();
+  // Aceita URL válida ou vazio (pra limpar).
+  const value = link && /^https?:\/\//i.test(link) ? link.slice(0, 1000) : null;
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("clients")
+    .update({ copy_review_link: value })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
 }
 
 /**

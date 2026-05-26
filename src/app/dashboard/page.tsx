@@ -29,6 +29,8 @@ export default function DashboardPage() {
   const [contratoPreenchido, setContratoPreenchido] = useState(false);
   const [chamadaAgendada, setChamadaAgendada] = useState(false);
   const [fysiDriveLink, setFysiDriveLink] = useState<string | null>(null);
+  const [copyReviewLink, setCopyReviewLink] = useState<string | null>(null);
+  const [briefingSubmetido, setBriefingSubmetido] = useState(false);
 
   useEffect(() => {
     const c = loadCliente();
@@ -95,6 +97,8 @@ export default function DashboardPage() {
         if (data?.contratoPreenchido) setContratoPreenchido(true);
         if (data?.chamadaAgendada) setChamadaAgendada(true);
         if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
+        if (data?.copyReviewLink) setCopyReviewLink(data.copyReviewLink);
+        if (data?.briefingSubmetido) setBriefingSubmetido(true);
 
         // Puxa respostas salvas no servidor — continua de onde parou em
         // qualquer aparelho (ou um sócio convidado vê o que já foi preenchido).
@@ -199,7 +203,7 @@ export default function DashboardPage() {
           <div className="flex items-baseline justify-between mb-4">
             <Eyebrow>Próximos passos · siga nessa ordem</Eyebrow>
             <span className="text-xs text-fysi-muted hidden md:inline">
-              {[contratoPreenchido, chamadaAgendada, blocosPreenchidos === blocosTotal && blocosTotal > 0].filter(Boolean).length}/3 concluídos
+              {[contratoPreenchido, chamadaAgendada, briefingSubmetido || (blocosPreenchidos === blocosTotal && blocosTotal > 0)].filter(Boolean).length}/3 concluídos
             </span>
           </div>
 
@@ -249,14 +253,16 @@ export default function DashboardPage() {
                 numero="03"
                 titulo="Preencher briefing"
                 descricao={
-                  blocosPreenchidos === blocosTotal && blocosTotal > 0
-                    ? "Briefing completo. Aguarde retorno do time Fysi."
-                    : !contratoPreenchido || !chamadaAgendada
-                      ? `Disponível após contrato + chamada. ${blocosPreenchidos > 0 ? `${blocosPreenchidos}/${blocosTotal} já preenchidos.` : ""}`
-                      : `${blocosPreenchidos} de ${blocosTotal} blocos preenchidos.`
+                  briefingSubmetido
+                    ? "Briefing concluído. A equipe Fysi já está trabalhando."
+                    : blocosPreenchidos === blocosTotal && blocosTotal > 0
+                      ? "Briefing completo. Aguarde retorno do time Fysi."
+                      : !contratoPreenchido || !chamadaAgendada
+                        ? `Disponível após contrato + chamada. ${blocosPreenchidos > 0 ? `${blocosPreenchidos}/${blocosTotal} já preenchidos.` : ""}`
+                        : `${blocosPreenchidos} de ${blocosTotal} blocos preenchidos.`
                 }
-                done={blocosPreenchidos === blocosTotal && blocosTotal > 0}
-                active={contratoPreenchido && chamadaAgendada && blocosPreenchidos < blocosTotal}
+                done={briefingSubmetido || (blocosPreenchidos === blocosTotal && blocosTotal > 0)}
+                active={!briefingSubmetido && contratoPreenchido && chamadaAgendada && blocosPreenchidos < blocosTotal}
                 actionLabel={
                   blocosPreenchidos === 0
                     ? "Iniciar briefing →"
@@ -280,7 +286,7 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <ProjectTimeline etapas={etapas} />
+            <ProjectTimeline etapas={etapas} copyReviewLink={copyReviewLink} />
           </section>
 
           {/* Coluna direita — Status do briefing + Suporte */}

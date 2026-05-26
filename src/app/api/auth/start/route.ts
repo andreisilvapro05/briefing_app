@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
 import { errorResponse, isProduction, logServerError } from "@/lib/api-helpers";
+import { generateMagicSlug } from "@/lib/slug";
 
 /**
  * Cria/atualiza um registro de cliente e dispara o magic link de retomada.
@@ -157,6 +158,10 @@ export async function POST(request: NextRequest) {
         status: "em-andamento",
         ip_address: ip as never,
         user_agent: ua,
+        magic_slug: generateMagicSlug({
+          nome: parsed.nome,
+          empresa: parsed.empresa,
+        }),
       })
       .select("id")
       .single();

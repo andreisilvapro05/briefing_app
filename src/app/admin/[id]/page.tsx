@@ -27,10 +27,14 @@ import {
   sendToClickupAction,
   setClientContractDataAction,
   setClientStatusAction,
+  setCopyReviewLinkAction,
   setDriveLinksAction,
   setProjectTypeAction,
   setStageAction,
+  toggleBriefingConcluidoAction,
+  toggleChamadaFeitaAction,
 } from "./actions";
+import { generateMagicSlug } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +103,20 @@ export default async function AdminClientPage({
   const env = getServerEnv();
   const entrarUrl = `${env.appUrl}/entrar`;
   const accessCode = env.clientAccessCode;
+
+  // Lazy backfill do magic_slug pra clientes antigos (criados antes da feature).
+  let magicSlug = (client as { magic_slug?: string | null }).magic_slug;
+  if (!magicSlug) {
+    magicSlug = generateMagicSlug({
+      nome: client.nome,
+      empresa: client.empresa,
+    });
+    await service
+      .from("clients")
+      .update({ magic_slug: magicSlug })
+      .eq("id", client.id);
+  }
+  const painelLink = `${env.appUrl}/painel/${magicSlug}`;
 
   // Resolve stages a partir do project_type. Se project_type estiver nulo,
   // mostra placeholder vazio.
@@ -272,55 +290,138 @@ export default async function AdminClientPage({
         {/* Link de acesso pro cliente — pra mandar via WhatsApp */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <Eyebrow>Acesso do cliente</Eyebrow>
-          <p className="text-sm text-fysi-muted mt-1 mb-4">
-            Compartilhe esses dados com o cliente pra ele entrar no painel
-            dele de qualquer aparelho. Ele pode salvar como bookmark.
-          </p>
-          <div className="grid sm:grid-cols-3 gap-3 bg-fysi-cream/40 rounded-[12px] p-4 mb-4 text-sm">
-            <div>
-              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
-                Link
-              </span>
-              <a
-                href={entrarUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-fysi-deep underline break-all"
-              >
-                {entrarUrl}
-              </a>
-            </div>
-            <div>
-              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
-                WhatsApp
-              </span>
-              <code className="font-mono text-fysi-deep">
-                {client.whatsapp}
-              </code>
-            </div>
-            <div>
-              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
-                Código
-              </span>
-              <code className="font-mono text-fysi-deep">{accessCode}</code>
-            </div>
+
+          <div className="mt-3 bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] p-4">
+            <p className="text-xs uppercase tracking-[0.12em] text-fysi-deep font-medium mb-1">
+              🔗 Link direto (sem senha)
+            </p>
+            <a
+              href={painelLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-fysi-deep underline break-all text-sm"
+            >
+              {painelLink}
+            </a>
+            <p className="text-xs text-fysi-muted mt-2">
+              Mande esse link pelo WhatsApp. Cliente clica e cai direto no
+              painel dele — sem precisar de código.
+            </p>
           </div>
-          <details className="text-sm">
+
+          <details className="text-sm mt-4">
             <summary className="cursor-pointer text-fysi-deep font-medium hover:text-fysi-green">
-              📋 Mensagem pronta pra copiar (WhatsApp)
+              Acesso por código (alternativo)
+            </summary>
+            <div className="grid sm:grid-cols-3 gap-3 bg-fysi-cream/40 rounded-[12px] p-4 mt-3">
+              <div>
+                <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                  Link
+                </span>
+                <a
+                  href={entrarUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-fysi-deep underline break-all text-sm"
+                >
+                  {entrarUrl}
+                </a>
+              </div>
+              <div>
+                <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                  WhatsApp
+                </span>
+                <code className="font-mono text-fysi-deep text-sm">
+                  {client.whatsapp}
+                </code>
+              </div>
+              <div>
+                <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                  Código
+                </span>
+                <code className="font-mono text-fysi-deep text-sm">
+                  {accessCode}
+                </code>
+              </div>
+            </div>
+          </details>
+
+          <details className="text-sm mt-3">
+            <summary className="cursor-pointer text-fysi-deep font-medium hover:text-fysi-green">
+              📋 Mensagem pronta pra WhatsApp
             </summary>
             <pre className="mt-3 bg-fysi-cream/40 border border-fysi-line rounded-[12px] p-3 text-xs whitespace-pre-wrap font-sans text-fysi-deep">
 {`Oi ${client.nome?.split(" ")[0] ?? ""}! Aqui é da Fysi 👋
 
-Seu painel de briefing está pronto. Acesse:
-${entrarUrl}
-
-WhatsApp: ${client.whatsapp}
-Código: ${accessCode}
+Seu painel está pronto. Acesse direto:
+${painelLink}
 
 Qualquer dúvida, é só responder por aqui.`}
             </pre>
           </details>
+        </section>
+
+        {/* Marcadores de fase (admin marca chamada/briefing como feitos) */}
+        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <Eyebrow>Fases do projeto (marcar como feito)</Eyebrow>
+          <p className="text-sm text-fysi-muted mt-1 mb-4">
+            O painel do cliente reflete o status que você define aqui.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <form action={toggleChamadaFeitaAction}>
+              <input type="hidden" name="clientId" value={client.id} />
+              {urlKey ? (
+                <input type="hidden" name="key" value={urlKey} />
+              ) : null}
+              <Button type="submit" size="sm" variant="secondary">
+                {client.chamada_agendada_at
+                  ? "✓ Chamada feita — desmarcar"
+                  : "Marcar chamada como feita"}
+              </Button>
+            </form>
+            <form action={toggleBriefingConcluidoAction}>
+              <input type="hidden" name="clientId" value={client.id} />
+              {urlKey ? (
+                <input type="hidden" name="key" value={urlKey} />
+              ) : null}
+              <Button type="submit" size="sm" variant="secondary">
+                {client.briefing_submitted_at
+                  ? "✓ Briefing concluído — desmarcar"
+                  : "Marcar briefing como concluído"}
+              </Button>
+            </form>
+          </div>
+
+          <form
+            action={setCopyReviewLinkAction}
+            className="mt-5 pt-5 border-t border-fysi-line flex flex-col gap-2"
+          >
+            <input type="hidden" name="clientId" value={client.id} />
+            {urlKey ? (
+              <input type="hidden" name="key" value={urlKey} />
+            ) : null}
+            <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+              📝 Link de revisão da copy
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                name="copyReviewLink"
+                defaultValue={
+                  (client as { copy_review_link?: string | null })
+                    .copy_review_link ?? ""
+                }
+                placeholder="https://docs.google.com/document/..."
+                className="flex-1 rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+              />
+              <Button type="submit" size="sm" variant="secondary">
+                Salvar
+              </Button>
+            </div>
+            <p className="text-[0.65rem] text-fysi-muted">
+              Aparece pro cliente na etapa &ldquo;Criação da copy&rdquo; da timeline.
+            </p>
+          </form>
         </section>
 
         {/* Pipeline / stage management — só aparece se project_type definido */}

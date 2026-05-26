@@ -91,6 +91,13 @@ alter table public.clients add column if not exists contrato_dados jsonb;
 alter table public.clients add column if not exists fysi_drive_link text;
 alter table public.clients add column if not exists cliente_drive_link text;
 
+-- Slug mágico pro link direto do cliente sem senha (/painel/<slug>)
+alter table public.clients add column if not exists magic_slug text unique;
+create index if not exists clients_magic_slug_idx on public.clients(magic_slug);
+
+-- Link de revisão da copy (mostrado no dashboard do cliente)
+alter table public.clients add column if not exists copy_review_link text;
+
 create index if not exists clients_email_idx on public.clients(email);
 create index if not exists clients_status_idx on public.clients(status);
 create index if not exists clients_auth_user_idx on public.clients(auth_user_id);

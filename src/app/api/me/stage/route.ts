@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await service
       .from("clients")
       .select(
-        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at, fysi_drive_link"
+        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at, fysi_drive_link, copy_review_link"
       )
       .eq("id", parsed.clientId)
       .maybeSingle();
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       chamadaData: data.chamada_data,
       briefingSubmetido: !!data.briefing_submitted_at,
       fysiDriveLink: data.fysi_drive_link ?? null,
+      copyReviewLink: data.copy_review_link ?? null,
     });
   } catch (err) {
     logServerError("me.stage.unexpected", err);

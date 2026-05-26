@@ -3,6 +3,8 @@ import type { EtapaProjeto } from "@/lib/types";
 
 interface ProjectTimelineProps {
   etapas: EtapaProjeto[];
+  // Link da copy pra cliente revisar. Mostra um botão na etapa "Criação da copy".
+  copyReviewLink?: string | null;
 }
 
 const statusStyles = {
@@ -23,7 +25,10 @@ const statusStyles = {
   },
 } as const;
 
-export function ProjectTimeline({ etapas }: ProjectTimelineProps) {
+export function ProjectTimeline({
+  etapas,
+  copyReviewLink,
+}: ProjectTimelineProps) {
   return (
     <ol className="relative">
       {/* Linha vertical contínua representando "fluxo estruturado" */}
@@ -82,6 +87,18 @@ export function ProjectTimeline({ etapas }: ProjectTimelineProps) {
                 </li>
               ))}
             </ul>
+
+            {/* CTA: link de revisão da copy quando admin disponibiliza */}
+            {etapa.titulo === "Criação da copy" && copyReviewLink ? (
+              <a
+                href={copyReviewLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+              >
+                Revisar a copy →
+              </a>
+            ) : null}
           </li>
         );
       })}
