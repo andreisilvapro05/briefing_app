@@ -304,10 +304,11 @@ export default function DashboardPage() {
 
               <div className="flex items-baseline gap-2 mb-4">
                 <span className="text-3xl font-medium tracking-tight">
-                  {blocosPreenchidos}
+                  {briefingSubmetido ? blocosTotal : blocosPreenchidos}
                 </span>
                 <span className="text-fysi-muted text-sm">
-                  de {blocosTotal} blocos preenchidos
+                  de {blocosTotal} blocos{" "}
+                  {briefingSubmetido ? "concluídos" : "preenchidos"}
                 </span>
               </div>
 
@@ -316,7 +317,9 @@ export default function DashboardPage() {
                 <div
                   className="h-full bg-fysi-deep transition-[width]"
                   style={{
-                    width: `${(blocosPreenchidos / blocosTotal) * 100}%`,
+                    width: briefingSubmetido
+                      ? "100%"
+                      : `${(blocosPreenchidos / blocosTotal) * 100}%`,
                   }}
                 />
               </div>
@@ -324,7 +327,7 @@ export default function DashboardPage() {
               <ul className="flex flex-col gap-2 text-sm">
                 {blocosDoProjeto.map((bloco) => {
                   const prefix = `${bloco.id}.`;
-                  const filled = Object.keys(responses).some((k) => {
+                  const filledLocal = Object.keys(responses).some((k) => {
                     if (!k.startsWith(prefix)) return false;
                     const v = responses[k];
                     if (v === null || v === undefined) return false;
@@ -334,6 +337,9 @@ export default function DashboardPage() {
                       return Object.keys(v).length > 0;
                     return Boolean(v);
                   });
+                  // Quando admin marca briefing como concluído, todos os blocos
+                  // viram "Concluído" no painel do cliente.
+                  const filled = briefingSubmetido || filledLocal;
                   return (
                     <li
                       key={bloco.id}
@@ -346,7 +352,9 @@ export default function DashboardPage() {
                       >
                         <span
                           className={`h-2 w-2 rounded-full ${
-                            filled ? "bg-fysi-mint-vivid" : "bg-fysi-line-strong"
+                            filled
+                              ? "bg-fysi-mint-vivid"
+                              : "bg-fysi-line-strong"
                           }`}
                         />
                         <span>{bloco.titulo}</span>
@@ -356,7 +364,11 @@ export default function DashboardPage() {
                           filled ? "text-fysi-deep" : "text-fysi-muted"
                         }`}
                       >
-                        {filled ? "Iniciado" : "Pendente"}
+                        {briefingSubmetido
+                          ? "Concluído"
+                          : filled
+                            ? "Iniciado"
+                            : "Pendente"}
                       </span>
                     </li>
                   );
