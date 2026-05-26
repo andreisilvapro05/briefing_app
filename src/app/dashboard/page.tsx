@@ -203,6 +203,41 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        {/* ⚡ Ponto de atenção no topo — contrato pendente + dados de pagamento */}
+        {contratoStatus === "pendente" ? (
+          <section className="bg-fysi-yellow/30 border-2 border-fysi-yellow rounded-[24px] p-6 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl">⚡</span>
+              <Eyebrow>Atenção · contrato e pagamento</Eyebrow>
+            </div>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-[16px] p-5">
+                <h3 className="font-medium text-fysi-deep mb-2">
+                  📝 Contrato pra assinar
+                </h3>
+                <p className="text-sm text-fysi-deep/80 leading-relaxed">
+                  Você recebeu um e-mail do <strong>Autentique</strong> com o
+                  contrato. Confere sua caixa de entrada (e spam). Após
+                  assinatura pelas duas partes, o PDF assinado fica disponível
+                  pra download aqui.
+                </p>
+              </div>
+              <div className="bg-white rounded-[16px] p-5">
+                <h3 className="font-medium text-fysi-deep mb-2">
+                  💳 Pagamento via Pix
+                </h3>
+                <p className="text-xs text-fysi-muted mb-2">
+                  CNPJ da Fysi pra pagamento:
+                </p>
+                <CopyableValue value="53.470.438/0001-08" label="CNPJ" />
+                <p className="text-xs text-fysi-muted mt-3">
+                  Após pagamento, envie o comprovante por e-mail ou WhatsApp.
+                </p>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {/* Sequência de próximos passos — 3 fases ordenadas com setas.
             A "ativa" (próxima a fazer) ganha destaque visual.
             A "01 Contrato" ganha selo IMPORTANTE até estar pronta. */}
@@ -376,20 +411,8 @@ export default function DashboardPage() {
               </ul>
             </section>
 
-            {/* Contrato (status do Autentique) */}
-            {contratoStatus === "pendente" ? (
-              <section className="bg-fysi-yellow/30 border border-fysi-yellow rounded-[24px] p-6">
-                <Eyebrow className="mb-2 block">Contrato pra assinar</Eyebrow>
-                <p className="text-sm text-fysi-deep leading-relaxed mb-3">
-                  Você recebeu um e-mail do <strong>Autentique</strong> com
-                  o contrato pra assinar. Confere sua caixa de entrada (e
-                  spam, por garantia).
-                </p>
-                <p className="text-xs text-fysi-muted">
-                  Após assinatura, o PDF assinado aparece aqui pra download.
-                </p>
-              </section>
-            ) : contratoStatus === "assinado" && contratoSignedUrl ? (
+            {/* Contrato assinado — quando assinado, vira card discreto na aside */}
+            {contratoStatus === "assinado" && contratoSignedUrl ? (
               <section className="bg-fysi-mint rounded-[24px] p-6">
                 <Eyebrow className="mb-2 block">Contrato assinado ✓</Eyebrow>
                 <p className="text-sm text-fysi-deep/80 leading-relaxed mb-3">
@@ -441,6 +464,37 @@ export default function DashboardPage() {
   );
 }
 
+
+function CopyableValue({
+  value,
+  label,
+}: {
+  value: string;
+  label: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="flex items-center gap-2">
+      <code className="font-mono text-sm text-fysi-deep bg-fysi-cream/60 px-3 py-1.5 rounded-[10px] flex-1 break-all">
+        {value}
+      </code>
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof navigator !== "undefined" && navigator.clipboard) {
+            void navigator.clipboard.writeText(value);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }
+        }}
+        className="text-xs font-medium rounded-full bg-fysi-deep text-fysi-cream px-3 py-1.5 hover:bg-fysi-deep/90 whitespace-nowrap"
+        aria-label={`Copiar ${label}`}
+      >
+        {copied ? "Copiado ✓" : "Copiar"}
+      </button>
+    </div>
+  );
+}
 
 interface PhaseCardProps {
   numero: string;
