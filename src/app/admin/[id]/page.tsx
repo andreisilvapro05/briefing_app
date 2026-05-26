@@ -105,18 +105,26 @@ export default async function AdminClientPage({
   const accessCode = env.clientAccessCode;
 
   // Lazy backfill do magic_slug pra clientes antigos (criados antes da feature).
+  // Se a migration ainda não foi rodada, o update falha e painelLink fica null
+  // — a UI mostra aviso pra rodar a SQL em vez de um link quebrado.
   let magicSlug = (client as { magic_slug?: string | null }).magic_slug;
-  if (!magicSlug) {
-    magicSlug = generateMagicSlug({
+  let painelLink: string | null = null;
+  if (magicSlug) {
+    painelLink = `${env.appUrl}/painel/${magicSlug}`;
+  } else {
+    const slug = generateMagicSlug({
       nome: client.nome,
       empresa: client.empresa,
     });
-    await service
+    const { error: slugErr } = await service
       .from("clients")
-      .update({ magic_slug: magicSlug })
+      .update({ magic_slug: slug })
       .eq("id", client.id);
+    if (!slugErr) {
+      magicSlug = slug;
+      painelLink = `${env.appUrl}/painel/${slug}`;
+    }
   }
-  const painelLink = `${env.appUrl}/painel/${magicSlug}`;
 
   // Resolve stages a partir do project_type. Se project_type estiver nulo,
   // mostra placeholder vazio.
@@ -291,23 +299,33 @@ export default async function AdminClientPage({
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <Eyebrow>Acesso do cliente</Eyebrow>
 
-          <div className="mt-3 bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] p-4">
-            <p className="text-xs uppercase tracking-[0.12em] text-fysi-deep font-medium mb-1">
-              🔗 Link direto (sem senha)
-            </p>
-            <a
-              href={painelLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-fysi-deep underline break-all text-sm"
-            >
-              {painelLink}
-            </a>
-            <p className="text-xs text-fysi-muted mt-2">
-              Mande esse link pelo WhatsApp. Cliente clica e cai direto no
-              painel dele — sem precisar de código.
-            </p>
-          </div>
+          {painelLink ? (
+            <div className="mt-3 bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] p-4">
+              <p className="text-xs uppercase tracking-[0.12em] text-fysi-deep font-medium mb-1">
+                🔗 Link direto (sem senha)
+              </p>
+              <a
+                href={painelLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-fysi-deep underline break-all text-sm"
+              >
+                {painelLink}
+              </a>
+              <p className="text-xs text-fysi-muted mt-2">
+                Mande esse link pelo WhatsApp. Cliente clica e cai direto no
+                painel dele — sem precisar de código.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-3 bg-amber-50 border border-amber-200 rounded-[12px] p-4">
+              <p className="text-xs text-amber-800">
+                ⚠️ Link sem senha ainda não disponível — rode a migration
+                de <code className="font-mono">magic_slug</code> no Supabase
+                pra ativar.
+              </p>
+            </div>
+          )}
 
           <details className="text-sm mt-4">
             <summary className="cursor-pointer text-fysi-deep font-medium hover:text-fysi-green">
@@ -354,7 +372,7 @@ export default async function AdminClientPage({
 {`Oi ${client.nome?.split(" ")[0] ?? ""}! Aqui é da Fysi 👋
 
 Seu painel está pronto. Acesse direto:
-${painelLink}
+${painelLink ?? `${entrarUrl} (WhatsApp ${client.whatsapp} + código ${accessCode})`}
 
 Qualquer dúvida, é só responder por aqui.`}
             </pre>
