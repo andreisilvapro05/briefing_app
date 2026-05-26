@@ -3,6 +3,16 @@
  * Não usa zod aqui pra manter o módulo zero-side-effect e barato em edge.
  */
 
+/**
+ * Extrai email puro de string. Aceita "Nome <email>" (RFC) ou só "email".
+ * Devolve trimado.
+ */
+function cleanEmail(input: string): string {
+  const match = input.match(/<([^>]+)>/);
+  if (match) return match[1].trim();
+  return input.trim();
+}
+
 function required(name: string, value: string | undefined): string {
   if (!value || value.length === 0) {
     throw new Error(
@@ -66,11 +76,16 @@ export function getServerEnv() {
     // Sem isso, /api/admin/contracts/send retorna 503 e o admin vê aviso.
     autentiqueToken: process.env.AUTENTIQUE_API_TOKEN ?? "",
     // Signatário Fysi (assina antes do cliente, sequencial). Default = team email.
-    fysiSignerEmail:
-      process.env.FYSI_SIGNER_EMAIL ??
-      process.env.TEAM_EMAIL ??
-      "fysilabdigital@gmail.com",
-    fysiSignerName: process.env.FYSI_SIGNER_NAME ?? "Equipe Fysi Lab",
+    // Usa || em vez de ?? pra tratar string vazia como ausência. Extrai o email
+    // de formato 'Nome <email@host>' caso alguém cole nesse padrão.
+    fysiSignerEmail: cleanEmail(
+      process.env.FYSI_SIGNER_EMAIL ||
+        process.env.TEAM_EMAIL ||
+        "fysilabdigital@gmail.com"
+    ),
+    fysiSignerName: (
+      process.env.FYSI_SIGNER_NAME || "Equipe Fysi Lab"
+    ).trim(),
     adminEmails: (process.env.ADMIN_EMAILS ?? "")
       .split(",")
       .map((e) => e.trim().toLowerCase())

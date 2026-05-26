@@ -3,7 +3,6 @@ import { z } from "zod";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
-// NextResponse usado no catch do Autentique pra expor o erro temporariamente.
 import { getServerEnv } from "@/lib/env";
 import {
   buildClientTemplateVars,
@@ -118,6 +117,21 @@ export async function POST(
 
   // Envia ao Autentique — Fysi assina primeiro (sortable), depois cliente.
   const env = getServerEnv();
+
+  // Validação rápida do email do signatário Fysi (default vem de env e pode
+  // estar mal-configurado). Erro claro em vez de 502 do Autentique.
+  const fysiEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.fysiSignerEmail);
+  if (!fysiEmailValid) {
+    return NextResponse.json(
+      {
+        error: "fysi-signer-email-invalid",
+        message:
+          "Email do signatário Fysi é inválido. Configure FYSI_SIGNER_EMAIL na Vercel (formato: nome@dominio.com, sem 'Nome <email>').",
+      },
+      { status: 500 }
+    );
+  }
+
   let result;
   try {
     result = await createDocument({
@@ -137,14 +151,7 @@ export async function POST(
     });
   } catch (err) {
     logServerError("contracts.send.autentique", err);
-    // DIAG temporário: expõe a mensagem do Autentique pra debug.
-    return NextResponse.json(
-      {
-        error: "autentique-failed",
-        _debug: err instanceof Error ? err.message : String(err),
-      },
-      { status: 502 }
-    );
+    return errorResponse("autentique-failed", 502, err);
   }
 
   // Persiste. Se o admin digitou um nome/email diferente do cadastro, salva
