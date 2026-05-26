@@ -31,6 +31,10 @@ export default function DashboardPage() {
   const [fysiDriveLink, setFysiDriveLink] = useState<string | null>(null);
   const [copyReviewLink, setCopyReviewLink] = useState<string | null>(null);
   const [briefingSubmetido, setBriefingSubmetido] = useState(false);
+  const [contratoStatus, setContratoStatus] = useState<string | null>(null);
+  const [contratoSignedUrl, setContratoSignedUrl] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const c = loadCliente();
@@ -99,6 +103,9 @@ export default function DashboardPage() {
         if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
         if (data?.copyReviewLink) setCopyReviewLink(data.copyReviewLink);
         if (data?.briefingSubmetido) setBriefingSubmetido(true);
+        if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
+        if (data?.contratoSignedUrl)
+          setContratoSignedUrl(data.contratoSignedUrl);
 
         // Puxa respostas salvas no servidor — continua de onde parou em
         // qualquer aparelho (ou um sócio convidado vê o que já foi preenchido).
@@ -356,6 +363,37 @@ export default function DashboardPage() {
                 })}
               </ul>
             </section>
+
+            {/* Contrato (status do Autentique) */}
+            {contratoStatus === "pendente" ? (
+              <section className="bg-fysi-yellow/30 border border-fysi-yellow rounded-[24px] p-6">
+                <Eyebrow className="mb-2 block">Contrato pra assinar</Eyebrow>
+                <p className="text-sm text-fysi-deep leading-relaxed mb-3">
+                  Você recebeu um e-mail do <strong>Autentique</strong> com
+                  o contrato pra assinar. Confere sua caixa de entrada (e
+                  spam, por garantia).
+                </p>
+                <p className="text-xs text-fysi-muted">
+                  Após assinatura, o PDF assinado aparece aqui pra download.
+                </p>
+              </section>
+            ) : contratoStatus === "assinado" && contratoSignedUrl ? (
+              <section className="bg-fysi-mint rounded-[24px] p-6">
+                <Eyebrow className="mb-2 block">Contrato assinado ✓</Eyebrow>
+                <p className="text-sm text-fysi-deep/80 leading-relaxed mb-3">
+                  Contrato assinado pelas partes. Você pode baixar o PDF a
+                  qualquer momento.
+                </p>
+                <a
+                  href={contratoSignedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+                >
+                  Baixar PDF assinado →
+                </a>
+              </section>
+            ) : null}
 
             {/* Drive da Fysi (só aparece se o admin já colou o link) */}
             {fysiDriveLink ? (
