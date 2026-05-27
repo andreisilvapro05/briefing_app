@@ -284,11 +284,7 @@ export default async function AdminPage({
                           <DeleteClientRowButton
                             clientId={c.id}
                             clientName={c.nome}
-                            urlKey={
-                              user.source === "url-key" && urlKey
-                                ? urlKey
-                                : undefined
-                            }
+                            urlKey={urlKey ?? undefined}
                           />
                         </div>
                       </td>
