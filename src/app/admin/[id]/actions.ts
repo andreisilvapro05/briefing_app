@@ -290,6 +290,44 @@ export async function setDriveLinksAction(formData: FormData) {
 }
 
 /**
+ * Atualiza os campos de pagamento (total, pago, observação) do cliente.
+ * Valores aceitam string com vírgula ou ponto — normalizamos pra ponto antes.
+ */
+export async function setPaymentAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  function parseMoney(raw: string): number | null {
+    const cleaned = raw.trim().replace(/\./g, "").replace(",", ".");
+    if (!cleaned) return null;
+    const n = Number(cleaned);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return Math.round(n * 100) / 100;
+  }
+
+  const total = parseMoney(String(formData.get("pagamentoTotal") ?? ""));
+  const pago = parseMoney(String(formData.get("pagamentoPago") ?? ""));
+  const obs = String(formData.get("pagamentoObservacao") ?? "").trim();
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("clients")
+    .update({
+      pagamento_total: total,
+      pagamento_pago: pago ?? 0,
+      pagamento_observacao: obs || null,
+      pagamento_atualizado_at: new Date().toISOString(),
+    })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
  * Apaga o cliente e tudo associado (briefing_responses, briefing_files via
  * CASCADE no FK). Não toca em arquivos do Supabase Storage — admin pode
  * limpar manualmente se quiser.

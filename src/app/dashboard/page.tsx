@@ -35,6 +35,11 @@ export default function DashboardPage() {
   const [contratoSignedUrl, setContratoSignedUrl] = useState<string | null>(
     null
   );
+  const [pagamentoTotal, setPagamentoTotal] = useState<number | null>(null);
+  const [pagamentoPago, setPagamentoPago] = useState<number>(0);
+  const [pagamentoObservacao, setPagamentoObservacao] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const c = loadCliente();
@@ -102,6 +107,12 @@ export default function DashboardPage() {
           if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
           if (data?.contratoSignedUrl)
             setContratoSignedUrl(data.contratoSignedUrl);
+          if (typeof data?.pagamentoTotal === "number")
+            setPagamentoTotal(data.pagamentoTotal);
+          if (typeof data?.pagamentoPago === "number")
+            setPagamentoPago(data.pagamentoPago);
+          if (data?.pagamentoObservacao)
+            setPagamentoObservacao(data.pagamentoObservacao);
           return;
         }
 
@@ -123,6 +134,12 @@ export default function DashboardPage() {
         if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
         if (data?.contratoSignedUrl)
           setContratoSignedUrl(data.contratoSignedUrl);
+        if (typeof data?.pagamentoTotal === "number")
+          setPagamentoTotal(data.pagamentoTotal);
+        if (typeof data?.pagamentoPago === "number")
+          setPagamentoPago(data.pagamentoPago);
+        if (data?.pagamentoObservacao)
+          setPagamentoObservacao(data.pagamentoObservacao);
 
         // Puxa respostas salvas no servidor — continua de onde parou em
         // qualquer aparelho (ou um sócio convidado vê o que já foi preenchido).
@@ -296,6 +313,15 @@ export default function DashboardPage() {
               aqui.
             </p>
           </section>
+
+          {/* Pagamento — sempre que existe valor cadastrado */}
+          <div className="mb-8">
+            <PaymentCard
+              total={pagamentoTotal}
+              pago={pagamentoPago}
+              observacao={pagamentoObservacao}
+            />
+          </div>
 
           {/* Contrato assinado (se já assinado) */}
           {contratoStatus === "assinado" && contratoSignedUrl ? (
@@ -593,7 +619,14 @@ export default function DashboardPage() {
               </ul>
             </section>
 
-            {/* Contrato assinado — quando assinado, vira card discreto na aside */}
+            {/* Pagamento — total, pago, pendente + CNPJ pra copiar */}
+            <PaymentCard
+              total={pagamentoTotal}
+              pago={pagamentoPago}
+              observacao={pagamentoObservacao}
+            />
+
+            {/* Contrato assinado — quando assinado e tem PDF, mostra download */}
             {contratoStatus === "assinado" && contratoSignedUrl ? (
               <section className="bg-fysi-mint rounded-[24px] p-6">
                 <Eyebrow className="mb-2 block">Contrato assinado ✓</Eyebrow>
@@ -795,4 +828,122 @@ function PhaseArrow() {
       </svg>
     </div>
   );
+}
+
+/**
+ * Card de acompanhamento do pagamento. Sempre mostra o CNPJ da Fysi pra
+ * copiar (cliente pode pagar a qualquer momento). Quando o admin cadastra
+ * o valor total + o que já foi recebido, mostra também progresso e
+ * pendência.
+ */
+function PaymentCard({
+  total,
+  pago,
+  observacao,
+}: {
+  total: number | null;
+  pago: number;
+  observacao: string | null;
+}) {
+  const hasTotal = total !== null && total > 0;
+  const pendente = hasTotal ? Math.max(0, (total ?? 0) - pago) : null;
+  const pct = hasTotal
+    ? Math.min(100, Math.round((pago / (total ?? 1)) * 100))
+    : 0;
+  const quitado = hasTotal && pendente === 0;
+
+  return (
+    <section
+      className={
+        "rounded-[24px] p-6 " +
+        (quitado
+          ? "bg-fysi-mint"
+          : "bg-white border border-fysi-line")
+      }
+    >
+      <div className="flex items-baseline justify-between mb-3">
+        <Eyebrow>Pagamento</Eyebrow>
+        {hasTotal ? (
+          <span className="text-xs text-fysi-muted">
+            {quitado ? "Quitado ✓" : `${pct}% pago`}
+          </span>
+        ) : null}
+      </div>
+
+      {hasTotal ? (
+        <>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div>
+              <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                Total
+              </span>
+              <span className="text-fysi-deep font-medium text-sm">
+                {formatBRL(total ?? 0)}
+              </span>
+            </div>
+            <div>
+              <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                Pago
+              </span>
+              <span className="text-fysi-deep font-medium text-sm">
+                {formatBRL(pago)}
+              </span>
+            </div>
+            <div>
+              <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                Pendente
+              </span>
+              <span
+                className={
+                  "font-medium text-sm " +
+                  (quitado ? "text-fysi-deep" : "text-amber-700")
+                }
+              >
+                {formatBRL(pendente ?? 0)}
+              </span>
+            </div>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-fysi-line/60 overflow-hidden mb-4">
+            <div
+              className="h-full bg-fysi-deep transition-[width]"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          {observacao ? (
+            <p className="text-xs text-fysi-muted leading-relaxed mb-4">
+              {observacao}
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-sm text-fysi-muted leading-relaxed mb-4">
+          Você pode efetuar o pagamento via Pix usando o CNPJ abaixo. Assim
+          que recebermos, atualizamos o status aqui.
+        </p>
+      )}
+
+      {!quitado ? (
+        <div>
+          <p className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium mb-1.5">
+            💳 Pix · CNPJ Fysi
+          </p>
+          <CopyableValue value="53.470.438/0001-08" label="CNPJ" />
+          <p className="text-[0.7rem] text-fysi-muted mt-2 leading-relaxed">
+            Após pagamento, envie o comprovante por e-mail ou WhatsApp.
+          </p>
+        </div>
+      ) : (
+        <p className="text-sm text-fysi-deep/80 leading-relaxed">
+          Pagamento integral confirmado pela equipe Fysi. Obrigado!
+        </p>
+      )}
+    </section>
+  );
+}
+
+function formatBRL(value: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
 }

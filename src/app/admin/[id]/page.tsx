@@ -31,6 +31,7 @@ import {
   setClientStatusAction,
   setCopyReviewLinkAction,
   setDriveLinksAction,
+  setPaymentAction,
   setProjectTypeAction,
   setStageAction,
   toggleBriefingConcluidoAction,
@@ -639,6 +640,133 @@ Qualquer dúvida, é só responder por aqui.`}
           urlKey={urlKey ?? undefined}
         />
 
+        {/* Pagamento — admin acompanha o quanto já foi recebido */}
+        {(() => {
+          const total = Number(client.pagamento_total ?? 0);
+          const pago = Number(client.pagamento_pago ?? 0);
+          const pendente = Math.max(0, total - pago);
+          const pct =
+            total > 0 ? Math.min(100, Math.round((pago / total) * 100)) : 0;
+          return (
+            <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+              <div className="flex items-baseline justify-between mb-4">
+                <Eyebrow>Pagamento</Eyebrow>
+                {total > 0 ? (
+                  <span className="text-xs text-fysi-muted">
+                    {pct}% recebido
+                  </span>
+                ) : null}
+              </div>
+
+              {total > 0 ? (
+                <>
+                  <div className="grid sm:grid-cols-3 gap-4 mb-3">
+                    <div>
+                      <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                        Total
+                      </span>
+                      <span className="text-fysi-deep font-medium">
+                        {formatMoney(total)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                        Pago
+                      </span>
+                      <span className="text-fysi-deep font-medium">
+                        {formatMoney(pago)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                        Pendente
+                      </span>
+                      <span
+                        className={
+                          pendente === 0
+                            ? "text-fysi-deep font-medium"
+                            : "text-amber-700 font-medium"
+                        }
+                      >
+                        {formatMoney(pendente)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-fysi-line overflow-hidden mb-5">
+                    <div
+                      className="h-full bg-fysi-deep transition-[width]"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-fysi-muted mb-4">
+                  Preencha o valor total e o que já foi pago. O cliente vê isso
+                  no painel dele.
+                </p>
+              )}
+
+              <form
+                action={setPaymentAction}
+                className="grid sm:grid-cols-2 gap-3"
+              >
+                <input type="hidden" name="clientId" value={client.id} />
+                {urlKey ? (
+                  <input type="hidden" name="key" value={urlKey} />
+                ) : null}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                    Valor total (R$)
+                  </label>
+                  <input
+                    type="text"
+                    name="pagamentoTotal"
+                    defaultValue={total > 0 ? total.toFixed(2).replace(".", ",") : ""}
+                    inputMode="decimal"
+                    placeholder="1800,00"
+                    className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                    Já pago (R$)
+                  </label>
+                  <input
+                    type="text"
+                    name="pagamentoPago"
+                    defaultValue={pago > 0 ? pago.toFixed(2).replace(".", ",") : ""}
+                    inputMode="decimal"
+                    placeholder="900,00"
+                    className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 sm:col-span-2">
+                  <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                    Observação (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    name="pagamentoObservacao"
+                    defaultValue={client.pagamento_observacao ?? ""}
+                    placeholder="Ex: 50% sinal recebido 27/05, restante até 15/06"
+                    className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                  />
+                </div>
+                <div className="sm:col-span-2 flex items-center gap-2">
+                  <Button type="submit" size="sm" variant="secondary">
+                    Salvar pagamento
+                  </Button>
+                  {client.pagamento_atualizado_at ? (
+                    <span className="text-[0.65rem] text-fysi-muted">
+                      Atualizado em {formatDate(client.pagamento_atualizado_at)}
+                    </span>
+                  ) : null}
+                </div>
+              </form>
+            </section>
+          );
+        })()}
+
         {/* Drive — links manuais (Fysi + cliente) */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <Eyebrow>Drive</Eyebrow>
@@ -969,4 +1097,24 @@ function humanSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatMoney(value: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
 }
