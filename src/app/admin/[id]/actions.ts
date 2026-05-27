@@ -8,6 +8,10 @@ import { createClickUpBriefingTask } from "@/lib/clickup";
 import { htmlMagicLink, sendEmail } from "@/lib/email";
 import { getServerEnv } from "@/lib/env";
 import { generateMagicSlug } from "@/lib/slug";
+import {
+  buildClientePayload,
+  sendDashboardWebhook,
+} from "@/lib/dashboard-webhook";
 
 /**
  * Reenviar magic link para o cliente (acionado pelo admin).
@@ -324,6 +328,32 @@ export async function setPaymentAction(formData: FormData) {
     })
     .eq("id", clientId);
 
+  // Webhook outbound: avisa o dashboard financeiro do novo estado.
+  const { data: fresh } = await service
+    .from("clients")
+    .select(
+      "id, nome, email, empresa, whatsapp, cpf, cnpj, razao_social, endereco, cep, project_type"
+    )
+    .eq("id", clientId)
+    .maybeSingle();
+  if (fresh) {
+    const totalNum = total ?? 0;
+    const pagoNum = pago ?? 0;
+    void sendDashboardWebhook({
+      event: "pagamento.atualizado",
+      emittedAt: new Date().toISOString(),
+      source: "briefing_app",
+      clientId,
+      cliente: buildClientePayload(fresh),
+      pagamento: {
+        total: total,
+        pago: pagoNum,
+        pendente: Math.max(0, totalNum - pagoNum),
+        observacao: obs || null,
+      },
+    });
+  }
+
   revalidatePath(`/admin/${clientId}`);
 }
 
@@ -420,6 +450,24 @@ export async function createClientAction(formData: FormData) {
     // Não há um caminho de erro elegante pra server action — re-tenta levando
     // pra /admin/novo com query (frontend pode mostrar mensagem genérica).
     redirect(`/admin/novo${keySuffix}`);
+  }
+
+  // Webhook outbound: novo cliente cadastrado.
+  const { data: fresh } = await service
+    .from("clients")
+    .select(
+      "id, nome, email, empresa, whatsapp, cpf, cnpj, razao_social, endereco, cep, project_type"
+    )
+    .eq("id", created!.id)
+    .maybeSingle();
+  if (fresh) {
+    void sendDashboardWebhook({
+      event: "cliente.criado",
+      emittedAt: new Date().toISOString(),
+      source: "briefing_app",
+      clientId: created!.id,
+      cliente: buildClientePayload(fresh),
+    });
   }
 
   revalidatePath("/admin");

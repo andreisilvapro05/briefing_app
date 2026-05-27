@@ -93,5 +93,11 @@ export function getServerEnv() {
     appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
     storageBucket:
       process.env.NEXT_PUBLIC_SUPABASE_STORAGE_BUCKET ?? "briefing-uploads",
+    // Webhook outbound pro dashboard financeiro. Quando preenchido, o
+    // briefing_app dispara eventos (contrato.assinado, pagamento.atualizado,
+    // cliente.criado) pro endpoint configurado, assinados via HMAC-SHA256.
+    // Sem URL → webhook fica desativado silenciosamente.
+    dashboardWebhookUrl: process.env.DASHBOARD_WEBHOOK_URL ?? "",
+    dashboardWebhookSecret: process.env.DASHBOARD_WEBHOOK_SECRET ?? "",
   };
 }
