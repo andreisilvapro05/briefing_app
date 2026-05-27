@@ -90,6 +90,8 @@ export default async function NovoClientePage({
               <option value="landing-com-copy">Landing com copy</option>
               <option value="landing-sem-copy">Landing sem copy</option>
               <option value="site-completo">Site completo</option>
+              <option value="seo">SEO</option>
+              <option value="outro">Outro serviço</option>
             </select>
             <p className="text-[0.65rem] text-fysi-muted mt-1">
               Define a timeline. Pode definir/mudar depois no painel do cliente.

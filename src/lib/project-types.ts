@@ -26,6 +26,22 @@ export const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
     durationLabel: "≈ 5 semanas",
     hasCopyStep: true,
   },
+  {
+    id: "seo",
+    title: "SEO",
+    description:
+      "Auditoria técnica, otimização on-page, conteúdo e monitoramento.",
+    durationLabel: "≈ 6 semanas",
+    hasCopyStep: false,
+  },
+  {
+    id: "outro",
+    title: "Outro serviço",
+    description:
+      "Escopo customizado. A timeline é ajustada caso a caso pela equipe.",
+    durationLabel: "Sob medida",
+    hasCopyStep: false,
+  },
 ];
 
 /**
@@ -102,10 +118,95 @@ export function buildTimeline(
     status: "pendente",
   };
 
-  const etapas =
-    projectType === "landing-sem-copy"
-      ? [onboarding, designStep, ajustes, implementacao, entrega]
-      : [onboarding, copyStep, designStep, ajustes, implementacao, entrega];
+  // Timeline customizada por tipo de projeto
+  let etapas: EtapaProjeto[];
+
+  if (projectType === "seo") {
+    etapas = [
+      onboarding,
+      {
+        numero: 0,
+        titulo: "Auditoria SEO",
+        prazo: "5–7 dias úteis",
+        atividades: [
+          "Análise técnica do site",
+          "Auditoria de conteúdo e palavras-chave",
+          "Diagnóstico de concorrência",
+        ],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Estratégia e plano de ação",
+        prazo: "3 dias úteis",
+        atividades: [
+          "Definição de palavras-chave alvo",
+          "Roadmap de otimizações",
+          "Plano de conteúdo",
+        ],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Otimização on-page",
+        prazo: "1–2 semanas",
+        atividades: [
+          "Ajustes técnicos (meta tags, schema, velocidade)",
+          "Otimização de páginas existentes",
+        ],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Conteúdo e link building",
+        prazo: "1–2 semanas",
+        atividades: [
+          "Produção de novos conteúdos",
+          "Estratégia de autoridade e backlinks",
+        ],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Relatório e monitoramento",
+        prazo: "Mensal",
+        atividades: [
+          "Acompanhamento de rankings",
+          "Relatório de tráfego e conversões",
+        ],
+        status: "pendente",
+      },
+    ];
+  } else if (projectType === "outro") {
+    etapas = [
+      onboarding,
+      {
+        numero: 0,
+        titulo: "Planejamento",
+        prazo: "A definir",
+        atividades: ["Escopo, prazos e entregáveis customizados"],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Execução",
+        prazo: "A definir",
+        atividades: ["Produção conforme combinado com o time Fysi"],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Entrega",
+        prazo: "Final",
+        atividades: ["Revisão, ajustes finais e documentação"],
+        status: "pendente",
+      },
+    ];
+  } else if (projectType === "landing-sem-copy") {
+    etapas = [onboarding, designStep, ajustes, implementacao, entrega];
+  } else {
+    etapas = [onboarding, copyStep, designStep, ajustes, implementacao, entrega];
+  }
 
   // Renumera sequencialmente e aplica o status com base no currentStageIndex
   return etapas.map((etapa, idx) => ({

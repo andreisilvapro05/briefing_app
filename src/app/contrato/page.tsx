@@ -6,9 +6,12 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eyebrow, Pill } from "@/components/ui/pill";
-import { loadCliente } from "@/lib/storage";
+import { loadCliente, hydrateCliente } from "@/lib/storage";
+import type { ProjectType } from "@/lib/types";
 
 interface FormState {
+  nome: string;
+  whatsapp: string;
   email: string;
   empresa: string;
   endereco: string;
@@ -38,6 +41,8 @@ export default function ContratoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [values, setValues] = useState<FormState>({
+    nome: "",
+    whatsapp: "",
     email: "",
     empresa: "",
     endereco: "",
@@ -50,19 +55,23 @@ export default function ContratoPage() {
   });
 
   useEffect(() => {
+    // Pré-preenche com dados do localStorage se o cliente já entrou
+    // pelo /painel. Mas /contrato também funciona standalone — quem chega
+    // direto preenche nome+whatsapp aqui mesmo e cria o cadastro.
     const c = loadCliente();
-    if (!c) {
-      router.replace("/");
-      return;
+    if (c) {
+      setClientId(c.id);
+      setValues((v) => ({
+        ...v,
+        nome: c.nome ?? v.nome,
+        whatsapp: c.whatsapp ?? v.whatsapp,
+        email: c.email ?? v.email,
+        empresa: c.empresa ?? v.empresa,
+      }));
     }
-    setClientId(c.id);
-    // Pré-preenche com dados que o cliente tenha em localStorage
-    setValues((v) => ({
-      ...v,
-      email: c.email ?? v.email,
-      empresa: c.empresa ?? v.empresa,
-    }));
   }, [router]);
+
+  const standalone = clientId === null;
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setValues((v) => ({ ...v, [key]: value }));
@@ -70,8 +79,19 @@ export default function ContratoPage() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!clientId) return;
     setError(null);
+
+    // Standalone (sem cliente logado) exige nome + WhatsApp pra criar registro
+    if (standalone) {
+      if (!values.nome.trim()) {
+        setError("Informe seu nome.");
+        return;
+      }
+      if (!values.whatsapp.trim()) {
+        setError("Informe seu WhatsApp.");
+        return;
+      }
+    }
 
     // Mínimos obrigatórios pra emitir contrato:
     // email, empresa, endereço, CEP, CPF, como conheceu
@@ -101,15 +121,41 @@ export default function ContratoPage() {
 
     setSubmitting(true);
     try {
+      const payload: Record<string, unknown> = { ...values };
+      if (clientId) payload.clientId = clientId;
       const res = await fetch("/api/cliente/contrato", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, ...values }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.text();
         throw new Error(body || "Falha ao salvar.");
       }
+      const data = (await res.json().catch(() => null)) as {
+        client?: {
+          id: string;
+          nome: string;
+          whatsapp: string;
+          email?: string | null;
+          empresa?: string | null;
+          projectType?: ProjectType | null;
+        };
+      } | null;
+
+      // Standalone — hidrata localStorage pra que o /dashboard reconheça
+      // o cliente e mostre o painel completo.
+      if (standalone && data?.client) {
+        hydrateCliente({
+          id: data.client.id,
+          nome: data.client.nome,
+          whatsapp: data.client.whatsapp,
+          email: data.client.email ?? undefined,
+          empresa: data.client.empresa ?? undefined,
+          projectType: data.client.projectType ?? undefined,
+        });
+      }
+
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado.");
@@ -147,6 +193,27 @@ export default function ContratoPage() {
             <h2 className="text-sm font-medium text-fysi-deep uppercase tracking-[0.1em]">
               Contato
             </h2>
+            {standalone ? (
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Input
+                  label="Seu nome*"
+                  name="nome"
+                  autoComplete="name"
+                  value={values.nome}
+                  onChange={(e) => update("nome", e.target.value)}
+                  placeholder="Nome completo"
+                />
+                <Input
+                  label="WhatsApp*"
+                  name="whatsapp"
+                  autoComplete="tel"
+                  inputMode="tel"
+                  value={values.whatsapp}
+                  onChange={(e) => update("whatsapp", e.target.value)}
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+            ) : null}
             <Input
               label="E-mail*"
               name="email"
@@ -257,13 +324,19 @@ export default function ContratoPage() {
           ) : null}
 
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-fysi-line">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => router.push("/dashboard")}
-            >
-              ← Voltar ao painel
-            </Button>
+            {standalone ? (
+              <span className="text-xs text-fysi-muted">
+                Ao enviar, criamos seu painel pessoal automaticamente.
+              </span>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => router.push("/dashboard")}
+              >
+                ← Voltar ao painel
+              </Button>
+            )}
             <Button type="submit" size="lg" disabled={submitting}>
               {submitting ? "Salvando…" : "Salvar e continuar"}
             </Button>

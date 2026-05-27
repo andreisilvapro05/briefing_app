@@ -8,7 +8,9 @@
 export type ProjectType =
   | "landing-com-copy"
   | "landing-sem-copy"
-  | "site-completo";
+  | "site-completo"
+  | "seo"
+  | "outro";
 
 export interface ProjectTypeOption {
   id: ProjectType;

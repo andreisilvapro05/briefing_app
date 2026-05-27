@@ -45,7 +45,9 @@ export function ClientPreviewButton({
         projectType?:
           | "landing-com-copy"
           | "landing-sem-copy"
-          | "site-completo";
+          | "site-completo"
+          | "seo"
+          | "outro";
       };
       hydrateCliente(data);
       window.open("/dashboard", "_blank", "noopener,noreferrer");

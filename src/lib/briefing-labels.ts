@@ -153,6 +153,8 @@ export const PROJECT_TYPE_LABELS: Record<string, string> = {
   "landing-com-copy": "Landing Page com copy",
   "landing-sem-copy": "Landing Page sem copy",
   "site-completo": "Site completo",
+  seo: "SEO",
+  outro: "Outro serviço",
 };
 
 export const BLOCO_LABELS: Record<string, string> = {

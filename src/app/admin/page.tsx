@@ -171,6 +171,8 @@ export default async function AdminPage({
             <option value="landing-com-copy">Landing com copy</option>
             <option value="landing-sem-copy">Landing sem copy</option>
             <option value="site-completo">Site completo</option>
+            <option value="seo">SEO</option>
+            <option value="outro">Outro serviço</option>
           </select>
 
           <div className="flex gap-2">

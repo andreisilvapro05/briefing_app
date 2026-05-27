@@ -124,9 +124,14 @@ export async function setStageAction(formData: FormData) {
     .maybeSingle();
   if (!client) return;
 
-  // Calcula stage máximo a partir do project_type. Sem chamada cara — números fixos.
-  // landing-sem-copy = 5 stages (índices 0–4); demais = 6 stages (0–5).
-  const maxIndex = client.project_type === "landing-sem-copy" ? 4 : 5;
+  // Calcula stage máximo a partir do project_type (sem chamada cara).
+  // landing-sem-copy & outro = índices até length-1; demais = 5.
+  const maxIndex =
+    client.project_type === "landing-sem-copy"
+      ? 4
+      : client.project_type === "outro"
+        ? 3
+        : 5;
 
   let next = client.current_stage_index ?? 0;
   if (direction === "next") next = Math.min(maxIndex, next + 1);
@@ -162,7 +167,13 @@ export async function setProjectTypeAction(formData: FormData) {
 
   const clientId = String(formData.get("clientId") ?? "");
   const projectType = String(formData.get("projectType") ?? "");
-  const allowed = ["landing-com-copy", "landing-sem-copy", "site-completo"];
+  const allowed = [
+    "landing-com-copy",
+    "landing-sem-copy",
+    "site-completo",
+    "seo",
+    "outro",
+  ];
   if (!clientId || !allowed.includes(projectType)) return;
 
   const service = createSupabaseServiceRoleClient();
@@ -329,6 +340,8 @@ export async function createClientAction(formData: FormData) {
     "landing-com-copy",
     "landing-sem-copy",
     "site-completo",
+    "seo",
+    "outro",
   ];
   const projectType = allowedTypes.includes(projectTypeRaw)
     ? projectTypeRaw
