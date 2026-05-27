@@ -88,11 +88,15 @@ export default function DashboardPage() {
         const effectivePT = serverPT ?? c.projectType;
 
         if (!effectivePT) {
-          // Sem tipo definido nem local nem server — renderiza placeholder
-          // amigável (admin ainda não definiu o tipo de projeto).
+          // Sem tipo definido nem local nem server — ainda assim renderiza
+          // o painel com contrato/chamada (que independem do tipo). Só a
+          // timeline + briefing ficam escondidos até o admin definir o tipo.
           setCliente(c);
           setResponses(getAllResponses());
           setLoaded(true);
+          if (data?.contratoPreenchido) setContratoPreenchido(true);
+          if (data?.chamadaAgendada) setChamadaAgendada(true);
+          if (data?.briefingSubmetido) setBriefingSubmetido(true);
           if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
           if (data?.copyReviewLink) setCopyReviewLink(data.copyReviewLink);
           if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
@@ -170,32 +174,156 @@ export default function DashboardPage() {
     );
   }
 
-  // Cliente carregou mas a equipe Fysi ainda não definiu o tipo de projeto.
-  // Mostra boas-vindas amigáveis em vez de jogar pro /projeto.
+  // Cliente sem tipo de projeto definido pela equipe Fysi ainda.
+  // Renderiza o painel parcial: cards de contrato/chamada (que independem do
+  // tipo) + aviso amigável no lugar da timeline e do briefing.
   if (!projectInfo) {
     return (
-      <Shell tone="cream" sectionLabel="Painel · em configuração">
-        <ContentFrame size="md">
-          <div className="text-center py-12">
-            <Eyebrow>Painel</Eyebrow>
-            <h1 className="fysi-display text-3xl md:text-4xl mt-3 mb-4">
-              Olá, {cliente.nome.split(" ")[0]} 👋
-            </h1>
-            <p className="text-fysi-muted leading-relaxed mb-2">
-              Seu projeto ainda está sendo configurado pela equipe Fysi.
-            </p>
-            <p className="text-fysi-muted leading-relaxed">
-              Em breve, sua timeline e as próximas etapas vão aparecer aqui.
-              Você pode fechar essa aba — quando estiver pronto, te avisamos.
-            </p>
-            <button
-              type="button"
-              onClick={handleSair}
-              className="text-xs text-fysi-muted hover:text-fysi-deep underline underline-offset-2 mt-6"
-            >
-              Sair deste briefing
-            </button>
+      <Shell tone="cream" sectionLabel="03 · Painel do projeto">
+        <ContentFrame size="xl">
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
+            <div className="flex flex-col gap-2">
+              <Eyebrow>Painel{cliente.empresa ? ` · ${cliente.empresa}` : ""}</Eyebrow>
+              <h1 className="fysi-display text-3xl md:text-4xl">
+                Olá, {cliente.nome.split(" ")[0]}.
+              </h1>
+              <p className="text-fysi-muted text-base leading-relaxed max-w-xl">
+                Enquanto a equipe Fysi configura seu projeto, você já pode
+                adiantar contrato e chamada abaixo.
+              </p>
+            </div>
+            <div className="flex flex-col items-start md:items-end gap-2">
+              {fysiDriveLink ? (
+                <a
+                  href={fysiDriveLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+                >
+                  🗂️ Abrir pasta no Drive →
+                </a>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleSair}
+                className="text-xs text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
+              >
+                Sair deste briefing
+              </button>
+            </div>
           </div>
+
+          {/* ⚡ Atenção no topo — contrato pendente + pagamento */}
+          {contratoStatus === "pendente" ? (
+            <section className="bg-fysi-yellow/30 border-2 border-fysi-yellow rounded-[24px] p-6 mb-8">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xl">⚡</span>
+                <Eyebrow>Atenção · contrato e pagamento</Eyebrow>
+              </div>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-[16px] p-5">
+                  <h3 className="font-medium text-fysi-deep mb-2">
+                    📝 Contrato pra assinar
+                  </h3>
+                  <p className="text-sm text-fysi-deep/80 leading-relaxed">
+                    Você recebeu um e-mail do <strong>Autentique</strong> com o
+                    contrato. Confere sua caixa de entrada (e spam). Após
+                    assinatura pelas duas partes, o PDF assinado fica
+                    disponível pra download aqui.
+                  </p>
+                </div>
+                <div className="bg-white rounded-[16px] p-5">
+                  <h3 className="font-medium text-fysi-deep mb-2">
+                    💳 Pagamento via Pix
+                  </h3>
+                  <p className="text-xs text-fysi-muted mb-2">
+                    CNPJ da Fysi pra pagamento:
+                  </p>
+                  <CopyableValue value="53.470.438/0001-08" label="CNPJ" />
+                  <p className="text-xs text-fysi-muted mt-3">
+                    Após pagamento, envie o comprovante por e-mail ou WhatsApp.
+                  </p>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {/* Próximos passos — só contrato + chamada por enquanto */}
+          <section className="mb-10">
+            <Eyebrow className="mb-4 block">Próximos passos</Eyebrow>
+            <div className="flex flex-col md:flex-row md:items-stretch gap-3 md:gap-2">
+              <div className="flex-1">
+                <PhaseCard
+                  numero="01"
+                  titulo="Dados pra contrato"
+                  descricao={
+                    contratoPreenchido
+                      ? "Informações enviadas. Você pode atualizar quando quiser."
+                      : "Endereço, CPF e razão social pra emitir contrato."
+                  }
+                  done={contratoPreenchido}
+                  active={!contratoPreenchido}
+                  important={!contratoPreenchido}
+                  actionLabel={contratoPreenchido ? "Editar dados →" : "Preencher agora →"}
+                  onClick={() => router.push("/contrato")}
+                />
+              </div>
+              <PhaseArrow />
+              <div className="flex-1">
+                <PhaseCard
+                  numero="02"
+                  titulo="Agendar chamada"
+                  descricao={
+                    chamadaAgendada
+                      ? "Chamada confirmada. Você recebe os detalhes por e-mail."
+                      : "30 min com a Karine pra alinhar moodboard e cronograma."
+                  }
+                  done={chamadaAgendada}
+                  active={contratoPreenchido && !chamadaAgendada}
+                  actionLabel={chamadaAgendada ? "Reagendar →" : "Escolher horário →"}
+                  onClick={() => router.push("/agendar")}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Aviso amigável no lugar da timeline/briefing */}
+          <section className="bg-white border border-fysi-line rounded-[24px] p-8 text-center mb-8">
+            <Eyebrow className="mb-3 block">Briefing e timeline</Eyebrow>
+            <p className="text-fysi-deep leading-relaxed max-w-lg mx-auto">
+              A equipe Fysi ainda está definindo o tipo do seu projeto. Assim
+              que isso for feito, o briefing e a timeline completa aparecem
+              aqui.
+            </p>
+          </section>
+
+          {/* Contrato assinado (se já assinado) */}
+          {contratoStatus === "assinado" && contratoSignedUrl ? (
+            <section className="bg-fysi-mint rounded-[24px] p-6 mb-8">
+              <Eyebrow className="mb-2 block">Contrato assinado ✓</Eyebrow>
+              <p className="text-sm text-fysi-deep/80 leading-relaxed mb-3">
+                Contrato assinado pelas partes. Você pode baixar o PDF a
+                qualquer momento.
+              </p>
+              <a
+                href={contratoSignedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+              >
+                Baixar PDF assinado →
+              </a>
+            </section>
+          ) : null}
+
+          {/* Suporte */}
+          <section className="bg-fysi-mint rounded-[24px] p-6">
+            <Eyebrow className="mb-2 block">Precisa de ajuda?</Eyebrow>
+            <p className="text-sm text-fysi-deep/80 leading-relaxed">
+              Em qualquer momento você pode falar diretamente com o time Fysi
+              pelo WhatsApp do contrato. Estamos aqui para destravar.
+            </p>
+          </section>
         </ContentFrame>
       </Shell>
     );

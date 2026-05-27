@@ -206,9 +206,19 @@ export function ContractCard(props: ContractCardProps) {
 
       {hasContract ? (
         <div className="flex flex-col gap-4">
-          <div className="text-xs text-fysi-muted">
-            Documento Autentique:{" "}
-            <code className="font-mono">{props.autentiqueDocumentId}</code>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs text-fysi-muted truncate">
+              ID Autentique:{" "}
+              <code className="font-mono">{props.autentiqueDocumentId}</code>
+            </div>
+            <a
+              href={`https://app.autentique.com.br/documentos/${props.autentiqueDocumentId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-fysi-deep underline underline-offset-2 hover:text-fysi-green whitespace-nowrap"
+            >
+              Abrir no Autentique →
+            </a>
           </div>
 
           {props.contratoDados ? (

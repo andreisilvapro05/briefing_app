@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
@@ -21,6 +22,7 @@ import type { ProjectType } from "@/lib/types";
 import { ContractCard } from "@/components/admin/contract-card";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
+import { CopyButton } from "@/components/admin/copy-button";
 import { getServerEnv } from "@/lib/env";
 import {
   resendClientLinkAction,
@@ -101,7 +103,14 @@ export default async function AdminClientPage({
 
   // Credenciais de acesso do cliente (pra admin compartilhar com ele).
   const env = getServerEnv();
-  const entrarUrl = `${env.appUrl}/entrar`;
+  // Deriva a base URL do host do request — assim o link mágico sai com o
+  // domínio que o admin está acessando (custom domain) em vez de cair no
+  // NEXT_PUBLIC_APP_URL que pode estar setado pro domínio padrão da Vercel.
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const baseUrl = host ? `${proto}://${host}` : env.appUrl;
+  const entrarUrl = `${baseUrl}/entrar`;
   const accessCode = env.clientAccessCode;
 
   // Lazy backfill do magic_slug pra clientes antigos (criados antes da feature).
@@ -110,7 +119,7 @@ export default async function AdminClientPage({
   let magicSlug = (client as { magic_slug?: string | null }).magic_slug;
   let painelLink: string | null = null;
   if (magicSlug) {
-    painelLink = `${env.appUrl}/painel/${magicSlug}`;
+    painelLink = `${baseUrl}/painel/${magicSlug}`;
   } else {
     const slug = generateMagicSlug({
       nome: client.nome,
@@ -122,7 +131,7 @@ export default async function AdminClientPage({
       .eq("id", client.id);
     if (!slugErr) {
       magicSlug = slug;
-      painelLink = `${env.appUrl}/painel/${slug}`;
+      painelLink = `${baseUrl}/painel/${slug}`;
     }
   }
 
@@ -301,18 +310,21 @@ export default async function AdminClientPage({
 
           {painelLink ? (
             <div className="mt-3 bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] p-4">
-              <p className="text-xs uppercase tracking-[0.12em] text-fysi-deep font-medium mb-1">
+              <p className="text-xs uppercase tracking-[0.12em] text-fysi-deep font-medium mb-2">
                 🔗 Link direto (sem senha)
               </p>
-              <a
-                href={painelLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-fysi-deep underline break-all text-sm"
-              >
-                {painelLink}
-              </a>
-              <p className="text-xs text-fysi-muted mt-2">
+              <div className="flex items-center gap-2 mb-2">
+                <a
+                  href={painelLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-fysi-deep underline break-all text-sm flex-1"
+                >
+                  {painelLink}
+                </a>
+                <CopyButton value={painelLink} label="Copiar link" />
+              </div>
+              <p className="text-xs text-fysi-muted">
                 Mande esse link pelo WhatsApp. Cliente clica e cai direto no
                 painel dele — sem precisar de código.
               </p>

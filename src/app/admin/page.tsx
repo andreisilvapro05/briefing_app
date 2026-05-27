@@ -8,6 +8,7 @@ import {
   PROJECT_TYPE_LABELS,
 } from "@/lib/briefing-labels";
 import { AdminTabs } from "@/components/admin/admin-tabs";
+import { DeleteClientRowButton } from "@/components/admin/delete-client-row-button";
 
 export const dynamic = "force-dynamic";
 
@@ -271,12 +272,23 @@ export default async function AdminPage({
                         </div>
                       </td>
                       <td className="px-5 py-4 text-right">
-                        <Link
-                          href={`/admin/${c.id}${keyParamFirst}`}
-                          className="text-xs font-medium text-fysi-deep hover:underline"
-                        >
-                          Ver briefing →
-                        </Link>
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            href={`/admin/${c.id}${keyParamFirst}`}
+                            className="text-xs font-medium text-fysi-deep hover:underline"
+                          >
+                            Ver briefing →
+                          </Link>
+                          <DeleteClientRowButton
+                            clientId={c.id}
+                            clientName={c.nome}
+                            urlKey={
+                              user.source === "url-key" && urlKey
+                                ? urlKey
+                                : undefined
+                            }
+                          />
+                        </div>
                       </td>
                     </tr>
                   );
