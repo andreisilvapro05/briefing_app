@@ -34,16 +34,19 @@ export async function POST(
   const service = createSupabaseServiceRoleClient();
   const { data: client } = await service
     .from("clients")
-    .select("id, contrato_signed_url")
+    .select("id")
     .eq("id", id)
     .maybeSingle();
   if (!client) return errorResponse("client-not-found", 404);
 
+  // Admin é a fonte da verdade aqui: se não passou URL, limpa qualquer
+  // URL anterior (do Autentique etc) pra que o card de download não
+  // apareça no painel do cliente.
   const { error: updErr } = await service
     .from("clients")
     .update({
       contrato_status: "assinado",
-      contrato_signed_url: signedUrl ?? client.contrato_signed_url ?? null,
+      contrato_signed_url: signedUrl,
     })
     .eq("id", id);
 

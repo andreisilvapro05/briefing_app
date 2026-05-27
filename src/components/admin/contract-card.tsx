@@ -364,14 +364,19 @@ export function ContractCard(props: ContractCardProps) {
             >
               {status === "refreshing" ? "Atualizando…" : "Atualizar status"}
             </Button>
-            {props.contratoStatus !== "assinado" && !markingMode ? (
+            {!markingMode ? (
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
-                onClick={() => setMarkingMode(true)}
+                onClick={() => {
+                  setMarkingMode(true);
+                  setManualSignedUrl(props.contratoSignedUrl ?? "");
+                }}
               >
-                Marcar como assinado
+                {props.contratoStatus === "assinado"
+                  ? "Editar PDF assinado"
+                  : "Marcar como assinado"}
               </Button>
             ) : null}
             {props.contratoSignedUrl ? (
