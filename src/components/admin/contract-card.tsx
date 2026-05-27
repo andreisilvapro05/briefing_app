@@ -71,9 +71,11 @@ export function ContractCard(props: ContractCardProps) {
   // Default = nome cadastrado; admin digita o nome legal completo.
   const [signerName, setSignerName] = useState(props.clientName ?? "");
   const [status, setStatus] = useState<
-    "idle" | "sending" | "refreshing" | "previewing" | "error"
+    "idle" | "sending" | "refreshing" | "previewing" | "marking" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  const [markingMode, setMarkingMode] = useState(false);
+  const [manualSignedUrl, setManualSignedUrl] = useState("");
 
   async function sendContract(e: FormEvent) {
     e.preventDefault();
@@ -151,6 +153,36 @@ export function ContractCard(props: ContractCardProps) {
       a.click();
       a.remove();
       URL.revokeObjectURL(downloadUrl);
+      setStatus("idle");
+    } catch (err) {
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Erro inesperado");
+    }
+  }
+
+  async function markSigned() {
+    setStatus("marking");
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/contracts/mark-signed/${props.clientId}${keyParam}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            signedUrl: manualSignedUrl.trim() || undefined,
+          }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatus("error");
+        setError(humanError(data.error, data.details));
+        return;
+      }
+      setMarkingMode(false);
+      setManualSignedUrl("");
+      router.refresh();
       setStatus("idle");
     } catch (err) {
       setStatus("error");
@@ -282,16 +314,66 @@ export function ContractCard(props: ContractCardProps) {
 
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
+          {markingMode ? (
+            <div className="rounded-[14px] border border-fysi-line bg-fysi-cream/40 p-3 flex flex-col gap-3">
+              <p className="text-xs text-fysi-deep leading-relaxed">
+                Marcar contrato como <strong>assinado</strong> manualmente.
+                Opcionalmente, cole a URL do PDF assinado pra disponibilizar
+                pro cliente baixar (ex: link de Drive ou Autentique).
+              </p>
+              <Input
+                label="URL do PDF assinado (opcional)"
+                name="manualSignedUrl"
+                value={manualSignedUrl}
+                onChange={(e) => setManualSignedUrl(e.target.value)}
+                placeholder="https://..."
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setMarkingMode(false);
+                    setManualSignedUrl("");
+                    setError(null);
+                  }}
+                  disabled={status === "marking"}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={markSigned}
+                  disabled={status === "marking"}
+                >
+                  {status === "marking" ? "Salvando…" : "Confirmar — assinado"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               size="sm"
               variant="secondary"
               onClick={refresh}
-              disabled={status === "refreshing"}
+              disabled={status === "refreshing" || markingMode}
             >
               {status === "refreshing" ? "Atualizando…" : "Atualizar status"}
             </Button>
+            {props.contratoStatus !== "assinado" && !markingMode ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setMarkingMode(true)}
+              >
+                Marcar como assinado
+              </Button>
+            ) : null}
             {props.contratoSignedUrl ? (
               <a
                 href={props.contratoSignedUrl}
