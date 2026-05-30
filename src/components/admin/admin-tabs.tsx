@@ -2,14 +2,14 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 
 /**
- * Tabs no topo do admin: Clientes (lista) | Contratos.
+ * Tabs no topo do admin: Clientes | Quadro | Relatórios | Contratos.
  * `keyParam` preserva ?key=... quando o admin entrou via URL key.
  */
 export function AdminTabs({
   active,
   keyParam,
 }: {
-  active: "clientes" | "contratos";
+  active: "clientes" | "quadro" | "relatorios" | "contratos";
   keyParam: string;
 }) {
   const tab = (isActive: boolean) =>
@@ -21,9 +21,21 @@ export function AdminTabs({
     );
 
   return (
-    <nav className="flex gap-1 border-b border-fysi-line mb-6">
+    <nav className="flex gap-1 border-b border-fysi-line mb-6 overflow-x-auto">
       <Link href={`/admin${keyParam}`} className={tab(active === "clientes")}>
         Clientes
+      </Link>
+      <Link
+        href={`/admin/quadro${keyParam}`}
+        className={tab(active === "quadro")}
+      >
+        Quadro
+      </Link>
+      <Link
+        href={`/admin/relatorios${keyParam}`}
+        className={tab(active === "relatorios")}
+      >
+        Relatórios
       </Link>
       <Link
         href={`/admin/contratos${keyParam}`}
