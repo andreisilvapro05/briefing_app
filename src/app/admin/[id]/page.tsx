@@ -798,6 +798,11 @@ Qualquer dúvida, é só responder por aqui.`}
               <p className="text-[0.65rem] text-fysi-muted">
                 Pasta criada no Drive da Fysi pra esse cliente. O cliente
                 também vê esse link no painel dele.
+                {client.google_drive_folders ? (
+                  <span className="ml-1 inline-flex items-center gap-1 text-fysi-deep font-medium">
+                    · ✓ auto-criada
+                  </span>
+                ) : null}
               </p>
               {client.fysi_drive_link ? (
                 <a

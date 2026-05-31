@@ -5,6 +5,12 @@ import {
 } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
 import { errorResponse, isProduction, logServerError } from "@/lib/api-helpers";
+import {
+  createClientFolders,
+  subfolderForField,
+  uploadToDriveFolder,
+  type ClientDriveFolders,
+} from "@/lib/google-drive";
 
 /**
  * Upload de arquivo para Supabase Storage.
@@ -160,6 +166,55 @@ export async function POST(request: NextRequest) {
     .from(bucket)
     .getPublicUrl(objectPath);
 
+  // Espelha no Google Drive em paralelo (no-op se Drive não configurado).
+  // Importante: NÃO bloqueia a resposta — usuário recebe URL Supabase
+  // imediatamente; Drive sobe em background. Se falhar, só fica no log.
+  let driveFileUrl: string | null = null;
+  if (clientId) {
+    try {
+      const { data: clientRow } = await service
+        .from("clients")
+        .select("nome, google_drive_folders")
+        .eq("id", clientId)
+        .maybeSingle();
+
+      if (clientRow) {
+        let folders =
+          (clientRow.google_drive_folders as ClientDriveFolders | null) ?? null;
+
+        // Lazy bootstrap: se cliente foi criado antes da integração Drive,
+        // cria as pastas agora no primeiro upload.
+        if (!folders && clientRow.nome) {
+          const created = await createClientFolders(clientRow.nome, clientId);
+          if (created) {
+            folders = created;
+            await service
+              .from("clients")
+              .update({
+                fysi_drive_link: created.rootUrl,
+                google_drive_folders: created,
+              })
+              .eq("id", clientId);
+          }
+        }
+
+        if (folders) {
+          const subKey = subfolderForField(safePrefix);
+          const subId = folders.subfolders?.[subKey] ?? folders.rootId;
+          const uploaded = await uploadToDriveFolder(
+            subId,
+            file.name,
+            file.type || "application/octet-stream",
+            new Uint8Array(arrayBuffer)
+          );
+          driveFileUrl = uploaded?.webViewLink ?? null;
+        }
+      }
+    } catch (err) {
+      console.warn("[upload] Drive mirror failed:", err);
+    }
+  }
+
   if (clientId) {
     await service.from("briefing_files").insert({
       client_id: clientId,
@@ -184,5 +239,6 @@ export async function POST(request: NextRequest) {
     size: file.size,
     mimeType: file.type,
     bucket,
+    driveUrl: driveFileUrl,
   });
 }

@@ -12,6 +12,7 @@ import {
   buildClientePayload,
   sendDashboardWebhook,
 } from "@/lib/dashboard-webhook";
+import { createClientFolders } from "@/lib/google-drive";
 
 /**
  * Reenviar magic link para o cliente (acionado pelo admin).
@@ -450,6 +451,23 @@ export async function createClientAction(formData: FormData) {
     // Não há um caminho de erro elegante pra server action — re-tenta levando
     // pra /admin/novo com query (frontend pode mostrar mensagem genérica).
     redirect(`/admin/novo${keySuffix}`);
+  }
+
+  // Cria pasta no Google Drive (no-op se envs não configuradas).
+  // Fire-and-forget no caminho feliz — não bloqueia o redirect.
+  try {
+    const folders = await createClientFolders(nome, created!.id);
+    if (folders) {
+      await service
+        .from("clients")
+        .update({
+          fysi_drive_link: folders.rootUrl,
+          google_drive_folders: folders,
+        })
+        .eq("id", created!.id);
+    }
+  } catch (err) {
+    console.warn("[createClient] Drive folder failed:", err);
   }
 
   // Webhook outbound: novo cliente cadastrado.

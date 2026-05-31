@@ -99,5 +99,12 @@ export function getServerEnv() {
     // Sem URL → webhook fica desativado silenciosamente.
     dashboardWebhookUrl: process.env.DASHBOARD_WEBHOOK_URL ?? "",
     dashboardWebhookSecret: process.env.DASHBOARD_WEBHOOK_SECRET ?? "",
+    // Google Drive (Service Account) — quando preenchido, briefing_app cria
+    // pasta automaticamente pra cada cliente novo e espelha anexos por
+    // categoria (Logo, Identidade, Imagens, Depoimentos, Briefing).
+    //   GOOGLE_SERVICE_ACCOUNT_KEY   — JSON inteiro do service account, base64'd
+    //   GOOGLE_DRIVE_PARENT_FOLDER_ID — ID da pasta raiz "Fysi · Clientes" no Drive
+    googleServiceAccountKey: process.env.GOOGLE_SERVICE_ACCOUNT_KEY ?? "",
+    googleDriveParentFolderId: process.env.GOOGLE_DRIVE_PARENT_FOLDER_ID ?? "",
   };
 }

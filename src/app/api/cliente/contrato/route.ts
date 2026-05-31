@@ -4,6 +4,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 import { getServerEnv } from "@/lib/env";
 import { generateMagicSlug } from "@/lib/slug";
+import { createClientFolders } from "@/lib/google-drive";
 
 /**
  * Salva os dados de contrato do cliente.
@@ -107,6 +108,22 @@ export async function POST(request: NextRequest) {
       }
       clientId = created.id;
       isNewClient = true;
+
+      // Cria pasta no Google Drive (no-op se envs não configuradas).
+      try {
+        const folders = await createClientFolders(nome, created.id);
+        if (folders) {
+          await service
+            .from("clients")
+            .update({
+              fysi_drive_link: folders.rootUrl,
+              google_drive_folders: folders,
+            })
+            .eq("id", created.id);
+        }
+      } catch (err) {
+        console.warn("[contrato] Drive folder failed:", err);
+      }
     }
   }
 
