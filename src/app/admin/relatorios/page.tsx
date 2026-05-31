@@ -177,43 +177,53 @@ export default async function AdminRelatoriosPage({
           </section>
         </div>
 
-        {/* Distribuição por lane */}
+        {/* Distribuição por lane — pizza + barras */}
         <section className="bg-white rounded-[20px] border border-fysi-line p-5 mb-6">
           <div className="flex items-baseline justify-between mb-4">
-            <Eyebrow>Distribuição pelo pipeline</Eyebrow>
+            <Eyebrow>Projetos por status</Eyebrow>
             <span className="text-[0.7rem] text-fysi-muted">
-              {GENERAL_LANES.length} estágios
+              {GENERAL_LANES.length} estágios · {stats.total} total
             </span>
           </div>
-          <div className="flex flex-col gap-2">
-            {GENERAL_LANES.map((lane) => {
-              const tone = LANE_TONE_CLASSES[lane.tone];
-              const count = stats.porLane.get(lane.id)?.length ?? 0;
-              const pct = (count / maxLane) * 100;
-              const totalPct = stats.total > 0 ? (count / stats.total) * 100 : 0;
-              return (
-                <div key={lane.id} className="flex items-center gap-3">
-                  <div className="w-44 shrink-0 flex items-center gap-1.5">
-                    <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
-                    <span className="text-[0.7rem] uppercase tracking-[0.06em] text-fysi-deep font-medium truncate">
-                      {lane.label}
-                    </span>
+          <div className="grid md:grid-cols-[280px_1fr] gap-6 items-start">
+            {/* Pizza */}
+            <PieChart lanes={GENERAL_LANES} porLane={stats.porLane} total={stats.total} />
+
+            {/* Barras */}
+            <div className="flex flex-col gap-2">
+              {GENERAL_LANES.map((lane) => {
+                const tone = LANE_TONE_CLASSES[lane.tone];
+                const count = stats.porLane.get(lane.id)?.length ?? 0;
+                if (count === 0) return null;
+                const pct = (count / maxLane) * 100;
+                const totalPct = stats.total > 0 ? (count / stats.total) * 100 : 0;
+                return (
+                  <div key={lane.id} className="flex items-center gap-3">
+                    <div className="w-40 shrink-0 flex items-center gap-1.5">
+                      <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
+                      <span className="text-[0.7rem] uppercase tracking-[0.06em] text-fysi-deep font-medium truncate">
+                        {lane.label}
+                      </span>
+                    </div>
+                    <div className="flex-1 h-5 bg-fysi-cream/50 rounded-md overflow-hidden">
+                      <div
+                        className={`h-full ${tone.dot} transition-[width]`}
+                        style={{ width: `${Math.max(2, pct)}%` }}
+                      />
+                    </div>
+                    <div className="w-20 shrink-0 text-right text-xs text-fysi-deep tabular-nums">
+                      <span className="font-semibold">{count}</span>
+                      <span className="text-fysi-muted ml-1">
+                        ({totalPct.toFixed(0)}%)
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex-1 h-5 bg-fysi-cream/50 rounded-md overflow-hidden">
-                    <div
-                      className={`h-full ${tone.dot} transition-[width]`}
-                      style={{ width: `${Math.max(2, pct)}%` }}
-                    />
-                  </div>
-                  <div className="w-20 shrink-0 text-right text-xs text-fysi-deep tabular-nums">
-                    <span className="font-semibold">{count}</span>
-                    <span className="text-fysi-muted ml-1">
-                      ({totalPct.toFixed(0)}%)
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+              {stats.total === 0 ? (
+                <p className="text-sm text-fysi-muted italic">Sem clientes ainda.</p>
+              ) : null}
+            </div>
           </div>
         </section>
 
@@ -346,4 +356,91 @@ function formatBRL(value: number): string {
     style: "currency",
     currency: "BRL",
   }).format(value);
+}
+
+/**
+ * Pizza desenhada com conic-gradient — zero dep externa.
+ * Cada fatia recebe a cor da lane via raw-hex (mapeamento de tom Tailwind).
+ */
+function PieChart({
+  lanes,
+  porLane,
+  total,
+}: {
+  lanes: typeof GENERAL_LANES;
+  porLane: Map<string, ClientForLane[]>;
+  total: number;
+}) {
+  const data = lanes
+    .map((l) => ({ lane: l, count: porLane.get(l.id)?.length ?? 0 }))
+    .filter((d) => d.count > 0);
+
+  if (total === 0 || data.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-56 text-fysi-muted text-sm">
+        Sem dados
+      </div>
+    );
+  }
+
+  // Cores HEX por tom (espelha LANE_TONE_CLASSES.dot)
+  const TONE_HEX: Record<string, string> = {
+    slate: "#94a3b8",
+    indigo: "#6366f1",
+    yellow: "#facc15",
+    pink: "#ec4899",
+    violet: "#8b5cf6",
+    amber: "#f59e0b",
+    red: "#ef4444",
+    orange: "#f97316",
+    emerald: "#10b981",
+    rose: "#f43f5e",
+  };
+
+  let acc = 0;
+  const segments = data.map((d) => {
+    const start = (acc / total) * 360;
+    acc += d.count;
+    const end = (acc / total) * 360;
+    return { ...d, start, end, color: TONE_HEX[d.lane.tone] ?? "#94a3b8" };
+  });
+
+  // Monta o conic-gradient
+  const gradient = segments
+    .map((s) => `${s.color} ${s.start}deg ${s.end}deg`)
+    .join(", ");
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div
+        className="relative h-56 w-56 rounded-full shadow-[inset_0_0_0_2px_white]"
+        style={{ background: `conic-gradient(${gradient})` }}
+        role="img"
+        aria-label={`Pizza de distribuição: ${segments.map((s) => `${s.lane.label} ${s.count}`).join(", ")}`}
+      >
+        {/* Donut hole */}
+        <div className="absolute inset-[22%] rounded-full bg-white flex flex-col items-center justify-center">
+          <div className="text-2xl font-bold text-fysi-deep tabular-nums">
+            {total}
+          </div>
+          <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+            projetos
+          </div>
+        </div>
+      </div>
+      {/* Legenda compacta */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1 w-full max-w-xs">
+        {segments.map((s) => (
+          <div key={s.lane.id} className="flex items-center gap-1.5 text-[0.7rem]">
+            <span
+              className="h-2 w-2 rounded-sm shrink-0"
+              style={{ background: s.color }}
+            />
+            <span className="text-fysi-deep truncate flex-1">{s.lane.label}</span>
+            <span className="text-fysi-muted tabular-nums">{s.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
