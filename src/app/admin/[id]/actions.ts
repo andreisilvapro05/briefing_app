@@ -13,6 +13,7 @@ import {
   sendDashboardWebhook,
 } from "@/lib/dashboard-webhook";
 import { createClientFolders } from "@/lib/google-drive";
+import type { EIData } from "@/lib/ei-template";
 
 /**
  * Reenviar magic link para o cliente (acionado pelo admin).
@@ -547,6 +548,39 @@ export async function toggleBriefingConcluidoAction(formData: FormData) {
     .update({
       briefing_submitted_at: wasSubmitted ? null : new Date().toISOString(),
       status: wasSubmitted ? "em-andamento" : "concluido",
+    })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Salva o EI (Estrutura Inicial) do projeto. JSON livre — schema definido
+ * em lib/ei-template.ts, validado só superficialmente aqui (campo presente).
+ */
+export async function setEIAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const raw = String(formData.get("eiJson") ?? "").trim();
+  if (!raw) return;
+
+  let parsed: EIData;
+  try {
+    parsed = JSON.parse(raw) as EIData;
+  } catch {
+    return;
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("clients")
+    .update({
+      ei_data: parsed,
+      ei_atualizado_at: new Date().toISOString(),
     })
     .eq("id", clientId);
 

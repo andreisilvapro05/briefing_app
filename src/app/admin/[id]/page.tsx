@@ -21,6 +21,8 @@ import {
 import type { ProjectType } from "@/lib/types";
 import { ContractCard } from "@/components/admin/contract-card";
 import { MateriaisPainel } from "@/components/admin/materiais-painel";
+import { EIEditor } from "@/components/admin/ei-editor";
+import type { EIData } from "@/lib/ei-template";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
@@ -627,6 +629,15 @@ Qualquer dúvida, é só responder por aqui.`}
             </div>
           </form>
         </section>
+
+        <EIEditor
+          clientId={client.id}
+          clientName={client.nome ?? null}
+          empresa={client.empresa ?? null}
+          urlKey={urlKey ?? null}
+          initial={(client.ei_data as EIData | null) ?? null}
+          atualizadoAt={client.ei_atualizado_at ?? null}
+        />
 
         <ContractCard
           clientId={client.id}
