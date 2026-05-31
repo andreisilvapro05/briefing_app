@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { BlocoShell } from "@/components/briefing/bloco-shell";
+import { BlocoMateriais } from "@/components/briefing/bloco-materiais";
 import { BlocoIdentificacao } from "@/components/briefing/bloco-identificacao";
 import { BlocoIdentidadeVisual } from "@/components/briefing/bloco-identidade-visual";
 import { BlocoLinguagemTom } from "@/components/briefing/bloco-linguagem-tom";
@@ -15,6 +16,7 @@ import { loadCliente } from "@/lib/storage";
 import type { Cliente } from "@/lib/types";
 
 const BLOCO_COMPONENTS: Record<string, React.ComponentType> = {
+  materiais: BlocoMateriais,
   "identificacao-contatos": BlocoIdentificacao,
   "identidade-visual": BlocoIdentidadeVisual,
   "linguagem-tom": BlocoLinguagemTom,

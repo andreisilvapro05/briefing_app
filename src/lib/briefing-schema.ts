@@ -17,8 +17,16 @@ export interface BlocoMeta {
 
 export const BLOCOS: BlocoMeta[] = [
   {
-    id: "identificacao-contatos",
+    id: "materiais",
     numero: 1,
+    titulo: "Materiais",
+    descricao:
+      "Comece enviando logo, identidade, fotos, depoimentos e qualquer arquivo que a Fysi vai precisar. Um lugar só — depois você responde as perguntas tranquilo.",
+    appliesTo: () => true,
+  },
+  {
+    id: "identificacao-contatos",
+    numero: 2,
     titulo: "Identificação e contatos",
     descricao:
       "Informações da marca e canais que vão aparecer na página final.",
@@ -26,7 +34,7 @@ export const BLOCOS: BlocoMeta[] = [
   },
   {
     id: "identidade-visual",
-    numero: 2,
+    numero: 3,
     titulo: "Identidade visual",
     descricao:
       "Cores, tipografia e ativos visuais que orientam o design da página.",
@@ -34,14 +42,14 @@ export const BLOCOS: BlocoMeta[] = [
   },
   {
     id: "linguagem-tom",
-    numero: 3,
+    numero: 4,
     titulo: "Linguagem e tom da marca",
     descricao: "Como a sua marca se comunica.",
     appliesTo: () => true,
   },
   {
     id: "referencias-concorrencia",
-    numero: 4,
+    numero: 5,
     titulo: "Referências e concorrência",
     descricao:
       "Inspirações, concorrentes e elementos visuais que servem como ponto de partida.",
@@ -49,14 +57,14 @@ export const BLOCOS: BlocoMeta[] = [
   },
   {
     id: "briefing-copy",
-    numero: 5,
+    numero: 6,
     titulo: "Briefing de copy",
     descricao: "Material para que a Fysi escreva a copy estratégica.",
     appliesTo: (pt) => pt === "landing-com-copy" || pt === "site-completo",
   },
   {
     id: "textos-prontos",
-    numero: 5,
+    numero: 6,
     titulo: "Textos prontos",
     descricao: "Envie aqui os textos finais que devem ser usados na página.",
     appliesTo: (pt) => pt === "landing-sem-copy",

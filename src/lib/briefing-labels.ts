@@ -9,6 +9,14 @@
  */
 
 export const FIELD_LABELS: Record<string, string> = {
+  // bloco 0 — materiais (unificado)
+  "materiais.logo": "Logo",
+  "materiais.identidade-visual": "Identidade visual",
+  "materiais.imagens": "Imagens e fotos",
+  "materiais.depoimentos": "Depoimentos",
+  "materiais.documentos": "Documentos",
+  "materiais.outros": "Outros materiais",
+
   // bloco 1 — identificação e contatos
   "identificacao-contatos.logos": "Logo da marca",
   "identificacao-contatos.whatsapp-site": "WhatsApp para o site",
@@ -158,6 +166,7 @@ export const PROJECT_TYPE_LABELS: Record<string, string> = {
 };
 
 export const BLOCO_LABELS: Record<string, string> = {
+  materiais: "Materiais",
   "identificacao-contatos": "Identificação e contatos",
   "identidade-visual": "Identidade visual",
   "linguagem-tom": "Linguagem e tom da marca",
@@ -167,12 +176,13 @@ export const BLOCO_LABELS: Record<string, string> = {
 };
 
 export const BLOCO_NUMBERS: Record<string, number> = {
-  "identificacao-contatos": 1,
-  "identidade-visual": 2,
-  "linguagem-tom": 3,
-  "referencias-concorrencia": 4,
-  "briefing-copy": 5,
-  "textos-prontos": 5,
+  materiais: 1,
+  "identificacao-contatos": 2,
+  "identidade-visual": 3,
+  "linguagem-tom": 4,
+  "referencias-concorrencia": 5,
+  "briefing-copy": 6,
+  "textos-prontos": 6,
 };
 
 /**

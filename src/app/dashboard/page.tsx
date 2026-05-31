@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { ProjectTimeline } from "@/components/timeline/project-timeline";
 import { FysiMark } from "@/components/brand/fysi-mark";
+import { MeusMateriaisCard } from "@/components/meus-materiais-card";
 import {
   buildTimeline,
   PROJECT_TYPE_OPTIONS,
@@ -314,6 +315,16 @@ export default function DashboardPage() {
             </p>
           </section>
 
+          {/* Meus materiais — mesmo sem project_type, cliente pode enviar */}
+          {cliente.id ? (
+            <div className="mb-8">
+              <MeusMateriaisCard
+                clientId={cliente.id}
+                onAddMore={() => router.push("/briefing/materiais")}
+              />
+            </div>
+          ) : null}
+
           {/* Pagamento — sempre que existe valor cadastrado */}
           <div className="mb-8">
             <PaymentCard
@@ -618,6 +629,14 @@ export default function DashboardPage() {
                 })}
               </ul>
             </section>
+
+            {/* Meus materiais — visão rápida do que o cliente já enviou */}
+            {cliente.id ? (
+              <MeusMateriaisCard
+                clientId={cliente.id}
+                onAddMore={() => router.push("/briefing/materiais")}
+              />
+            ) : null}
 
             {/* Pagamento — total, pago, pendente + CNPJ pra copiar */}
             <PaymentCard
