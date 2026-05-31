@@ -20,6 +20,7 @@ import {
 } from "@/lib/briefing-labels";
 import type { ProjectType } from "@/lib/types";
 import { ContractCard } from "@/components/admin/contract-card";
+import { MateriaisPainel } from "@/components/admin/materiais-painel";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
@@ -970,34 +971,11 @@ Qualquer dúvida, é só responder por aqui.`}
             })}
 
             {filesList.length > 0 ? (
-              <section className="bg-white border border-fysi-line rounded-[20px] p-6">
-                <Eyebrow>Arquivos enviados</Eyebrow>
-                <ul className="mt-3 flex flex-col gap-2">
-                  {filesList.map((f, i) => (
-                    <li
-                      key={i}
-                      className="flex items-center justify-between gap-3 border border-fysi-line rounded-[12px] px-3 py-2"
-                    >
-                      <div className="flex flex-col min-w-0">
-                        <a
-                          href={f.public_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm text-fysi-deep font-medium hover:underline truncate"
-                        >
-                          {f.file_name}
-                        </a>
-                        <span className="text-xs text-fysi-muted">
-                          {fieldLabel(f.field_id)} · {f.mime_type ?? "—"}
-                        </span>
-                      </div>
-                      <Pill tone="outline">
-                        {humanSize(f.size_bytes ?? 0)}
-                      </Pill>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+              <MateriaisPainel
+                files={filesList}
+                clientId={client.id}
+                urlKey={urlKey}
+              />
             ) : null}
           </div>
         )}
