@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Eyebrow, Pill } from "@/components/ui/pill";
+import {
+  STANDARD_TEMPLATES,
+  type ContractTemplate,
+} from "@/lib/contract-templates";
 
 /**
  * Card de contrato no /admin/[id]:
@@ -76,6 +80,44 @@ export function ContractCard(props: ContractCardProps) {
   const [error, setError] = useState<string | null>(null);
   const [markingMode, setMarkingMode] = useState(false);
   const [manualSignedUrl, setManualSignedUrl] = useState("");
+  // Templates de proposta (pacotes padrão + clientes anteriores).
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [clientTemplates, setClientTemplates] = useState<
+    Array<{
+      id: string;
+      label: string;
+      pacote_nome: string;
+      created_at: string;
+      dados: Record<string, unknown>;
+    }>
+  >([]);
+  const [templatesLoaded, setTemplatesLoaded] = useState(false);
+
+  // Carrega templates de outros clientes sob demanda quando dropdown abre
+  useEffect(() => {
+    if (showTemplates && !templatesLoaded) {
+      void fetch(`/api/admin/contracts/templates${keyParam}`)
+        .then((r) => (r.ok ? r.json() : { templates: [] }))
+        .then((data) => {
+          setClientTemplates(data.templates ?? []);
+          setTemplatesLoaded(true);
+        })
+        .catch(() => setTemplatesLoaded(true));
+    }
+  }, [showTemplates, templatesLoaded, keyParam]);
+
+  function applyTemplate(t: ContractTemplate | Record<string, unknown>) {
+    const get = (k: string): string =>
+      typeof (t as Record<string, unknown>)[k] === "string"
+        ? ((t as Record<string, unknown>)[k] as string)
+        : "";
+    setPacote(get("pacote_nome"));
+    setValor(get("valor_parcelamento"));
+    setPrazo(get("prazo_execucao"));
+    setEscopo(get("escopo_projeto"));
+    // link_parcelamento NÃO é copiado — sempre é gerado por cliente no Asaas.
+    setShowTemplates(false);
+  }
 
   async function sendContract(e: FormEvent) {
     e.preventDefault();
@@ -397,6 +439,91 @@ export function ContractCard(props: ContractCardProps) {
             Preencha os dados específicos da proposta. O resto (nome, CPF,
             endereço) vem do cadastro do cliente.
           </p>
+
+          {/* Pré-preencher de template */}
+          <div className="rounded-[14px] border border-fysi-line bg-fysi-cream/40 p-3 flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-fysi-deep font-medium">
+                ⚡ Proposta rápida — escolha um pacote padrão ou duplique de
+                outro cliente
+              </p>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowTemplates((v) => !v)}
+              >
+                {showTemplates ? "Fechar" : "Escolher template"}
+              </Button>
+            </div>
+
+            {showTemplates ? (
+              <div className="flex flex-col gap-3 mt-1">
+                <div>
+                  <p className="text-[0.65rem] uppercase tracking-[0.1em] font-semibold text-fysi-muted mb-1.5">
+                    Pacotes padrão
+                  </p>
+                  <div className="grid sm:grid-cols-2 gap-1.5">
+                    {STANDARD_TEMPLATES.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => applyTemplate(t)}
+                        className="text-left bg-white border border-fysi-line rounded-[10px] px-3 py-2 hover:border-fysi-deep/40 transition"
+                      >
+                        <div className="text-xs font-medium text-fysi-deep">
+                          {t.label}
+                        </div>
+                        <div className="text-[0.65rem] text-fysi-muted truncate mt-0.5">
+                          {t.valor_parcelamento}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-fysi-line pt-2">
+                  <p className="text-[0.65rem] uppercase tracking-[0.1em] font-semibold text-fysi-muted mb-1.5">
+                    Duplicar de outro cliente
+                    {clientTemplates.length > 0
+                      ? ` (${clientTemplates.length})`
+                      : ""}
+                  </p>
+                  {!templatesLoaded ? (
+                    <p className="text-xs text-fysi-muted">Carregando…</p>
+                  ) : clientTemplates.length === 0 ? (
+                    <p className="text-xs text-fysi-muted">
+                      Nenhum cliente com proposta preenchida ainda.
+                    </p>
+                  ) : (
+                    <div className="grid sm:grid-cols-2 gap-1.5 max-h-44 overflow-y-auto">
+                      {clientTemplates.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => applyTemplate(c.dados)}
+                          className="text-left bg-white border border-fysi-line rounded-[10px] px-3 py-2 hover:border-fysi-deep/40 transition"
+                        >
+                          <div className="text-xs font-medium text-fysi-deep truncate">
+                            {c.label}
+                          </div>
+                          <div className="text-[0.65rem] text-fysi-muted truncate mt-0.5">
+                            {c.pacote_nome || "—"}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[0.65rem] text-fysi-muted leading-relaxed">
+                  Click no template preenche os campos abaixo. O nome e o
+                  email do destinatário continuam vindo do cadastro do cliente.
+                  Link de parcelamento NÃO é copiado — gera um novo no Asaas.
+                </p>
+              </div>
+            ) : null}
+          </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <Input
               label="Nome completo do signatário"
