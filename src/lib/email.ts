@@ -150,6 +150,72 @@ export function htmlBriefingNotificacaoTime({
 </body></html>`;
 }
 
+/**
+ * E-mail enviado pra equipe Fysi quando um cliente preenche os dados de
+ * contrato (Etapa 01). É o "primeiro sim" — sinal de que vai virar venda.
+ */
+export function htmlContratoPreenchidoTime({
+  cliente,
+  adminLink,
+}: {
+  cliente: {
+    nome: string;
+    email: string;
+    empresa: string;
+    whatsapp: string;
+    cpf?: string | null;
+    cnpj?: string | null;
+    endereco?: string | null;
+    cep?: string | null;
+    como_conheceu?: string | null;
+    projectType?: string | null;
+  };
+  adminLink: string;
+}): string {
+  return `<!doctype html>
+<html><body style="margin:0; font-family: -apple-system,Inter,sans-serif; background:#F7F6F4; color:#042B30;">
+<div style="max-width:560px; margin:0 auto; padding:32px;">
+  <div style="background:#042B30; color:#F7F6F4; padding:32px; border-radius:24px 24px 0 0;">
+    <p style="margin:0 0 8px; font-size:11px; text-transform:uppercase; letter-spacing:0.14em; color:#F4F99D;">🚀 Cliente elevou o nível</p>
+    <h1 style="margin:0 0 4px; font-size:26px; font-weight:500; line-height:1.1;">${escape(cliente.empresa || cliente.nome)}</h1>
+    <p style="margin:8px 0 0; color:#BFEDE0; font-size:14px; line-height:1.5;">
+      <strong>${escape(cliente.nome)}</strong><br/>
+      ${escape(cliente.email)} · ${escape(cliente.whatsapp)}
+    </p>
+    ${cliente.projectType ? `<p style="margin:14px 0 0; display:inline-block; background:#F4F99D; color:#042B30; padding:4px 12px; border-radius:9999px; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; font-weight:600;">${escape(cliente.projectType)}</p>` : ""}
+  </div>
+
+  <div style="background:#fff; padding:32px; border-radius:0 0 24px 24px; border:1px solid #E5E5E0; border-top:none;">
+    <p style="margin:0 0 16px; font-size:15px; color:#042B30; line-height:1.6;">
+      <strong>${escape(cliente.nome)}</strong> acabou de preencher os dados de contrato — sinal forte de intenção. Próximo passo: gerar o contrato no Autentique.
+    </p>
+
+    <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+      ${row("CPF", cliente.cpf)}
+      ${row("CNPJ", cliente.cnpj)}
+      ${row("Endereço", cliente.endereco)}
+      ${row("CEP", cliente.cep)}
+      ${row("Como conheceu", cliente.como_conheceu)}
+    </table>
+
+    <a href="${adminLink}" style="display:inline-block; margin-top:24px; background:#042B30; color:#F7F6F4; padding:14px 28px; border-radius:9999px; text-decoration:none; font-weight:500; font-size:14px;">Abrir painel do cliente →</a>
+
+    <p style="margin-top:32px; padding-top:24px; border-top:1px solid #E5E5E0; font-size:12px; color:#6B7472;">
+      Notificação automática · Fysi Briefing · ${new Date().toLocaleString("pt-BR")}
+    </p>
+  </div>
+</div>
+</body></html>`;
+}
+
+function row(label: string, value: string | null | undefined): string {
+  if (!value) return "";
+  return `<tr>
+    <td style="padding:6px 0; vertical-align:top; width:36%; color:#6B7472; font-size:12px; text-transform:uppercase; letter-spacing:0.06em;">${escape(label)}</td>
+    <td style="padding:6px 0; vertical-align:top; color:#042B30; font-size:14px;">${escape(value)}</td>
+  </tr>`;
+}
+
 function escape(s: unknown): string {
   return String(s ?? "")
     .replace(/&/g, "&amp;")

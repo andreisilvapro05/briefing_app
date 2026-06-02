@@ -9,6 +9,10 @@ import {
 } from "@/lib/briefing-labels";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { DeleteClientRowButton } from "@/components/admin/delete-client-row-button";
+import {
+  AdminNotificationsBanner,
+  type AdminNotification,
+} from "@/components/admin/admin-notifications-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +79,16 @@ export default async function AdminPage({
   const { data, error } = await query;
   const clients: ClientRow[] = (data as ClientRow[]) ?? [];
 
+  // Notificações não lidas (banner no topo). Limite 5 mais recentes pra não
+  // entupir a tela quando tem fila.
+  const { data: notifData } = await service
+    .from("admin_notifications")
+    .select("id, client_id, kind, title, message, created_at")
+    .is("read_at", null)
+    .order("created_at", { ascending: false })
+    .limit(5);
+  const notifications = (notifData as AdminNotification[]) ?? [];
+
   // Conta totais (sem filtros) só pra header
   const { data: totalsData } = await service
     .from("clients")
@@ -132,6 +146,12 @@ export default async function AdminPage({
         </header>
 
         <AdminTabs active="clientes" keyParam={keyParamFirst} />
+
+        {/* Banner de avisos não lidos (contrato preenchido, briefing, etc) */}
+        <AdminNotificationsBanner
+          notifications={notifications}
+          urlKey={urlKey}
+        />
 
         {/* Filtros */}
         <form

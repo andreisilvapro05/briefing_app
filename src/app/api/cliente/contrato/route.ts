@@ -5,6 +5,7 @@ import { errorResponse, logServerError } from "@/lib/api-helpers";
 import { getServerEnv } from "@/lib/env";
 import { generateMagicSlug } from "@/lib/slug";
 import { createClientFolders } from "@/lib/google-drive";
+import { createAdminNotification } from "@/lib/notifications";
 
 /**
  * Salva os dados de contrato do cliente.
@@ -150,6 +151,15 @@ export async function POST(request: NextRequest) {
     logServerError("cliente.contrato", error);
     return errorResponse("save-failed", 500, error);
   }
+
+  // Aviso pra admin: cliente "elevou o nível" preenchendo o contrato.
+  // Best-effort — não bloqueia.
+  void createAdminNotification({
+    clientId,
+    kind: "contrato.preenchido",
+    title: `${parsed.nome ?? parsed.empresa} preencheu o contrato`,
+    message: `${parsed.empresa} · ${parsed.email}`,
+  });
 
   // Se o cliente não tinha email antes (ou é novo), dispara o magic link
   // pra retomar a sessão de outro dispositivo.
