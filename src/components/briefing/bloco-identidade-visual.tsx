@@ -3,18 +3,12 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup } from "@/components/ui/radio-group";
-import { FileUpload, type UploadedFile } from "@/components/ui/file-upload";
 import { FieldGroup } from "./bloco-shell";
 import { useBriefingField } from "@/lib/briefing-store";
 
 const BLOCO = "identidade-visual";
 
 export function BlocoIdentidadeVisual() {
-  const [coresAnexos, setCoresAnexos] = useBriefingField<UploadedFile[]>(
-    BLOCO,
-    "cores-anexos",
-    []
-  );
   const [coresDescricao, setCoresDescricao] = useBriefingField(
     BLOCO,
     "cores-descricao",
@@ -42,25 +36,13 @@ export function BlocoIdentidadeVisual() {
     ""
   );
   const [temFotos, setTemFotos] = useBriefingField(BLOCO, "tem-fotos", "");
-  const [fotos, setFotos] = useBriefingField<UploadedFile[]>(
-    BLOCO,
-    "fotos",
-    []
-  );
 
   return (
     <>
       <FieldGroup
         title="Cores"
-        description="Se a marca já tem manual de identidade, anexe abaixo. Caso contrário, descreva o que tem em mente."
+        description="Se já enviou o manual de identidade lá no bloco Materiais, pule essa parte. Caso contrário, descreva o que tem em mente."
       >
-        <FileUpload
-          label="Manual de marca / paleta (se houver)"
-          accept="image/*,application/pdf"
-          value={coresAnexos}
-          onChange={setCoresAnexos}
-          pathPrefix="identidade-visual"
-        />
         <Textarea
           label="Descrição das cores"
           name="cores-descricao"
@@ -147,7 +129,7 @@ export function BlocoIdentidadeVisual() {
 
       <FieldGroup
         title="Fotos profissionais"
-        description="Se já fez book ou ensaio profissional, envie aqui — ajuda muito no design."
+        description="Se ainda não enviou fotos no bloco Materiais, marque aqui se já tem ensaio profissional."
       >
         <RadioGroup
           name="tem-fotos"
@@ -161,15 +143,11 @@ export function BlocoIdentidadeVisual() {
           ]}
         />
         {temFotos === "sim" ? (
-          <FileUpload
-            label="Upload das fotos"
-            hint="Pode enviar várias. Aceita JPG, PNG, WEBP."
-            accept="image/*"
-            value={fotos}
-            onChange={setFotos}
-            pathPrefix="fotos"
-            maxFiles={50}
-          />
+          <p className="text-xs text-fysi-muted bg-fysi-cream/60 rounded-[10px] px-3 py-2">
+            Volte ao bloco <strong>Materiais</strong> (Etapa 01) e envie em
+            &quot;📸 Imagens e fotos&quot; — pode subir arquivo ou colar link
+            do Drive.
+          </p>
         ) : null}
       </FieldGroup>
     </>
