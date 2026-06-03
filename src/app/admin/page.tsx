@@ -254,12 +254,9 @@ export default async function AdminPage({
                     >
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="flex flex-col">
-                            <span className="font-medium text-fysi-deep">
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-medium text-fysi-deep truncate">
                               {c.nome}
-                            </span>
-                            <span className="text-xs text-fysi-muted">
-                              {c.email}
                             </span>
                           </div>
                           {stuck ? (
