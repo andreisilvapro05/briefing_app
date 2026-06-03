@@ -145,7 +145,7 @@ function FileRow({ file }: { file: BriefingFile }) {
           {file.file_name}
         </a>
         <span className="text-[0.65rem] text-fysi-muted">
-          {fieldLabel(file.field_id)} · {file.mime_type ?? "—"}
+          {fieldLabel(file.field_id ?? "")} · {file.mime_type ?? "—"}
         </span>
       </div>
       <Pill tone="outline">{formatBytes(file.size_bytes ?? 0)}</Pill>

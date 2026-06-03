@@ -84,14 +84,25 @@ export function EIEditor({
     });
   }
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   function save() {
     const formData = new FormData();
     formData.append("clientId", clientId);
     if (urlKey) formData.append("key", urlKey);
     formData.append("eiJson", JSON.stringify(data));
+    setSaveError(null);
     startTransition(async () => {
-      await setEIAction(formData);
-      setSavedAt(new Date().toISOString());
+      try {
+        await setEIAction(formData);
+        setSavedAt(new Date().toISOString());
+      } catch (err) {
+        setSaveError(
+          err instanceof Error
+            ? err.message
+            : "Erro ao salvar. Tente de novo em alguns segundos."
+        );
+      }
     });
   }
 
@@ -137,6 +148,11 @@ export function EIEditor({
               <span className="text-amber-700">· Nunca salvo</span>
             )}
           </p>
+          {saveError ? (
+            <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1 mt-1.5 inline-block">
+              ⚠ {saveError}
+            </p>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <Button

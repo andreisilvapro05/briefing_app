@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useTransition, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { dismissNotificationAction } from "@/app/admin/actions";
@@ -56,7 +56,10 @@ export function AdminNotificationsBanner({
 
   if (notifications.length === 0) return null;
 
-  function dismiss(id: string) {
+  function dismiss(e: MouseEvent<HTMLButtonElement>, id: string) {
+    // Stop event bubble pro Link em volta — botão ✕ não deve navegar.
+    e.preventDefault();
+    e.stopPropagation();
     const fd = new FormData();
     fd.append("notificationId", id);
     if (urlKey) fd.append("key", urlKey);
@@ -88,43 +91,43 @@ export function AdminNotificationsBanner({
         return (
           <div
             key={n.id}
-            className={`flex items-start gap-3 px-4 py-3 border-2 rounded-[14px] ${meta.tone}`}
+            className={`relative flex items-start gap-3 px-3 sm:px-4 py-3 border-2 rounded-[14px] ${meta.tone}`}
           >
-            <div className="relative">
+            <div className="relative shrink-0">
               <span className="text-xl">{meta.emoji}</span>
-              <span className="absolute -top-1 -right-1 inline-flex h-2 w-2">
+              <span
+                aria-hidden
+                className="absolute -top-1 -right-1 inline-flex h-2 w-2"
+              >
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-fysi-deep opacity-60" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-fysi-deep" />
               </span>
             </div>
 
-            <Link
-              href={href}
-              className="flex-1 min-w-0 group"
-            >
+            <Link href={href} className="flex-1 min-w-0 group pr-8">
               <div className="text-[0.65rem] uppercase tracking-[0.1em] font-semibold text-fysi-deep/70">
                 {meta.label}
               </div>
-              <div className="text-sm font-semibold text-fysi-deep mt-0.5 group-hover:underline">
-                {n.title}
+              <div className="text-sm sm:text-[0.95rem] font-semibold text-fysi-deep mt-0.5 group-hover:underline break-words">
+                {sanitizeForBanner(n.title)}
               </div>
-              {n.message ? (
-                <div className="text-xs text-fysi-deep/70 mt-0.5">
+              {n.message && !looksLikePII(n.message) ? (
+                <div className="text-xs text-fysi-deep/70 mt-0.5 break-words">
                   {n.message}
                 </div>
               ) : null}
               <div className="text-[0.65rem] text-fysi-muted mt-1">
-                {when} · clique pra abrir
+                {when} · tap pra abrir
               </div>
             </Link>
 
             <button
               type="button"
-              onClick={() => dismiss(n.id)}
+              onClick={(e) => dismiss(e, n.id)}
               disabled={pending}
-              className="text-fysi-muted hover:text-fysi-deep text-sm px-2 py-1 rounded-md hover:bg-white/60 shrink-0"
+              className="absolute top-2 right-2 text-fysi-muted hover:text-fysi-deep text-base w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-white/60"
               title="Dispensar aviso"
-              aria-label="Dispensar"
+              aria-label="Dispensar aviso"
             >
               ✕
             </button>
@@ -133,4 +136,37 @@ export function AdminNotificationsBanner({
       })}
     </div>
   );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Sanitização defensiva — banner é visível em ambientes públicos (cafés,
+// reuniões com cliente). Se o título carrega nome COMPLETO (3+ palavras),
+// reduz pra primeiro nome. Se a mensagem cheira a PII (CPF, email, telefone),
+// não mostra.
+
+function sanitizeForBanner(title: string): string {
+  // Pega palavras antes do "preencheu" ou primeira palavra+verbo
+  const m = title.match(/^(.+?)\s+(preencheu|enviou|concluiu|pagou)\s+(.+)$/i);
+  if (!m) return title;
+  const sujeito = m[1].trim();
+  const verbo = m[2];
+  const resto = m[3];
+  // Se sujeito tem 3+ palavras, é nome completo — reduz pro primeiro nome.
+  const words = sujeito.split(/\s+/);
+  if (words.length >= 3) {
+    return `${words[0]} ${verbo} ${resto}`;
+  }
+  return title;
+}
+
+const PII_PATTERNS = [
+  /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/, // CPF
+  /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/, // CNPJ
+  /[\w.+-]+@[\w-]+\.[\w.-]+/, // email
+  /\(?\d{2}\)?\s?9?\d{4}-?\d{4}/, // telefone BR
+  /\b\d{5}-?\d{3}\b/, // CEP
+];
+
+function looksLikePII(text: string): boolean {
+  return PII_PATTERNS.some((re) => re.test(text));
 }

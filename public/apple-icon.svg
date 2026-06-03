@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <rect width="180" height="180" rx="40" fill="#042B30"/>
+  <g fill="#F4F99D">
+    <circle cx="64" cy="74" r="10"/>
+    <circle cx="116" cy="74" r="10"/>
+    <path d="M58 116 Q90 142 122 116" stroke="#F4F99D" stroke-width="8" fill="none" stroke-linecap="round"/>
+  </g>
+  <text x="50%" y="160" text-anchor="middle" font-family="-apple-system, Inter, sans-serif" font-size="16" font-weight="700" fill="#F4F99D" letter-spacing="2">FYSI</text>
+</svg>

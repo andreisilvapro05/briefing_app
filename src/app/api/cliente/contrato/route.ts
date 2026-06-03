@@ -6,6 +6,7 @@ import { getServerEnv } from "@/lib/env";
 import { generateMagicSlug } from "@/lib/slug";
 import { createClientFolders } from "@/lib/google-drive";
 import { createAdminNotification } from "@/lib/notifications";
+import { htmlContratoPreenchidoTime, sendEmail } from "@/lib/email";
 
 /**
  * Salva os dados de contrato do cliente.
@@ -153,13 +154,44 @@ export async function POST(request: NextRequest) {
   }
 
   // Aviso pra admin: cliente "elevou o nível" preenchendo o contrato.
-  // Best-effort — não bloqueia.
+  // PRIVACIDADE: banner NÃO expõe CPF, email ou nome completo — só
+  // primeiro nome OU empresa. Dados completos ficam no /admin/[id].
+  const primeiroNome = (parsed.nome ?? "").trim().split(/\s+/)[0] || null;
+  const titulo = parsed.empresa?.trim() || primeiroNome || "Cliente";
   void createAdminNotification({
     clientId,
     kind: "contrato.preenchido",
-    title: `${parsed.nome ?? parsed.empresa} preencheu o contrato`,
-    message: `${parsed.empresa} · ${parsed.email}`,
+    title: `${titulo} preencheu o contrato`,
+    message: primeiroNome && parsed.empresa
+      ? `Tap pra ver os dados completos`
+      : "Tap pra ver os dados completos",
   });
+
+  // Email pra teamEmail — chega como push no celular do admin.
+  // Best-effort: nunca bloqueia o fluxo do cliente.
+  if (env.teamEmail) {
+    const nomeRaw = parsed.nome ?? parsed.empresa ?? "Cliente";
+    void sendEmail({
+      to: env.teamEmail,
+      subject: `🚀 ${nomeRaw} preencheu o contrato — ${parsed.empresa}`,
+      html: htmlContratoPreenchidoTime({
+        cliente: {
+          nome: nomeRaw,
+          email: parsed.email,
+          empresa: parsed.empresa,
+          whatsapp: parsed.whatsapp ?? "",
+          cpf: parsed.cpf,
+          cnpj: parsed.cnpj ?? null,
+          endereco: parsed.endereco,
+          cep: parsed.cep,
+          como_conheceu: parsed.como_conheceu,
+        },
+        adminLink: `${env.appUrl}/admin/${clientId}`,
+      }),
+    }).catch((err) => {
+      console.warn("[contrato] email pra team falhou:", err);
+    });
+  }
 
   // Se o cliente não tinha email antes (ou é novo), dispara o magic link
   // pra retomar a sessão de outro dispositivo.

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -12,6 +12,25 @@ export const metadata: Metadata = {
   title: "Briefing · Fysi Lab",
   description:
     "Portal de onboarding da Fysi Lab. Sistema estruturado de coleta de briefing para landing pages e sites.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Fysi",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: "/apple-icon.svg",
+    apple: "/apple-icon.svg",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#042B30",
+  width: "device-width",
+  initialScale: 1,
+  // Permite zoom — acessibilidade > estética.
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
