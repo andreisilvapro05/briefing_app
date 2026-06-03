@@ -8,6 +8,8 @@ import { Eyebrow, Pill } from "@/components/ui/pill";
 import { ProjectTimeline } from "@/components/timeline/project-timeline";
 import { FysiMark } from "@/components/brand/fysi-mark";
 import { MeusMateriaisCard } from "@/components/meus-materiais-card";
+import { EntregaViewer } from "@/components/entrega-viewer";
+import type { EntregaDocumento } from "@/lib/entrega";
 import {
   buildTimeline,
   PROJECT_TYPE_OPTIONS,
@@ -41,6 +43,10 @@ export default function DashboardPage() {
   const [pagamentoObservacao, setPagamentoObservacao] = useState<
     string | null
   >(null);
+  const [entregaDoc, setEntregaDoc] = useState<EntregaDocumento | null>(null);
+  const [entregaFinalizadaAt, setEntregaFinalizadaAt] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const c = loadCliente();
@@ -114,6 +120,10 @@ export default function DashboardPage() {
             setPagamentoPago(data.pagamentoPago);
           if (data?.pagamentoObservacao)
             setPagamentoObservacao(data.pagamentoObservacao);
+          if (data?.entregaDocumento)
+            setEntregaDoc(data.entregaDocumento as EntregaDocumento);
+          if (data?.entregaFinalizadaAt)
+            setEntregaFinalizadaAt(data.entregaFinalizadaAt);
           return;
         }
 
@@ -230,6 +240,16 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
+
+          {/* 📦 Documento de entrega — quando projeto finalizado, isso vira o topo */}
+          {entregaFinalizadaAt && entregaDoc ? (
+            <div className="mb-8">
+              <EntregaViewer
+                entrega={entregaDoc}
+                finalizadaAt={entregaFinalizadaAt}
+              />
+            </div>
+          ) : null}
 
           {/* ⚡ Atenção no topo — contrato pendente + pagamento */}
           {contratoStatus === "pendente" ? (
@@ -421,6 +441,16 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* 📦 Entrega finalizada — vira o destaque número 1 do painel */}
+        {entregaFinalizadaAt && entregaDoc ? (
+          <div className="mb-8">
+            <EntregaViewer
+              entrega={entregaDoc}
+              finalizadaAt={entregaFinalizadaAt}
+            />
+          </div>
+        ) : null}
 
         {/* ⚡ Ponto de atenção no topo — contrato pendente + dados de pagamento */}
         {contratoStatus === "pendente" ? (

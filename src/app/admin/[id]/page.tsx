@@ -23,6 +23,8 @@ import { ContractCard } from "@/components/admin/contract-card";
 import { MateriaisPainel } from "@/components/admin/materiais-painel";
 import { EIEditor } from "@/components/admin/ei-editor";
 import type { EIData } from "@/lib/ei-template";
+import { EntregaEditor } from "@/components/admin/entrega-editor";
+import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
@@ -637,6 +639,17 @@ Qualquer dúvida, é só responder por aqui.`}
           urlKey={urlKey ?? null}
           initial={(client.ei_data as EIData | null) ?? null}
           atualizadoAt={client.ei_atualizado_at ?? null}
+        />
+
+        <EntregaEditor
+          clientId={client.id}
+          clientName={client.nome ?? null}
+          empresa={client.empresa ?? null}
+          urlKey={urlKey ?? null}
+          initial={
+            (client.entrega_documento as EntregaDocumento | null) ?? null
+          }
+          finalizadaAt={client.entrega_finalizada_at ?? null}
         />
 
         <ContractCard

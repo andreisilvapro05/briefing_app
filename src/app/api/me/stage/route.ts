@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await service
       .from("clients")
       .select(
-        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at, fysi_drive_link, copy_review_link, contrato_status, contrato_signed_url, pagamento_total, pagamento_pago, pagamento_observacao, pagamento_atualizado_at"
+        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at, fysi_drive_link, copy_review_link, contrato_status, contrato_signed_url, pagamento_total, pagamento_pago, pagamento_observacao, pagamento_atualizado_at, entrega_documento, entrega_finalizada_at"
       )
       .eq("id", parsed.clientId)
       .maybeSingle();
@@ -68,6 +68,8 @@ export async function POST(request: NextRequest) {
         data.pagamento_pago != null ? Number(data.pagamento_pago) : 0,
       pagamentoObservacao: data.pagamento_observacao ?? null,
       pagamentoAtualizadoAt: data.pagamento_atualizado_at ?? null,
+      entregaDocumento: data.entrega_documento ?? null,
+      entregaFinalizadaAt: data.entrega_finalizada_at ?? null,
     });
   } catch (err) {
     logServerError("me.stage.unexpected", err);

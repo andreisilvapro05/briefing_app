@@ -14,6 +14,7 @@ import {
 } from "@/lib/dashboard-webhook";
 import { createClientFolders } from "@/lib/google-drive";
 import type { EIData } from "@/lib/ei-template";
+import type { EntregaDocumento } from "@/lib/entrega";
 
 /**
  * Reenviar magic link para o cliente (acionado pelo admin).
@@ -583,6 +584,48 @@ export async function setEIAction(formData: FormData) {
       ei_atualizado_at: new Date().toISOString(),
     })
     .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Salva o Documento de Entrega (acessos, tutoriais, backups, garantia).
+ * Quando o admin marca "Finalizar entrega", também preenche
+ * entrega_finalizada_at — gatilho que mostra o doc no painel do cliente.
+ */
+export async function setEntregaAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const raw = String(formData.get("entregaJson") ?? "").trim();
+  const finalizar = formData.get("finalizar") === "1";
+  if (!raw && !finalizar) return;
+
+  const updates: Record<string, unknown> = {};
+
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw) as EntregaDocumento;
+      updates.entrega_documento = parsed;
+    } catch {
+      return;
+    }
+  }
+
+  if (finalizar) {
+    updates.entrega_finalizada_at = new Date().toISOString();
+    updates.status = "concluido";
+  } else if (formData.get("desfazerFinalizacao") === "1") {
+    updates.entrega_finalizada_at = null;
+  }
+
+  if (Object.keys(updates).length === 0) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service.from("clients").update(updates).eq("id", clientId);
 
   revalidatePath(`/admin/${clientId}`);
 }
