@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +13,9 @@ import type { ProjectType } from "@/lib/types";
 /**
  * Fluxo /contratar — link pra clientes que já fecharam.
  *
- *   Step 1: Nome + WhatsApp (leve, abre rápido)
- *   Step 2: Tipo de serviço + dados completos de contrato (tudo junto)
- *   → redirect /agendar (Calendly embedded)
- *   → /dashboard
+ *   Passo 1 (aqui): Tipo + todos os dados de contrato num form só
+ *   Passo 2 (redirect /agendar): Calendly embutido
+ *   Passo 3 (redirect /dashboard): boas-vindas no painel
  */
 
 const COMO_CONHECEU_OPCOES = [
@@ -91,14 +90,8 @@ function clearDraft() {
   }
 }
 
-type Step = 1 | 2;
-
 export function ContratarWizard() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const stepParam = Number(searchParams.get("step") ?? "1");
-  const step: Step = stepParam === 2 ? 2 : 1;
-
   const [draft, setDraft] = useState<DraftState>(emptyDraft);
   const [loaded, setLoaded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -117,25 +110,13 @@ export function ContratarWizard() {
     setDraft((d) => ({ ...d, [key]: value }));
   }
 
-  function goStep(s: Step) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("step", String(s));
-    router.push(`/contratar?${params.toString()}`);
-  }
-
-  function submitStep1(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    if (!draft.nome.trim()) return setError("Informe seu nome.");
-    if (!draft.whatsapp.trim()) return setError("Informe seu WhatsApp.");
-    goStep(2);
-  }
-
-  async function submitStep2(e: FormEvent) {
+  async function submit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (!draft.projectType) return setError("Selecione o tipo de serviço.");
+    if (!draft.nome.trim()) return setError("Informe seu nome.");
+    if (!draft.whatsapp.trim()) return setError("Informe seu WhatsApp.");
     if (!draft.email.trim() || !EMAIL_REGEX.test(draft.email)) {
       return setError("E-mail inválido.");
     }
@@ -199,7 +180,6 @@ export function ContratarWizard() {
       }
 
       clearDraft();
-      // Direto pra /agendar (Calendly) — etapa 3 visualmente.
       router.push("/agendar");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado.");
@@ -207,129 +187,30 @@ export function ContratarWizard() {
     }
   }
 
-  if (step === 1) {
-    return (
-      <StepInicial
-        draft={draft}
-        onChange={update}
-        onSubmit={submitStep1}
-        error={error}
-      />
-    );
-  }
-
   return (
-    <StepContrato
-      draft={draft}
-      onChange={update}
-      onSubmit={submitStep2}
-      onBack={() => goStep(1)}
-      submitting={submitting}
-      error={error}
-    />
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-
-function StepInicial({
-  draft,
-  onChange,
-  onSubmit,
-  error,
-}: {
-  draft: DraftState;
-  onChange: <K extends keyof DraftState>(k: K, v: DraftState[K]) => void;
-  onSubmit: (e: FormEvent) => void;
-  error: string | null;
-}) {
-  return (
-    <Shell tone="cream" sectionLabel="Onboarding · 1 de 3">
-      <ContentFrame size="md">
-        <Header
-          step={1}
-          total={3}
-          eyebrow="Contratação Fysi"
-          titulo="Bem-vindo à Fysi Lab."
-          subtitulo="Vamos começar com o básico. Os outros dados (e-mail, endereço, CPF) ficam na próxima etapa."
-        />
-
-        <form
-          onSubmit={onSubmit}
-          className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-5"
-        >
-          <Input
-            label="Nome completo"
-            autoComplete="name"
-            value={draft.nome}
-            onChange={(e) => onChange("nome", e.target.value)}
-            placeholder="Como gostaria de ser chamado"
-          />
-          <Input
-            label="WhatsApp"
-            autoComplete="tel"
-            inputMode="tel"
-            value={draft.whatsapp}
-            onChange={(e) => onChange("whatsapp", e.target.value)}
-            placeholder="(11) 90000-0000"
-            hint="Vamos usar pra te avisar quando o time iniciar a produção."
-          />
-
-          {error ? (
-            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-[10px] px-3 py-2">
-              {error}
-            </p>
-          ) : null}
-
-          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-fysi-line">
-            <p className="text-xs text-fysi-muted max-w-xs">
-              Ao continuar, você concorda em receber comunicação da Fysi Lab
-              sobre o andamento do seu projeto.
-            </p>
-            <Button type="submit" size="lg">
-              Continuar →
-            </Button>
-          </div>
-        </form>
-      </ContentFrame>
-    </Shell>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-
-function StepContrato({
-  draft,
-  onChange,
-  onSubmit,
-  onBack,
-  submitting,
-  error,
-}: {
-  draft: DraftState;
-  onChange: <K extends keyof DraftState>(k: K, v: DraftState[K]) => void;
-  onSubmit: (e: FormEvent) => void;
-  onBack: () => void;
-  submitting: boolean;
-  error: string | null;
-}) {
-  const primeiroNome = draft.nome.split(/\s+/)[0];
-  return (
-    <Shell tone="cream" sectionLabel="Onboarding · 2 de 3">
+    <Shell tone="cream" sectionLabel="Onboarding · 1 de 2">
       <ContentFrame size="lg">
-        <Header
-          step={2}
-          total={3}
-          eyebrow="Serviço + contrato"
-          titulo={primeiroNome ? `Vamos fechar, ${primeiroNome}.` : "Vamos fechar."}
-          subtitulo="Escolhe o serviço que você contratou e preenche os dados do contrato. Próximo passo já é agendar a chamada."
-        />
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <Pill tone="yellow">Etapa 1 de 2</Pill>
+            <span className="text-xs uppercase tracking-[0.12em] text-fysi-muted font-medium">
+              Contratação Fysi
+            </span>
+          </div>
+          <h1 className="fysi-display text-3xl md:text-4xl mb-3">
+            Bem-vindo à Fysi Lab.
+          </h1>
+          <p className="text-fysi-muted text-base leading-relaxed max-w-2xl">
+            Confirma o serviço contratado e preenche os dados pra contrato.
+            Próximo passo já é agendar a chamada.
+          </p>
+        </div>
 
         <form
-          onSubmit={onSubmit}
+          onSubmit={submit}
           className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-6"
         >
-          {/* Tipo de serviço — cards no topo */}
+          {/* Tipo de serviço */}
           <Group title="Serviço contratado">
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {PROJECT_TYPE_OPTIONS.map((opt) => {
@@ -338,7 +219,7 @@ function StepContrato({
                   <button
                     key={opt.id}
                     type="button"
-                    onClick={() => onChange("projectType", opt.id)}
+                    onClick={() => update("projectType", opt.id)}
                     className={`text-left bg-white border-2 rounded-[16px] p-3.5 transition flex flex-col gap-2 ${
                       selected
                         ? "border-fysi-deep shadow-[0_8px_24px_-12px_rgba(4,43,48,0.3)]"
@@ -367,14 +248,31 @@ function StepContrato({
             </div>
           </Group>
 
-          {/* Dados de contrato */}
+          {/* Contato */}
           <Group title="Contato">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Input
+                label="Seu nome*"
+                autoComplete="name"
+                value={draft.nome}
+                onChange={(e) => update("nome", e.target.value)}
+                placeholder="Nome completo"
+              />
+              <Input
+                label="WhatsApp*"
+                autoComplete="tel"
+                inputMode="tel"
+                value={draft.whatsapp}
+                onChange={(e) => update("whatsapp", e.target.value)}
+                placeholder="(11) 90000-0000"
+              />
+            </div>
             <Input
               label="E-mail*"
               type="email"
               autoComplete="email"
               value={draft.email}
-              onChange={(e) => onChange("email", e.target.value)}
+              onChange={(e) => update("email", e.target.value)}
               placeholder="seu@email.com"
               hint="Pra mandar o contrato e magic link de acesso."
             />
@@ -382,23 +280,24 @@ function StepContrato({
               label="Empresa ou projeto*"
               autoComplete="organization"
               value={draft.empresa}
-              onChange={(e) => onChange("empresa", e.target.value)}
+              onChange={(e) => update("empresa", e.target.value)}
               placeholder="Nome da empresa, marca pessoal ou projeto"
             />
           </Group>
 
+          {/* Endereço */}
           <Group title="Endereço">
             <Input
               label="Endereço completo*"
               value={draft.endereco}
-              onChange={(e) => onChange("endereco", e.target.value)}
+              onChange={(e) => update("endereco", e.target.value)}
               placeholder="Rua, número, bairro, cidade, estado"
             />
             <div className="grid sm:grid-cols-2 gap-4">
               <Input
                 label="CEP*"
                 value={draft.cep}
-                onChange={(e) => onChange("cep", e.target.value)}
+                onChange={(e) => update("cep", e.target.value)}
                 placeholder="00000-000"
               />
               <div className="flex flex-col gap-1.5">
@@ -407,7 +306,7 @@ function StepContrato({
                 </label>
                 <select
                   value={draft.como_conheceu}
-                  onChange={(e) => onChange("como_conheceu", e.target.value)}
+                  onChange={(e) => update("como_conheceu", e.target.value)}
                   className="h-12 rounded-[12px] border border-fysi-line bg-white px-4 text-[0.95rem] text-fysi-deep focus:outline-none focus:border-fysi-green/40"
                 >
                   <option value="">Selecionar opção…</option>
@@ -421,19 +320,20 @@ function StepContrato({
             </div>
           </Group>
 
+          {/* Documentos */}
           <Group title="Documentos">
             <div className="grid sm:grid-cols-2 gap-4">
               <Input
                 label="CPF*"
                 value={draft.cpf}
-                onChange={(e) => onChange("cpf", e.target.value)}
+                onChange={(e) => update("cpf", e.target.value)}
                 placeholder="000.000.000-00"
               />
               <Input
                 label="RG"
                 optional
                 value={draft.rg}
-                onChange={(e) => onChange("rg", e.target.value)}
+                onChange={(e) => update("rg", e.target.value)}
                 placeholder="00.000.000-0"
               />
             </div>
@@ -442,7 +342,7 @@ function StepContrato({
                 label="CNPJ"
                 optional
                 value={draft.cnpj}
-                onChange={(e) => onChange("cnpj", e.target.value)}
+                onChange={(e) => update("cnpj", e.target.value)}
                 placeholder="00.000.000/0001-00"
                 hint="Se for emitir NF como pessoa jurídica."
               />
@@ -450,7 +350,7 @@ function StepContrato({
                 label="Razão social"
                 optional
                 value={draft.razao_social}
-                onChange={(e) => onChange("razao_social", e.target.value)}
+                onChange={(e) => update("razao_social", e.target.value)}
                 placeholder="Nome da empresa no CNPJ"
               />
             </div>
@@ -463,9 +363,10 @@ function StepContrato({
           ) : null}
 
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-fysi-line">
-            <Button type="button" variant="ghost" onClick={onBack}>
-              ← Voltar
-            </Button>
+            <p className="text-xs text-fysi-muted max-w-xs">
+              Ao continuar, você concorda em receber comunicação da Fysi Lab
+              sobre o andamento do seu projeto.
+            </p>
             <Button type="submit" size="lg" disabled={submitting}>
               {submitting ? "Salvando…" : "Continuar pra agendar →"}
             </Button>
@@ -473,39 +374,6 @@ function StepContrato({
         </form>
       </ContentFrame>
     </Shell>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-
-function Header({
-  step,
-  total,
-  eyebrow,
-  titulo,
-  subtitulo,
-}: {
-  step: number;
-  total: number;
-  eyebrow: string;
-  titulo: string;
-  subtitulo: string;
-}) {
-  return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-3">
-        <Pill tone="yellow">
-          Etapa {step} de {total}
-        </Pill>
-        <span className="text-xs uppercase tracking-[0.12em] text-fysi-muted font-medium">
-          {eyebrow}
-        </span>
-      </div>
-      <h1 className="fysi-display text-3xl md:text-4xl mb-3">{titulo}</h1>
-      <p className="text-fysi-muted text-base leading-relaxed max-w-2xl">
-        {subtitulo}
-      </p>
-    </div>
   );
 }
 
