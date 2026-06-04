@@ -5,19 +5,18 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Eyebrow, Pill } from "@/components/ui/pill";
+import { Pill } from "@/components/ui/pill";
 import { PROJECT_TYPE_OPTIONS } from "@/lib/project-types";
 import { hydrateCliente } from "@/lib/storage";
 import type { ProjectType } from "@/lib/types";
 
 /**
- * Fluxo /contratar — link que o admin manda pro cliente DEPOIS de fechar
- * o negócio.
+ * Fluxo /contratar — link pra clientes que já fecharam.
  *
- *   Step 1: Nome + WhatsApp (mais leve possível, abre rápido)
- *   Step 2: Tipo de serviço (cards visuais)
- *   Step 3: Dados pra contrato (email, empresa, CPF, endereço, CEP, etc)
- *   Step 4: Boas-vindas + CTA pra agendar chamada
+ *   Step 1: Nome + WhatsApp (leve, abre rápido)
+ *   Step 2: Tipo de serviço + dados completos de contrato (tudo junto)
+ *   → redirect /agendar (Calendly embedded)
+ *   → /dashboard
  */
 
 const COMO_CONHECEU_OPCOES = [
@@ -92,14 +91,13 @@ function clearDraft() {
   }
 }
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2;
 
 export function ContratarWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const stepParam = Number(searchParams.get("step") ?? "1");
-  const step: Step =
-    stepParam === 2 ? 2 : stepParam === 3 ? 3 : stepParam === 4 ? 4 : 1;
+  const step: Step = stepParam === 2 ? 2 : 1;
 
   const [draft, setDraft] = useState<DraftState>(emptyDraft);
   const [loaded, setLoaded] = useState(false);
@@ -133,19 +131,11 @@ export function ContratarWizard() {
     goStep(2);
   }
 
-  function pickType(id: ProjectType) {
-    update("projectType", id);
-    goStep(3);
-  }
-
-  async function submitContrato(e: FormEvent) {
+  async function submitStep2(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!draft.projectType) {
-      goStep(2);
-      return;
-    }
+    if (!draft.projectType) return setError("Selecione o tipo de serviço.");
     if (!draft.email.trim() || !EMAIL_REGEX.test(draft.email)) {
       return setError("E-mail inválido.");
     }
@@ -209,17 +199,13 @@ export function ContratarWizard() {
       }
 
       clearDraft();
-      goStep(4);
+      // Direto pra /agendar (Calendly) — etapa 3 visualmente.
+      router.push("/agendar");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado.");
-    } finally {
       setSubmitting(false);
     }
   }
-
-  const projectInfo = draft.projectType
-    ? PROJECT_TYPE_OPTIONS.find((p) => p.id === draft.projectType)
-    : null;
 
   if (step === 1) {
     return (
@@ -232,32 +218,16 @@ export function ContratarWizard() {
     );
   }
 
-  if (step === 2) {
-    return (
-      <StepTipo
-        onPick={pickType}
-        selected={draft.projectType}
-        nome={draft.nome}
-        onBack={() => goStep(1)}
-      />
-    );
-  }
-
-  if (step === 3) {
-    return (
-      <StepDados
-        draft={draft}
-        projectInfo={projectInfo}
-        onChange={update}
-        onSubmit={submitContrato}
-        onBackProject={() => goStep(2)}
-        submitting={submitting}
-        error={error}
-      />
-    );
-  }
-
-  return <StepConclusao nome={draft.nome.split(/\s+/)[0]} />;
+  return (
+    <StepContrato
+      draft={draft}
+      onChange={update}
+      onSubmit={submitStep2}
+      onBack={() => goStep(1)}
+      submitting={submitting}
+      error={error}
+    />
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -274,14 +244,14 @@ function StepInicial({
   error: string | null;
 }) {
   return (
-    <Shell tone="cream" sectionLabel="Contratar · Etapa 1 de 3">
+    <Shell tone="cream" sectionLabel="Onboarding · 1 de 3">
       <ContentFrame size="md">
         <Header
           step={1}
           total={3}
-          eyebrow="Onboarding · contratação"
+          eyebrow="Contratação Fysi"
           titulo="Bem-vindo à Fysi Lab."
-          subtitulo="Vamos começar com o básico. Email, endereço e CPF ficam pra próxima etapa."
+          subtitulo="Vamos começar com o básico. Os outros dados (e-mail, endereço, CPF) ficam na próxima etapa."
         />
 
         <form
@@ -328,128 +298,76 @@ function StepInicial({
 
 // ────────────────────────────────────────────────────────────────────────────
 
-function StepTipo({
-  onPick,
-  selected,
-  nome,
-  onBack,
-}: {
-  onPick: (id: ProjectType) => void;
-  selected: ProjectType | null;
-  nome: string;
-  onBack: () => void;
-}) {
-  const primeiroNome = nome.split(/\s+/)[0];
-  return (
-    <Shell tone="cream" sectionLabel="Contratar · Etapa 2 de 3">
-      <ContentFrame size="lg">
-        <Header
-          step={2}
-          total={3}
-          eyebrow="Serviço contratado"
-          titulo={primeiroNome ? `Qual serviço, ${primeiroNome}?` : "Qual serviço você contratou?"}
-          subtitulo="Confirma aqui pra alinharmos o fluxo do projeto certo."
-        />
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {PROJECT_TYPE_OPTIONS.map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => onPick(opt.id)}
-              className={`text-left bg-white border-2 rounded-[20px] p-5 hover:border-fysi-deep transition flex flex-col gap-3 ${
-                selected === opt.id
-                  ? "border-fysi-deep shadow-md"
-                  : "border-fysi-line"
-              }`}
-            >
-              <div className="flex items-center justify-between">
-                <Pill tone="mint">{opt.durationLabel}</Pill>
-                <span
-                  className={`h-4 w-4 rounded-full border-2 transition ${
-                    selected === opt.id
-                      ? "border-fysi-deep bg-fysi-deep"
-                      : "border-fysi-line"
-                  }`}
-                />
-              </div>
-              <h2 className="fysi-display text-xl text-fysi-deep">
-                {opt.title}
-              </h2>
-              <p className="text-sm text-fysi-muted leading-relaxed flex-1">
-                {opt.description}
-              </p>
-              <p className="text-[0.7rem] text-fysi-muted border-t border-fysi-line pt-3 mt-1">
-                {opt.hasCopyStep
-                  ? "Inclui etapa de criação da copy."
-                  : "Você envia os textos prontos."}
-              </p>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-6 flex justify-start">
-          <Button type="button" variant="ghost" onClick={onBack}>
-            ← Voltar
-          </Button>
-        </div>
-      </ContentFrame>
-    </Shell>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-
-function StepDados({
+function StepContrato({
   draft,
-  projectInfo,
   onChange,
   onSubmit,
-  onBackProject,
+  onBack,
   submitting,
   error,
 }: {
   draft: DraftState;
-  projectInfo: ReturnType<typeof PROJECT_TYPE_OPTIONS.find> | null;
   onChange: <K extends keyof DraftState>(k: K, v: DraftState[K]) => void;
   onSubmit: (e: FormEvent) => void;
-  onBackProject: () => void;
+  onBack: () => void;
   submitting: boolean;
   error: string | null;
 }) {
+  const primeiroNome = draft.nome.split(/\s+/)[0];
   return (
-    <Shell tone="cream" sectionLabel="Contratar · Etapa 3 de 3">
+    <Shell tone="cream" sectionLabel="Onboarding · 2 de 3">
       <ContentFrame size="lg">
         <Header
-          step={3}
+          step={2}
           total={3}
-          eyebrow="Dados pra contrato"
-          titulo="Seus dados pra fechar"
-          subtitulo="Tudo isso vai pro contrato. Leva 3 minutos."
+          eyebrow="Serviço + contrato"
+          titulo={primeiroNome ? `Vamos fechar, ${primeiroNome}.` : "Vamos fechar."}
+          subtitulo="Escolhe o serviço que você contratou e preenche os dados do contrato. Próximo passo já é agendar a chamada."
         />
-
-        {projectInfo ? (
-          <div className="bg-fysi-mint rounded-[14px] border border-fysi-mint-vivid/30 px-4 py-3 mb-6 flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-deep/70 font-semibold">
-                Serviço contratado
-              </p>
-              <p className="text-fysi-deep font-medium">{projectInfo.title}</p>
-            </div>
-            <button
-              type="button"
-              onClick={onBackProject}
-              className="text-xs text-fysi-deep hover:underline font-medium"
-            >
-              Trocar
-            </button>
-          </div>
-        ) : null}
 
         <form
           onSubmit={onSubmit}
           className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-6"
         >
+          {/* Tipo de serviço — cards no topo */}
+          <Group title="Serviço contratado">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {PROJECT_TYPE_OPTIONS.map((opt) => {
+                const selected = draft.projectType === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => onChange("projectType", opt.id)}
+                    className={`text-left bg-white border-2 rounded-[16px] p-3.5 transition flex flex-col gap-2 ${
+                      selected
+                        ? "border-fysi-deep shadow-[0_8px_24px_-12px_rgba(4,43,48,0.3)]"
+                        : "border-fysi-line hover:border-fysi-deep/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <Pill tone="mint">{opt.durationLabel}</Pill>
+                      <span
+                        className={`h-3.5 w-3.5 rounded-full border-2 transition shrink-0 ${
+                          selected
+                            ? "border-fysi-deep bg-fysi-deep"
+                            : "border-fysi-line"
+                        }`}
+                      />
+                    </div>
+                    <h3 className="text-base font-medium text-fysi-deep">
+                      {opt.title}
+                    </h3>
+                    <p className="text-xs text-fysi-muted leading-snug">
+                      {opt.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </Group>
+
+          {/* Dados de contrato */}
           <Group title="Contato">
             <Input
               label="E-mail*"
@@ -545,55 +463,14 @@ function StepDados({
           ) : null}
 
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-fysi-line">
-            <Button type="button" variant="ghost" onClick={onBackProject}>
+            <Button type="button" variant="ghost" onClick={onBack}>
               ← Voltar
             </Button>
             <Button type="submit" size="lg" disabled={submitting}>
-              {submitting ? "Salvando…" : "Salvar e continuar →"}
+              {submitting ? "Salvando…" : "Continuar pra agendar →"}
             </Button>
           </div>
         </form>
-      </ContentFrame>
-    </Shell>
-  );
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-
-function StepConclusao({ nome }: { nome: string }) {
-  return (
-    <Shell tone="cream" sectionLabel="Pronto">
-      <ContentFrame size="md">
-        <div className="text-center py-8">
-          <div className="text-5xl mb-4">🎉</div>
-          <Eyebrow>Tudo certo</Eyebrow>
-          <h1 className="fysi-display text-3xl md:text-4xl mt-3 mb-4">
-            {nome ? `Bem-vindo, ${nome}!` : "Bem-vindo à Fysi Lab!"}
-          </h1>
-          <p className="text-fysi-muted text-base leading-relaxed mb-6 max-w-md mx-auto">
-            Seus dados estão salvos. Próximo passo é agendar nossa chamada de
-            alinhamento — 30 minutos pra confirmar moodboard e cronograma.
-          </p>
-
-          <div className="flex flex-col gap-2 max-w-sm mx-auto">
-            <a
-              href="/agendar"
-              className="inline-flex items-center justify-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-6 py-3 hover:bg-fysi-deep/90"
-            >
-              📅 Agendar chamada →
-            </a>
-            <a
-              href="/dashboard"
-              className="inline-flex items-center justify-center rounded-full border border-fysi-line text-sm font-medium text-fysi-deep px-6 py-3 hover:border-fysi-deep/40"
-            >
-              Pular e ir pro painel
-            </a>
-          </div>
-
-          <p className="text-xs text-fysi-muted mt-8">
-            Você também recebe o link de acesso ao painel por e-mail.
-          </p>
-        </div>
       </ContentFrame>
     </Shell>
   );
@@ -640,7 +517,7 @@ function Group({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <h2 className="text-sm font-medium text-fysi-deep uppercase tracking-[0.1em]">
         {title}
       </h2>
