@@ -38,6 +38,16 @@ const Body = z
     rg: z.string().optional(),
     cnpj: z.string().optional(),
     razao_social: z.string().optional(),
+    // Tipo de projeto escolhido (fluxo /contratar). Valida no insert.
+    project_type: z
+      .enum([
+        "landing-com-copy",
+        "landing-sem-copy",
+        "site-completo",
+        "seo",
+        "outro",
+      ])
+      .optional(),
   })
   .refine(
     (v) => v.clientId || (v.nome && v.whatsapp),
@@ -100,6 +110,7 @@ export async function POST(request: NextRequest) {
           email: parsed.email,
           empresa: parsed.empresa,
           status: "em-andamento",
+          project_type: parsed.project_type ?? null,
           magic_slug: generateMagicSlug({ nome, empresa: parsed.empresa }),
         })
         .select("id")
@@ -131,21 +142,29 @@ export async function POST(request: NextRequest) {
 
   const emailWasEmpty = !existingEmail;
 
+  const updatePayload: Record<string, unknown> = {
+    email: parsed.email,
+    empresa: parsed.empresa,
+    endereco: parsed.endereco,
+    cep: parsed.cep,
+    cpf: parsed.cpf,
+    como_conheceu: parsed.como_conheceu,
+    rg: parsed.rg ?? null,
+    cnpj: parsed.cnpj ?? null,
+    razao_social: parsed.razao_social ?? null,
+    contrato_preenchido_at: new Date().toISOString(),
+    last_client_activity_at: new Date().toISOString(),
+  };
+  // Atualiza project_type só quando o cliente passou pelo fluxo /contratar
+  // e o tipo veio no payload. Não sobrescreve com null em fluxos que não
+  // têm essa decisão.
+  if (parsed.project_type) {
+    updatePayload.project_type = parsed.project_type;
+  }
+
   const { error } = await service
     .from("clients")
-    .update({
-      email: parsed.email,
-      empresa: parsed.empresa,
-      endereco: parsed.endereco,
-      cep: parsed.cep,
-      cpf: parsed.cpf,
-      como_conheceu: parsed.como_conheceu,
-      rg: parsed.rg ?? null,
-      cnpj: parsed.cnpj ?? null,
-      razao_social: parsed.razao_social ?? null,
-      contrato_preenchido_at: new Date().toISOString(),
-      last_client_activity_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", clientId);
 
   if (error) {
