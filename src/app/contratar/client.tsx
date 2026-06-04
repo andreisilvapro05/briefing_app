@@ -11,14 +11,13 @@ import { hydrateCliente } from "@/lib/storage";
 import type { ProjectType } from "@/lib/types";
 
 /**
- * Fluxo /contratar — link que o admin manda pro cliente DEPOIS de fechado
- * o negócio. Diferente do briefing exploratório, esse fluxo é objetivo:
+ * Fluxo /contratar — link que o admin manda pro cliente DEPOIS de fechar
+ * o negócio.
  *
- *   Passo 1: Tipo de projeto (cards visuais)
- *   Passo 2: Dados (nome, whatsapp, email, empresa, CPF, endereço, etc)
- *   Passo 3: Confirmação + CTA pra agendar chamada
- *
- * Ao terminar, hidrata o localStorage e leva pro /dashboard.
+ *   Step 1: Nome + WhatsApp (mais leve possível, abre rápido)
+ *   Step 2: Tipo de serviço (cards visuais)
+ *   Step 3: Dados pra contrato (email, empresa, CPF, endereço, CEP, etc)
+ *   Step 4: Boas-vindas + CTA pra agendar chamada
  */
 
 const COMO_CONHECEU_OPCOES = [
@@ -93,13 +92,14 @@ function clearDraft() {
   }
 }
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 export function ContratarWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const stepParam = Number(searchParams.get("step") ?? "1");
-  const step: Step = stepParam === 2 ? 2 : stepParam === 3 ? 3 : 1;
+  const step: Step =
+    stepParam === 2 ? 2 : stepParam === 3 ? 3 : stepParam === 4 ? 4 : 1;
 
   const [draft, setDraft] = useState<DraftState>(emptyDraft);
   const [loaded, setLoaded] = useState(false);
@@ -125,21 +125,27 @@ export function ContratarWizard() {
     router.push(`/contratar?${params.toString()}`);
   }
 
-  function pickType(id: ProjectType) {
-    update("projectType", id);
+  function submitStep1(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!draft.nome.trim()) return setError("Informe seu nome.");
+    if (!draft.whatsapp.trim()) return setError("Informe seu WhatsApp.");
     goStep(2);
   }
 
-  async function submitData(e: FormEvent) {
+  function pickType(id: ProjectType) {
+    update("projectType", id);
+    goStep(3);
+  }
+
+  async function submitContrato(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (!draft.projectType) {
-      goStep(1);
+      goStep(2);
       return;
     }
-    if (!draft.nome.trim()) return setError("Informe seu nome.");
-    if (!draft.whatsapp.trim()) return setError("Informe seu WhatsApp.");
     if (!draft.email.trim() || !EMAIL_REGEX.test(draft.email)) {
       return setError("E-mail inválido.");
     }
@@ -203,7 +209,7 @@ export function ContratarWizard() {
       }
 
       clearDraft();
-      goStep(3);
+      goStep(4);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado.");
     } finally {
@@ -211,30 +217,113 @@ export function ContratarWizard() {
     }
   }
 
-  // Não bloqueia avanço de step 2 → 1 se tipo já foi escolhido
   const projectInfo = draft.projectType
     ? PROJECT_TYPE_OPTIONS.find((p) => p.id === draft.projectType)
     : null;
 
   if (step === 1) {
-    return <StepTipo onPick={pickType} selected={draft.projectType} />;
+    return (
+      <StepInicial
+        draft={draft}
+        onChange={update}
+        onSubmit={submitStep1}
+        error={error}
+      />
+    );
   }
 
   if (step === 2) {
+    return (
+      <StepTipo
+        onPick={pickType}
+        selected={draft.projectType}
+        nome={draft.nome}
+        onBack={() => goStep(1)}
+      />
+    );
+  }
+
+  if (step === 3) {
     return (
       <StepDados
         draft={draft}
         projectInfo={projectInfo}
         onChange={update}
-        onSubmit={submitData}
-        onBack={() => goStep(1)}
+        onSubmit={submitContrato}
+        onBackProject={() => goStep(2)}
         submitting={submitting}
         error={error}
       />
     );
   }
 
-  return <StepConclusao />;
+  return <StepConclusao nome={draft.nome.split(/\s+/)[0]} />;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+
+function StepInicial({
+  draft,
+  onChange,
+  onSubmit,
+  error,
+}: {
+  draft: DraftState;
+  onChange: <K extends keyof DraftState>(k: K, v: DraftState[K]) => void;
+  onSubmit: (e: FormEvent) => void;
+  error: string | null;
+}) {
+  return (
+    <Shell tone="cream" sectionLabel="Contratar · Etapa 1 de 3">
+      <ContentFrame size="md">
+        <Header
+          step={1}
+          total={3}
+          eyebrow="Onboarding · contratação"
+          titulo="Bem-vindo à Fysi Lab."
+          subtitulo="Vamos começar com o básico. Email, endereço e CPF ficam pra próxima etapa."
+        />
+
+        <form
+          onSubmit={onSubmit}
+          className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-5"
+        >
+          <Input
+            label="Nome completo"
+            autoComplete="name"
+            value={draft.nome}
+            onChange={(e) => onChange("nome", e.target.value)}
+            placeholder="Como gostaria de ser chamado"
+          />
+          <Input
+            label="WhatsApp"
+            autoComplete="tel"
+            inputMode="tel"
+            value={draft.whatsapp}
+            onChange={(e) => onChange("whatsapp", e.target.value)}
+            placeholder="(11) 90000-0000"
+            hint="Vamos usar pra te avisar quando o time iniciar a produção."
+          />
+
+          {error ? (
+            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-[10px] px-3 py-2">
+              {error}
+            </p>
+          ) : null}
+
+          <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-fysi-line">
+            <p className="text-xs text-fysi-muted max-w-xs">
+              Ao continuar, você concorda em receber comunicação da Fysi Lab
+              sobre o andamento do seu projeto.
+            </p>
+            <Button type="submit" size="lg">
+              Continuar →
+            </Button>
+          </div>
+        </form>
+      </ContentFrame>
+    </Shell>
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -242,18 +331,24 @@ export function ContratarWizard() {
 function StepTipo({
   onPick,
   selected,
+  nome,
+  onBack,
 }: {
   onPick: (id: ProjectType) => void;
   selected: ProjectType | null;
+  nome: string;
+  onBack: () => void;
 }) {
+  const primeiroNome = nome.split(/\s+/)[0];
   return (
-    <Shell tone="cream" sectionLabel="Contratar · Etapa 1 de 3">
+    <Shell tone="cream" sectionLabel="Contratar · Etapa 2 de 3">
       <ContentFrame size="lg">
         <Header
-          step={1}
-          eyebrow="Contratação"
-          titulo="Qual serviço você contratou?"
-          subtitulo="Confirma aqui pra a gente já alinhar o fluxo do projeto certo."
+          step={2}
+          total={3}
+          eyebrow="Serviço contratado"
+          titulo={primeiroNome ? `Qual serviço, ${primeiroNome}?` : "Qual serviço você contratou?"}
+          subtitulo="Confirma aqui pra alinharmos o fluxo do projeto certo."
         />
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -278,7 +373,9 @@ function StepTipo({
                   }`}
                 />
               </div>
-              <h2 className="fysi-display text-xl text-fysi-deep">{opt.title}</h2>
+              <h2 className="fysi-display text-xl text-fysi-deep">
+                {opt.title}
+              </h2>
               <p className="text-sm text-fysi-muted leading-relaxed flex-1">
                 {opt.description}
               </p>
@@ -289,6 +386,12 @@ function StepTipo({
               </p>
             </button>
           ))}
+        </div>
+
+        <div className="mt-6 flex justify-start">
+          <Button type="button" variant="ghost" onClick={onBack}>
+            ← Voltar
+          </Button>
         </div>
       </ContentFrame>
     </Shell>
@@ -302,7 +405,7 @@ function StepDados({
   projectInfo,
   onChange,
   onSubmit,
-  onBack,
+  onBackProject,
   submitting,
   error,
 }: {
@@ -310,18 +413,19 @@ function StepDados({
   projectInfo: ReturnType<typeof PROJECT_TYPE_OPTIONS.find> | null;
   onChange: <K extends keyof DraftState>(k: K, v: DraftState[K]) => void;
   onSubmit: (e: FormEvent) => void;
-  onBack: () => void;
+  onBackProject: () => void;
   submitting: boolean;
   error: string | null;
 }) {
   return (
-    <Shell tone="cream" sectionLabel="Contratar · Etapa 2 de 3">
+    <Shell tone="cream" sectionLabel="Contratar · Etapa 3 de 3">
       <ContentFrame size="lg">
         <Header
-          step={2}
+          step={3}
+          total={3}
           eyebrow="Dados pra contrato"
           titulo="Seus dados pra fechar"
-          subtitulo="Tudo isso vai pra o contrato. Leva 3 minutos."
+          subtitulo="Tudo isso vai pro contrato. Leva 3 minutos."
         />
 
         {projectInfo ? (
@@ -334,7 +438,7 @@ function StepDados({
             </div>
             <button
               type="button"
-              onClick={onBack}
+              onClick={onBackProject}
               className="text-xs text-fysi-deep hover:underline font-medium"
             >
               Trocar
@@ -347,23 +451,6 @@ function StepDados({
           className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-8 flex flex-col gap-6"
         >
           <Group title="Contato">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <Input
-                label="Seu nome*"
-                autoComplete="name"
-                value={draft.nome}
-                onChange={(e) => onChange("nome", e.target.value)}
-                placeholder="Nome completo"
-              />
-              <Input
-                label="WhatsApp*"
-                autoComplete="tel"
-                inputMode="tel"
-                value={draft.whatsapp}
-                onChange={(e) => onChange("whatsapp", e.target.value)}
-                placeholder="(00) 00000-0000"
-              />
-            </div>
             <Input
               label="E-mail*"
               type="email"
@@ -458,7 +545,7 @@ function StepDados({
           ) : null}
 
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-fysi-line">
-            <Button type="button" variant="ghost" onClick={onBack}>
+            <Button type="button" variant="ghost" onClick={onBackProject}>
               ← Voltar
             </Button>
             <Button type="submit" size="lg" disabled={submitting}>
@@ -473,15 +560,15 @@ function StepDados({
 
 // ────────────────────────────────────────────────────────────────────────────
 
-function StepConclusao() {
+function StepConclusao({ nome }: { nome: string }) {
   return (
-    <Shell tone="cream" sectionLabel="Contratar · Etapa 3 de 3">
+    <Shell tone="cream" sectionLabel="Pronto">
       <ContentFrame size="md">
         <div className="text-center py-8">
           <div className="text-5xl mb-4">🎉</div>
           <Eyebrow>Tudo certo</Eyebrow>
           <h1 className="fysi-display text-3xl md:text-4xl mt-3 mb-4">
-            Bem-vindo à Fysi Lab!
+            {nome ? `Bem-vindo, ${nome}!` : "Bem-vindo à Fysi Lab!"}
           </h1>
           <p className="text-fysi-muted text-base leading-relaxed mb-6 max-w-md mx-auto">
             Seus dados estão salvos. Próximo passo é agendar nossa chamada de
@@ -516,11 +603,13 @@ function StepConclusao() {
 
 function Header({
   step,
+  total,
   eyebrow,
   titulo,
   subtitulo,
 }: {
-  step: 1 | 2 | 3;
+  step: number;
+  total: number;
   eyebrow: string;
   titulo: string;
   subtitulo: string;
@@ -528,7 +617,9 @@ function Header({
   return (
     <div className="mb-8">
       <div className="flex items-center gap-2 mb-3">
-        <Pill tone="yellow">Etapa {step} de 3</Pill>
+        <Pill tone="yellow">
+          Etapa {step} de {total}
+        </Pill>
         <span className="text-xs uppercase tracking-[0.12em] text-fysi-muted font-medium">
           {eyebrow}
         </span>
