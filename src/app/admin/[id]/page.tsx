@@ -183,6 +183,41 @@ export default async function AdminClientPage({
     .filter(Boolean)
     .join(" · ");
 
+  // Badges por tab — status rápido visível na navegação.
+  const totalBlocos = blocosOrdenados.length;
+  const blocosPreenchidos = blocosOrdenados.filter((b) => (camposPorBloco.get(b.id) ?? 0) > 0).length;
+  const totalPagamento = Number(client.pagamento_total ?? 0);
+  const pagamentoPago = Number(client.pagamento_pago ?? 0);
+  const pctPagamento = totalPagamento > 0 ? Math.round((pagamentoPago / totalPagamento) * 100) : null;
+
+  const contratoStatus = client.contrato_status as string | null;
+  const tabBadges: import("@/components/admin/client-tabs").ClientTabBadges = {
+    briefing: client.briefing_submitted_at
+      ? { tone: "mint", label: "✓ enviado" }
+      : briefingVazio
+        ? { tone: "muted", label: "vazio" }
+        : { tone: "yellow", label: `${blocosPreenchidos}/${totalBlocos}` },
+    financeiro:
+      contratoStatus === "assinado"
+        ? pctPagamento === 100
+          ? { tone: "mint", label: "✓ pago" }
+          : pctPagamento != null
+            ? { tone: "yellow", label: `${pctPagamento}% pago` }
+            : { tone: "mint", label: "✓ assinado" }
+        : contratoStatus === "pendente"
+          ? { tone: "amber", label: "pendente" }
+          : contratoStatus === "rejeitado" || contratoStatus === "cancelado"
+            ? { tone: "amber", label: contratoStatus }
+            : client.contrato_dados
+              ? { tone: "yellow", label: "rascunho" }
+              : undefined,
+    entrega: client.entrega_finalizada_at
+      ? { tone: "mint", label: "✓ entregue" }
+      : client.entrega_documento
+        ? { tone: "yellow", label: "rascunho" }
+        : undefined,
+  };
+
   return (
     <Shell
       tone="cream"
@@ -191,12 +226,12 @@ export default async function AdminClientPage({
       <ContentFrame size="xl">
         <Link
           href={`/admin${keyParam}`}
-          className="text-xs text-fysi-muted hover:text-fysi-deep mb-6 inline-block"
+          className="text-xs text-fysi-muted hover:text-fysi-deep mb-3 inline-block"
         >
           ← Voltar à lista
         </Link>
 
-        <header className="grid md:grid-cols-[2fr_1fr] gap-8 mb-10">
+        <header className="grid md:grid-cols-[2fr_1fr] gap-6 mb-6">
           <div>
             <Eyebrow>
               {client.project_type
@@ -210,63 +245,61 @@ export default async function AdminClientPage({
             <p className="text-fysi-muted text-sm mt-1">{headerLinha}</p>
           </div>
 
-          <aside className="bg-white border border-fysi-line rounded-[16px] p-5 flex flex-col gap-4 text-sm">
-            <div>
-              <Eyebrow>Tipo de projeto</Eyebrow>
-              <form
-                action={setProjectTypeAction}
-                className="mt-2 flex items-center gap-2"
-              >
+          <aside className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-3 text-sm">
+            <div className="grid grid-cols-2 gap-2">
+              <form action={setProjectTypeAction} className="flex flex-col gap-1">
+                <label className="text-[0.6rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                  Tipo
+                </label>
                 <input type="hidden" name="clientId" value={client.id} />
-                {urlKey ? (
-                  <input type="hidden" name="key" value={urlKey} />
-                ) : null}
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                 <select
                   name="projectType"
                   defaultValue={client.project_type ?? ""}
-                  className="text-sm rounded-[10px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep focus:outline-none focus:border-fysi-deep/40 flex-1"
+                  className="text-xs rounded-[8px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
                 >
                   <option value="" disabled>
-                    — escolher —
+                    escolher
                   </option>
                   <option value="landing-com-copy">Landing com copy</option>
                   <option value="landing-sem-copy">Landing sem copy</option>
                   <option value="site-completo">Site completo</option>
                   <option value="seo">SEO</option>
-                  <option value="outro">Outro serviço</option>
+                  <option value="outro">Outro</option>
                 </select>
-                <Button type="submit" size="sm" variant="secondary">
-                  Salvar
-                </Button>
+                <button
+                  type="submit"
+                  className="text-[0.65rem] text-fysi-deep hover:underline text-left"
+                >
+                  ↳ salvar tipo
+                </button>
               </form>
-              <p className="text-[0.65rem] text-fysi-muted mt-1.5">
-                Define a timeline do projeto. O cliente vê no painel dele.
-              </p>
-            </div>
 
-            <div className="border-t border-fysi-line pt-4">
-              <Eyebrow>Status do briefing</Eyebrow>
               <form
                 action={setClientStatusAction}
-                className="mt-2 flex items-center gap-2"
+                className="flex flex-col gap-1"
               >
+                <label className="text-[0.6rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                  Status
+                </label>
                 <input type="hidden" name="clientId" value={client.id} />
-                {urlKey ? (
-                  <input type="hidden" name="key" value={urlKey} />
-                ) : null}
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                 <select
                   name="status"
                   defaultValue={client.status}
-                  className="text-sm rounded-[10px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep focus:outline-none focus:border-fysi-deep/40 flex-1"
+                  className="text-xs rounded-[8px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
                 >
                   <option value="nao-iniciado">Não iniciado</option>
                   <option value="em-andamento">Em andamento</option>
                   <option value="concluido">Concluído</option>
                   <option value="abandonado">Abandonado</option>
                 </select>
-                <Button type="submit" size="sm" variant="secondary">
-                  Salvar
-                </Button>
+                <button
+                  type="submit"
+                  className="text-[0.65rem] text-fysi-deep hover:underline text-left"
+                >
+                  ↳ salvar status
+                </button>
               </form>
             </div>
 
@@ -318,7 +351,12 @@ export default async function AdminClientPage({
           </aside>
         </header>
 
-        <ClientTabs active={tab} clientId={client.id} keyParam={keyParam} />
+        <ClientTabs
+          active={tab}
+          clientId={client.id}
+          keyParam={keyParam}
+          badges={tabBadges}
+        />
 
         {tab === "geral" ? (
         <>

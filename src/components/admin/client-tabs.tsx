@@ -38,17 +38,41 @@ const TABS: TabDef[] = [
 ];
 
 /**
+ * Status mostrado como pill discreta dentro de cada tab.
+ * - tone: cor do dot
+ * - label: texto curto (max ~12 chars pra caber)
+ */
+export interface TabBadge {
+  tone: "mint" | "yellow" | "muted" | "amber";
+  label: string;
+}
+
+export type ClientTabBadges = Partial<Record<ClientTab, TabBadge>>;
+
+const TONE_CLASSES: Record<TabBadge["tone"], { bg: string; text: string }> = {
+  mint: { bg: "bg-fysi-mint", text: "text-fysi-deep" },
+  yellow: { bg: "bg-fysi-yellow", text: "text-fysi-deep" },
+  muted: { bg: "bg-fysi-cream", text: "text-fysi-muted" },
+  amber: { bg: "bg-amber-100", text: "text-amber-800" },
+};
+
+/**
  * Abas internas do /admin/[id]. Server component que renderiza Links
  * com o tab atual destacado. Preserva ?key= via keyParam.
+ *
+ * `badges` permite passar status visual por aba (ex: briefing 7/8, contrato
+ * pendente). Aparece como pill discreta ao lado do label.
  */
 export function ClientTabs({
   active,
   clientId,
   keyParam,
+  badges = {},
 }: {
   active: ClientTab;
   clientId: string;
   keyParam: string;
+  badges?: ClientTabBadges;
 }) {
   // keyParam vem como "?key=..." ou ""
   const keySuffix = keyParam.startsWith("?") ? `&${keyParam.slice(1)}` : keyParam;
@@ -84,6 +108,17 @@ export function ClientTabs({
                     {t.hint}
                   </span>
                 </span>
+                {badges[t.id] ? (
+                  <span
+                    className={cn(
+                      "ml-1 inline-flex items-center text-[0.65rem] font-semibold rounded-full px-2 py-0.5 leading-none",
+                      TONE_CLASSES[badges[t.id]!.tone].bg,
+                      TONE_CLASSES[badges[t.id]!.tone].text
+                    )}
+                  >
+                    {badges[t.id]!.label}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );
