@@ -25,6 +25,8 @@ import { ClientTabs, type ClientTab } from "@/components/admin/client-tabs";
 import { EIEditor } from "@/components/admin/ei-editor";
 import type { EIData } from "@/lib/ei-template";
 import { EntregaEditor } from "@/components/admin/entrega-editor";
+import { MoodboardEditor } from "@/components/admin/moodboard-editor";
+import type { Moodboard } from "@/lib/moodboard";
 import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
@@ -72,7 +74,13 @@ export default async function AdminClientPage({
   const sp = await searchParams;
   const urlKey = sp.key ?? null;
   // Aba ativa — controla qual grupo de seções renderiza
-  const validTabs: ClientTab[] = ["geral", "briefing", "financeiro", "entrega"];
+  const validTabs: ClientTab[] = [
+    "geral",
+    "briefing",
+    "moodboard",
+    "financeiro",
+    "entrega",
+  ];
   const tab: ClientTab = validTabs.includes(sp.tab as ClientTab)
     ? (sp.tab as ClientTab)
     : "geral";
@@ -216,6 +224,14 @@ export default async function AdminClientPage({
       : client.entrega_documento
         ? { tone: "yellow", label: "rascunho" }
         : undefined,
+    moodboard: (() => {
+      const m = client.moodboard_data as Moodboard | null;
+      if (!m) return undefined;
+      if (m.status === "aprovado") return { tone: "mint" as const, label: "✓ aprovado" };
+      if (m.status === "enviado") return { tone: "yellow" as const, label: "enviado" };
+      if (m.items?.length > 0) return { tone: "muted" as const, label: `${m.items.length} cards` };
+      return undefined;
+    })(),
   };
 
   return (
@@ -690,6 +706,15 @@ Qualquer dúvida, é só responder por aqui.`}
           urlKey={urlKey ?? null}
           initial={(client.ei_data as EIData | null) ?? null}
           atualizadoAt={client.ei_atualizado_at ?? null}
+        />
+        ) : null}
+
+        {tab === "moodboard" ? (
+        <MoodboardEditor
+          clientId={client.id}
+          urlKey={urlKey ?? null}
+          initial={(client.moodboard_data as Moodboard | null) ?? null}
+          atualizadoAt={client.moodboard_atualizado_at ?? null}
         />
         ) : null}
 

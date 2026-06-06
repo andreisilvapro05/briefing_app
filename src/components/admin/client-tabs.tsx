@@ -1,7 +1,12 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
-export type ClientTab = "geral" | "briefing" | "financeiro" | "entrega";
+export type ClientTab =
+  | "geral"
+  | "briefing"
+  | "moodboard"
+  | "financeiro"
+  | "entrega";
 
 interface TabDef {
   id: ClientTab;
@@ -22,6 +27,12 @@ const TABS: TabDef[] = [
     emoji: "✏️",
     label: "Briefing & EI",
     hint: "Respostas e estrutura inicial",
+  },
+  {
+    id: "moodboard",
+    emoji: "🎨",
+    label: "Moodboard",
+    hint: "Referências visuais (opcional)",
   },
   {
     id: "financeiro",

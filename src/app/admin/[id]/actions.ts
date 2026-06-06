@@ -15,6 +15,7 @@ import {
 import { createClientFolders } from "@/lib/google-drive";
 import type { EIData } from "@/lib/ei-template";
 import type { EntregaDocumento } from "@/lib/entrega";
+import type { Moodboard } from "@/lib/moodboard";
 
 /**
  * Reenviar magic link para o cliente (acionado pelo admin).
@@ -582,6 +583,39 @@ export async function setEIAction(formData: FormData) {
     .update({
       ei_data: parsed,
       ei_atualizado_at: new Date().toISOString(),
+    })
+    .eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Salva o moodboard do projeto. Opcional — só projetos que precisam de
+ * alinhamento de mood antes do design.
+ */
+export async function setMoodboardAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const raw = String(formData.get("moodboardJson") ?? "").trim();
+  if (!raw) return;
+
+  let parsed: Moodboard;
+  try {
+    parsed = JSON.parse(raw) as Moodboard;
+  } catch {
+    return;
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("clients")
+    .update({
+      moodboard_data: parsed,
+      moodboard_atualizado_at: new Date().toISOString(),
     })
     .eq("id", clientId);
 
