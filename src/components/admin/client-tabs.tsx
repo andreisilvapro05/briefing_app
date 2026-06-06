@@ -32,8 +32,8 @@ const TABS: TabDef[] = [
   {
     id: "entrega",
     emoji: "📦",
-    label: "Entrega",
-    hint: "Documento final e Drive",
+    label: "DEP",
+    hint: "Documento de Entrega de Projeto",
   },
 ];
 

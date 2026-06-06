@@ -245,6 +245,9 @@ export default function DashboardPage() {
           {entregaFinalizadaAt && entregaDoc ? (
             <div className="mb-8">
               <EntregaViewer
+                clientId={cliente.id}
+                clientName={cliente.nome}
+                empresa={cliente.empresa}
                 entrega={entregaDoc}
                 finalizadaAt={entregaFinalizadaAt}
               />
@@ -446,6 +449,9 @@ export default function DashboardPage() {
         {entregaFinalizadaAt && entregaDoc ? (
           <div className="mb-8">
             <EntregaViewer
+              clientId={cliente.id}
+              clientName={cliente.nome}
+              empresa={cliente.empresa}
               entrega={entregaDoc}
               finalizadaAt={entregaFinalizadaAt}
             />

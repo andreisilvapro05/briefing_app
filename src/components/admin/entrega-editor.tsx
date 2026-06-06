@@ -7,15 +7,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { setEntregaAction } from "@/app/admin/[id]/actions";
 import {
+  defaultChecklists,
+  defaultReferral,
   emptyAcesso,
   emptyBackup,
+  emptyChecklistItem,
   emptyEntrega,
   emptyTutorial,
   entregaCompletude,
   renderEntregaMarkdown,
   type AcessoItem,
   type BackupItem,
+  type ChecklistItem,
+  type ChecklistsSection,
   type EntregaDocumento,
+  type ReferralSection,
   type TutorialItem,
 } from "@/lib/entrega";
 
@@ -101,6 +107,53 @@ export function EntregaEditor({
   }
   function removeBackup(i: number) {
     setData((d) => ({ ...d, backups: d.backups.filter((_, idx) => idx !== i) }));
+  }
+
+  // --- Referral ---
+  function updateReferral(patch: Partial<ReferralSection>) {
+    setData((d) => ({
+      ...d,
+      referral: { ...(d.referral ?? defaultReferral()), ...patch },
+    }));
+  }
+
+  // --- Checklists ---
+  function getCks(): ChecklistsSection {
+    return data.checklists ?? defaultChecklists();
+  }
+  function updateChecklist(
+    key: keyof ChecklistsSection,
+    i: number,
+    patch: Partial<ChecklistItem>
+  ) {
+    setData((d) => {
+      const cks = d.checklists ?? defaultChecklists();
+      return {
+        ...d,
+        checklists: {
+          ...cks,
+          [key]: cks[key].map((item, idx) => (idx === i ? { ...item, ...patch } : item)),
+        },
+      };
+    });
+  }
+  function addChecklistItem(key: keyof ChecklistsSection) {
+    setData((d) => {
+      const cks = d.checklists ?? defaultChecklists();
+      return {
+        ...d,
+        checklists: { ...cks, [key]: [...cks[key], emptyChecklistItem()] },
+      };
+    });
+  }
+  function removeChecklistItem(key: keyof ChecklistsSection, i: number) {
+    setData((d) => {
+      const cks = d.checklists ?? defaultChecklists();
+      return {
+        ...d,
+        checklists: { ...cks, [key]: cks[key].filter((_, idx) => idx !== i) },
+      };
+    });
   }
 
   function save(opts: { finalizar?: boolean; desfazer?: boolean } = {}) {
@@ -414,6 +467,94 @@ export function EntregaEditor({
             />
           </Block>
 
+          {/* Indique e Ganhe */}
+          <Block titulo="🎁 Indique e Ganhe">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={data.referral?.ativo ?? false}
+                onChange={(e) => updateReferral({ ativo: e.target.checked })}
+              />
+              <span>Mostrar programa &quot;Indique e Ganhe&quot; pro cliente</span>
+            </label>
+            {data.referral?.ativo ? (
+              <>
+                <Input
+                  label="Valor por indicação"
+                  value={data.referral?.valor ?? ""}
+                  onChange={(e) => updateReferral({ valor: e.target.value })}
+                  placeholder="R$ 250,00"
+                />
+                <Textarea
+                  label="Condições / texto explicativo"
+                  rows={3}
+                  value={data.referral?.condicoes ?? ""}
+                  onChange={(e) => updateReferral({ condicoes: e.target.value })}
+                  placeholder="A cada vez que você indicar a Fysi e essa pessoa fechar conosco..."
+                />
+              </>
+            ) : null}
+          </Block>
+
+          {/* NPS */}
+          <Block titulo="📝 Formulário de satisfação (NPS)">
+            <Input
+              label="URL do formulário"
+              value={data.npsUrl ?? ""}
+              onChange={(e) => update("npsUrl", e.target.value)}
+              placeholder="https://forms.google.com/..."
+              hint="Cliente clica e responde — Google Forms, Typeform, etc."
+            />
+          </Block>
+
+          {/* Checklists */}
+          <ChecklistBlock
+            titulo="🔒 Checklist de Segurança"
+            items={getCks().seguranca}
+            onUpdate={(i, p) => updateChecklist("seguranca", i, p)}
+            onAdd={() => addChecklistItem("seguranca")}
+            onRemove={(i) => removeChecklistItem("seguranca", i)}
+          />
+          <ChecklistBlock
+            titulo="💾 Checklist de Backup"
+            items={getCks().backup}
+            onUpdate={(i, p) => updateChecklist("backup", i, p)}
+            onAdd={() => addChecklistItem("backup")}
+            onRemove={(i) => removeChecklistItem("backup", i)}
+          />
+          <ChecklistBlock
+            titulo="✅ Checklist Obrigatório"
+            items={getCks().obrigatorio}
+            onUpdate={(i, p) => updateChecklist("obrigatorio", i, p)}
+            onAdd={() => addChecklistItem("obrigatorio")}
+            onRemove={(i) => removeChecklistItem("obrigatorio", i)}
+          />
+          <ChecklistBlock
+            titulo="🔍 Checklist de SEO"
+            items={getCks().seo}
+            onUpdate={(i, p) => updateChecklist("seo", i, p)}
+            onAdd={() => addChecklistItem("seo")}
+            onRemove={(i) => removeChecklistItem("seo", i)}
+          />
+          <ChecklistBlock
+            titulo="👤 Checklist do Cliente"
+            items={getCks().cliente}
+            onUpdate={(i, p) => updateChecklist("cliente", i, p)}
+            onAdd={() => addChecklistItem("cliente")}
+            onRemove={(i) => removeChecklistItem("cliente", i)}
+          />
+
+          {/* Relatório técnico */}
+          <Block titulo="🔧 Relatório técnico (Site Health WP)">
+            <Textarea
+              value={data.relatorioTecnico ?? ""}
+              onChange={(e) => update("relatorioTecnico", e.target.value)}
+              rows={10}
+              placeholder="Cole aqui o dump do WP-Admin → Ferramentas → Saúde do site → Aba Info → Copiar info"
+              hint="Permite rastrear se algo mudou no site depois da entrega."
+            />
+          </Block>
+
           {/* Finalizar / desfazer */}
           <div className="flex flex-wrap justify-between items-center gap-3 pt-4 border-t border-fysi-line">
             <p className="text-xs text-fysi-muted max-w-md">
@@ -461,5 +602,61 @@ function Block({
       </legend>
       {children}
     </fieldset>
+  );
+}
+
+function ChecklistBlock({
+  titulo,
+  items,
+  onUpdate,
+  onAdd,
+  onRemove,
+}: {
+  titulo: string;
+  items: ChecklistItem[];
+  onUpdate: (i: number, patch: Partial<ChecklistItem>) => void;
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+}) {
+  return (
+    <Block titulo={titulo}>
+      <div className="flex flex-col gap-2">
+        {items.map((item, i) => (
+          <div
+            key={i}
+            className="grid grid-cols-[1fr_140px_28px] gap-2 items-center"
+          >
+            <Input
+              value={item.label}
+              onChange={(e) => onUpdate(i, { label: e.target.value })}
+              placeholder="Item"
+            />
+            <Input
+              value={item.valor}
+              onChange={(e) => onUpdate(i, { valor: e.target.value })}
+              placeholder="Resposta"
+            />
+            <button
+              type="button"
+              onClick={() => onRemove(i)}
+              className="text-xs text-red-600 hover:text-red-800 disabled:opacity-30"
+              disabled={items.length <= 1}
+              aria-label="Remover"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={onAdd}
+          className="self-start"
+        >
+          + Adicionar
+        </Button>
+      </div>
+    </Block>
   );
 }
