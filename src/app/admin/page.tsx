@@ -13,6 +13,7 @@ import {
   AdminNotificationsBanner,
   type AdminNotification,
 } from "@/components/admin/admin-notifications-banner";
+import { ShareContratarButton } from "@/components/admin/share-contratar-button";
 
 export const dynamic = "force-dynamic";
 
@@ -136,9 +137,10 @@ export default async function AdminPage({
             <Pill tone="muted">{totalCount} no total</Pill>
             <Pill tone="outline">{emAndamentoCount} em andamento</Pill>
             <Pill tone="mint">{concluidoCount} concluídos</Pill>
+            <ShareContratarButton />
             <Link
               href={`/admin/novo${keyParamFirst}`}
-              className="ml-2 inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+              className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
             >
               + Novo cliente
             </Link>
