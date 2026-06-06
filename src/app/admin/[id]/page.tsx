@@ -21,6 +21,7 @@ import {
 import type { ProjectType } from "@/lib/types";
 import { ContractCard } from "@/components/admin/contract-card";
 import { MateriaisPainel } from "@/components/admin/materiais-painel";
+import { ClientTabs, type ClientTab } from "@/components/admin/client-tabs";
 import { EIEditor } from "@/components/admin/ei-editor";
 import type { EIData } from "@/lib/ei-template";
 import { EntregaEditor } from "@/components/admin/entrega-editor";
@@ -65,11 +66,16 @@ export default async function AdminClientPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ key?: string }>;
+  searchParams: Promise<{ key?: string; tab?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
   const urlKey = sp.key ?? null;
+  // Aba ativa — controla qual grupo de seções renderiza
+  const validTabs: ClientTab[] = ["geral", "briefing", "financeiro", "entrega"];
+  const tab: ClientTab = validTabs.includes(sp.tab as ClientTab)
+    ? (sp.tab as ClientTab)
+    : "geral";
   const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
@@ -312,6 +318,10 @@ export default async function AdminClientPage({
           </aside>
         </header>
 
+        <ClientTabs active={tab} clientId={client.id} keyParam={keyParam} />
+
+        {tab === "geral" ? (
+        <>
         {/* Link de acesso pro cliente — pra mandar via WhatsApp */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <Eyebrow>Acesso do cliente</Eyebrow>
@@ -631,7 +641,10 @@ Qualquer dúvida, é só responder por aqui.`}
             </div>
           </form>
         </section>
+        </>
+        ) : null}
 
+        {tab === "briefing" ? (
         <EIEditor
           clientId={client.id}
           clientName={client.nome ?? null}
@@ -640,7 +653,9 @@ Qualquer dúvida, é só responder por aqui.`}
           initial={(client.ei_data as EIData | null) ?? null}
           atualizadoAt={client.ei_atualizado_at ?? null}
         />
+        ) : null}
 
+        {tab === "entrega" ? (
         <EntregaEditor
           clientId={client.id}
           clientName={client.nome ?? null}
@@ -651,7 +666,10 @@ Qualquer dúvida, é só responder por aqui.`}
           }
           finalizadaAt={client.entrega_finalizada_at ?? null}
         />
+        ) : null}
 
+        {tab === "financeiro" ? (
+        <>
         <ContractCard
           clientId={client.id}
           clientName={client.nome ?? null}
@@ -791,8 +809,11 @@ Qualquer dúvida, é só responder por aqui.`}
             </section>
           );
         })()}
+        </>
+        ) : null}
 
-        {/* Drive — links manuais (Fysi + cliente) */}
+        {tab === "entrega" ? (
+        /* Drive — links manuais (Fysi + cliente) */
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <Eyebrow>Drive</Eyebrow>
 
@@ -880,7 +901,10 @@ Qualquer dúvida, é só responder por aqui.`}
             </form>
           </div>
         </section>
+        ) : null}
 
+        {tab === "briefing" ? (
+        <>
         {/* Resumo de preenchimento do briefing */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <div className="flex items-baseline justify-between mb-4">
@@ -1003,6 +1027,8 @@ Qualquer dúvida, é só responder por aqui.`}
             ) : null}
           </div>
         )}
+        </>
+        ) : null}
       </ContentFrame>
     </Shell>
   );
