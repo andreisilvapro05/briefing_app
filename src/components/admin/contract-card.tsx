@@ -80,6 +80,9 @@ export function ContractCard(props: ContractCardProps) {
   const [error, setError] = useState<string | null>(null);
   const [markingMode, setMarkingMode] = useState(false);
   const [manualSignedUrl, setManualSignedUrl] = useState("");
+  // Permite re-abrir o form de proposta mesmo quando já existe um contrato
+  // (ex: pra ajustar valores e enviar uma nova versão).
+  const [forceEditMode, setForceEditMode] = useState(false);
   // Templates de proposta (pacotes padrão + clientes anteriores).
   const [showTemplates, setShowTemplates] = useState(false);
   const [clientTemplates, setClientTemplates] = useState<
@@ -255,22 +258,48 @@ export function ContractCard(props: ContractCardProps) {
   }
 
   const hasContract = !!props.autentiqueDocumentId;
+  // Mostra o form de proposta quando:
+  //  - nunca teve contrato OU
+  //  - admin clicou em "Editar proposta / Enviar novo"
+  const showForm = !hasContract || forceEditMode;
   // Bloqueia enviar se faltar email OU nome do signatário.
   const noEmail = !recipientEmail.trim();
   const noName = !signerName.trim();
 
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
-      <div className="flex items-baseline justify-between mb-4">
+      <div className="flex items-baseline justify-between gap-3 mb-4 flex-wrap">
         <Eyebrow>Contrato (Autentique)</Eyebrow>
-        {hasContract && props.contratoStatus ? (
-          <Pill tone={STATUS_TONES[props.contratoStatus] ?? "muted"}>
-            {STATUS_LABELS[props.contratoStatus] ?? props.contratoStatus}
-          </Pill>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {hasContract && props.contratoStatus ? (
+            <Pill tone={STATUS_TONES[props.contratoStatus] ?? "muted"}>
+              {STATUS_LABELS[props.contratoStatus] ?? props.contratoStatus}
+            </Pill>
+          ) : null}
+          {hasContract ? (
+            <Button
+              type="button"
+              size="sm"
+              variant={forceEditMode ? "ghost" : "secondary"}
+              onClick={() => setForceEditMode((v) => !v)}
+            >
+              {forceEditMode
+                ? "Voltar ao status atual"
+                : "📝 Editar proposta / Enviar novo"}
+            </Button>
+          ) : null}
+        </div>
       </div>
 
-      {noEmail && !hasContract ? (
+      {forceEditMode && hasContract ? (
+        <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-[12px] px-3 py-2 mb-4">
+          ⚠ Já existe um contrato no Autentique. Se você gerar e enviar de
+          novo, será criado um <strong>novo documento</strong> (o anterior
+          continua lá). Cancela o antigo no Autentique antes se for o caso.
+        </p>
+      ) : null}
+
+      {noEmail && showForm ? (
         <p className="text-xs text-fysi-muted bg-fysi-cream/40 border border-fysi-line rounded-[12px] px-3 py-2 mb-4">
           Preencha o <strong>e-mail do destinatário</strong> abaixo pra enviar.
           Se o cliente ainda não cadastrou um e-mail, digite o que você quiser
@@ -278,7 +307,7 @@ export function ContractCard(props: ContractCardProps) {
         </p>
       ) : null}
 
-      {hasContract ? (
+      {hasContract && !forceEditMode ? (
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between gap-3">
             <div className="text-xs text-fysi-muted truncate">
