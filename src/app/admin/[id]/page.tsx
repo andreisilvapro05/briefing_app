@@ -731,21 +731,25 @@ Qualquer dúvida, é só responder por aqui.`}
         />
         ) : null}
 
+        {/* Contrato sempre visível em Visão geral E Financeiro — é a peça
+            mais crítica da operação, não pode ficar atrás de aba. */}
+        {tab === "geral" || tab === "financeiro" ? (
+          <ContractCard
+            clientId={client.id}
+            clientName={client.nome ?? null}
+            clientEmail={client.email ?? null}
+            autentiqueDocumentId={client.autentique_document_id ?? null}
+            contratoStatus={client.contrato_status ?? null}
+            contratoSignedUrl={client.contrato_signed_url ?? null}
+            contratoDados={
+              (client.contrato_dados as Record<string, unknown> | null) ?? null
+            }
+            urlKey={urlKey ?? undefined}
+          />
+        ) : null}
+
         {tab === "financeiro" ? (
         <>
-        <ContractCard
-          clientId={client.id}
-          clientName={client.nome ?? null}
-          clientEmail={client.email ?? null}
-          autentiqueDocumentId={client.autentique_document_id ?? null}
-          contratoStatus={client.contrato_status ?? null}
-          contratoSignedUrl={client.contrato_signed_url ?? null}
-          contratoDados={
-            (client.contrato_dados as Record<string, unknown> | null) ?? null
-          }
-          urlKey={urlKey ?? undefined}
-        />
-
         {/* Pagamento — admin acompanha o quanto já foi recebido */}
         {(() => {
           const total = Number(client.pagamento_total ?? 0);
