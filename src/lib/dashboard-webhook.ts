@@ -19,7 +19,8 @@ export type DashboardEvent =
   | "cliente.criado"
   | "cliente.atualizado"
   | "contrato.assinado"
-  | "pagamento.atualizado";
+  | "pagamento.atualizado"
+  | "cobranca.paga";
 
 interface BasePayload {
   event: DashboardEvent;
@@ -70,10 +71,33 @@ interface PagamentoAtualizadoPayload extends ClientePayload {
   };
 }
 
+/**
+ * Cobrança paga — mensal OU pontual. Não exige clientId do briefing_app
+ * (pode ser cobrança externa). Usa cobrancaId como chave principal.
+ */
+export interface CobrancaPagaPayload extends BasePayload {
+  event: "cobranca.paga";
+  cobrancaId: string;
+  cobranca: {
+    tipo: "mensal" | "pontual";
+    nome: string;
+    empresa: string | null;
+    whatsapp: string | null;
+    email: string | null;
+    descricao: string | null;
+    valor: number;
+    mesReferencia: string;
+    pagoEm: string;
+    forma: string;
+    observacao: string;
+  };
+}
+
 export type WebhookPayload =
   | ClientePayload
   | ContratoAssinadoPayload
-  | PagamentoAtualizadoPayload;
+  | PagamentoAtualizadoPayload
+  | CobrancaPagaPayload;
 
 function signBody(body: string, secret: string): string {
   return createHmac("sha256", secret).update(body).digest("hex");

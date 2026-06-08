@@ -17,6 +17,8 @@ export interface PagamentoHistorico {
   observacao: string;
 }
 
+export type TipoCobranca = "mensal" | "pontual";
+
 export interface CobrancaMensal {
   id: string;
   client_id: string | null;
@@ -31,6 +33,10 @@ export interface CobrancaMensal {
   data_inicio: string; // YYYY-MM-DD
   data_fim: string | null;
   historico: PagamentoHistorico[];
+  /** 'mensal' = recorrente; 'pontual' = uma vez só (usa data_vencimento). */
+  tipo: TipoCobranca;
+  /** Pra pontuais. Mensais usam dia_cobranca + mês corrente. */
+  data_vencimento: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -71,15 +77,24 @@ export function ultimosMeses(qtd: number, refDate: Date = new Date()): string[] 
 }
 
 /**
- * Cobrança está em dia neste mês?
- *  - Tem registro do mês atual no histórico, OU
- *  - Não passou o dia_cobranca ainda
+ * Cobrança está em dia neste mês? (suporta mensal e pontual)
+ *  - Mensal: tem registro do mês atual? Senão, passou do dia_cobranca?
+ *  - Pontual: tem QUALQUER pagamento? Senão, passou da data_vencimento?
  */
 export function statusDoMes(
   c: CobrancaMensal,
   refDate: Date = new Date()
 ): "pago" | "a_cobrar" | "atrasado" {
-  if (!c.ativa) return "pago"; // não conta
+  if (!c.ativa) return "pago";
+
+  if (c.tipo === "pontual") {
+    if (c.historico.length > 0) return "pago";
+    if (!c.data_vencimento) return "a_cobrar";
+    const venc = new Date(c.data_vencimento);
+    return refDate > venc ? "atrasado" : "a_cobrar";
+  }
+
+  // Mensal — padrão
   const ref = mesRef(refDate);
   const pago = c.historico.some((h) => h.mesReferencia === ref);
   if (pago) return "pago";
@@ -88,11 +103,12 @@ export function statusDoMes(
 }
 
 /**
- * MRR (Monthly Recurring Revenue) — soma das cobranças ativas.
+ * MRR (Monthly Recurring Revenue) — soma das cobranças MENSAIS ativas.
+ * Pontuais NÃO entram no MRR (são one-off).
  */
 export function calcMRR(cobrancas: CobrancaMensal[]): number {
   return cobrancas
-    .filter((c) => c.ativa)
+    .filter((c) => c.ativa && c.tipo === "mensal")
     .reduce((sum, c) => sum + Number(c.valor_mensal), 0);
 }
 
@@ -125,18 +141,23 @@ export function statsCobrancas(
   const pagos: CobrancaMensal[] = [];
 
   ativas.forEach((c) => {
-    const reg = c.historico.find((h) => h.mesReferencia === ref);
-    if (reg) {
-      recebidoEsteMes += Number(reg.valorPago);
+    const status = statusDoMes(c, refDate);
+    if (status === "pago") {
+      // Mensal: pega o registro do mês. Pontual: soma todo histórico.
+      if (c.tipo === "mensal") {
+        const reg = c.historico.find((h) => h.mesReferencia === ref);
+        if (reg) recebidoEsteMes += Number(reg.valorPago);
+      } else {
+        c.historico.forEach((h) => {
+          const d = new Date(h.pagoEm);
+          if (mesRef(d) === ref) recebidoEsteMes += Number(h.valorPago);
+        });
+      }
       pagos.push(c);
     } else {
       aReceberEsteMes += Number(c.valor_mensal);
-      const hoje = refDate.getDate();
-      if (hoje >= c.dia_cobranca) {
-        atrasados.push(c);
-      } else {
-        aCobrar.push(c);
-      }
+      if (status === "atrasado") atrasados.push(c);
+      else aCobrar.push(c);
     }
   });
 

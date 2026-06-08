@@ -113,7 +113,7 @@ export default async function CobrancasPage({
         {/* Form adicionar — collapse */}
         <details className="mb-6 bg-white border border-fysi-line rounded-[16px]">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-fysi-deep select-none">
-            ➕ Adicionar cobrança mensal
+            ➕ Adicionar cobrança
           </summary>
           <form
             action={addCobrancaAction}
@@ -122,6 +122,25 @@ export default async function CobrancasPage({
             {urlKey ? (
               <input type="hidden" name="key" value={urlKey} />
             ) : null}
+
+            <FieldLabel label="Tipo *" colSpan={2}>
+              <div className="flex gap-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipo"
+                    value="mensal"
+                    defaultChecked
+                  />
+                  <span>🔁 Mensal (recorrente)</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer ml-4">
+                  <input type="radio" name="tipo" value="pontual" />
+                  <span>📌 Pontual (uma vez)</span>
+                </label>
+              </div>
+            </FieldLabel>
+
             <FieldLabel label="Nome do contato *">
               <input
                 name="nome"
@@ -152,7 +171,7 @@ export default async function CobrancasPage({
                 placeholder="email@exemplo.com"
               />
             </FieldLabel>
-            <FieldLabel label="Valor mensal (R$) *">
+            <FieldLabel label="Valor (R$) *">
               <input
                 name="valor_mensal"
                 required
@@ -160,22 +179,31 @@ export default async function CobrancasPage({
                 placeholder="1500,00"
               />
             </FieldLabel>
-            <FieldLabel label="Dia de cobrança *">
-              <input
-                type="number"
-                name="dia_cobranca"
-                min={1}
-                max={31}
-                defaultValue={10}
-                required
-                className="input"
-              />
+            <FieldLabel label="Dia de cobrança (mensal) / Data vencimento (pontual)">
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  name="dia_cobranca"
+                  min={1}
+                  max={31}
+                  defaultValue={10}
+                  className="input w-24"
+                  placeholder="Dia"
+                  title="Pra mensal: dia 1-31"
+                />
+                <input
+                  type="date"
+                  name="data_vencimento"
+                  className="input flex-1"
+                  title="Pra pontual: data de vencimento"
+                />
+              </div>
             </FieldLabel>
             <FieldLabel label="Descrição / serviço" colSpan={2}>
               <input
                 name="descricao"
                 className="input"
-                placeholder="Ex: SEO mensal, manutenção WordPress, hosting"
+                placeholder="Ex: SEO mensal / Taxa de setup / Licença anual"
               />
             </FieldLabel>
             <div className="sm:col-span-2 pt-2">
@@ -314,17 +342,26 @@ function CobrancaCard({
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
+            <Pill tone={cobranca.tipo === "pontual" ? "yellow" : "outline"}>
+              {cobranca.tipo === "pontual" ? "📌 Pontual" : "🔁 Mensal"}
+            </Pill>
             <h3 className="text-base font-semibold text-fysi-deep">
               {cobranca.nome}
             </h3>
             {!cobranca.ativa ? (
               <Pill tone="muted">Inativa</Pill>
             ) : status === "pago" ? (
-              <Pill tone="mint">✓ pago este mês</Pill>
+              <Pill tone="mint">
+                {cobranca.tipo === "pontual" ? "✓ pago" : "✓ pago este mês"}
+              </Pill>
             ) : status === "atrasado" ? (
               <Pill tone="yellow">⚠ atrasado</Pill>
             ) : (
-              <Pill tone="outline">a cobrar dia {cobranca.dia_cobranca}</Pill>
+              <Pill tone="outline">
+                {cobranca.tipo === "pontual"
+                  ? `vence ${formatDate(cobranca.data_vencimento)}`
+                  : `a cobrar dia ${cobranca.dia_cobranca}`}
+              </Pill>
             )}
           </div>
           {cobranca.empresa ? (
@@ -341,7 +378,9 @@ function CobrancaCard({
             {formatBRL(Number(cobranca.valor_mensal))}
           </div>
           <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted">
-            todo dia {cobranca.dia_cobranca}
+            {cobranca.tipo === "pontual"
+              ? formatDate(cobranca.data_vencimento)
+              : `todo dia ${cobranca.dia_cobranca}`}
           </div>
         </div>
       </div>
@@ -520,4 +559,17 @@ function CobrancaCard({
       </div>
     </div>
   );
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return iso;
+  }
 }

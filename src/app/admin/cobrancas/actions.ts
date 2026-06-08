@@ -9,6 +9,7 @@ import {
   type CobrancaMensal,
   type PagamentoHistorico,
 } from "@/lib/cobrancas-mensais";
+import { sendDashboardWebhook } from "@/lib/dashboard-webhook";
 
 function parseMoney(raw: string): number | null {
   const cleaned = raw.trim().replace(/\./g, "").replace(",", ".");
@@ -19,19 +20,23 @@ function parseMoney(raw: string): number | null {
 }
 
 /**
- * Cria uma nova cobrança mensal.
+ * Cria uma nova cobrança (mensal ou pontual).
  */
 export async function addCobrancaAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
   const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
+  const tipo = String(formData.get("tipo") ?? "mensal") as "mensal" | "pontual";
   const nome = String(formData.get("nome") ?? "").trim();
   const valorRaw = String(formData.get("valor_mensal") ?? "");
   const valor = parseMoney(valorRaw);
   const dia = Number(formData.get("dia_cobranca") ?? "10");
+  const dataVencimento = String(formData.get("data_vencimento") ?? "").trim();
 
-  if (!nome || !valor || dia < 1 || dia > 31) return;
+  if (!nome || !valor) return;
+  if (tipo === "mensal" && (dia < 1 || dia > 31)) return;
+  if (tipo === "pontual" && !dataVencimento) return;
 
   const empresa = String(formData.get("empresa") ?? "").trim();
   const whatsapp = String(formData.get("whatsapp") ?? "").trim();
@@ -41,12 +46,14 @@ export async function addCobrancaAction(formData: FormData) {
 
   const service = createSupabaseServiceRoleClient();
   await service.from("cobrancas_mensais").insert({
+    tipo,
     nome,
     empresa: empresa || null,
     whatsapp: whatsapp || null,
     email: email || null,
     valor_mensal: valor,
-    dia_cobranca: dia,
+    dia_cobranca: tipo === "mensal" ? dia : 1,
+    data_vencimento: tipo === "pontual" ? dataVencimento : null,
     descricao: descricao || null,
     client_id: clientId || null,
     ativa: true,
@@ -162,7 +169,52 @@ export async function registrarPagamentoAction(formData: FormData) {
     })
     .eq("id", id);
 
+  // Dispara webhook pro app financeiro (financas-app)
+  await sendCobrancaPagaWebhook(id, novo);
+
   revalidatePath("/admin/cobrancas");
+}
+
+/** Helper que carrega a cobrança e dispara webhook. */
+async function sendCobrancaPagaWebhook(
+  cobrancaId: string,
+  pagamento: PagamentoHistorico
+): Promise<void> {
+  try {
+    const service = createSupabaseServiceRoleClient();
+    const { data: c } = await service
+      .from("cobrancas_mensais")
+      .select(
+        "id, client_id, tipo, nome, empresa, whatsapp, email, descricao"
+      )
+      .eq("id", cobrancaId)
+      .maybeSingle();
+    if (!c) return;
+
+    void sendDashboardWebhook({
+      event: "cobranca.paga",
+      emittedAt: new Date().toISOString(),
+      source: "briefing_app",
+      // clientId é opcional pra cobrança externa — usa o cobranca id como fallback
+      clientId: c.client_id ?? cobrancaId,
+      cobrancaId: cobrancaId,
+      cobranca: {
+        tipo: c.tipo as "mensal" | "pontual",
+        nome: c.nome,
+        empresa: c.empresa,
+        whatsapp: c.whatsapp,
+        email: c.email,
+        descricao: c.descricao,
+        valor: Number(pagamento.valorPago),
+        mesReferencia: pagamento.mesReferencia,
+        pagoEm: pagamento.pagoEm,
+        forma: pagamento.forma,
+        observacao: pagamento.observacao,
+      },
+    });
+  } catch (err) {
+    console.warn("[cobrancas] webhook falhou:", err);
+  }
 }
 
 /**
@@ -239,6 +291,9 @@ export async function marcarPagoEsteMesAction(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
+
+  // Webhook pro financas-app
+  await sendCobrancaPagaWebhook(id, novo);
 
   revalidatePath("/admin/cobrancas");
 }
