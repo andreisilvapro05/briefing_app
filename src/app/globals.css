@@ -121,3 +121,19 @@ body {
   background: var(--fysi-mint-vivid);
   color: var(--fysi-deep);
 }
+
+/* Utility .input — usada em forms compactos do admin (ex: cobranças) */
+.input {
+  height: 2.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--fysi-line);
+  background: white;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  color: var(--fysi-deep);
+  outline: none;
+  transition: border-color 120ms;
+}
+.input:focus {
+  border-color: rgba(79, 153, 138, 0.4);
+}

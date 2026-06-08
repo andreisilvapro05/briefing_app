@@ -3,6 +3,11 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import {
+  statsCobrancas,
+  formatBRL as formatBRLCobrancas,
+  type CobrancaMensal,
+} from "@/lib/cobrancas-mensais";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import {
@@ -36,6 +41,13 @@ export default async function AdminRelatoriosPage({
 
   const clients = (data as ClientForLane[]) ?? [];
   const stats = computeStats(clients);
+
+  // Cobranças mensais — pra mostrar MRR + receita recorrente no relatório
+  const { data: cobrancasData } = await service
+    .from("cobrancas_mensais")
+    .select("*");
+  const cobrancas = (cobrancasData as CobrancaMensal[]) ?? [];
+  const cobrancasStats = statsCobrancas(cobrancas);
 
   const ativos = stats.total - (stats.porLane.get("entregue")?.length ?? 0) - (stats.porLane.get("parado")?.length ?? 0);
   const entregues = stats.porLane.get("entregue")?.length ?? 0;
@@ -88,6 +100,103 @@ export default async function AdminRelatoriosPage({
             sub="média últimos 6m"
           />
         </div>
+
+        {/* Receita recorrente (MRR) — só aparece se tem cobrança cadastrada */}
+        {cobrancasStats.total > 0 ? (
+          <section className="bg-white rounded-[20px] border border-fysi-line p-5 mb-6">
+            <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
+              <Eyebrow>💚 Receita recorrente (MRR)</Eyebrow>
+              <a
+                href={`/admin/cobrancas${keyParamFirst}`}
+                className="text-xs text-fysi-deep hover:underline font-medium"
+              >
+                Gerenciar cobranças →
+              </a>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                  MRR
+                </div>
+                <div className="text-2xl font-bold text-fysi-deep mt-1 tabular-nums">
+                  {formatBRLCobrancas(cobrancasStats.mrr)}
+                </div>
+                <div className="text-[0.7rem] text-fysi-muted mt-0.5">
+                  {cobrancasStats.ativas} ativas
+                </div>
+              </div>
+              <div>
+                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                  Recebido este mês
+                </div>
+                <div className="text-2xl font-bold text-fysi-deep mt-1 tabular-nums">
+                  {formatBRLCobrancas(cobrancasStats.recebidoEsteMes)}
+                </div>
+                <div className="text-[0.7rem] text-fysi-muted mt-0.5">
+                  {cobrancasStats.pagos.length} pagas
+                </div>
+              </div>
+              <div>
+                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                  A receber
+                </div>
+                <div
+                  className={`text-2xl font-bold mt-1 tabular-nums ${cobrancasStats.aReceberEsteMes > 0 ? "text-amber-700" : "text-fysi-deep"}`}
+                >
+                  {formatBRLCobrancas(cobrancasStats.aReceberEsteMes)}
+                </div>
+                <div className="text-[0.7rem] text-fysi-muted mt-0.5">
+                  {cobrancasStats.aCobrar.length + cobrancasStats.atrasados.length} pendentes
+                </div>
+              </div>
+              <div>
+                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                  Em atraso
+                </div>
+                <div
+                  className={`text-2xl font-bold mt-1 tabular-nums ${cobrancasStats.atrasados.length > 0 ? "text-red-700" : "text-fysi-deep"}`}
+                >
+                  {cobrancasStats.atrasados.length}
+                </div>
+                <div className="text-[0.7rem] text-fysi-muted mt-0.5">
+                  {cobrancasStats.atrasados.length > 0 ? "precisam atenção" : "tudo em dia"}
+                </div>
+              </div>
+            </div>
+            {cobrancasStats.atrasados.length > 0 ? (
+              <div className="mt-4 pt-4 border-t border-fysi-line">
+                <p className="text-[0.7rem] uppercase tracking-[0.1em] text-amber-800 font-semibold mb-2">
+                  ⚠ Atrasadas este mês:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {cobrancasStats.atrasados.slice(0, 8).map((c) => (
+                    <a
+                      key={c.id}
+                      href={`/admin/cobrancas?status=atrasados${urlKey ? `&key=${encodeURIComponent(urlKey)}` : ""}`}
+                      className="text-xs bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1 text-amber-900 hover:bg-amber-100"
+                    >
+                      {c.nome} · {formatBRLCobrancas(Number(c.valor_mensal))}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : (
+          <section className="bg-white rounded-[20px] border border-fysi-line p-5 mb-6 text-center">
+            <Eyebrow>💚 Receita recorrente (MRR)</Eyebrow>
+            <p className="text-sm text-fysi-muted mt-2 mb-3">
+              Nenhuma cobrança mensal cadastrada ainda. Use a aba Cobranças pra
+              adicionar clientes recorrentes (SEO, manutenção, hosting).
+            </p>
+            <a
+              href={`/admin/cobrancas${keyParamFirst}`}
+              className="inline-flex items-center text-xs font-medium text-fysi-deep hover:underline"
+            >
+              + Adicionar primeira cobrança →
+            </a>
+          </section>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-5 mb-6">
           {/* Receita */}
