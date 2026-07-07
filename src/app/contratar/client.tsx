@@ -115,7 +115,6 @@ function dadosComplete(d: DraftState): boolean {
     !!d.empresa.trim() &&
     !!d.endereco.trim() &&
     !!d.cep.trim() &&
-    !!d.cpf.trim() &&
     !!d.como_conheceu
   );
 }
@@ -174,10 +173,9 @@ export function ContratarWizard() {
     if (
       !draft.endereco.trim() ||
       !draft.cep.trim() ||
-      !draft.cpf.trim() ||
       !draft.como_conheceu
     ) {
-      return setError("Preencha endereço, CEP, CPF e como conheceu (campos com *).");
+      return setError("Preencha endereço, CEP e como conheceu (campos com *).");
     }
     goTab("revisao");
   }
@@ -531,7 +529,9 @@ function PanelDados({
       <Section titulo="Documentos">
         <div className="grid sm:grid-cols-2 gap-4">
           <Input
-            label="CPF*"
+            label="CPF"
+            optional
+            hint="Deixe em branco se o cliente for de outro país."
             value={draft.cpf}
             onChange={(e) => onChange("cpf", e.target.value)}
             placeholder="000.000.000-00"

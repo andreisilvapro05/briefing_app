@@ -33,7 +33,8 @@ const Body = z
     // Dados específicos do contrato:
     endereco: z.string().min(1),
     cep: z.string().min(1),
-    cpf: z.string().min(1),
+    // CPF opcional — cliente de outro país não tem CPF.
+    cpf: z.string().optional(),
     como_conheceu: z.string().min(1),
     rg: z.string().optional(),
     cnpj: z.string().optional(),
