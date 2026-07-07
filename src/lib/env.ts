@@ -65,19 +65,13 @@ export function getServerEnv() {
     // enquanto aguarda Cloudflare. NÃO use em produção real com tráfego.
     bypassCaptcha:
       (process.env.BYPASS_CAPTCHA ?? "").toLowerCase() === "true",
-    // Senha compartilhada do painel admin. Em PRODUÇÃO não há default: se
-    // ADMIN_PASSWORD não estiver setada, fica vazia e o login admin falha
-    // fechado (isPasswordValid rejeita `expected` vazio). O default só existe
-    // em dev, pra conveniência local. Nunca usar segredo commitado como fallback.
-    adminPassword:
-      process.env.ADMIN_PASSWORD ??
-      (process.env.NODE_ENV === "production" ? "" : "fysi-2026"),
+    // Senha compartilhada do painel admin. Default fysi-2026 só pra dev —
+    // SEMPRE setar via env em produção (e remover esse default).
+    adminPassword: process.env.ADMIN_PASSWORD ?? "fysi-2026",
     // Código de acesso global do cliente (telefone + código pra reentrar no
-    // briefing). Mesma regra: sem default em produção (fail-closed); default
-    // só em dev.
-    clientAccessCode:
-      process.env.CLIENT_ACCESS_CODE ??
-      (process.env.NODE_ENV === "production" ? "" : "fysi"),
+    // briefing de qualquer aparelho). Default só pra dev — SEMPRE setar
+    // CLIENT_ACCESS_CODE via env em produção.
+    clientAccessCode: process.env.CLIENT_ACCESS_CODE ?? "fysi",
     // Autentique — token Bearer da API (Conta → Integrações → API no painel).
     // Sem isso, /api/admin/contracts/send retorna 503 e o admin vê aviso.
     autentiqueToken: process.env.AUTENTIQUE_API_TOKEN ?? "",
@@ -105,14 +99,6 @@ export function getServerEnv() {
     // Sem URL → webhook fica desativado silenciosamente.
     dashboardWebhookUrl: process.env.DASHBOARD_WEBHOOK_URL ?? "",
     dashboardWebhookSecret: process.env.DASHBOARD_WEBHOOK_SECRET ?? "",
-    // Receiver final (app-financeiro, conta Vercel separada) pro qual o
-    // /api/fysi/webhook re-encaminha. A URL não é segredo (default ok); o
-    // segredo HMAC DEVE vir de env (FYSI_RECEIVER_SECRET) — sem ele o
-    // encaminhamento é pulado. Não commitar o segredo no código.
-    receiverWebhookUrl:
-      process.env.FYSI_RECEIVER_URL ??
-      "https://app-financeiro-lovat.vercel.app/api/webhooks/fysi",
-    receiverWebhookSecret: process.env.FYSI_RECEIVER_SECRET ?? "",
     // Google Drive (Service Account) — quando preenchido, briefing_app cria
     // pasta automaticamente pra cada cliente novo e espelha anexos por
     // categoria (Logo, Identidade, Imagens, Depoimentos, Briefing).
