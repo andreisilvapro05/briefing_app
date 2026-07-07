@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
-import { Eyebrow, Pill } from "@/components/ui/pill";
+import { Eyebrow } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -1191,12 +1191,6 @@ function renderValue(value: unknown): string {
   if (typeof value === "number" || typeof value === "boolean")
     return String(value);
   return JSON.stringify(value, null, 2);
-}
-
-function humanSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatMoney(value: number): string {

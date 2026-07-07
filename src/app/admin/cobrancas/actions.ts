@@ -6,7 +6,6 @@ import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   mesRef,
-  type CobrancaMensal,
   type PagamentoHistorico,
 } from "@/lib/cobrancas-mensais";
 import { sendDashboardWebhook } from "@/lib/dashboard-webhook";

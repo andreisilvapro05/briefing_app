@@ -29,7 +29,18 @@ export default function EscolhaFluxoPage() {
   function handleContinue() {
     if (!selected) return;
     setSubmitting(true);
-    setProjectType(selected);
+    const updated = setProjectType(selected);
+    // Persiste no banco também — senão o tipo fica só no localStorage e o
+    // admin vê "vazio" até o envio do briefing. Best-effort: não bloqueia.
+    if (updated?.id) {
+      void fetch("/api/cliente/project-type", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: updated.id, projectType: selected }),
+      }).catch(() => {
+        // best-effort — a navegação segue mesmo se falhar
+      });
+    }
     setTimeout(() => router.push("/dashboard"), 250);
   }
 

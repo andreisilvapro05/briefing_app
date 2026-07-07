@@ -22,16 +22,11 @@ const KNOWN_EVENTS: ReadonlyArray<DashboardEvent> = [
   "cliente.atualizado",
   "contrato.assinado",
   "pagamento.atualizado",
+  "cobranca.paga",
 ];
 
-// Receiver final no app-financeiro (outro projeto Vercel).
-const RECEIVER_URL =
-  "https://app-financeiro-lovat.vercel.app/api/webhooks/fysi";
-
-// Segredo do receiver — bate com FYSI_WEBHOOK_SECRET no app-financeiro.
-// Hardcoded porque o app-financeiro está em conta Vercel separada.
-const RECEIVER_SECRET =
-  "eaf930b83fdf89d566ca06f0d4117fdfc1dd3730f3d92a48aca780e4785cda97";
+// A URL e o SEGREDO do receiver vêm de env (FYSI_RECEIVER_URL /
+// FYSI_RECEIVER_SECRET). O segredo NÃO fica mais hardcoded no código.
 
 function verifySignature(
   rawBody: string,
@@ -99,35 +94,41 @@ export async function POST(request: NextRequest) {
   );
 
   // Encaminha pro app-financeiro re-assinando com o segredo de lá.
-  const outgoingSig = createHmac("sha256", RECEIVER_SECRET)
-    .update(rawBody)
-    .digest("hex");
-
+  // Sem FYSI_RECEIVER_SECRET configurado, o forward é pulado (não trava).
   let forwarded = false;
   let forwardStatus = 0;
-  try {
-    const res = await fetch(RECEIVER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Fysi-Event": event,
-        "X-Fysi-Signature": outgoingSig,
-      },
-      body: rawBody,
-    });
-    forwarded = res.ok;
-    forwardStatus = res.status;
-    if (!res.ok) {
-      const txt = await res.text();
+  if (!env.receiverWebhookSecret) {
+    console.warn(
+      "[fysi-webhook] FYSI_RECEIVER_SECRET ausente — forward pulado",
+    );
+  } else {
+    const outgoingSig = createHmac("sha256", env.receiverWebhookSecret)
+      .update(rawBody)
+      .digest("hex");
+    try {
+      const res = await fetch(env.receiverWebhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Fysi-Event": event,
+          "X-Fysi-Signature": outgoingSig,
+        },
+        body: rawBody,
+      });
+      forwarded = res.ok;
+      forwardStatus = res.status;
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn(
+          `[fysi-webhook] forward falhou status=${res.status} body=${txt.slice(0, 200)}`,
+        );
+      }
+    } catch (err) {
       console.warn(
-        `[fysi-webhook] forward falhou status=${res.status} body=${txt.slice(0, 200)}`,
+        `[fysi-webhook] forward erro:`,
+        err instanceof Error ? err.message : err,
       );
     }
-  } catch (err) {
-    console.warn(
-      `[fysi-webhook] forward erro:`,
-      err instanceof Error ? err.message : err,
-    );
   }
 
   return NextResponse.json({ ok: true, event, forwarded, forwardStatus });

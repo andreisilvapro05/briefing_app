@@ -35,7 +35,7 @@ export const STANDARD_TEMPLATES: ContractTemplate[] = [
     id: "fysilab-pro-copy",
     label: "✨ Fysilab Pro com Copy (landing + copy estratégica)",
     pacote_nome: "Fysilab Pro com Copy",
-    valor_parcelamento: "R$2.800,00 à vista ou 7x de R$420",
+    valor_parcelamento: "R$2.300,00 à vista ou 7x de R$420",
     prazo_execucao: "12 dias úteis",
     escopo_projeto: [
       "Copy estratégica escrita pela Fysi (Karine)",

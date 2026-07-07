@@ -33,7 +33,6 @@ export function FileUpload({
   hint,
   accept,
   multiple = true,
-  bucket = "briefing-uploads",
   pathPrefix = "",
   value,
   onChange,

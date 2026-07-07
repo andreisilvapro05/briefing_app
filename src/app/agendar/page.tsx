@@ -30,6 +30,23 @@ export default function AgendarPage() {
     setClientId(c.id);
   }, [router]);
 
+  async function markAsScheduled() {
+    if (!clientId) return;
+    setSubmitting(true);
+    try {
+      await fetch("/api/cliente/chamada", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, action: "agendou" }),
+      });
+      setScheduled(true);
+    } catch {
+      // best-effort
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   // Listener pra eventos do Calendly via postMessage. Quando o cliente
   // confirma o agendamento dentro do widget, marcamos como agendada.
   useEffect(() => {
@@ -48,23 +65,6 @@ export default function AgendarPage() {
     return () => window.removeEventListener("message", handleMessage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, scheduled]);
-
-  async function markAsScheduled() {
-    if (!clientId) return;
-    setSubmitting(true);
-    try {
-      await fetch("/api/cliente/chamada", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId, action: "agendou" }),
-      });
-      setScheduled(true);
-    } catch {
-      // best-effort
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   async function handleSkip() {
     if (!clientId) return;

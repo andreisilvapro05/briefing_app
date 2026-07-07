@@ -30,8 +30,12 @@ const Body = z.object({
   cliente: z.object({
     id: z.string().optional(),
     nome: z.string(),
-    email: z.string().email(),
-    empresa: z.string(),
+    // email e empresa são OPCIONAIS no fluxo do cliente: a Tela 1 coleta só
+    // nome + whatsapp; email/empresa só entram na etapa de contrato. Tolerar
+    // ausente/null/vazio aqui evita o 400 "payload-invalid" que impedia o
+    // envio do briefing (e, com ele, o e-mail pro time). Normaliza pra string.
+    email: z.string().nullish().transform((v) => v ?? ""),
+    empresa: z.string().nullish().transform((v) => v ?? ""),
     whatsapp: z.string(),
     projectType: z.string().optional(),
   }),
@@ -96,8 +100,8 @@ export async function POST(request: NextRequest) {
         .from("clients")
         .insert({
           nome: parsed.cliente.nome,
-          email: parsed.cliente.email,
-          empresa: parsed.cliente.empresa,
+          email: parsed.cliente.email || null,
+          empresa: parsed.cliente.empresa || null,
           whatsapp: parsed.cliente.whatsapp,
           project_type: parsed.cliente.projectType,
           status: "concluido",
@@ -189,19 +193,22 @@ export async function POST(request: NextRequest) {
     logServerError("submit.clickup", err);
   }
 
-  // 4 — E-mail confirmação pro CLIENTE
-  try {
-    await sendEmail({
-      to: parsed.cliente.email,
-      subject: `Briefing recebido — Fysi Lab`,
-      html: htmlBriefingConcluido({
-        nome: parsed.cliente.nome.split(" ")[0],
-        empresa: parsed.cliente.empresa,
-        link: `${env.appUrl}/dashboard`,
-      }),
-    });
-  } catch (err) {
-    logServerError("submit.email-cliente", err);
+  // 4 — E-mail confirmação pro CLIENTE (só se ele tiver e-mail — no fluxo
+  // self-service o cliente pode não ter informado e-mail ainda).
+  if (parsed.cliente.email) {
+    try {
+      await sendEmail({
+        to: parsed.cliente.email,
+        subject: `Briefing recebido — Fysi Lab`,
+        html: htmlBriefingConcluido({
+          nome: parsed.cliente.nome.split(" ")[0],
+          empresa: parsed.cliente.empresa,
+          link: `${env.appUrl}/dashboard`,
+        }),
+      });
+    } catch (err) {
+      logServerError("submit.email-cliente", err);
+    }
   }
 
   // 5 — Notificação pro TIME Fysi com o briefing inteiro

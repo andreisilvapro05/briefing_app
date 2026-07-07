@@ -57,7 +57,6 @@ export default async function AdminPage({
   // Sempre que veio com ?key= na URL, preserva nos links internos —
   // mesmo se o cookie tiver autenticado (cookie pode cair no próximo clique).
   // Garante navegação confiável em navegadores que descartam cookie.
-  const keyParam = urlKey ? `&key=${encodeURIComponent(urlKey)}` : "";
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
   const service = createSupabaseServiceRoleClient();

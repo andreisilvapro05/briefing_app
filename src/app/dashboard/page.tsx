@@ -3,10 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
-import { Button } from "@/components/ui/button";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { ProjectTimeline } from "@/components/timeline/project-timeline";
-import { FysiMark } from "@/components/brand/fysi-mark";
 import { MeusMateriaisCard } from "@/components/meus-materiais-card";
 import { EntregaViewer } from "@/components/entrega-viewer";
 import type { EntregaDocumento } from "@/lib/entrega";
@@ -65,11 +63,8 @@ export default function DashboardPage() {
         router.replace("/projeto");
         return;
       }
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCliente({ ...cliente, projectType });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setResponses(getAllResponses());
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoaded(true);
     }
 

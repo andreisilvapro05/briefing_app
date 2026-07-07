@@ -506,13 +506,23 @@ function PieChart({
     rose: "#f43f5e",
   };
 
-  let acc = 0;
-  const segments = data.map((d) => {
-    const start = (acc / total) * 360;
-    acc += d.count;
-    const end = (acc / total) * 360;
-    return { ...d, start, end, color: TONE_HEX[d.lane.tone] ?? "#94a3b8" };
-  });
+  const segments: (typeof data[number] & {
+    start: number;
+    end: number;
+    color: string;
+  })[] = [];
+  let running = 0;
+  for (const d of data) {
+    const start = (running / total) * 360;
+    running += d.count;
+    const end = (running / total) * 360;
+    segments.push({
+      ...d,
+      start,
+      end,
+      color: TONE_HEX[d.lane.tone] ?? "#94a3b8",
+    });
+  }
 
   // Monta o conic-gradient
   const gradient = segments
