@@ -173,6 +173,7 @@ export const BLOCO_LABELS: Record<string, string> = {
   "referencias-concorrencia": "Referências e concorrência",
   "briefing-copy": "Briefing de copy",
   "textos-prontos": "Textos prontos",
+  "perguntas-especificas": "Perguntas específicas",
 };
 
 export const BLOCO_NUMBERS: Record<string, number> = {

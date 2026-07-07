@@ -26,6 +26,8 @@ import { EIEditor } from "@/components/admin/ei-editor";
 import type { EIData } from "@/lib/ei-template";
 import { EntregaEditor } from "@/components/admin/entrega-editor";
 import { MoodboardEditor } from "@/components/admin/moodboard-editor";
+import { CustomQuestionsEditor } from "@/components/admin/custom-questions-editor";
+import { listCustomQuestions } from "@/lib/custom-questions";
 import type { Moodboard } from "@/lib/moodboard";
 import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
@@ -161,6 +163,13 @@ export default async function AdminClientPage({
     ? buildTimeline(client.project_type)
     : [];
   const currentStage = client.current_stage_index ?? 0;
+
+  // Perguntas específicas cadastradas pra este cliente (bloco extra do briefing).
+  const customQuestions = await listCustomQuestions(client.id);
+  // Mapa field_id → rótulo, pra mostrar a pergunta (não o id) no briefing.
+  const customLabels = new Map<string, string>(
+    customQuestions.map((q) => [`perguntas-especificas.${q.id}`, q.label])
+  );
 
   // --- Visualização do briefing preenchido ---
   // Blocos esperados, na ordem lógica do projeto. Mais quaisquer blocos com
@@ -709,6 +718,25 @@ Qualquer dúvida, é só responder por aqui.`}
         />
         ) : null}
 
+        {tab === "briefing" ? (
+          <section className="bg-white border border-fysi-line rounded-[20px] p-6 flex flex-col gap-4">
+            <div>
+              <h3 className="text-lg font-medium text-fysi-deep">
+                Perguntas específicas
+              </h3>
+              <p className="text-sm text-fysi-muted mt-1">
+                Perguntas sob medida pra este cliente. Aparecem como um bloco
+                extra no briefing dele.
+              </p>
+            </div>
+            <CustomQuestionsEditor
+              clientId={client.id}
+              urlKey={urlKey ?? undefined}
+              questions={customQuestions}
+            />
+          </section>
+        ) : null}
+
         {tab === "moodboard" ? (
         <MoodboardEditor
           clientId={client.id}
@@ -1070,7 +1098,7 @@ Qualquer dúvida, é só responder por aqui.`}
                           className="border-b border-fysi-line last:border-b-0 pb-4 last:pb-0"
                         >
                           <p className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium mb-1">
-                            {fieldLabel(f.field_id)}
+                            {customLabels.get(f.field_id) ?? fieldLabel(f.field_id)}
                           </p>
                           {renderFieldValue(f.field_id, f.value)}
                         </div>

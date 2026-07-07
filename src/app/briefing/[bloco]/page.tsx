@@ -11,6 +11,7 @@ import { BlocoLinguagemTom } from "@/components/briefing/bloco-linguagem-tom";
 import { BlocoReferencias } from "@/components/briefing/bloco-referencias";
 import { BlocoCopy } from "@/components/briefing/bloco-copy";
 import { BlocoTextosProntos } from "@/components/briefing/bloco-textos-prontos";
+import { BlocoCustom, CUSTOM_BLOCO_ID } from "@/components/briefing/bloco-custom";
 import { blocosForProject } from "@/lib/briefing-schema";
 import { loadCliente } from "@/lib/storage";
 import type { Cliente } from "@/lib/types";
@@ -23,6 +24,7 @@ const BLOCO_COMPONENTS: Record<string, React.ComponentType> = {
   "referencias-concorrencia": BlocoReferencias,
   "briefing-copy": BlocoCopy,
   "textos-prontos": BlocoTextosProntos,
+  [CUSTOM_BLOCO_ID]: BlocoCustom,
 };
 
 export default function BlocoPage() {
@@ -30,6 +32,7 @@ export default function BlocoPage() {
   const params = useParams<{ bloco: string }>();
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [hasCustom, setHasCustom] = useState(false);
 
   useEffect(() => {
     const c = loadCliente();
@@ -43,12 +46,34 @@ export default function BlocoPage() {
     }
     setCliente(c);
     setLoaded(true);
+
+    // Descobre se este cliente tem perguntas específicas → bloco extra no fim.
+    if (c.id) {
+      fetch(
+        `/api/cliente/custom-questions?clientId=${encodeURIComponent(c.id)}`
+      )
+        .then((r) => (r.ok ? r.json() : { questions: [] }))
+        .then((d) => setHasCustom((d.questions ?? []).length > 0))
+        .catch(() => {});
+    }
   }, [router]);
 
-  const blocos = useMemo(
-    () => (cliente?.projectType ? blocosForProject(cliente.projectType) : []),
-    [cliente]
-  );
+  const blocos = useMemo(() => {
+    if (!cliente?.projectType) return [];
+    const base = blocosForProject(cliente.projectType);
+    if (!hasCustom) return base;
+    // Anexa o bloco de perguntas específicas como último passo.
+    return [
+      ...base,
+      {
+        id: CUSTOM_BLOCO_ID,
+        numero: base.length + 1,
+        titulo: "Perguntas específicas",
+        descricao: "Perguntas sob medida pra este projeto.",
+        appliesTo: () => true,
+      },
+    ];
+  }, [cliente, hasCustom]);
 
   const currentIdx = blocos.findIndex((b) => b.id === params.bloco);
   const current = currentIdx === -1 ? undefined : blocos[currentIdx];

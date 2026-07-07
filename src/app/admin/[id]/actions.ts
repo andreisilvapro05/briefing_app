@@ -710,3 +710,54 @@ export async function setClientStatusAction(formData: FormData) {
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin");
 }
+
+/**
+ * Perguntas específicas do cliente — adiciona uma pergunta sob medida que vai
+ * aparecer como bloco extra no briefing daquele cliente.
+ */
+export async function addCustomQuestionAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  const label = String(formData.get("label") ?? "").trim();
+  const hint = String(formData.get("hint") ?? "").trim();
+  if (!clientId || !label) return;
+
+  const service = createSupabaseServiceRoleClient();
+  const { count } = await service
+    .from("client_custom_questions")
+    .select("*", { count: "exact", head: true })
+    .eq("client_id", clientId);
+
+  await service.from("client_custom_questions").insert({
+    client_id: clientId,
+    label,
+    hint: hint || null,
+    ordem: count ?? 0,
+  });
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Perguntas específicas do cliente — remove uma pergunta.
+ */
+export async function deleteCustomQuestionAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const questionId = String(formData.get("questionId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!questionId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("client_custom_questions")
+    .delete()
+    .eq("id", questionId);
+
+  if (clientId) revalidatePath(`/admin/${clientId}`);
+}
