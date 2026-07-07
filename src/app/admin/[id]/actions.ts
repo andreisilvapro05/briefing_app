@@ -711,6 +711,26 @@ export async function setClientStatusAction(formData: FormData) {
   revalidatePath("/admin");
 }
 
+/** Lê label/hint/tipo/opcoes do formulário de pergunta específica. */
+function parseCustomQuestionFields(formData: FormData) {
+  const label = String(formData.get("label") ?? "").trim();
+  const hint = String(formData.get("hint") ?? "").trim();
+  const tipoRaw = String(formData.get("tipo") ?? "texto-longo");
+  const tipo =
+    tipoRaw === "texto-curto" || tipoRaw === "escolha"
+      ? tipoRaw
+      : "texto-longo";
+  // Opções: uma por linha, só usadas quando tipo = "escolha".
+  const opcoes =
+    tipo === "escolha"
+      ? String(formData.get("opcoes") ?? "")
+          .split("\n")
+          .map((o) => o.trim())
+          .filter(Boolean)
+      : [];
+  return { label, hint, tipo, opcoes };
+}
+
 /**
  * Perguntas específicas do cliente — adiciona uma pergunta sob medida que vai
  * aparecer como bloco extra no briefing daquele cliente.
@@ -721,8 +741,7 @@ export async function addCustomQuestionAction(formData: FormData) {
   if (!user) redirect("/admin/login");
 
   const clientId = String(formData.get("clientId") ?? "");
-  const label = String(formData.get("label") ?? "").trim();
-  const hint = String(formData.get("hint") ?? "").trim();
+  const { label, hint, tipo, opcoes } = parseCustomQuestionFields(formData);
   if (!clientId || !label) return;
 
   const service = createSupabaseServiceRoleClient();
@@ -735,8 +754,83 @@ export async function addCustomQuestionAction(formData: FormData) {
     client_id: clientId,
     label,
     hint: hint || null,
+    tipo,
+    opcoes,
     ordem: count ?? 0,
   });
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Perguntas específicas do cliente — edita uma pergunta existente.
+ */
+export async function updateCustomQuestionAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const questionId = String(formData.get("questionId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+  const { label, hint, tipo, opcoes } = parseCustomQuestionFields(formData);
+  if (!questionId || !label) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("client_custom_questions")
+    .update({ label, hint: hint || null, tipo, opcoes })
+    .eq("id", questionId);
+
+  if (clientId) revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Perguntas específicas — move uma pergunta pra cima/baixo. Renumera a lista
+ * (ordem = índice) pra manter a sequência limpa.
+ */
+export async function moveCustomQuestionAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const questionId = String(formData.get("questionId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+  const direction = String(formData.get("direction") ?? "");
+  if (
+    !questionId ||
+    !clientId ||
+    (direction !== "up" && direction !== "down")
+  ) {
+    return;
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("client_custom_questions")
+    .select("id, ordem")
+    .eq("client_id", clientId)
+    .order("ordem", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  const list = (data as { id: string; ordem: number }[] | null) ?? [];
+  const idx = list.findIndex((q) => q.id === questionId);
+  if (idx === -1) return;
+  const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+  if (swapIdx < 0 || swapIdx >= list.length) return;
+
+  const reordered = [...list];
+  const tmp = reordered[idx];
+  reordered[idx] = reordered[swapIdx];
+  reordered[swapIdx] = tmp;
+
+  for (let i = 0; i < reordered.length; i++) {
+    if (reordered[i].ordem !== i) {
+      await service
+        .from("client_custom_questions")
+        .update({ ordem: i })
+        .eq("id", reordered[i].id);
+    }
+  }
 
   revalidatePath(`/admin/${clientId}`);
 }

@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
       id: q.id,
       label: q.label,
       hint: q.hint,
+      tipo: q.tipo,
+      opcoes: q.opcoes,
     })),
   });
 }
