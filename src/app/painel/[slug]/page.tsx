@@ -7,10 +7,13 @@ export const dynamic = "force-dynamic";
 
 export default async function PainelPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ ir?: string }>;
 }) {
   const { slug } = await params;
+  const { ir } = await searchParams;
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("clients")
@@ -20,8 +23,13 @@ export default async function PainelPage({
 
   if (!data) notFound();
 
+  // ?ir=briefing → leva o cliente direto pro briefing (link "vá direto pro
+  // briefing"). Sem isso, cai no dashboard como antes.
+  const destino = ir === "briefing" ? "/briefing" : "/dashboard";
+
   return (
     <ClientHydrator
+      destino={destino}
       cliente={{
         id: data.id,
         nome: data.nome,

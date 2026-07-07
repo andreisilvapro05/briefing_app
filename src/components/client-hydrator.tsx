@@ -21,7 +21,15 @@ interface ClienteData {
  * Usado pelas rotas /painel/[slug] (link mágico sem senha) e por testes
  * de "ver como cliente" do admin.
  */
-export function ClientHydrator({ cliente }: { cliente: ClienteData }) {
+export function ClientHydrator({
+  cliente,
+  destino = "/dashboard",
+}: {
+  cliente: ClienteData;
+  /** Pra onde levar após hidratar. Default: /dashboard. Use "/briefing" pra
+   *  mandar o cliente direto pro briefing (link "vá direto pro briefing"). */
+  destino?: string;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
@@ -30,16 +38,13 @@ export function ClientHydrator({ cliente }: { cliente: ClienteData }) {
       hydrateCliente(cliente);
       // Busca respostas no servidor antes de redirecionar (cliente pode
       // ter preenchido coisas em outro aparelho).
-      // Sempre vai pro /dashboard — se faltar projectType, o dashboard mostra
-      // uma mensagem amigável "aguardando definição da equipe" em vez de
-      // forçar o cliente a escolher tipo de projeto.
       void pullResponsesFromServer(cliente.id).finally(() => {
-        router.replace("/dashboard");
+        router.replace(destino);
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar.");
     }
-  }, [cliente, router]);
+  }, [cliente, router, destino]);
 
   return (
     <Shell tone="cream" hideHeader>
