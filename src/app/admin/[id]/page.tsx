@@ -26,6 +26,7 @@ import { EIEditor } from "@/components/admin/ei-editor";
 import type { EIData } from "@/lib/ei-template";
 import { EntregaEditor } from "@/components/admin/entrega-editor";
 import { MoodboardEditor } from "@/components/admin/moodboard-editor";
+import { ProblemasEditor } from "@/components/admin/problemas-editor";
 import { CustomQuestionsEditor } from "@/components/admin/custom-questions-editor";
 import { listCustomQuestions } from "@/lib/custom-questions";
 import type { Moodboard } from "@/lib/moodboard";
@@ -78,10 +79,14 @@ export default async function AdminClientPage({
   // Aba ativa — controla qual grupo de seções renderiza
   const validTabs: ClientTab[] = [
     "geral",
+    "ei",
     "briefing",
-    "moodboard",
-    "financeiro",
+    "contrato",
+    "pagamentos",
     "entrega",
+    "problemas",
+    "drive",
+    "moodboard",
   ];
   const tab: ClientTab = validTabs.includes(sp.tab as ClientTab)
     ? (sp.tab as ClientTab)
@@ -214,7 +219,7 @@ export default async function AdminClientPage({
       : briefingVazio
         ? { tone: "muted", label: "vazio" }
         : { tone: "yellow", label: `${blocosPreenchidos}/${totalBlocos}` },
-    financeiro:
+    pagamentos:
       contratoStatus === "assinado"
         ? pctPagamento === 100
           ? { tone: "mint", label: "✓ pago" }
@@ -255,6 +260,15 @@ export default async function AdminClientPage({
         >
           ← Voltar à lista
         </Link>
+
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <ClientTabs
+            active={tab}
+            clientId={client.id}
+            keyParam={keyParam}
+            badges={tabBadges}
+          />
+          <div className="flex-1 min-w-0 w-full">
 
         <header className="grid md:grid-cols-[2fr_1fr] gap-6 mb-6">
           <div>
@@ -375,13 +389,6 @@ export default async function AdminClientPage({
             </div>
           </aside>
         </header>
-
-        <ClientTabs
-          active={tab}
-          clientId={client.id}
-          keyParam={keyParam}
-          badges={tabBadges}
-        />
 
         {tab === "geral" ? (
         <>
@@ -707,7 +714,7 @@ Qualquer dúvida, é só responder por aqui.`}
         </>
         ) : null}
 
-        {tab === "briefing" ? (
+        {tab === "ei" ? (
         <EIEditor
           clientId={client.id}
           clientName={client.nome ?? null}
@@ -761,7 +768,7 @@ Qualquer dúvida, é só responder por aqui.`}
 
         {/* Contrato sempre visível em Visão geral E Financeiro — é a peça
             mais crítica da operação, não pode ficar atrás de aba. */}
-        {tab === "geral" || tab === "financeiro" ? (
+        {tab === "contrato" ? (
           <ContractCard
             clientId={client.id}
             clientName={client.nome ?? null}
@@ -776,7 +783,7 @@ Qualquer dúvida, é só responder por aqui.`}
           />
         ) : null}
 
-        {tab === "financeiro" ? (
+        {tab === "pagamentos" ? (
         <>
         {/* Pagamento — admin acompanha o quanto já foi recebido */}
         {(() => {
@@ -907,7 +914,7 @@ Qualquer dúvida, é só responder por aqui.`}
         </>
         ) : null}
 
-        {tab === "entrega" ? (
+        {tab === "drive" ? (
         /* Drive — links manuais (Fysi + cliente) */
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <Eyebrow>Drive</Eyebrow>
@@ -995,6 +1002,16 @@ Qualquer dúvida, é só responder por aqui.`}
               ) : null}
             </form>
           </div>
+        </section>
+        ) : null}
+
+        {tab === "problemas" ? (
+        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <Eyebrow>Mapeamento de problemas</Eyebrow>
+          <h2 className="text-lg font-medium text-fysi-deep mt-1 mb-4">
+            Bloco de notas
+          </h2>
+          <ProblemasEditor clientId={client.id} urlKey={urlKey ?? undefined} />
         </section>
         ) : null}
 
@@ -1124,6 +1141,8 @@ Qualquer dúvida, é só responder por aqui.`}
         )}
         </>
         ) : null}
+          </div>
+        </div>
       </ContentFrame>
     </Shell>
   );
