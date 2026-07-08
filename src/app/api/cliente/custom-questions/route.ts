@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getServerEnv } from "@/lib/env";
-import { listCustomQuestions } from "@/lib/custom-questions";
+import { listCustomQuestions } from "@/lib/custom-questions-server";
 
 /**
  * Perguntas específicas do cliente (pro briefing renderizar o bloco extra).

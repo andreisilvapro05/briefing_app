@@ -1,7 +1,9 @@
-import { createSupabaseServiceRoleClient } from "./supabase/server";
-
 /**
- * Perguntas específicas por cliente.
+ * Perguntas específicas por cliente — tipos e constantes CLIENT-SAFE.
+ *
+ * Este módulo NÃO importa nada de server (ex: supabase/server), pra poder ser
+ * importado tanto por client components quanto por server. A função que lê o
+ * banco (usa service-role) fica em `custom-questions-server.ts`.
  *
  * O admin cadastra perguntas sob medida para um cliente; elas viram um bloco
  * extra no briefing dele. As respostas reusam `briefing_responses` com
@@ -42,44 +44,4 @@ export const CUSTOM_BLOCO_TITULO = "Perguntas específicas do seu projeto";
 /** field_id usado ao salvar a resposta de uma pergunta custom. */
 export function customFieldId(questionId: string): string {
   return `${CUSTOM_BLOCO_ID}.${questionId}`;
-}
-
-function normalizeTipo(v: unknown): CustomQuestionTipo {
-  return v === "texto-curto" || v === "escolha" ? v : "texto-longo";
-}
-
-function normalizeOpcoes(v: unknown): string[] {
-  if (Array.isArray(v)) return v.map((x) => String(x)).filter(Boolean);
-  return [];
-}
-
-/**
- * Normaliza uma linha do banco. Tolerante: se as colunas tipo/opcoes ainda
- * não existirem (migration não aplicada), aplica defaults sem quebrar.
- */
-function normalizeQuestion(row: Record<string, unknown>): CustomQuestion {
-  return {
-    id: String(row.id),
-    client_id: String(row.client_id),
-    label: String(row.label ?? ""),
-    hint: (row.hint as string | null) ?? null,
-    tipo: normalizeTipo(row.tipo),
-    opcoes: normalizeOpcoes(row.opcoes),
-    ordem: Number(row.ordem ?? 0),
-    created_at: String(row.created_at ?? ""),
-  };
-}
-
-/** Lista as perguntas custom de um cliente (ordenadas). Usa service-role. */
-export async function listCustomQuestions(
-  clientId: string
-): Promise<CustomQuestion[]> {
-  const service = createSupabaseServiceRoleClient();
-  const { data } = await service
-    .from("client_custom_questions")
-    .select("*")
-    .eq("client_id", clientId)
-    .order("ordem", { ascending: true })
-    .order("created_at", { ascending: true });
-  return ((data as Record<string, unknown>[]) ?? []).map(normalizeQuestion);
 }

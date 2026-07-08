@@ -28,7 +28,7 @@ import { EntregaEditor } from "@/components/admin/entrega-editor";
 import { MoodboardEditor } from "@/components/admin/moodboard-editor";
 import { ProblemasEditor } from "@/components/admin/problemas-editor";
 import { CustomQuestionsEditor } from "@/components/admin/custom-questions-editor";
-import { listCustomQuestions } from "@/lib/custom-questions";
+import { listCustomQuestions } from "@/lib/custom-questions-server";
 import type { Moodboard } from "@/lib/moodboard";
 import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
