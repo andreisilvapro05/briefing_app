@@ -698,7 +698,13 @@ export async function setClientStatusAction(formData: FormData) {
 
   const clientId = String(formData.get("clientId") ?? "");
   const status = String(formData.get("status") ?? "");
-  const allowed = ["nao-iniciado", "em-andamento", "concluido", "abandonado"];
+  const allowed = [
+    "nao-iniciado",
+    "em-andamento",
+    "parado",
+    "concluido",
+    "abandonado",
+  ];
   if (!clientId || !allowed.includes(status)) return;
 
   const service = createSupabaseServiceRoleClient();

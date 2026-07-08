@@ -40,7 +40,6 @@ import {
   resendClientLinkAction,
   sendToClickupAction,
   setClientContractDataAction,
-  setClientStatusAction,
   setCopyReviewLinkAction,
   setDriveLinksAction,
   setPaymentAction,
@@ -312,33 +311,6 @@ export default async function AdminClientPage({
                   className="text-[0.65rem] text-fysi-deep hover:underline text-left"
                 >
                   ↳ salvar tipo
-                </button>
-              </form>
-
-              <form
-                action={setClientStatusAction}
-                className="flex flex-col gap-1"
-              >
-                <label className="text-[0.6rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
-                  Status
-                </label>
-                <input type="hidden" name="clientId" value={client.id} />
-                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-                <select
-                  name="status"
-                  defaultValue={client.status}
-                  className="text-xs rounded-[8px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
-                >
-                  <option value="nao-iniciado">Não iniciado</option>
-                  <option value="em-andamento">Em andamento</option>
-                  <option value="concluido">Concluído</option>
-                  <option value="abandonado">Abandonado</option>
-                </select>
-                <button
-                  type="submit"
-                  className="text-[0.65rem] text-fysi-deep hover:underline text-left"
-                >
-                  ↳ salvar status
                 </button>
               </form>
             </div>

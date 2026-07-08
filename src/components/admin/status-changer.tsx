@@ -11,6 +11,7 @@ import { setClientStatusAction } from "@/app/admin/[id]/actions";
 const OPTIONS = [
   { value: "nao-iniciado", label: "Não iniciado" },
   { value: "em-andamento", label: "Em andamento" },
+  { value: "parado", label: "Parado" },
   { value: "concluido", label: "Concluído" },
   { value: "abandonado", label: "Abandonado" },
 ];
@@ -18,6 +19,7 @@ const OPTIONS = [
 const TONE: Record<string, string> = {
   concluido: "bg-fysi-mint/40 text-fysi-deep border-fysi-mint/60",
   "em-andamento": "bg-white text-fysi-deep border-fysi-line",
+  parado: "bg-fysi-yellow/60 text-fysi-deep border-fysi-yellow",
   abandonado: "bg-red-50 text-red-700 border-red-200",
   "nao-iniciado": "bg-fysi-cream text-fysi-muted border-fysi-line",
 };
