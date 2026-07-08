@@ -31,6 +31,20 @@
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* ============================================================
+   Escopo do ADMIN — paleta "Slate Fysi" (graphite-teal frio).
+   Redefine só os neutros (o cream quente vira porcelana tech);
+   deep / mint / mint-vivid / yellow seguem os da marca.
+   Como os utilitários Tailwind referenciam var(--fysi-*), todos os
+   componentes do admin herdam esta paleta sem edição individual.
+   ============================================================ */
+.admin-scope {
+  --fysi-cream: #EEF2F2;
+  --fysi-line: #E1E7E7;
+  --fysi-line-strong: #CDD6D6;
+  --fysi-muted: #5F6E6E;
+}
+
 @theme inline {
   /* Cores Fysi expostas como utilitários Tailwind: bg-fysi-deep, text-fysi-cream, etc. */
   --color-fysi-deep: var(--fysi-deep);
