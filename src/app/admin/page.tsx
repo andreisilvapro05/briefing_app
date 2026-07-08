@@ -28,10 +28,54 @@ interface ClientRow {
   status: string;
   current_stage_index: number | null;
   briefing_submitted_at: string | null;
+  contrato_status: string | null;
+  pagamento_total: number | null;
+  pagamento_pago: number | null;
   created_at: string;
   updated_at: string;
   last_client_activity_at: string | null;
   clickup_task_id: string | null;
+}
+
+type PillTone = "mint" | "amber" | "yellow" | "muted";
+
+function MiniPill({ label, tone }: { label: string; tone: PillTone }) {
+  const cls: Record<PillTone, string> = {
+    mint: "bg-fysi-mint border-fysi-mint-vivid text-fysi-deep",
+    amber: "bg-amber-50 border-amber-200 text-amber-700",
+    yellow: "bg-fysi-yellow/70 border-fysi-yellow text-fysi-deep",
+    muted: "bg-fysi-cream border-fysi-line text-fysi-muted",
+  };
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold ${cls[tone]}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function briefingCell(c: ClientRow): { label: string; tone: PillTone } {
+  if (c.briefing_submitted_at) return { label: "✓ enviado", tone: "mint" };
+  if ((c.current_stage_index ?? 0) > 0)
+    return { label: "em andamento", tone: "yellow" };
+  return { label: "aguardando", tone: "muted" };
+}
+
+function contratoCell(c: ClientRow): { label: string; tone: PillTone } | null {
+  const s = c.contrato_status;
+  if (s === "assinado") return { label: "assinado", tone: "mint" };
+  if (s === "pendente") return { label: "pendente", tone: "amber" };
+  if (s === "rejeitado" || s === "cancelado") return { label: s, tone: "muted" };
+  return null;
+}
+
+function pagamentoCell(c: ClientRow): { label: string; tone: PillTone } | null {
+  const total = Number(c.pagamento_total ?? 0);
+  if (total <= 0) return null;
+  const pago = Number(c.pagamento_pago ?? 0);
+  const pct = Math.round((pago / total) * 100);
+  return { label: `${pct}%`, tone: pct >= 100 ? "mint" : "yellow" };
 }
 
 interface SearchParams {
@@ -64,7 +108,7 @@ export default async function AdminPage({
   let query = service
     .from("clients")
     .select(
-      "id, nome, email, empresa, whatsapp, project_type, status, current_stage_index, briefing_submitted_at, created_at, updated_at, last_client_activity_at, clickup_task_id"
+      "id, nome, email, empresa, whatsapp, project_type, status, current_stage_index, briefing_submitted_at, contrato_status, pagamento_total, pagamento_pago, created_at, updated_at, last_client_activity_at, clickup_task_id"
     )
     .order("created_at", { ascending: false });
 
@@ -261,13 +305,15 @@ export default async function AdminPage({
           </p>
         ) : null}
 
-        <div className="bg-white border border-fysi-line rounded-[20px] overflow-hidden">
+        <div className="bg-white border border-fysi-line rounded-[20px] overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
               <tr>
                 <th className="px-5 py-3 font-medium">Cliente</th>
-                <th className="px-5 py-3 font-medium">Empresa</th>
                 <th className="px-5 py-3 font-medium">Tipo</th>
+                <th className="px-5 py-3 font-medium">Briefing</th>
+                <th className="px-5 py-3 font-medium">Contrato</th>
+                <th className="px-5 py-3 font-medium">Pagamento</th>
                 <th className="px-5 py-3 font-medium">Status</th>
                 <th className="px-5 py-3 font-medium">Atividade</th>
                 <th className="px-5 py-3 font-medium" />
@@ -277,7 +323,7 @@ export default async function AdminPage({
               {clients.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={8}
                     className="px-5 py-8 text-center text-fysi-muted"
                   >
                     {q || statusFilter || tipoFilter
@@ -289,21 +335,32 @@ export default async function AdminPage({
                 clients.map((c) => {
                   const stuck = isStuck(c);
                   const lastActivity = c.last_client_activity_at ?? c.created_at;
+                  const briefing = briefingCell(c);
+                  const contrato = contratoCell(c);
+                  const pagamento = pagamentoCell(c);
                   return (
                     <tr
                       key={c.id}
                       className="border-t border-fysi-line hover:bg-fysi-cream/40 transition"
                     >
                       <td className="px-5 py-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <div className="flex flex-col min-w-0">
-                            <span className="font-medium text-fysi-deep truncate">
+                            <Link
+                              href={`/admin/${c.id}${keyParamFirst}`}
+                              className="font-medium text-fysi-deep truncate hover:underline"
+                            >
                               {c.nome}
-                            </span>
+                            </Link>
+                            {c.empresa ? (
+                              <span className="text-xs text-fysi-muted truncate">
+                                {c.empresa}
+                              </span>
+                            ) : null}
                           </div>
                           {stuck ? (
                             <span
-                              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[0.65rem] uppercase tracking-[0.1em] text-amber-700 font-medium"
+                              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
                               title={`Sem atividade há ${daysSince(lastActivity)} dias`}
                             >
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -312,7 +369,6 @@ export default async function AdminPage({
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-5 py-4 text-fysi-deep">{c.empresa}</td>
                       <td className="px-5 py-4">
                         <span className="text-xs text-fysi-muted">
                           {c.project_type
@@ -320,6 +376,23 @@ export default async function AdminPage({
                               c.project_type
                             : "—"}
                         </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <MiniPill label={briefing.label} tone={briefing.tone} />
+                      </td>
+                      <td className="px-5 py-4">
+                        {contrato ? (
+                          <MiniPill label={contrato.label} tone={contrato.tone} />
+                        ) : (
+                          <span className="text-xs text-fysi-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        {pagamento ? (
+                          <MiniPill label={pagamento.label} tone={pagamento.tone} />
+                        ) : (
+                          <span className="text-xs text-fysi-muted">—</span>
+                        )}
                       </td>
                       <td className="px-5 py-4">
                         <StatusChanger
