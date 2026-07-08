@@ -34,6 +34,7 @@ import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
+import { StatusChanger } from "@/components/admin/status-changer";
 import { getServerEnv } from "@/lib/env";
 import {
   resendClientLinkAction,
@@ -392,6 +393,47 @@ export default async function AdminClientPage({
 
         {tab === "geral" ? (
         <>
+        {/* Situação do projeto — onde o cliente está, num olhar */}
+        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="min-w-0">
+              <Eyebrow>Onde o cliente está</Eyebrow>
+              <div className="flex items-baseline gap-3 mt-2 flex-wrap">
+                <span className="text-2xl font-semibold text-fysi-deep tracking-tight">
+                  {etapas.length > 0
+                    ? etapas[currentStage]?.titulo ?? "—"
+                    : "Tipo de projeto não definido"}
+                </span>
+                {etapas.length > 0 ? (
+                  <span className="text-sm text-fysi-muted">
+                    Etapa {currentStage + 1} de {etapas.length}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <div className="flex flex-col items-start sm:items-end gap-1">
+              <span className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+                Status
+              </span>
+              <StatusChanger
+                clientId={client.id}
+                status={client.status}
+                urlKey={urlKey ?? undefined}
+              />
+            </div>
+          </div>
+          {etapas.length > 0 ? (
+            <div className="mt-4 h-1.5 bg-fysi-cream rounded-full overflow-hidden">
+              <div
+                className="h-full bg-fysi-mint-vivid rounded-full transition-all"
+                style={{
+                  width: `${Math.round(((currentStage + 1) / etapas.length) * 100)}%`,
+                }}
+              />
+            </div>
+          ) : null}
+        </section>
+
         {/* Link de acesso pro cliente — pra mandar via WhatsApp */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <Eyebrow>Acesso do cliente</Eyebrow>
