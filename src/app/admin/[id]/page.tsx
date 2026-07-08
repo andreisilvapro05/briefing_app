@@ -22,7 +22,7 @@ import type { ProjectType } from "@/lib/types";
 import { ContractCard } from "@/components/admin/contract-card";
 import { MateriaisPainel } from "@/components/admin/materiais-painel";
 import { ClientTabs, type ClientTab } from "@/components/admin/client-tabs";
-import { EIEditor } from "@/components/admin/ei-editor";
+import { EIView } from "@/components/admin/ei-view";
 import type { EIData } from "@/lib/ei-template";
 import { EntregaEditor } from "@/components/admin/entrega-editor";
 import { MoodboardEditor } from "@/components/admin/moodboard-editor";
@@ -715,13 +715,19 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
 
         {tab === "ei" ? (
-        <EIEditor
+        <EIView
           clientId={client.id}
           clientName={client.nome ?? null}
           empresa={client.empresa ?? null}
           urlKey={urlKey ?? null}
           initial={(client.ei_data as EIData | null) ?? null}
           atualizadoAt={client.ei_atualizado_at ?? null}
+          fallbackDrive={
+            (client as { fysi_drive_link?: string | null }).fysi_drive_link ??
+            (client as { cliente_drive_link?: string | null })
+              .cliente_drive_link ??
+            null
+          }
         />
         ) : null}
 
