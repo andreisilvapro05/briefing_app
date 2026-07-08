@@ -7,7 +7,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   PROJECT_TYPE_LABELS,
 } from "@/lib/briefing-labels";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { DeleteClientRowButton } from "@/components/admin/delete-client-row-button";
 import { StatusChanger } from "@/components/admin/status-changer";
 import {
@@ -133,6 +133,9 @@ export default async function AdminPage({
   return (
     <Shell tone="cream" sectionLabel="Admin · Briefings">
       <ContentFrame size="xl">
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <AdminSidebar active="clientes" keyParam={keyParamFirst} />
+          <div className="flex-1 min-w-0 w-full">
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-8">
           <div>
             <Eyebrow>Painel interno</Eyebrow>
@@ -163,8 +166,6 @@ export default async function AdminPage({
             </Link>
           </div>
         </header>
-
-        <AdminTabs active="clientes" keyParam={keyParamFirst} />
 
         {/* Abas de status — separa os clientes por situação */}
         <div className="flex flex-wrap gap-2 my-4">
@@ -362,6 +363,8 @@ export default async function AdminPage({
           Mostrando {clients.length} de {totalCount} clientes. Marca de
           &ldquo;Parado&rdquo; aparece após {STUCK_DAYS} dias sem atividade.
         </p>
+          </div>
+        </div>
       </ContentFrame>
     </Shell>
   );
