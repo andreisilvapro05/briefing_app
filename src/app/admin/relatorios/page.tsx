@@ -8,7 +8,7 @@ import {
   formatBRL as formatBRLCobrancas,
   type CobrancaMensal,
 } from "@/lib/cobrancas-mensais";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import {
   GENERAL_LANES,
@@ -66,6 +66,9 @@ export default async function AdminRelatoriosPage({
   return (
     <Shell tone="cream" sectionLabel="Admin · Relatórios">
       <ContentFrame size="xl">
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <AdminSidebar active="relatorios" keyParam={keyParamFirst} />
+          <div className="flex-1 min-w-0 w-full">
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6">
           <div>
             <Eyebrow>Painel interno</Eyebrow>
@@ -76,8 +79,6 @@ export default async function AdminRelatoriosPage({
           </div>
           <Pill tone="muted">{stats.total} clientes</Pill>
         </header>
-
-        <AdminTabs active="relatorios" keyParam={keyParamFirst} />
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -426,6 +427,8 @@ export default async function AdminRelatoriosPage({
             </div>
           </section>
         ) : null}
+          </div>
+        </div>
       </ContentFrame>
     </Shell>
   );

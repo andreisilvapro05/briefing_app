@@ -4,7 +4,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import {
   GENERAL_LANES,
@@ -54,6 +54,9 @@ export default async function AdminQuadroPage({
   return (
     <Shell tone="cream" sectionLabel="Admin · Quadro">
       <ContentFrame size="xl">
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <AdminSidebar active="quadro" keyParam={keyParamFirst} />
+          <div className="flex-1 min-w-0 w-full">
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6">
           <div>
             <Eyebrow>Painel interno</Eyebrow>
@@ -67,8 +70,6 @@ export default async function AdminQuadroPage({
             <Pill tone="muted">{clients.length} clientes</Pill>
           </div>
         </header>
-
-        <AdminTabs active="quadro" keyParam={keyParamFirst} />
 
         {/* Filtro por tipo */}
         <form
@@ -170,6 +171,8 @@ export default async function AdminQuadroPage({
                 </div>
               );
             })}
+          </div>
+        </div>
           </div>
         </div>
       </ContentFrame>

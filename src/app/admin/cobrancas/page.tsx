@@ -4,7 +4,7 @@ import { Eyebrow, Pill } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import {
   formatBRL,
   mesRef,
@@ -63,6 +63,9 @@ export default async function CobrancasPage({
   return (
     <Shell tone="cream" sectionLabel="Admin · Cobranças mensais">
       <ContentFrame size="xl">
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <AdminSidebar active="cobrancas" keyParam={keyParamFirst} />
+          <div className="flex-1 min-w-0 w-full">
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6">
           <div>
             <Eyebrow>Painel interno</Eyebrow>
@@ -76,8 +79,6 @@ export default async function CobrancasPage({
           </div>
           <Pill tone="mint">{formatBRL(stats.mrr)} / mês</Pill>
         </header>
-
-        <AdminTabs active="cobrancas" keyParam={keyParamFirst} />
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
@@ -258,6 +259,8 @@ export default async function CobrancasPage({
             ))}
           </div>
         )}
+          </div>
+        </div>
       </ContentFrame>
     </Shell>
   );

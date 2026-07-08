@@ -4,7 +4,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { AdminTabs } from "@/components/admin/admin-tabs";
+import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { TemplateUploader } from "@/components/admin/template-uploader";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +85,9 @@ export default async function ContractsPage({
   return (
     <Shell tone="cream" sectionLabel="Admin · Contratos">
       <ContentFrame size="xl">
+        <div className="flex flex-col md:flex-row gap-6 items-start">
+          <AdminSidebar active="contratos" keyParam={keyParam} />
+          <div className="flex-1 min-w-0 w-full">
         <header className="mb-6">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
             <div>
@@ -109,8 +112,6 @@ export default async function ContractsPage({
             </div>
           </div>
         </header>
-
-        <AdminTabs active="contratos" keyParam={keyParam} />
 
         <TemplateUploader
           urlKey={urlKey ?? undefined}
@@ -233,6 +234,8 @@ export default async function ContractsPage({
               )}
             </tbody>
           </table>
+        </div>
+          </div>
         </div>
       </ContentFrame>
     </Shell>
