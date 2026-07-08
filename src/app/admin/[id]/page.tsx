@@ -427,6 +427,64 @@ export default async function AdminClientPage({
             </div>
           )}
 
+          {/* Link direto do briefing + Drive — acesso rápido */}
+          <div className="mt-3 grid sm:grid-cols-2 gap-3">
+            {painelLink ? (
+              <div className="bg-fysi-cream/50 border border-fysi-line rounded-[12px] p-3">
+                <p className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
+                  ✏️ Link do briefing
+                </p>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`${painelLink}?ir=briefing`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-fysi-green underline text-xs flex-1 font-mono truncate"
+                  >
+                    …/painel/…?ir=briefing
+                  </a>
+                  <CopyButton
+                    value={`${painelLink}?ir=briefing`}
+                    label="Copiar"
+                  />
+                </div>
+                <p className="text-[0.68rem] text-fysi-muted mt-1.5">
+                  Cliente cai direto no briefing dele.
+                </p>
+              </div>
+            ) : null}
+
+            {client.fysi_drive_link || client.cliente_drive_link ? (
+              <div className="bg-fysi-cream/50 border border-fysi-line rounded-[12px] p-3">
+                <p className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
+                  📁 Drive
+                </p>
+                <div className="flex flex-col gap-1">
+                  {client.fysi_drive_link ? (
+                    <a
+                      href={client.fysi_drive_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-fysi-green underline text-xs"
+                    >
+                      Pasta da Fysi →
+                    </a>
+                  ) : null}
+                  {client.cliente_drive_link ? (
+                    <a
+                      href={client.cliente_drive_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-fysi-green underline text-xs"
+                    >
+                      Materiais do cliente →
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+
           <details className="text-sm mt-4">
             <summary className="cursor-pointer text-fysi-deep font-medium hover:text-fysi-green">
               Acesso por código (alternativo)
