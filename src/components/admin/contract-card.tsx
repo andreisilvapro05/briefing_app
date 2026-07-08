@@ -504,6 +504,16 @@ export function ContractCard(props: ContractCardProps) {
           ) : null}
 
           <div className="flex flex-wrap gap-2">
+            {props.contratoStatus !== "assinado" ? (
+              <a
+                href={`https://app.autentique.com.br/documentos/${props.autentiqueDocumentId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 hover:brightness-95 transition"
+              >
+                ✍ Assinar no Autentique →
+              </a>
+            ) : null}
             <Button
               type="button"
               size="sm"

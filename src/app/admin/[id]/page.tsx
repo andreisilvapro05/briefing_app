@@ -823,12 +823,41 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
 
         {tab === "moodboard" ? (
+        <>
+        {magicSlug ? (
+          <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+            <Eyebrow>Compartilhar com o cliente</Eyebrow>
+            <p className="text-xs text-fysi-muted mt-1 mb-3">
+              Página pública do moodboard — mande pro cliente ver as
+              referências.
+            </p>
+            <div className="flex items-center gap-2 bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] p-3">
+              <a
+                href={`${baseUrl}/moodboard/${magicSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-fysi-deep underline break-all text-sm flex-1"
+              >
+                {`${baseUrl}/moodboard/${magicSlug}`}
+              </a>
+              <CopyButton
+                value={`${baseUrl}/moodboard/${magicSlug}`}
+                label="Copiar link"
+              />
+            </div>
+            <p className="text-[0.7rem] text-fysi-muted mt-2">
+              O cliente só vê depois que o moodboard sair do rascunho
+              (enviado/aprovado).
+            </p>
+          </section>
+        ) : null}
         <MoodboardEditor
           clientId={client.id}
           urlKey={urlKey ?? null}
           initial={(client.moodboard_data as Moodboard | null) ?? null}
           atualizadoAt={client.moodboard_atualizado_at ?? null}
         />
+        </>
         ) : null}
 
         {tab === "entrega" ? (

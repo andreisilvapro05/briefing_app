@@ -180,31 +180,44 @@ export default async function AdminPage({
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <AdminSidebar active="clientes" keyParam={keyParamFirst} />
           <div className="flex-1 min-w-0 w-full">
-        <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-8">
-          <div>
-            <Eyebrow>Painel interno</Eyebrow>
-            <h1 className="fysi-display text-3xl md:text-4xl mt-2">
-              Briefings ativos
-            </h1>
-            <p className="text-fysi-muted text-sm mt-2">
-              Logado como {user.email}{" "}
+        <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 mb-6 pb-4 border-b border-fysi-line">
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2.5">
+              <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep leading-none">
+                Briefings ativos
+              </h1>
+              <Eyebrow className="text-[0.62rem]">Painel interno</Eyebrow>
+            </div>
+            <p className="text-xs text-fysi-muted mt-1.5">
+              Logado como {user.email}
+              <span className="mx-1.5 text-fysi-line">·</span>
               <Link
                 href="/api/auth/admin-logout"
-                className="ml-2 underline hover:text-fysi-deep"
+                className="underline underline-offset-2 hover:text-fysi-deep"
               >
                 sair
               </Link>
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Pill tone="muted">{totalCount} no total</Pill>
-            <Pill tone="outline">{emAndamentoCount} em andamento</Pill>
-            <Pill tone="mint">{concluidoCount} concluídos</Pill>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
+            <Pill tone="muted" className="px-2.5 py-0.5 text-[0.7rem]">
+              {totalCount} no total
+            </Pill>
+            <Pill tone="outline" className="px-2.5 py-0.5 text-[0.7rem]">
+              {emAndamentoCount} em andamento
+            </Pill>
+            <Pill tone="mint" className="px-2.5 py-0.5 text-[0.7rem]">
+              {concluidoCount} concluídos
+            </Pill>
+            <span
+              aria-hidden
+              className="hidden sm:inline-block w-px h-5 bg-fysi-line mx-1.5"
+            />
             <ShareContratarButton />
             <Link
               href={`/admin/novo${keyParamFirst}`}
-              className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+              className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-[0.8rem] font-medium px-3.5 py-1.5 hover:bg-fysi-deep/90 transition"
             >
               + Novo cliente
             </Link>
