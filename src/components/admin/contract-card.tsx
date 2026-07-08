@@ -109,6 +109,22 @@ export function ContractCard(props: ContractCardProps) {
     }
   }, [showTemplates, templatesLoaded, keyParam]);
 
+  // Auto-atualiza o status do contrato ao abrir o cliente, quando ainda está
+  // pendente — assim o "assinado" aparece sozinho, sem clicar em "Atualizar".
+  // Só recarrega a página se o status mudou (evita qualquer loop).
+  useEffect(() => {
+    if (props.contratoStatus !== "pendente") return;
+    void fetch(`/api/admin/contracts/refresh/${props.clientId}${keyParam}`, {
+      method: "POST",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.status && d.status !== "pendente") router.refresh();
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function applyTemplate(t: ContractTemplate | Record<string, unknown>) {
     const get = (k: string): string =>
       typeof (t as Record<string, unknown>)[k] === "string"
