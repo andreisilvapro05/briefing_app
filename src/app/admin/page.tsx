@@ -9,6 +9,7 @@ import {
 } from "@/lib/briefing-labels";
 import { AdminTabs } from "@/components/admin/admin-tabs";
 import { DeleteClientRowButton } from "@/components/admin/delete-client-row-button";
+import { StatusChanger } from "@/components/admin/status-changer";
 import {
   AdminNotificationsBanner,
   type AdminNotification,
@@ -99,6 +100,23 @@ export default async function AdminPage({
   const emAndamentoCount = totals.filter(
     (c) => c.status === "em-andamento"
   ).length;
+  const naoIniciadoCount = totals.filter(
+    (c) => c.status === "nao-iniciado"
+  ).length;
+  const abandonadoCount = totals.filter(
+    (c) => c.status === "abandonado"
+  ).length;
+
+  // Link de aba de status, preservando busca/tipo/key.
+  const statusTabHref = (s: string) => {
+    const sp = new URLSearchParams();
+    if (s) sp.set("status", s);
+    if (q) sp.set("q", q);
+    if (tipoFilter) sp.set("tipo", tipoFilter);
+    if (urlKey) sp.set("key", urlKey);
+    const qs = sp.toString();
+    return `/admin${qs ? `?${qs}` : ""}`;
+  };
 
   // Indicador de "parado": cliente em-andamento sem atividade há > 7 dias
   const STUCK_DAYS = 7;
@@ -148,6 +166,37 @@ export default async function AdminPage({
 
         <AdminTabs active="clientes" keyParam={keyParamFirst} />
 
+        {/* Abas de status — separa os clientes por situação */}
+        <div className="flex flex-wrap gap-2 my-4">
+          {[
+            { value: "", label: "Todos", count: totalCount },
+            { value: "em-andamento", label: "Em andamento", count: emAndamentoCount },
+            { value: "concluido", label: "Concluídos", count: concluidoCount },
+            { value: "nao-iniciado", label: "Não iniciado", count: naoIniciadoCount },
+            { value: "abandonado", label: "Inativos", count: abandonadoCount },
+          ].map((t) => {
+            const active = statusFilter === t.value;
+            return (
+              <Link
+                key={t.value || "todos"}
+                href={statusTabHref(t.value)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition ${
+                  active
+                    ? "bg-fysi-deep text-fysi-cream border-fysi-deep"
+                    : "bg-white text-fysi-deep border-fysi-line hover:border-fysi-deep/40"
+                }`}
+              >
+                {t.label}
+                <span
+                  className={`text-xs ${active ? "text-fysi-cream/70" : "text-fysi-muted"}`}
+                >
+                  {t.count}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+
         {/* Banner de avisos não lidos (contrato preenchido, briefing, etc) */}
         <AdminNotificationsBanner
           notifications={notifications}
@@ -157,7 +206,7 @@ export default async function AdminPage({
         {/* Filtros */}
         <form
           method="get"
-          className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 grid sm:grid-cols-[1fr_auto_auto_auto] gap-3"
+          className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 grid sm:grid-cols-[1fr_auto_auto] gap-3"
         >
           {/* Preserva ?key= entre filtros se for esse o método de auth */}
           {user.source === "url-key" && urlKey ? (
@@ -171,17 +220,8 @@ export default async function AdminPage({
             className="rounded-[10px] border border-fysi-line bg-fysi-cream/40 px-3 py-2 text-sm text-fysi-deep placeholder:text-fysi-muted focus:outline-none focus:border-fysi-deep/40"
           />
 
-          <select
-            name="status"
-            defaultValue={statusFilter}
-            className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
-          >
-            <option value="">Todos status</option>
-            <option value="em-andamento">Em andamento</option>
-            <option value="concluido">Concluído</option>
-            <option value="abandonado">Abandonado</option>
-            <option value="nao-iniciado">Não iniciado</option>
-          </select>
+          {/* Status vem das abas acima; preserva ao buscar/filtrar por tipo. */}
+          <input type="hidden" name="status" value={statusFilter} />
 
           <select
             name="tipo"
@@ -281,7 +321,11 @@ export default async function AdminPage({
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <StatusPill status={c.status} />
+                        <StatusChanger
+                          clientId={c.id}
+                          status={c.status}
+                          urlKey={urlKey ?? undefined}
+                        />
                       </td>
                       <td className="px-5 py-4 text-xs text-fysi-muted">
                         <div className="flex flex-col">
@@ -321,24 +365,6 @@ export default async function AdminPage({
       </ContentFrame>
     </Shell>
   );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const tone =
-    status === "concluido"
-      ? "mint"
-      : status === "em-andamento"
-        ? "outline"
-        : "muted";
-  const label =
-    status === "concluido"
-      ? "Concluído"
-      : status === "em-andamento"
-        ? "Em andamento"
-        : status === "abandonado"
-          ? "Abandonado"
-          : "Não iniciado";
-  return <Pill tone={tone}>{label}</Pill>;
 }
 
 function formatDate(iso: string) {
