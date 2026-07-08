@@ -43,6 +43,9 @@
   --fysi-line: #E1E7E7;
   --fysi-line-strong: #CDD6D6;
   --fysi-muted: #5F6E6E;
+  /* Inter com tracking mais apertado — leitura mais precisa/tech.
+     Títulos (.fysi-display / h1) mantêm o tracking próprio, mais fechado. */
+  letter-spacing: -0.012em;
 }
 
 @theme inline {
