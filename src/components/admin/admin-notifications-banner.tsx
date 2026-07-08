@@ -14,34 +14,35 @@ export interface AdminNotification {
   created_at: string;
 }
 
-const KIND_META: Record<string, { emoji: string; label: string; tone: string }> = {
+// Cada tipo carrega só um ícone discreto + a cor do dot sinalizador.
+// Nada de fundo colorido gritante — o aviso é uma linha, não um cartaz.
+const KIND_META: Record<string, { emoji: string; label: string; dot: string }> = {
   "contrato.preenchido": {
     emoji: "🚀",
     label: "Elevou o nível",
-    tone: "bg-fysi-yellow/40 border-fysi-yellow",
+    dot: "bg-fysi-yellow",
   },
   "briefing.concluido": {
     emoji: "✅",
     label: "Briefing concluído",
-    tone: "bg-fysi-mint border-fysi-mint-vivid/40",
+    dot: "bg-fysi-mint-vivid",
   },
   "pagamento.recebido": {
     emoji: "💰",
     label: "Pagamento recebido",
-    tone: "bg-fysi-mint border-fysi-mint-vivid/40",
+    dot: "bg-fysi-mint-vivid",
   },
   outro: {
     emoji: "🔔",
     label: "Aviso",
-    tone: "bg-fysi-cream border-fysi-line",
+    dot: "bg-fysi-line-strong",
   },
 };
 
 /**
  * Banner de avisos pra admin — mostra notificações não lidas no topo de
- * /admin. Click vai pro cliente; X dispensa (marca como lida).
- *
- * Animação pulsante discreta no badge pra puxar atenção sem ser intrusivo.
+ * /admin como uma LISTA densa e discreta. Cada aviso é uma linha (dot + ícone
+ * + título + tempo + fechar). Click vai pro cliente; ✕ dispensa (marca lida).
  */
 export function AdminNotificationsBanner({
   notifications,
@@ -70,70 +71,81 @@ export function AdminNotificationsBanner({
   }
 
   return (
-    <div className="flex flex-col gap-2 mb-6">
-      {notifications.map((n) => {
-        const meta = KIND_META[n.kind] ?? KIND_META.outro;
-        const minutes = Math.max(
-          1,
-          Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60_000)
-        );
-        const when =
-          minutes < 60
-            ? `${minutes} min atrás`
-            : minutes < 60 * 24
-              ? `${Math.floor(minutes / 60)}h atrás`
-              : `${Math.floor(minutes / 1440)}d atrás`;
+    <div className="mb-6 overflow-hidden rounded-[12px] border border-fysi-line bg-white">
+      <div className="flex items-center gap-2 border-b border-fysi-line bg-fysi-cream/60 px-3 py-1.5">
+        <span className="text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-fysi-muted">
+          Avisos
+        </span>
+        <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-fysi-deep px-1 text-[0.6rem] font-semibold leading-none text-fysi-cream">
+          {notifications.length}
+        </span>
+      </div>
 
-        const href = n.client_id
-          ? `/admin/${n.client_id}${keyParam}`
-          : `/admin${keyParam}`;
+      <ul className="divide-y divide-fysi-line">
+        {notifications.map((n) => {
+          const meta = KIND_META[n.kind] ?? KIND_META.outro;
+          const minutes = Math.max(
+            1,
+            Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60_000)
+          );
+          const when =
+            minutes < 60
+              ? `${minutes} min`
+              : minutes < 60 * 24
+                ? `${Math.floor(minutes / 60)}h`
+                : `${Math.floor(minutes / 1440)}d`;
 
-        return (
-          <div
-            key={n.id}
-            className={`relative flex items-start gap-3 px-3 sm:px-4 py-3 border-2 rounded-[14px] ${meta.tone}`}
-          >
-            <div className="relative shrink-0">
-              <span className="text-xl">{meta.emoji}</span>
-              <span
-                aria-hidden
-                className="absolute -top-1 -right-1 inline-flex h-2 w-2"
+          const href = n.client_id
+            ? `/admin/${n.client_id}${keyParam}`
+            : `/admin${keyParam}`;
+
+          return (
+            <li key={n.id} className="group/row flex items-center">
+              <Link
+                href={href}
+                className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 transition-colors hover:bg-fysi-cream/50"
               >
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-fysi-deep opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-fysi-deep" />
-              </span>
-            </div>
+                <span className="relative flex shrink-0">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${meta.dot}`}
+                    aria-hidden
+                  />
+                </span>
 
-            <Link href={href} className="flex-1 min-w-0 group pr-8">
-              <div className="text-[0.65rem] uppercase tracking-[0.1em] font-semibold text-fysi-deep/70">
-                {meta.label}
-              </div>
-              <div className="text-sm sm:text-[0.95rem] font-semibold text-fysi-deep mt-0.5 group-hover:underline break-words">
-                {sanitizeForBanner(n.title)}
-              </div>
-              {n.message && !looksLikePII(n.message) ? (
-                <div className="text-xs text-fysi-deep/70 mt-0.5 break-words">
-                  {n.message}
-                </div>
-              ) : null}
-              <div className="text-[0.65rem] text-fysi-muted mt-1">
-                {when} · tap pra abrir
-              </div>
-            </Link>
+                <span className="shrink-0 text-sm leading-none" aria-hidden>
+                  {meta.emoji}
+                </span>
 
-            <button
-              type="button"
-              onClick={(e) => dismiss(e, n.id)}
-              disabled={pending}
-              className="absolute top-2 right-2 text-fysi-muted hover:text-fysi-deep text-base w-7 h-7 inline-flex items-center justify-center rounded-md hover:bg-white/60"
-              title="Dispensar aviso"
-              aria-label="Dispensar aviso"
-            >
-              ✕
-            </button>
-          </div>
-        );
-      })}
+                <span className="min-w-0 flex-1 truncate text-[0.8rem] font-medium text-fysi-deep">
+                  <span className="text-fysi-muted">{meta.label}</span>
+                  <span className="mx-1.5 text-fysi-line-strong">·</span>
+                  {sanitizeForBanner(n.title)}
+                  {n.message && !looksLikePII(n.message) ? (
+                    <span className="ml-1.5 font-normal text-fysi-muted">
+                      {n.message}
+                    </span>
+                  ) : null}
+                </span>
+
+                <span className="shrink-0 whitespace-nowrap text-[0.65rem] tabular-nums text-fysi-muted">
+                  {when}
+                </span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={(e) => dismiss(e, n.id)}
+                disabled={pending}
+                className="mr-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs text-fysi-muted transition-colors hover:bg-fysi-cream hover:text-fysi-deep disabled:opacity-40"
+                title="Dispensar aviso"
+                aria-label="Dispensar aviso"
+              >
+                ✕
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

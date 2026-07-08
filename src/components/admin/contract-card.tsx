@@ -80,6 +80,16 @@ export function ContractCard(props: ContractCardProps) {
   const [error, setError] = useState<string | null>(null);
   const [markingMode, setMarkingMode] = useState(false);
   const [manualSignedUrl, setManualSignedUrl] = useState("");
+  // Signatários vindos do /api/admin/contracts/refresh (Autentique).
+  // Cada um: quem é (nome/email) + estado (assinou/recusou/pendente).
+  const [signers, setSigners] = useState<
+    Array<{
+      email: string;
+      name?: string;
+      signedAt?: string;
+      rejectedAt?: string;
+    }>
+  >([]);
   // Permite re-abrir o form de proposta mesmo quando já existe um contrato
   // (ex: pra ajustar valores e enviar uma nova versão).
   const [forceEditMode, setForceEditMode] = useState(false);
@@ -109,17 +119,20 @@ export function ContractCard(props: ContractCardProps) {
     }
   }, [showTemplates, templatesLoaded, keyParam]);
 
-  // Auto-atualiza o status do contrato ao abrir o cliente, quando ainda está
-  // pendente — assim o "assinado" aparece sozinho, sem clicar em "Atualizar".
-  // Só recarrega a página se o status mudou (evita qualquer loop).
+  // Auto-atualiza o status do contrato ao abrir o cliente — assim a lista de
+  // signatários aparece sozinha e o "assinado" reflete o Autentique sem clicar
+  // em "Atualizar". Só recarrega a página se o status realmente mudou (evita
+  // qualquer loop). Guarda os signers no estado pra exibir a lista.
   useEffect(() => {
-    if (props.contratoStatus !== "pendente") return;
+    if (!props.autentiqueDocumentId) return;
     void fetch(`/api/admin/contracts/refresh/${props.clientId}${keyParam}`, {
       method: "POST",
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.status && d.status !== "pendente") router.refresh();
+        if (!d) return;
+        if (Array.isArray(d.signers)) setSigners(d.signers);
+        if (d.status && d.status !== props.contratoStatus) router.refresh();
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -265,6 +278,7 @@ export function ContractCard(props: ContractCardProps) {
         setError(humanError(data.error, data.details));
         return;
       }
+      if (Array.isArray(data.signers)) setSigners(data.signers);
       router.refresh();
       setStatus("idle");
     } catch (err) {
@@ -399,6 +413,54 @@ export function ContractCard(props: ContractCardProps) {
             </div>
           ) : null}
 
+          {signers.length > 0 ? (
+            <div className="rounded-[14px] border border-fysi-line bg-white p-4 flex flex-col gap-3">
+              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                Signatários
+              </span>
+              <ul className="flex flex-col gap-2.5">
+                {signers.map((s, i) => (
+                  <li
+                    key={s.email || i}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-fysi-deep truncate">
+                        {s.name || s.email}
+                      </div>
+                      {s.name && s.email ? (
+                        <div className="text-xs text-fysi-muted truncate">
+                          {s.email}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="shrink-0">
+                      {s.rejectedAt ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-600 px-2.5 py-1 text-xs font-medium">
+                          ✕ recusou
+                          {formatSignerDate(s.rejectedAt)
+                            ? ` em ${formatSignerDate(s.rejectedAt)}`
+                            : ""}
+                        </span>
+                      ) : s.signedAt ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-fysi-mint text-fysi-deep px-2.5 py-1 text-xs font-medium">
+                          ✓ assinou
+                          {formatSignerDate(s.signedAt)
+                            ? ` em ${formatSignerDate(s.signedAt)}`
+                            : ""}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-fysi-deep/[0.05] text-fysi-muted px-2.5 py-1 text-xs font-medium">
+                          pendente
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
           {markingMode ? (
@@ -445,11 +507,14 @@ export function ContractCard(props: ContractCardProps) {
             <Button
               type="button"
               size="sm"
-              variant="secondary"
+              variant="primary"
+              leadingIcon={<span aria-hidden>↻</span>}
               onClick={refresh}
               disabled={status === "refreshing" || markingMode}
             >
-              {status === "refreshing" ? "Atualizando…" : "Atualizar status"}
+              {status === "refreshing"
+                ? "Atualizando…"
+                : "Atualizar status"}
             </Button>
             {!markingMode ? (
               <Button
@@ -678,6 +743,21 @@ export function ContractCard(props: ContractCardProps) {
       )}
     </section>
   );
+}
+
+// Formata a data de assinatura/recusa vinda do Autentique (ISO) para
+// pt-BR legível (dia/mês/ano + hora). Retorna "" se inválida/ausente.
+function formatSignerDate(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function humanError(code: string | undefined, details?: string): string {

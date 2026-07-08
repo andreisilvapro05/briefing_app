@@ -832,6 +832,36 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
 
         {tab === "entrega" ? (
+        <>
+        {magicSlug ? (
+          <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+            <Eyebrow>Compartilhar com o cliente</Eyebrow>
+            <p className="text-xs text-fysi-muted mt-1 mb-3">
+              Página pública do Documento de Entrega — o cliente abre e baixa
+              em PDF.
+            </p>
+            <div className="flex items-center gap-2 bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] p-3">
+              <a
+                href={`${baseUrl}/entrega/${magicSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-fysi-deep underline break-all text-sm flex-1"
+              >
+                {`${baseUrl}/entrega/${magicSlug}`}
+              </a>
+              <CopyButton
+                value={`${baseUrl}/entrega/${magicSlug}`}
+                label="Copiar link"
+              />
+            </div>
+            {!client.entrega_finalizada_at ? (
+              <p className="text-[0.7rem] text-amber-700 mt-2">
+                ⚠️ A entrega só aparece pro cliente depois que você finalizar
+                abaixo.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
         <EntregaEditor
           clientId={client.id}
           clientName={client.nome ?? null}
@@ -842,6 +872,7 @@ Qualquer dúvida, é só responder por aqui.`}
           }
           finalizadaAt={client.entrega_finalizada_at ?? null}
         />
+        </>
         ) : null}
 
         {/* Contrato sempre visível em Visão geral E Financeiro — é a peça
