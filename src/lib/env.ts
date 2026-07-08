@@ -54,8 +54,12 @@ export function getServerEnv() {
     openaiTranscribeModel:
       process.env.OPENAI_TRANSCRIBE_MODEL ?? "whisper-1",
     resendKey: process.env.RESEND_API_KEY ?? "",
+    // Default: sender já-verificado do Resend (onboarding@resend.dev) — funciona
+    // sem verificar domínio. Em modo de teste, o Resend só ENTREGA pro e-mail
+    // dono da conta. Pra enviar pra qualquer e-mail, verifique um domínio no
+    // Resend e defina RESEND_FROM_EMAIL com um remetente desse domínio.
     resendFromEmail:
-      process.env.RESEND_FROM_EMAIL ?? "Fysi Lab <onboarding@fysilab.com>",
+      process.env.RESEND_FROM_EMAIL ?? "Fysi Lab <onboarding@resend.dev>",
     teamEmail: process.env.TEAM_EMAIL ?? "fysilabdigital@gmail.com",
     clickupToken: process.env.CLICKUP_API_TOKEN ?? "",
     clickupListId: process.env.CLICKUP_LIST_ID ?? "",
