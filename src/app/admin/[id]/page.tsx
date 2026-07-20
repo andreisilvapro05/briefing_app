@@ -40,15 +40,12 @@ import {
   resendClientLinkAction,
   sendToClickupAction,
   setClientContractDataAction,
-  setCopyReviewLinkAction,
   setDriveLinksAction,
   setPaymentAction,
   setProjectTypeAction,
-  setStageAction,
-  toggleBriefingConcluidoAction,
-  toggleChamadaFeitaAction,
 } from "./actions";
 import { generateMagicSlug } from "@/lib/slug";
+import { ProjectStageControls } from "@/components/admin/project-stage-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -551,157 +548,19 @@ Qualquer dúvida, é só responder por aqui.`}
           </details>
         </section>
 
-        {/* Marcadores de fase (admin marca chamada/briefing como feitos) */}
-        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
-          <Eyebrow>Fases do projeto (marcar como feito)</Eyebrow>
-          <p className="text-sm text-fysi-muted mt-1 mb-4">
-            O painel do cliente reflete o status que você define aqui.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <form action={toggleChamadaFeitaAction}>
-              <input type="hidden" name="clientId" value={client.id} />
-              {urlKey ? (
-                <input type="hidden" name="key" value={urlKey} />
-              ) : null}
-              <Button type="submit" size="sm" variant="secondary">
-                {client.chamada_agendada_at
-                  ? "✓ Chamada feita — desmarcar"
-                  : "Marcar chamada como feita"}
-              </Button>
-            </form>
-            <form action={toggleBriefingConcluidoAction}>
-              <input type="hidden" name="clientId" value={client.id} />
-              {urlKey ? (
-                <input type="hidden" name="key" value={urlKey} />
-              ) : null}
-              <Button type="submit" size="sm" variant="secondary">
-                {client.briefing_submitted_at
-                  ? "✓ Briefing concluído — desmarcar"
-                  : "Marcar briefing como concluído"}
-              </Button>
-            </form>
-          </div>
-
-          <form
-            action={setCopyReviewLinkAction}
-            className="mt-5 pt-5 border-t border-fysi-line flex flex-col gap-2"
-          >
-            <input type="hidden" name="clientId" value={client.id} />
-            {urlKey ? (
-              <input type="hidden" name="key" value={urlKey} />
-            ) : null}
-            <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
-              📝 Link de revisão da copy
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="url"
-                name="copyReviewLink"
-                defaultValue={
-                  (client as { copy_review_link?: string | null })
-                    .copy_review_link ?? ""
-                }
-                placeholder="https://docs.google.com/document/..."
-                className="flex-1 rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
-              />
-              <Button type="submit" size="sm" variant="secondary">
-                Salvar
-              </Button>
-            </div>
-            <p className="text-[0.65rem] text-fysi-muted">
-              Aparece pro cliente na etapa &ldquo;Criação da copy&rdquo; da timeline.
-            </p>
-          </form>
-        </section>
-
-        {/* Pipeline / stage management — só aparece se project_type definido */}
-        {etapas.length > 0 ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
-            <div className="flex items-baseline justify-between mb-4">
-              <Eyebrow>Pipeline do projeto</Eyebrow>
-              <span className="text-xs text-fysi-muted">
-                Stage {currentStage + 1} de {etapas.length}
-              </span>
-            </div>
-
-            <ol className="grid sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-5">
-              {etapas.map((etapa, idx) => {
-                const isDone = idx < currentStage;
-                const isCurrent = idx === currentStage;
-                return (
-                  <li key={`${etapa.numero}-${etapa.titulo}`}>
-                    <form action={setStageAction}>
-                      <input
-                        type="hidden"
-                        name="clientId"
-                        value={client.id}
-                      />
-                      <input type="hidden" name="target" value={String(idx)} />
-                      {urlKey ? (
-                        <input type="hidden" name="key" value={urlKey} />
-                      ) : null}
-                      <button
-                        type="submit"
-                        className={`w-full text-left rounded-[12px] border px-3 py-2 transition ${
-                          isCurrent
-                            ? "bg-fysi-deep text-fysi-cream border-fysi-deep"
-                            : isDone
-                              ? "bg-fysi-mint border-fysi-mint-vivid/40 text-fysi-deep"
-                              : "bg-white border-fysi-line text-fysi-muted hover:border-fysi-deep/30 hover:text-fysi-deep"
-                        }`}
-                      >
-                        <span className="block text-[0.65rem] uppercase tracking-[0.12em] font-medium opacity-70">
-                          Etapa {String(idx + 1).padStart(2, "0")}
-                        </span>
-                        <span className="block text-xs font-medium leading-tight mt-0.5">
-                          {etapa.titulo}
-                        </span>
-                      </button>
-                    </form>
-                  </li>
-                );
-              })}
-            </ol>
-
-            <div className="flex items-center justify-between gap-3 pt-4 border-t border-fysi-line">
-              <form action={setStageAction}>
-                <input type="hidden" name="clientId" value={client.id} />
-                <input type="hidden" name="direction" value="prev" />
-                {urlKey ? (
-                  <input type="hidden" name="key" value={urlKey} />
-                ) : null}
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="ghost"
-                  disabled={currentStage <= 0}
-                >
-                  ← Stage anterior
-                </Button>
-              </form>
-
-              <span className="text-sm text-fysi-deep font-medium">
-                {etapas[currentStage]?.titulo ?? "—"}
-              </span>
-
-              <form action={setStageAction}>
-                <input type="hidden" name="clientId" value={client.id} />
-                <input type="hidden" name="direction" value="next" />
-                {urlKey ? (
-                  <input type="hidden" name="key" value={urlKey} />
-                ) : null}
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="primary"
-                  disabled={currentStage >= etapas.length - 1}
-                >
-                  Avançar stage →
-                </Button>
-              </form>
-            </div>
-          </section>
-        ) : null}
+        {/* Andamento do projeto — etapa clicável + marcadores + link da copy */}
+        <ProjectStageControls
+          clientId={client.id}
+          urlKey={urlKey ?? undefined}
+          etapas={etapas.map((e) => ({ titulo: e.titulo }))}
+          currentStage={currentStage}
+          chamadaFeita={!!client.chamada_agendada_at}
+          briefingConcluido={!!client.briefing_submitted_at}
+          copyReviewLink={
+            (client as { copy_review_link?: string | null }).copy_review_link ??
+            ""
+          }
+        />
 
         {/* Dados do cliente — editáveis pelo admin (pra contrato) */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">

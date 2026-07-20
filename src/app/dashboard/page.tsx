@@ -163,6 +163,52 @@ export default function DashboardPage() {
       });
   }, [router]);
 
+  // Re-sincroniza com o servidor quando o cliente volta pra aba (foco/visível),
+  // sem precisar dar F5. Assim, o que o admin marca (etapa, chamada, briefing,
+  // pagamento, entrega) aparece pro cliente assim que ele reabre o painel.
+  useEffect(() => {
+    const id = cliente?.id;
+    if (!id) return;
+    function sync() {
+      if (document.visibilityState === "hidden") return;
+      fetch("/api/me/stage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: id }),
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data) return;
+          setContratoPreenchido(!!data.contratoPreenchido);
+          setChamadaAgendada(!!data.chamadaAgendada);
+          setBriefingSubmetido(!!data.briefingSubmetido);
+          if (typeof data.stageIndex === "number") {
+            setServerStageIndex(data.stageIndex);
+          }
+          setFysiDriveLink(data.fysiDriveLink ?? null);
+          setCopyReviewLink(data.copyReviewLink ?? null);
+          setContratoStatus(data.contratoStatus ?? null);
+          setContratoSignedUrl(data.contratoSignedUrl ?? null);
+          if (typeof data.pagamentoTotal === "number") {
+            setPagamentoTotal(data.pagamentoTotal);
+          }
+          if (typeof data.pagamentoPago === "number") {
+            setPagamentoPago(data.pagamentoPago);
+          }
+          setPagamentoObservacao(data.pagamentoObservacao ?? null);
+          setEntregaDoc((data.entregaDocumento as EntregaDocumento) ?? null);
+          setEntregaFinalizadaAt(data.entregaFinalizadaAt ?? null);
+        })
+        .catch(() => {});
+    }
+    document.addEventListener("visibilitychange", sync);
+    window.addEventListener("focus", sync);
+    return () => {
+      document.removeEventListener("visibilitychange", sync);
+      window.removeEventListener("focus", sync);
+    };
+  }, [cliente?.id]);
+
   const projectInfo = useMemo(
     () =>
       cliente?.projectType
