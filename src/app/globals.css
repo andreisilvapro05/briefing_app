@@ -48,6 +48,57 @@
   letter-spacing: -0.012em;
 }
 
+/* Prévia do contrato (HTML gerado do .docx via mammoth). O reset do Tailwind
+   zera títulos/listas — aqui devolvemos espaçamento legível pro documento. */
+.contract-preview p {
+  margin: 0 0 0.6rem;
+}
+.contract-preview h1,
+.contract-preview h2,
+.contract-preview h3 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1rem 0 0.5rem;
+}
+.contract-preview h1 {
+  font-size: 1.15rem;
+}
+.contract-preview h2 {
+  font-size: 1.05rem;
+}
+.contract-preview h3 {
+  font-size: 0.95rem;
+}
+.contract-preview ul,
+.contract-preview ol {
+  margin: 0 0 0.6rem;
+  padding-left: 1.25rem;
+  list-style: revert;
+}
+.contract-preview li {
+  margin: 0.15rem 0;
+}
+.contract-preview strong {
+  font-weight: 600;
+}
+.contract-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.6rem 0;
+}
+.contract-preview td,
+.contract-preview th {
+  border: 1px solid var(--fysi-line-strong);
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+.contract-preview a {
+  color: var(--fysi-deep);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
 @theme inline {
   /* Cores Fysi expostas como utilitários Tailwind: bg-fysi-deep, text-fysi-cream, etc. */
   --color-fysi-deep: var(--fysi-deep);

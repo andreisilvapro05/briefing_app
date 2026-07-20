@@ -44,6 +44,33 @@ const STATUS_TONES: Record<string, "mint" | "outline" | "muted"> = {
   cancelado: "muted",
 };
 
+/** Chave Pix (CNPJ) padrão da Fysi pro bloco de dados de pagamento. */
+const DEFAULT_PIX_KEY = "53.470.438/0001-08";
+
+/**
+ * Monta a mensagem de pagamento pronta pra copiar (Pix + cartão), a partir do
+ * valor/condição do contrato, do link de parcelamento e da chave Pix.
+ */
+function buildPaymentMessage(
+  valor: string,
+  link: string,
+  pix: string
+): string {
+  const lines = [
+    "Segue os dados de pagamento:",
+    "",
+    "O valor do desenvolvimento pode ser pago via Pix:",
+    valor.trim() || "—",
+    "ou ainda parcelado no cartão em até 8x",
+    "",
+    `• Pix de CNPJ para o pagamento: ${pix}`,
+  ];
+  if (link.trim()) {
+    lines.push(`• Pagamento parcelado no cartão: ${link.trim()}`);
+  }
+  return lines.join("\n");
+}
+
 export function ContractCard(props: ContractCardProps) {
   const router = useRouter();
   const keyParam = props.urlKey
@@ -78,6 +105,17 @@ export function ContractCard(props: ContractCardProps) {
     "idle" | "sending" | "refreshing" | "previewing" | "marking" | "error"
   >("idle");
   const [error, setError] = useState<string | null>(null);
+  // Pré-visualização inline (HTML) — mostra o contrato no painel, sem baixar.
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  // Bloco "dados de pagamento" (copiável). Mensagem editável, montada a partir
+  // do valor + link de parcelamento + chave Pix (CNPJ da Fysi).
+  const [pixKey, setPixKey] = useState(DEFAULT_PIX_KEY);
+  const [paymentMsg, setPaymentMsg] = useState(() =>
+    buildPaymentMessage(valor, linkPagamento, DEFAULT_PIX_KEY)
+  );
+  const [copied, setCopied] = useState(false);
   const [markingMode, setMarkingMode] = useState(false);
   const [manualSignedUrl, setManualSignedUrl] = useState("");
   // Signatários vindos do /api/admin/contracts/refresh (Autentique).
@@ -287,6 +325,70 @@ export function ContractCard(props: ContractCardProps) {
     }
   }
 
+  // Pré-visualização inline (HTML): usa os mesmos dados da proposta (que já
+  // vêm preenchidos do contrato quando ele existe) e renderiza dentro do card.
+  async function previewInline(force = false) {
+    if (!pacote || !valor || !prazo || !escopo || !linkPagamento) {
+      setError("Faltam dados da proposta pra pré-visualizar.");
+      return;
+    }
+    if (!force) {
+      // Toggle: se já está aberto, fecha.
+      if (showPreview) {
+        setShowPreview(false);
+        return;
+      }
+      // Já carregado? Só reabre sem refazer o fetch.
+      if (previewHtml) {
+        setShowPreview(true);
+        return;
+      }
+    }
+    setPreviewLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/admin/contracts/preview-html/${props.clientId}${keyParam}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pacoteNome: pacote,
+            valorParcelamento: valor,
+            prazoExecucao: prazo,
+            escopoProjeto: escopo,
+            linkParcelamento: linkPagamento,
+          }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(humanError(data.error, data.details));
+        return;
+      }
+      setPreviewHtml(typeof data.html === "string" ? data.html : "");
+      setShowPreview(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro inesperado");
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
+  function regeneratePaymentMsg() {
+    setPaymentMsg(buildPaymentMessage(valor, linkPagamento, pixKey));
+  }
+
+  async function copyPayment() {
+    try {
+      await navigator.clipboard.writeText(paymentMsg);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setError("Não consegui copiar. Selecione o texto e copie manualmente.");
+    }
+  }
+
   const hasContract = !!props.autentiqueDocumentId;
   // Mostra o form de proposta quando:
   //  - nunca teve contrato OU
@@ -345,7 +447,7 @@ export function ContractCard(props: ContractCardProps) {
               <code className="font-mono">{props.autentiqueDocumentId}</code>
             </div>
             <a
-              href={`https://app.autentique.com.br/documentos/${props.autentiqueDocumentId}`}
+              href={`https://painel.autentique.com.br/documentos/${props.autentiqueDocumentId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs font-medium text-fysi-deep underline underline-offset-2 hover:text-fysi-green whitespace-nowrap"
@@ -410,6 +512,65 @@ export function ContractCard(props: ContractCardProps) {
                   </a>
                 </div>
               ) : null}
+            </div>
+          ) : null}
+
+          {/* Dados de pagamento (copiar) */}
+          <div className="rounded-[14px] border border-fysi-line bg-white p-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em]">
+                Dados de pagamento (copiar)
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={regeneratePaymentMsg}
+                  className="text-xs text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
+                >
+                  Gerar do contrato
+                </button>
+                <Button type="button" size="sm" onClick={copyPayment}>
+                  {copied ? "Copiado ✓" : "Copiar"}
+                </Button>
+              </div>
+            </div>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-fysi-muted">Chave Pix (CNPJ)</span>
+              <input
+                value={pixKey}
+                onChange={(e) => setPixKey(e.target.value)}
+                className="border border-fysi-line rounded-[10px] px-3 py-2 bg-white text-sm text-fysi-deep font-mono"
+              />
+            </label>
+            <Textarea
+              label="Mensagem"
+              hint="Edite à vontade. 'Gerar do contrato' remonta a partir do valor/link/Pix."
+              rows={8}
+              value={paymentMsg}
+              onChange={(e) => setPaymentMsg(e.target.value)}
+            />
+          </div>
+
+          {/* Pré-visualização inline do contrato (sem download) */}
+          {showPreview && previewHtml !== null ? (
+            <div className="rounded-[14px] border border-fysi-line bg-white overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-fysi-line bg-fysi-cream/40">
+                <span className="text-fysi-muted text-xs uppercase tracking-[0.1em]">
+                  Pré-visualização do contrato
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  className="text-xs text-fysi-muted hover:text-fysi-deep"
+                >
+                  Fechar ✕
+                </button>
+              </div>
+              <div
+                className="contract-preview max-h-[60vh] overflow-y-auto px-5 py-4 text-sm text-fysi-deep leading-relaxed"
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
             </div>
           ) : null}
 
@@ -504,9 +665,22 @@ export function ContractCard(props: ContractCardProps) {
           ) : null}
 
           <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => previewInline()}
+              disabled={previewLoading}
+            >
+              {previewLoading
+                ? "Gerando…"
+                : showPreview
+                  ? "Ocultar prévia"
+                  : "👁 Pré-visualizar contrato"}
+            </Button>
             {props.contratoStatus !== "assinado" ? (
               <a
-                href={`https://app.autentique.com.br/documentos/${props.autentiqueDocumentId}`}
+                href={`https://painel.autentique.com.br/documentos/${props.autentiqueDocumentId}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 hover:brightness-95 transition"
@@ -721,15 +895,50 @@ export function ContractCard(props: ContractCardProps) {
             hint="Link Asaas (ou outro) gerado pra esse cliente específico."
           />
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
+
+          {showPreview && previewHtml !== null ? (
+            <div className="rounded-[14px] border border-fysi-line bg-white overflow-hidden">
+              <div className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-fysi-line bg-fysi-cream/40">
+                <span className="text-fysi-muted text-xs uppercase tracking-[0.1em]">
+                  Pré-visualização do contrato
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(false)}
+                  className="text-xs text-fysi-muted hover:text-fysi-deep"
+                >
+                  Fechar ✕
+                </button>
+              </div>
+              <div
+                className="contract-preview max-h-[60vh] overflow-y-auto px-5 py-4 text-sm text-fysi-deep leading-relaxed"
+                // eslint-disable-next-line react/no-danger
+                dangerouslySetInnerHTML={{ __html: previewHtml }}
+              />
+            </div>
+          ) : null}
+
           <div className="flex flex-wrap gap-2 items-center">
             <Button
               type="button"
               size="md"
               variant="secondary"
+              disabled={previewLoading || status === "sending"}
+              onClick={() => {
+                // No form, os valores podem ter mudado — força recarregar.
+                void previewInline(true);
+              }}
+            >
+              {previewLoading ? "Gerando…" : "👁 Pré-visualizar"}
+            </Button>
+            <Button
+              type="button"
+              size="md"
+              variant="ghost"
               disabled={status === "previewing" || status === "sending"}
               onClick={preview}
             >
-              {status === "previewing" ? "Gerando…" : "Pré-visualizar (.docx)"}
+              {status === "previewing" ? "Gerando…" : "Baixar .docx"}
             </Button>
             <Button
               type="submit"
