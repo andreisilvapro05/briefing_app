@@ -41,20 +41,24 @@ export function FysiMark({ className, size = 24, title }: FysiMarkProps) {
 }
 
 /**
- * Wordmark — símbolo + nome.
+ * Wordmark oficial "fysilab" (logotipo serifado da identidade).
+ * `light` = versão menta pra fundos escuros; padrão = verde-petróleo (Dark Core)
+ * pra fundos claros. Assets transparentes em /public.
  */
-export function FysiWordmark({ className }: { className?: string }) {
+export function FysiWordmark({
+  className,
+  light = false,
+}: {
+  className?: string;
+  light?: boolean;
+}) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 font-medium tracking-tight",
-        className
-      )}
-    >
-      <FysiMark size={22} title="Fysi Lab" />
-      <span className="text-[0.95rem]">
-        Fysi <span className="text-fysi-muted">Lab</span>
-      </span>
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={light ? "/fysilab-light.png" : "/fysilab.png"}
+      alt="Fysi Lab"
+      draggable={false}
+      className={cn("h-7 md:h-8 w-auto select-none", className)}
+    />
   );
 }

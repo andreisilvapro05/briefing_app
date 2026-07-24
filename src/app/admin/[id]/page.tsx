@@ -248,7 +248,10 @@ export default async function AdminClientPage({
   return (
     <Shell
       tone="cream"
-      sectionLabel={`Briefing · ${client.empresa || client.nome}`}
+      homeHref={`/admin${keyParam}`}
+      homeLabel="Voltar ao painel"
+      contextLabel="Painel"
+      sectionLabel={client.empresa || client.nome}
     >
       <ContentFrame size="xl">
         <Link

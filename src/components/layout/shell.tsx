@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { FysiWordmark } from "@/components/brand/fysi-mark";
 import { cn } from "@/lib/cn";
 
@@ -10,6 +11,10 @@ interface ShellProps {
   sectionLabel?: string;
   tone?: "cream" | "aurora" | "deep";
   hideHeader?: boolean;
+  // Quando setado, o logo vira um link clicável pra "casa" daquele contexto
+  // (ex: no admin, volta pro painel de clientes). homeLabel = texto do tooltip.
+  homeHref?: string;
+  homeLabel?: string;
 }
 
 const tones = {
@@ -24,6 +29,8 @@ export function Shell({
   sectionLabel,
   tone = "cream",
   hideHeader,
+  homeHref,
+  homeLabel,
 }: ShellProps) {
   const isDark = tone === "deep";
 
@@ -36,8 +43,31 @@ export function Shell({
             isDark ? "border-white/10" : "border-fysi-deep/8"
           )}
         >
-          <div className="flex items-center gap-6">
-            <FysiWordmark className={isDark ? "text-fysi-cream" : ""} />
+          <div className="flex items-center gap-4">
+            {homeHref ? (
+              <Link
+                href={homeHref}
+                aria-label={homeLabel ?? "Início"}
+                title={homeLabel ?? "Início"}
+                className={cn(
+                  "group inline-flex items-center gap-2 rounded-xl -ml-1.5 px-1.5 py-1 transition",
+                  isDark ? "hover:bg-white/10" : "hover:bg-fysi-deep/[0.06]"
+                )}
+              >
+                <FysiWordmark light={isDark} />
+                <span
+                  aria-hidden
+                  className={cn(
+                    "hidden sm:inline text-[0.9rem] leading-none opacity-0 -translate-x-1 transition group-hover:opacity-60 group-hover:translate-x-0",
+                    isDark ? "text-fysi-mint" : "text-fysi-muted"
+                  )}
+                >
+                  ←
+                </span>
+              </Link>
+            ) : (
+              <FysiWordmark light={isDark} />
+            )}
             {contextLabel ? (
               <span
                 className={cn(
@@ -45,7 +75,7 @@ export function Shell({
                   isDark ? "text-fysi-mint/70" : "text-fysi-muted"
                 )}
               >
-                · {contextLabel}
+                {contextLabel}
               </span>
             ) : null}
           </div>
