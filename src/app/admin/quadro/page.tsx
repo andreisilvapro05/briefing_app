@@ -52,7 +52,12 @@ export default async function AdminQuadroPage({
   clients.forEach((c) => byLane.get(laneForClient(c))?.push(c));
 
   return (
-    <Shell tone="cream" sectionLabel="Admin · Quadro">
+    <Shell
+      tone="cream"
+      homeHref={`/admin${keyParamFirst}`}
+      homeLabel="Voltar ao painel"
+      sectionLabel="Admin · Quadro"
+    >
       <ContentFrame size="xl">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <AdminSidebar active="quadro" keyParam={keyParamFirst} />

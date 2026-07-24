@@ -23,7 +23,12 @@ export default async function NovoClientePage({
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
   return (
-    <Shell tone="cream" sectionLabel="Admin · Novo cliente">
+    <Shell
+      tone="cream"
+      homeHref={`/admin${keyParam}`}
+      homeLabel="Voltar ao painel"
+      sectionLabel="Admin · Novo cliente"
+    >
       <ContentFrame size="md">
         <Link
           href={`/admin${keyParam}`}

@@ -27,7 +27,12 @@ export default async function BriefingsPage({
   const templates = await listBriefingTemplates();
 
   return (
-    <Shell tone="cream" sectionLabel="Admin · Briefings">
+    <Shell
+      tone="cream"
+      homeHref={`/admin${keyParam}`}
+      homeLabel="Voltar ao painel"
+      sectionLabel="Admin · Briefings"
+    >
       <ContentFrame size="xl">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <AdminSidebar active="briefings" keyParam={keyParam} />

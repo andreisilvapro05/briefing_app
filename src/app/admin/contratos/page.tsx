@@ -83,7 +83,12 @@ export default async function ContractsPage({
   const assinados = all.filter((c) => c.contrato_status === "assinado").length;
 
   return (
-    <Shell tone="cream" sectionLabel="Admin · Contratos">
+    <Shell
+      tone="cream"
+      homeHref={`/admin${keyParam}`}
+      homeLabel="Voltar ao painel"
+      sectionLabel="Admin · Contratos"
+    >
       <ContentFrame size="xl">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <AdminSidebar active="contratos" keyParam={keyParam} />

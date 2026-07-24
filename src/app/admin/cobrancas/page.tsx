@@ -61,7 +61,12 @@ export default async function CobrancasPage({
   else if (filtro === "inativas") lista = todas.filter((c) => !c.ativa);
 
   return (
-    <Shell tone="cream" sectionLabel="Admin · Cobranças mensais">
+    <Shell
+      tone="cream"
+      homeHref={`/admin${keyParamFirst}`}
+      homeLabel="Voltar ao painel"
+      sectionLabel="Admin · Cobranças mensais"
+    >
       <ContentFrame size="xl">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <AdminSidebar active="cobrancas" keyParam={keyParamFirst} />

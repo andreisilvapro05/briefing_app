@@ -64,7 +64,12 @@ export default async function AdminRelatoriosPage({
   const maxTipo = Math.max(1, ...tipoEntries.map(([, n]) => n));
 
   return (
-    <Shell tone="cream" sectionLabel="Admin · Relatórios">
+    <Shell
+      tone="cream"
+      homeHref={`/admin${keyParamFirst}`}
+      homeLabel="Voltar ao painel"
+      sectionLabel="Admin · Relatórios"
+    >
       <ContentFrame size="xl">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <AdminSidebar active="relatorios" keyParam={keyParamFirst} />

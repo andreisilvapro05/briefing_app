@@ -175,7 +175,12 @@ export default async function AdminPage({
   }
 
   return (
-    <Shell tone="cream" sectionLabel="Admin · Briefings">
+    <Shell
+      tone="cream"
+      homeHref={`/admin${keyParamFirst}`}
+      homeLabel="Painel de clientes"
+      sectionLabel="Admin · Clientes"
+    >
       <ContentFrame size="xl">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <AdminSidebar active="clientes" keyParam={keyParamFirst} />
