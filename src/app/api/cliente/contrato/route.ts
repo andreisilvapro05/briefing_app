@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
@@ -124,20 +124,25 @@ export async function POST(request: NextRequest) {
       isNewClient = true;
 
       // Cria pasta no Google Drive (no-op se envs não configuradas).
-      try {
-        const folders = await createClientFolders(nome, created.id);
-        if (folders) {
-          await service
-            .from("clients")
-            .update({
-              fysi_drive_link: folders.rootUrl,
-              google_drive_folders: folders,
-            })
-            .eq("id", created.id);
+      // Roda DEPOIS da resposta (after) pra não segurar o "Salvando…" do
+      // cliente — a chamada ao Drive é lenta e não afeta o retorno.
+      const newClientId = created.id;
+      after(async () => {
+        try {
+          const folders = await createClientFolders(nome, newClientId);
+          if (folders) {
+            await service
+              .from("clients")
+              .update({
+                fysi_drive_link: folders.rootUrl,
+                google_drive_folders: folders,
+              })
+              .eq("id", newClientId);
+          }
+        } catch (err) {
+          console.warn("[contrato] Drive folder failed:", err);
         }
-      } catch (err) {
-        console.warn("[contrato] Drive folder failed:", err);
-      }
+      });
     }
   }
 
@@ -173,66 +178,71 @@ export async function POST(request: NextRequest) {
     return errorResponse("save-failed", 500, error);
   }
 
-  // Aviso pra admin: cliente "elevou o nível" preenchendo o contrato.
-  // PRIVACIDADE: banner NÃO expõe CPF, email ou nome completo — só
-  // primeiro nome OU empresa. Dados completos ficam no /admin/[id].
-  const primeiroNome = (parsed.nome ?? "").trim().split(/\s+/)[0] || null;
-  const titulo = parsed.empresa?.trim() || primeiroNome || "Cliente";
-  void createAdminNotification({
-    clientId,
-    kind: "contrato.preenchido",
-    title: `${titulo} preencheu o contrato`,
-    message: primeiroNome && parsed.empresa
-      ? `Tap pra ver os dados completos`
-      : "Tap pra ver os dados completos",
-  });
+  // Notificação, e-mail pro time e magic-link rodam DEPOIS da resposta.
+  // Assim o cliente sai do "Salvando…" na hora (o save já está feito). O
+  // after() garante que esse trabalho complete mesmo após a resposta enviada
+  // (mais confiável que fire-and-forget, que a Vercel pode cortar).
+  const finalClientId = clientId;
+  after(async () => {
+    // Aviso pra admin: cliente "elevou o nível" preenchendo o contrato.
+    // PRIVACIDADE: banner NÃO expõe CPF, email ou nome completo — só
+    // primeiro nome OU empresa. Dados completos ficam no /admin/[id].
+    const primeiroNome = (parsed.nome ?? "").trim().split(/\s+/)[0] || null;
+    const titulo = parsed.empresa?.trim() || primeiroNome || "Cliente";
+    await createAdminNotification({
+      clientId: finalClientId,
+      kind: "contrato.preenchido",
+      title: `${titulo} preencheu o contrato`,
+      message: "Tap pra ver os dados completos",
+    }).catch((err) =>
+      console.warn("[contrato] notificação falhou:", err)
+    );
 
-  // Email pra teamEmail — chega como push no celular do admin.
-  // Best-effort: nunca bloqueia o fluxo do cliente.
-  if (env.teamEmail) {
-    const nomeRaw = parsed.nome ?? parsed.empresa ?? "Cliente";
-    void sendEmail({
-      to: env.teamEmail,
-      subject: `🚀 ${nomeRaw} preencheu o contrato — ${parsed.empresa}`,
-      html: htmlContratoPreenchidoTime({
-        cliente: {
-          nome: nomeRaw,
-          email: parsed.email,
-          empresa: parsed.empresa,
-          whatsapp: parsed.whatsapp ?? "",
-          cpf: parsed.cpf,
-          cnpj: parsed.cnpj ?? null,
-          endereco: parsed.endereco,
-          cep: parsed.cep,
-          como_conheceu: parsed.como_conheceu,
-        },
-        adminLink: `${env.appUrl}/admin/${clientId}`,
-      }),
-    }).catch((err) => {
-      console.warn("[contrato] email pra team falhou:", err);
-    });
-  }
-
-  // Se o cliente não tinha email antes (ou é novo), dispara o magic link
-  // pra retomar a sessão de outro dispositivo.
-  if (emailWasEmpty || isNewClient) {
-    try {
-      await service.auth.signInWithOtp({
-        email: parsed.email,
-        options: {
-          emailRedirectTo: `${env.appUrl}/auth/callback`,
-          shouldCreateUser: true,
-          data: {
-            client_id: clientId,
-            nome: parsed.nome ?? parsed.empresa,
+    // Email pra teamEmail — chega como push no celular do admin.
+    if (env.teamEmail) {
+      const nomeRaw = parsed.nome ?? parsed.empresa ?? "Cliente";
+      await sendEmail({
+        to: env.teamEmail,
+        subject: `🚀 ${nomeRaw} preencheu o contrato — ${parsed.empresa}`,
+        html: htmlContratoPreenchidoTime({
+          cliente: {
+            nome: nomeRaw,
+            email: parsed.email,
+            empresa: parsed.empresa,
+            whatsapp: parsed.whatsapp ?? "",
+            cpf: parsed.cpf,
+            cnpj: parsed.cnpj ?? null,
+            endereco: parsed.endereco,
+            cep: parsed.cep,
+            como_conheceu: parsed.como_conheceu,
           },
-        },
+          adminLink: `${env.appUrl}/admin/${finalClientId}`,
+        }),
+      }).catch((err) => {
+        console.warn("[contrato] email pra team falhou:", err);
       });
-    } catch (err) {
-      logServerError("cliente.contrato.otp", err);
-      // Não bloqueia o save — só falha o magic link.
     }
-  }
+
+    // Se o cliente não tinha email antes (ou é novo), dispara o magic link
+    // pra retomar a sessão de outro dispositivo.
+    if (emailWasEmpty || isNewClient) {
+      try {
+        await service.auth.signInWithOtp({
+          email: parsed.email,
+          options: {
+            emailRedirectTo: `${env.appUrl}/auth/callback`,
+            shouldCreateUser: true,
+            data: {
+              client_id: finalClientId,
+              nome: parsed.nome ?? parsed.empresa,
+            },
+          },
+        });
+      } catch (err) {
+        logServerError("cliente.contrato.otp", err);
+      }
+    }
+  });
 
   // Devolve dados básicos pra que o frontend hidrate o localStorage e leve
   // o cliente direto pro /dashboard.
