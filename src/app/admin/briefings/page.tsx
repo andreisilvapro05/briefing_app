@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { listBriefingTemplates } from "@/lib/briefing-templates-server";
 import { createBriefingTemplateAction } from "./actions";
 
@@ -10,6 +11,16 @@ export const dynamic = "force-dynamic";
 
 interface SearchParams {
   key?: string;
+  q?: string;
+}
+
+interface ClientRow {
+  id: string;
+  nome: string | null;
+  empresa: string | null;
+  email: string | null;
+  briefing_submitted_at: string | null;
+  current_stage_index: number | null;
 }
 
 export default async function BriefingsPage({
@@ -24,6 +35,23 @@ export default async function BriefingsPage({
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const templates = await listBriefingTemplates();
+
+  const q = (params.q ?? "").trim();
+  const supabase = createSupabaseServiceRoleClient();
+  let clientsQuery = supabase
+    .from("clients")
+    .select(
+      "id, nome, empresa, email, briefing_submitted_at, current_stage_index",
+    )
+    .order("created_at", { ascending: false })
+    .limit(30);
+  if (q) {
+    clientsQuery = clientsQuery.or(
+      `nome.ilike.%${q}%,empresa.ilike.%${q}%,email.ilike.%${q}%`,
+    );
+  }
+  const { data: clientsData } = await clientsQuery;
+  const clients = (clientsData ?? []) as ClientRow[];
 
   return (
     <AdminShell active="briefings" keyParam={keyParam} userEmail={user.email}>
@@ -100,6 +128,101 @@ export default async function BriefingsPage({
                 ))}
               </ul>
       )}
+
+            {/* Briefings dos clientes */}
+            <section className="mt-10">
+              <header className="mb-4">
+                <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+                  Briefings dos clientes
+                </h1>
+                <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
+                  Encontre o briefing de um cliente específico e abra direto na
+                  ficha dele.
+                </p>
+              </header>
+
+              <form
+                method="get"
+                className="bg-white border border-fysi-line rounded-[16px] p-4 mb-4 flex flex-col sm:flex-row gap-3 sm:items-end"
+              >
+                {urlKey ? (
+                  <input type="hidden" name="key" value={urlKey} />
+                ) : null}
+                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                  <label className="text-sm font-medium text-fysi-deep">
+                    Buscar cliente
+                  </label>
+                  <input
+                    name="q"
+                    defaultValue={q}
+                    placeholder="Buscar cliente por nome, empresa ou e-mail…"
+                    className="border border-fysi-line rounded-[10px] px-3 py-2 bg-white text-sm text-fysi-deep"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-5 py-2.5 hover:bg-fysi-deep/90 whitespace-nowrap"
+                >
+                  Filtrar
+                </button>
+              </form>
+
+              {clients.length === 0 ? (
+                <div className="bg-white border border-fysi-line rounded-[20px] p-8 text-center text-fysi-muted text-sm">
+                  {q
+                    ? `Nenhum cliente encontrado para "${q}". Tente outro nome, empresa ou e-mail.`
+                    : "Nenhum cliente cadastrado ainda."}
+                </div>
+              ) : (
+                <ul className="flex flex-col gap-3">
+                  {clients.map((c) => {
+                    const enviado = Boolean(c.briefing_submitted_at);
+                    const emAndamento = (c.current_stage_index ?? 0) > 0;
+                    const selo = enviado
+                      ? { label: "✓ enviado", cls: "bg-fysi-mint text-fysi-deep" }
+                      : emAndamento
+                        ? {
+                            label: "em andamento",
+                            cls: "bg-white border border-fysi-line text-fysi-deep",
+                          }
+                        : {
+                            label: "aguardando",
+                            cls: "bg-white border border-fysi-line text-fysi-muted",
+                          };
+                    return (
+                      <li
+                        key={c.id}
+                        className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-fysi-deep truncate">
+                              {c.empresa || c.nome || "Cliente sem nome"}
+                            </p>
+                            <span
+                              className={`text-xs font-medium px-2 py-0.5 rounded-full ${selo.cls}`}
+                            >
+                              {selo.label}
+                            </span>
+                          </div>
+                          {c.email ? (
+                            <p className="text-xs text-fysi-muted mt-1 truncate">
+                              {c.email}
+                            </p>
+                          ) : null}
+                        </div>
+                        <Link
+                          href={`/admin/${c.id}${keyParam}#briefing`}
+                          className="text-sm font-medium text-fysi-deep whitespace-nowrap hover:text-fysi-deep/70"
+                        >
+                          Abrir briefing →
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
     </AdminShell>
   );
 }

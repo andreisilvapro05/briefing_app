@@ -15,6 +15,7 @@ interface ContractRow {
   email: string | null;
   contrato_status: string | null;
   contrato_signed_url: string | null;
+  contrato_dados: Record<string, unknown> | null;
   autentique_document_id: string;
   updated_at: string;
 }
@@ -55,7 +56,7 @@ export default async function ContractsPage({
   let query = service
     .from("clients")
     .select(
-      "id, nome, empresa, email, contrato_status, contrato_signed_url, autentique_document_id, updated_at"
+      "id, nome, empresa, email, contrato_status, contrato_signed_url, contrato_dados, autentique_document_id, updated_at"
     )
     .not("autentique_document_id", "is", null)
     .order("updated_at", { ascending: false });
@@ -90,6 +91,10 @@ export default async function ContractsPage({
               <h1 className="fysi-display text-3xl md:text-4xl mt-2">
                 Contratos
               </h1>
+              <p className="text-fysi-muted text-sm mt-2 max-w-2xl">
+                Acompanhe cada contrato — pacote, valor e status — e abra o
+                contrato do cliente com um clique.
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Pill tone="muted">{total} no total</Pill>
@@ -147,8 +152,10 @@ export default async function ContractsPage({
           <table className="w-full text-sm">
             <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Cliente</th>
+                <th className="px-5 py-3 font-medium">Pacote</th>
+                <th className="px-5 py-3 font-medium">Valor</th>
                 <th className="px-5 py-3 font-medium">Status</th>
+                <th className="px-5 py-3 font-medium">Cliente</th>
                 <th className="px-5 py-3 font-medium">Atualizado</th>
                 <th className="px-5 py-3 font-medium" />
               </tr>
@@ -157,7 +164,7 @@ export default async function ContractsPage({
               {contracts.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={6}
                     className="px-5 py-8 text-center text-fysi-muted"
                   >
                     {params.status
@@ -177,46 +184,71 @@ export default async function ContractsPage({
                   </td>
                 </tr>
               ) : (
-                contracts.map((c) => (
-                  <tr
-                    key={c.id}
-                    className="border-t border-fysi-line hover:bg-fysi-cream/40 transition"
-                  >
-                    <td className="px-5 py-4">
-                      <div className="flex flex-col">
+                contracts.map((c) => {
+                  const dados = c.contrato_dados ?? {};
+                  const pacoteNome =
+                    typeof dados.pacote_nome === "string" && dados.pacote_nome
+                      ? dados.pacote_nome
+                      : "Contrato";
+                  const valor =
+                    typeof dados.valor_parcelamento === "string" &&
+                    dados.valor_parcelamento
+                      ? dados.valor_parcelamento
+                      : "—";
+                  return (
+                    <tr
+                      key={c.id}
+                      className="border-t border-fysi-line hover:bg-fysi-cream/40 transition"
+                    >
+                      <td className="px-5 py-4">
                         <span className="font-medium text-fysi-deep">
-                          {c.empresa || c.nome}
+                          {pacoteNome}
                         </span>
-                        <span className="text-xs text-fysi-muted">
-                          {c.nome} · {c.email ?? "—"}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4">
-                      {c.contrato_status ? (
-                        <Pill
-                          tone={STATUS_TONES[c.contrato_status] ?? "muted"}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span
+                          className="block max-w-[14rem] truncate text-fysi-deep"
+                          title={valor}
                         >
-                          {STATUS_LABELS[c.contrato_status] ??
-                            c.contrato_status}
-                        </Pill>
-                      ) : (
-                        <span className="text-xs text-fysi-muted">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4 text-xs text-fysi-muted">
-                      {formatDate(c.updated_at)}
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <Link
-                        href={`/admin/${c.id}${keyParam}`}
-                        className="text-xs font-medium text-fysi-deep hover:underline"
-                      >
-                        Ver cliente →
-                      </Link>
-                    </td>
-                  </tr>
-                ))
+                          {valor}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        {c.contrato_status ? (
+                          <Pill
+                            tone={STATUS_TONES[c.contrato_status] ?? "muted"}
+                          >
+                            {STATUS_LABELS[c.contrato_status] ??
+                              c.contrato_status}
+                          </Pill>
+                        ) : (
+                          <span className="text-xs text-fysi-muted">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col">
+                          <span className="text-xs text-fysi-muted">
+                            {c.empresa || c.nome}
+                          </span>
+                          <span className="text-[0.7rem] text-fysi-muted/80">
+                            {c.email ?? "—"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-fysi-muted">
+                        {formatDate(c.updated_at)}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <Link
+                          href={`/admin/${c.id}${keyParam}`}
+                          className="text-xs font-medium text-fysi-deep hover:underline"
+                        >
+                          Abrir contrato →
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
