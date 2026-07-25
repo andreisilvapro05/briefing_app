@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { Eyebrow } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
@@ -246,14 +247,7 @@ export default async function AdminClientPage({
   };
 
   return (
-    <Shell
-      tone="cream"
-      homeHref={`/admin${keyParam}`}
-      homeLabel="Voltar ao painel"
-      contextLabel="Painel"
-      sectionLabel={client.empresa || client.nome}
-    >
-      <ContentFrame size="xl">
+    <AdminShell active="clientes" keyParam={keyParam} userEmail={user.email}>
         <Link
           href={`/admin${keyParam}`}
           className="text-xs text-fysi-muted hover:text-fysi-deep mb-3 inline-block"
@@ -1143,8 +1137,7 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
           </div>
         </div>
-      </ContentFrame>
-    </Shell>
+    </AdminShell>
   );
 }
 
