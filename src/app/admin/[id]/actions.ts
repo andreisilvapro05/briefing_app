@@ -185,9 +185,31 @@ export async function setProjectTypeAction(formData: FormData) {
   if (!clientId || !allowed.includes(projectType)) return;
 
   const service = createSupabaseServiceRoleClient();
+
+  // Ao trocar pra um tipo com timeline mais curta, faz clamp do stage atual
+  // pra não deixar current_stage_index fora da faixa — senão a timeline do
+  // cliente aparece 100% concluída indevidamente. Mesma lógica de maxIndex
+  // do setStageAction.
+  const maxIndex =
+    projectType === "landing-sem-copy"
+      ? 4
+      : projectType === "outro"
+        ? 3
+        : 5;
+  const { data: current } = await service
+    .from("clients")
+    .select("current_stage_index")
+    .eq("id", clientId)
+    .maybeSingle();
+  const clamped = Math.min(
+    (current as { current_stage_index: number | null } | null)
+      ?.current_stage_index ?? 0,
+    maxIndex
+  );
+
   await service
     .from("clients")
-    .update({ project_type: projectType })
+    .update({ project_type: projectType, current_stage_index: clamped })
     .eq("id", clientId);
 
   revalidatePath(`/admin/${clientId}`);
@@ -675,9 +697,12 @@ export async function setCopyReviewLinkAction(formData: FormData) {
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
 
-  const link = String(formData.get("copyReviewLink") ?? "").trim();
-  // Aceita URL válida ou vazio (pra limpar).
-  const value = link && /^https?:\/\//i.test(link) ? link.slice(0, 1000) : null;
+  let link = String(formData.get("copyReviewLink") ?? "").trim();
+  // Se veio sem protocolo (ex: "docs.google.com/..."), prefixa https:// —
+  // antes esse caso era descartado silenciosamente (salvava null) enquanto a
+  // UI dizia "salvo". Vazio limpa o link.
+  if (link && !/^https?:\/\//i.test(link)) link = `https://${link}`;
+  const value = link ? link.slice(0, 1000) : null;
 
   const service = createSupabaseServiceRoleClient();
   await service
@@ -751,10 +776,17 @@ export async function addCustomQuestionAction(formData: FormData) {
   if (!clientId || !label) return;
 
   const service = createSupabaseServiceRoleClient();
-  const { count } = await service
+  // (maior ordem) + 1 — count subestimaria se houver buracos de deletes.
+  const { data: maxRow } = await service
     .from("client_custom_questions")
-    .select("*", { count: "exact", head: true })
-    .eq("client_id", clientId);
+    .select("ordem")
+    .eq("client_id", clientId)
+    .order("ordem", { ascending: false })
+    .limit(1);
+  const nextOrdem =
+    (Array.isArray(maxRow) && maxRow.length
+      ? Number((maxRow[0] as { ordem: number }).ordem ?? -1)
+      : -1) + 1;
 
   await service.from("client_custom_questions").insert({
     client_id: clientId,
@@ -762,7 +794,7 @@ export async function addCustomQuestionAction(formData: FormData) {
     hint: hint || null,
     tipo,
     opcoes,
-    ordem: count ?? 0,
+    ordem: nextOrdem,
   });
 
   revalidatePath(`/admin/${clientId}`);

@@ -20,6 +20,30 @@ async function guard(formData: FormData) {
   return createSupabaseServiceRoleClient();
 }
 
+/**
+ * Próxima `ordem` = (maior ordem existente) + 1. Usar isso em vez de count
+ * evita colisões quando há buracos (delete não renumera), que fariam o item
+ * novo aparecer fora de lugar ao recarregar.
+ */
+async function nextOrdem(
+  service: Awaited<ReturnType<typeof guard>>,
+  table: "content_columns" | "content_cards",
+  columnId?: string
+): Promise<number> {
+  let q = service
+    .from(table)
+    .select("ordem")
+    .order("ordem", { ascending: false })
+    .limit(1);
+  if (columnId) q = q.eq("column_id", columnId);
+  const { data } = await q;
+  const max =
+    Array.isArray(data) && data.length
+      ? Number((data[0] as { ordem: number }).ordem ?? -1)
+      : -1;
+  return max + 1;
+}
+
 /** Semeia colunas de exemplo (só quando o quadro está vazio). */
 export async function seedDefaultColumnsAction(
   formData: FormData
@@ -51,10 +75,7 @@ export async function addColumnAction(
   const titulo = String(formData.get("titulo") ?? "").trim();
   if (!titulo) return null;
 
-  const { count } = await service
-    .from("content_columns")
-    .select("*", { count: "exact", head: true });
-  const ordem = count ?? 0;
+  const ordem = await nextOrdem(service, "content_columns");
   const { data } = await service
     .from("content_columns")
     .insert({ titulo, ordem })
@@ -126,16 +147,12 @@ export async function addCardAction(
   const titulo = String(formData.get("titulo") ?? "").trim();
   if (!columnId || !titulo) return null;
 
-  const { count } = await service
-    .from("content_cards")
-    .select("*", { count: "exact", head: true })
-    .eq("column_id", columnId);
   const { data } = await service
     .from("content_cards")
     .insert({
       column_id: columnId,
       titulo,
-      ordem: count ?? 0,
+      ordem: await nextOrdem(service, "content_cards", columnId),
     })
     .select("id")
     .single();
@@ -168,15 +185,11 @@ export async function moveCardAction(formData: FormData) {
   const targetColumnId = String(formData.get("targetColumnId") ?? "");
   if (!cardId || !targetColumnId) return;
 
-  const { count } = await service
-    .from("content_cards")
-    .select("*", { count: "exact", head: true })
-    .eq("column_id", targetColumnId);
   await service
     .from("content_cards")
     .update({
       column_id: targetColumnId,
-      ordem: count ?? 0,
+      ordem: await nextOrdem(service, "content_cards", targetColumnId),
       updated_at: new Date().toISOString(),
     })
     .eq("id", cardId);

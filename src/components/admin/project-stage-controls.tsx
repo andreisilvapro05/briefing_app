@@ -102,12 +102,20 @@ export function ProjectStageControls({
   }
 
   function saveCopyLink() {
+    // Normaliza: se tem texto sem protocolo, prefixa https:// (senão o link
+    // era descartado e o cliente não recebia). Atualiza o campo pra refletir
+    // exatamente o que foi salvo.
+    let normalized = copyLink.trim();
+    if (normalized && !/^https?:\/\//i.test(normalized)) {
+      normalized = `https://${normalized}`;
+    }
+    setCopyLink(normalized);
     const fd = baseFd();
-    fd.append("copyReviewLink", copyLink.trim());
+    fd.append("copyReviewLink", normalized);
     startTransition(async () => {
       await setCopyReviewLinkAction(fd);
       setCopyLinkDirty(false);
-      showFlash("Link salvo ✓");
+      showFlash(normalized ? "Link salvo ✓" : "Link removido");
       router.refresh();
     });
   }

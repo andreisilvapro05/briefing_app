@@ -147,12 +147,20 @@ export async function applyTemplateToClientAction(formData: FormData) {
 
   const service = createSupabaseServiceRoleClient();
 
-  // Anexa depois das perguntas específicas que o cliente já tenha.
-  const { count } = await service
+  // Anexa DEPOIS das perguntas específicas que o cliente já tenha. Usa
+  // (maior ordem existente) + 1 em vez de count — porque delete não renumera
+  // e deixa buracos, então count subestimaria a ordem e intercalaria as novas
+  // perguntas no meio do briefing.
+  const { data: maxRow } = await service
     .from("client_custom_questions")
-    .select("*", { count: "exact", head: true })
-    .eq("client_id", clientId);
-  const offset = count ?? 0;
+    .select("ordem")
+    .eq("client_id", clientId)
+    .order("ordem", { ascending: false })
+    .limit(1);
+  const offset =
+    (Array.isArray(maxRow) && maxRow.length
+      ? Number((maxRow[0] as { ordem: number }).ordem ?? -1)
+      : -1) + 1;
 
   const rows = template!.perguntas.map((q, i) => ({
     client_id: clientId,

@@ -209,7 +209,7 @@ export function ContentBoard({
       <div className="flex items-center gap-3 mb-4 text-xs text-fysi-muted">
         <span>
           {columns.length} coluna{columns.length === 1 ? "" : "s"} ·{" "}
-          {totalCards} cartõe{totalCards === 1 ? "" : "s"}
+          {totalCards} {totalCards === 1 ? "cartão" : "cartões"}
         </span>
       </div>
 
@@ -557,29 +557,46 @@ function CardItem({
   }
 
   return (
-    <div className="group bg-white border border-fysi-line rounded-[12px] p-2.5 hover:border-fysi-deep/25 transition relative">
+    <div
+      className="group bg-white border border-fysi-line rounded-[12px] p-2.5 hover:border-fysi-deep/40 hover:shadow-sm transition relative cursor-pointer"
+      onClick={() => setEditing(true)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") setEditing(true);
+      }}
+      title="Abrir cartão"
+    >
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm text-fysi-deep font-medium leading-snug whitespace-pre-wrap min-w-0">
           {card.titulo}
         </p>
         <button
           type="button"
-          onClick={() => setMenuOpen((v) => !v)}
-          className="shrink-0 w-6 h-6 grid place-items-center rounded-md text-fysi-muted hover:bg-fysi-deep/5 hover:text-fysi-deep opacity-0 group-hover:opacity-100 focus:opacity-100"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((v) => !v);
+          }}
+          className="shrink-0 w-7 h-7 grid place-items-center rounded-md text-fysi-muted hover:bg-fysi-deep/5 hover:text-fysi-deep"
           title="Opções do cartão"
         >
           ⋯
         </button>
       </div>
       {card.descricao ? (
-        <p className="text-xs text-fysi-muted mt-1 whitespace-pre-wrap">
+        <p className="text-xs text-fysi-muted mt-1 whitespace-pre-wrap line-clamp-3">
           {card.descricao}
         </p>
-      ) : null}
+      ) : (
+        <p className="text-xs text-fysi-muted/70 mt-1 italic">
+          Clique pra abrir e editar
+        </p>
+      )}
 
       {menuOpen ? (
         <div
           className="absolute right-2 top-9 z-10 w-52 bg-white border border-fysi-line rounded-[12px] shadow-lg p-1 text-sm"
+          onClick={(e) => e.stopPropagation()}
           onMouseLeave={() => setMenuOpen(false)}
         >
           <MenuItem
