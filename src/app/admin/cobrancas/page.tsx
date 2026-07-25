@@ -45,6 +45,37 @@ export default async function CobrancasPage({
   const stats = statsCobrancas(todas);
   const refAtual = mesRef(new Date());
 
+  // "Cobranças a fazer" reais: clientes com saldo em aberto no valor do
+  // projeto (pagamento_total > pagamento_pago). Já existem no sistema (aba
+  // Pagamentos do cliente) — aqui a gente centraliza o que falta receber.
+  const { data: clientesPagData } = await service
+    .from("clients")
+    .select("id, nome, empresa, pagamento_total, pagamento_pago, pagamento_observacao")
+    .gt("pagamento_total", 0);
+  const projetosPendentes = (
+    (clientesPagData as
+      | {
+          id: string;
+          nome: string;
+          empresa: string | null;
+          pagamento_total: number | null;
+          pagamento_pago: number | null;
+          pagamento_observacao: string | null;
+        }[]
+      | null) ?? []
+  )
+    .map((c) => {
+      const total = Number(c.pagamento_total) || 0;
+      const pago = Number(c.pagamento_pago) || 0;
+      return { ...c, total, pago, falta: Math.max(0, total - pago) };
+    })
+    .filter((c) => c.falta > 0.01)
+    .sort((a, b) => b.falta - a.falta);
+  const totalAReceberProjetos = projetosPendentes.reduce(
+    (s, c) => s + c.falta,
+    0
+  );
+
   let lista = todas;
   if (filtro === "ativas") lista = todas.filter((c) => c.ativa);
   else if (filtro === "atrasados")
@@ -64,11 +95,11 @@ export default async function CobrancasPage({
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
-              Cobranças mensais
+              Cobranças
             </h1>
             <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
-              Clientes recorrentes (SEO, manutenção, hosting). Acompanha o que
-              já foi pago no mês e o que ainda falta.
+              O que tem pra receber: saldos de projeto em aberto + cobranças
+              recorrentes (SEO, manutenção, hosting).
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -106,6 +137,82 @@ export default async function CobrancasPage({
             tone={stats.atrasados.length > 0 ? "amber" : "mint"}
           />
         </div>
+
+        {/* A receber — projetos (saldos em aberto do valor do projeto) */}
+        <section className="bg-white border border-fysi-line rounded-[16px] p-5 mb-6">
+          <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight text-fysi-deep">
+                A receber — projetos
+              </h2>
+              <p className="text-xs text-fysi-muted mt-0.5">
+                Clientes com saldo em aberto no valor do projeto.
+              </p>
+            </div>
+            <Pill tone={totalAReceberProjetos > 0 ? "yellow" : "mint"}>
+              {formatBRL(totalAReceberProjetos)} a receber
+            </Pill>
+          </div>
+          {projetosPendentes.length === 0 ? (
+            <p className="text-sm text-fysi-muted">
+              Nenhum projeto com saldo em aberto. 🎉
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[0.62rem] uppercase tracking-[0.1em] text-fysi-muted">
+                    <th className="py-2 pr-3 font-medium">Cliente</th>
+                    <th className="py-2 px-3 font-medium text-right">Total</th>
+                    <th className="py-2 px-3 font-medium text-right">Pago</th>
+                    <th className="py-2 px-3 font-medium text-right">Falta</th>
+                    <th className="py-2 pl-3 font-medium text-right" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {projetosPendentes.map((c) => (
+                    <tr key={c.id} className="border-t border-fysi-line">
+                      <td className="py-2.5 pr-3">
+                        <div className="font-medium text-fysi-deep truncate">
+                          {c.empresa || c.nome}
+                        </div>
+                        {c.pagamento_observacao ? (
+                          <div className="text-[0.7rem] text-fysi-muted truncate">
+                            {c.pagamento_observacao}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-fysi-deep">
+                        {formatBRL(c.total)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums text-emerald-700">
+                        {formatBRL(c.pago)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-amber-700">
+                        {formatBRL(c.falta)}
+                      </td>
+                      <td className="py-2.5 pl-3 text-right whitespace-nowrap">
+                        <a
+                          href={`/admin/${c.id}?tab=pagamentos${
+                            urlKey ? `&key=${encodeURIComponent(urlKey)}` : ""
+                          }`}
+                          className="text-xs font-medium text-fysi-deep hover:underline"
+                        >
+                          Abrir pagamentos →
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* Recorrentes — título da seção */}
+        <h2 className="text-lg font-semibold tracking-tight text-fysi-deep mb-3">
+          Cobranças recorrentes
+        </h2>
 
         {/* Form adicionar — collapse */}
         <details className="mb-6 bg-white border border-fysi-line rounded-[16px]">
