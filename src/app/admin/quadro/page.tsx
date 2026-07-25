@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import {
   GENERAL_LANES,
@@ -52,16 +51,7 @@ export default async function AdminQuadroPage({
   clients.forEach((c) => byLane.get(laneForClient(c))?.push(c));
 
   return (
-    <Shell
-      tone="cream"
-      homeHref={`/admin${keyParamFirst}`}
-      homeLabel="Voltar ao painel"
-      sectionLabel="Admin · Quadro"
-    >
-      <ContentFrame size="xl">
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          <AdminSidebar active="quadro" keyParam={keyParamFirst} />
-          <div className="flex-1 min-w-0 w-full">
+    <AdminShell active="quadro" keyParam={keyParamFirst} userEmail={user.email}>
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6">
           <div>
             <Eyebrow>Painel interno</Eyebrow>
@@ -178,10 +168,7 @@ export default async function AdminQuadroPage({
             })}
           </div>
         </div>
-          </div>
-        </div>
-      </ContentFrame>
-    </Shell>
+    </AdminShell>
   );
 }
 

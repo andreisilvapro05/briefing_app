@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { TemplateUploader } from "@/components/admin/template-uploader";
 
 export const dynamic = "force-dynamic";
@@ -83,16 +82,7 @@ export default async function ContractsPage({
   const assinados = all.filter((c) => c.contrato_status === "assinado").length;
 
   return (
-    <Shell
-      tone="cream"
-      homeHref={`/admin${keyParam}`}
-      homeLabel="Voltar ao painel"
-      sectionLabel="Admin · Contratos"
-    >
-      <ContentFrame size="xl">
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          <AdminSidebar active="contratos" keyParam={keyParam} />
-          <div className="flex-1 min-w-0 w-full">
+    <AdminShell active="contratos" keyParam={keyParam} userEmail={user.email}>
         <header className="mb-6">
           <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
             <div>
@@ -100,15 +90,6 @@ export default async function ContractsPage({
               <h1 className="fysi-display text-3xl md:text-4xl mt-2">
                 Contratos
               </h1>
-              <p className="text-fysi-muted text-sm mt-2">
-                Logado como {user.email}{" "}
-                <Link
-                  href="/api/auth/admin-logout"
-                  className="ml-2 underline hover:text-fysi-deep"
-                >
-                  sair
-                </Link>
-              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Pill tone="muted">{total} no total</Pill>
@@ -240,10 +221,7 @@ export default async function ContractsPage({
             </tbody>
           </table>
         </div>
-          </div>
-        </div>
-      </ContentFrame>
-    </Shell>
+    </AdminShell>
   );
 }
 

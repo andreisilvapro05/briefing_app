@@ -1,13 +1,12 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   PROJECT_TYPE_LABELS,
 } from "@/lib/briefing-labels";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { DeleteClientRowButton } from "@/components/admin/delete-client-row-button";
 import { StatusChanger } from "@/components/admin/status-changer";
 import {
@@ -175,16 +174,7 @@ export default async function AdminPage({
   }
 
   return (
-    <Shell
-      tone="cream"
-      homeHref={`/admin${keyParamFirst}`}
-      homeLabel="Painel de clientes"
-      sectionLabel="Admin · Clientes"
-    >
-      <ContentFrame size="xl">
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          <AdminSidebar active="clientes" keyParam={keyParamFirst} />
-          <div className="flex-1 min-w-0 w-full">
+    <AdminShell active="clientes" keyParam={keyParamFirst} userEmail={user.email}>
         <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 mb-6 pb-4 border-b border-fysi-line">
           <div className="min-w-0">
             <div className="flex items-baseline gap-2.5">
@@ -193,16 +183,6 @@ export default async function AdminPage({
               </h1>
               <Eyebrow className="text-[0.62rem]">Painel interno</Eyebrow>
             </div>
-            <p className="text-xs text-fysi-muted mt-1.5">
-              Logado como {user.email}
-              <span className="mx-1.5 text-fysi-line">·</span>
-              <Link
-                href="/api/auth/admin-logout"
-                className="underline underline-offset-2 hover:text-fysi-deep"
-              >
-                sair
-              </Link>
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
@@ -454,10 +434,7 @@ export default async function AdminPage({
           Mostrando {clients.length} de {totalCount} clientes. Marca de
           &ldquo;Parado&rdquo; aparece após {STUCK_DAYS} dias sem atividade.
         </p>
-          </div>
-        </div>
-      </ContentFrame>
-    </Shell>
+    </AdminShell>
   );
 }
 

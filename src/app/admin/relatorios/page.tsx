@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -8,7 +7,7 @@ import {
   formatBRL as formatBRLCobrancas,
   type CobrancaMensal,
 } from "@/lib/cobrancas-mensais";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import {
   GENERAL_LANES,
@@ -64,16 +63,7 @@ export default async function AdminRelatoriosPage({
   const maxTipo = Math.max(1, ...tipoEntries.map(([, n]) => n));
 
   return (
-    <Shell
-      tone="cream"
-      homeHref={`/admin${keyParamFirst}`}
-      homeLabel="Voltar ao painel"
-      sectionLabel="Admin · Relatórios"
-    >
-      <ContentFrame size="xl">
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          <AdminSidebar active="relatorios" keyParam={keyParamFirst} />
-          <div className="flex-1 min-w-0 w-full">
+    <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={user.email}>
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6">
           <div>
             <Eyebrow>Painel interno</Eyebrow>
@@ -432,10 +422,7 @@ export default async function AdminRelatoriosPage({
             </div>
           </section>
         ) : null}
-          </div>
-        </div>
-      </ContentFrame>
-    </Shell>
+    </AdminShell>
   );
 }
 

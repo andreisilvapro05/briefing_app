@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { BriefingTemplateBuilder } from "@/components/admin/briefing-template-builder";
 import { getBriefingTemplate } from "@/lib/briefing-templates-server";
 import { deleteBriefingTemplateAction } from "../actions";
@@ -40,17 +39,8 @@ export default async function BriefingTemplatePage({
     | null) ?? [];
 
   return (
-    <Shell
-      tone="cream"
-      homeHref={`/admin${keyParam}`}
-      homeLabel="Voltar ao painel"
-      sectionLabel="Admin · Briefings"
-    >
-      <ContentFrame size="xl">
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          <AdminSidebar active="briefings" keyParam={keyParam} />
-          <div className="flex-1 min-w-0 w-full">
-            <header className="mb-6">
+    <AdminShell active="briefings" keyParam={keyParam} userEmail={user.email}>
+      <header className="mb-6">
               <Link
                 href={`/admin/briefings${keyParam}`}
                 className="text-xs text-fysi-muted hover:text-fysi-deep"
@@ -89,9 +79,6 @@ export default async function BriefingTemplatePage({
                 Excluir este briefing
               </button>
             </form>
-          </div>
-        </div>
-      </ContentFrame>
-    </Shell>
+    </AdminShell>
   );
 }

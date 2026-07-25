@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   seedDefaultColumnsAction,
@@ -16,9 +16,9 @@ import {
 import type { ContentCard, ContentColumn } from "@/lib/content-board";
 
 /**
- * Quadro de produção de conteúdo (kanban único da Fysi). Estado local é a
- * fonte da verdade durante a sessão (atualizações otimistas); as ações
- * persistem no banco em background. Mover cartões é por menu (sem drag-drop).
+ * Quadro de produção de conteúdo (kanban único da Fysi). Estado local otimista;
+ * ações persistem em background. Clicar num cartão abre um modal estilo Trello
+ * (título + descrição + mover + excluir). Mover é por menu (sem drag-drop).
  */
 export function ContentBoard({
   initialColumns,
@@ -30,6 +30,7 @@ export function ContentBoard({
   const [columns, setColumns] = useState<ContentColumn[]>(initialColumns);
   const [newColName, setNewColName] = useState("");
   const [addingCol, setAddingCol] = useState(false);
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
   function fd(extra: Record<string, string>) {
@@ -40,13 +41,14 @@ export function ContentBoard({
   }
 
   const totalCards = columns.reduce((n, c) => n + c.cards.length, 0);
+  const openCard = openCardId
+    ? columns.flatMap((c) => c.cards).find((x) => x.id === openCardId) ?? null
+    : null;
 
   function seed() {
     startTransition(async () => {
       const cols = await seedDefaultColumnsAction(fd({}));
-      if (cols.length) {
-        setColumns(cols.map((c) => ({ ...c, cards: [] })));
-      }
+      if (cols.length) setColumns(cols.map((c) => ({ ...c, cards: [] })));
     });
   }
 
@@ -62,9 +64,7 @@ export function ContentBoard({
   }
 
   function renameColumn(id: string, titulo: string) {
-    setColumns((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, titulo } : c))
-    );
+    setColumns((prev) => prev.map((c) => (c.id === id ? { ...c, titulo } : c)));
     startTransition(() => {
       renameColumnAction(fd({ columnId: id, titulo }));
     });
@@ -205,34 +205,31 @@ export function ContentBoard({
   }
 
   return (
-    <div>
-      <div className="flex items-center gap-3 mb-4 text-xs text-fysi-muted">
+    <div className="flex flex-col min-h-0">
+      <div className="flex items-center gap-3 mb-3 text-xs text-fysi-muted">
         <span>
           {columns.length} coluna{columns.length === 1 ? "" : "s"} ·{" "}
           {totalCards} {totalCards === 1 ? "cartão" : "cartões"}
         </span>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4 items-start">
+      <div className="flex gap-3 overflow-x-auto kanban-scroll pb-3 items-start">
         {columns.map((col, i) => (
           <ColumnPanel
             key={col.id}
             column={col}
             index={i}
             total={columns.length}
-            allColumns={columns}
             onRename={renameColumn}
             onDelete={deleteColumn}
             onMoveColumn={moveColumn}
             onAddCard={addCard}
-            onUpdateCard={updateCard}
-            onMoveCard={moveCard}
-            onDeleteCard={deleteCard}
+            onOpenCard={setOpenCardId}
           />
         ))}
 
         {/* Nova coluna */}
-        <div className="w-[280px] shrink-0">
+        <div className="w-[300px] shrink-0">
           {addingCol ? (
             <div className="bg-white border border-fysi-line rounded-[14px] p-3 flex flex-col gap-2">
               <input
@@ -276,6 +273,22 @@ export function ContentBoard({
           )}
         </div>
       </div>
+
+      {openCard ? (
+        <CardModal
+          card={openCard}
+          columns={columns}
+          onClose={() => setOpenCardId(null)}
+          onUpdate={updateCard}
+          onMove={(cardId, target) => {
+            moveCard(cardId, target);
+          }}
+          onDelete={(cardId) => {
+            deleteCard(cardId);
+            setOpenCardId(null);
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -284,26 +297,20 @@ function ColumnPanel({
   column,
   index,
   total,
-  allColumns,
   onRename,
   onDelete,
   onMoveColumn,
   onAddCard,
-  onUpdateCard,
-  onMoveCard,
-  onDeleteCard,
+  onOpenCard,
 }: {
   column: ContentColumn;
   index: number;
   total: number;
-  allColumns: ContentColumn[];
   onRename: (id: string, titulo: string) => void;
   onDelete: (id: string) => void;
   onMoveColumn: (id: string, dir: "left" | "right") => void;
   onAddCard: (columnId: string, titulo: string) => void;
-  onUpdateCard: (cardId: string, titulo: string, descricao: string) => void;
-  onMoveCard: (cardId: string, targetColumnId: string) => void;
-  onDeleteCard: (cardId: string) => void;
+  onOpenCard: (cardId: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -316,11 +323,10 @@ function ColumnPanel({
     if (!t) return;
     onAddCard(column.id, t);
     setCardTitle("");
-    // mantém aberto pra adicionar vários em sequência
   }
 
   return (
-    <div className="w-[280px] shrink-0 bg-fysi-cream/60 border border-fysi-line rounded-[14px] p-2.5 flex flex-col gap-2 max-h-[calc(100vh-220px)]">
+    <div className="w-[300px] shrink-0 bg-fysi-cream/70 border border-fysi-line rounded-[14px] p-2.5 flex flex-col gap-2 min-h-[62vh] max-h-[calc(100vh-13rem)]">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-1 pt-1">
         {renaming ? (
@@ -357,7 +363,7 @@ function ColumnPanel({
             {column.titulo}
           </button>
         )}
-        <span className="text-[0.7rem] text-fysi-muted shrink-0">
+        <span className="text-[0.7rem] text-fysi-muted shrink-0 tabular-nums">
           {column.cards.length}
         </span>
         <div className="relative shrink-0">
@@ -423,16 +429,23 @@ function ColumnPanel({
       </div>
 
       {/* Cards */}
-      <div className="flex flex-col gap-2 overflow-y-auto px-0.5">
+      <div className="flex flex-col gap-2 overflow-y-auto kanban-scroll px-0.5 flex-1">
         {column.cards.map((card) => (
-          <CardItem
+          <button
             key={card.id}
-            card={card}
-            allColumns={allColumns}
-            onUpdate={onUpdateCard}
-            onMove={onMoveCard}
-            onDelete={onDeleteCard}
-          />
+            type="button"
+            onClick={() => onOpenCard(card.id)}
+            className="group text-left bg-white border border-fysi-line rounded-[12px] p-2.5 hover:border-fysi-deep/40 hover:shadow-sm transition"
+          >
+            <p className="text-sm text-fysi-deep font-medium leading-snug whitespace-pre-wrap">
+              {card.titulo}
+            </p>
+            {card.descricao ? (
+              <p className="text-xs text-fysi-muted mt-1 whitespace-pre-wrap line-clamp-2">
+                {card.descricao}
+              </p>
+            ) : null}
+          </button>
         ))}
       </div>
 
@@ -488,154 +501,155 @@ function ColumnPanel({
   );
 }
 
-function CardItem({
+/** Modal estilo Trello: título editável + descrição + mover + excluir. */
+function CardModal({
   card,
-  allColumns,
+  columns,
+  onClose,
   onUpdate,
   onMove,
   onDelete,
 }: {
   card: ContentCard;
-  allColumns: ContentColumn[];
+  columns: ContentColumn[];
+  onClose: () => void;
   onUpdate: (cardId: string, titulo: string, descricao: string) => void;
   onMove: (cardId: string, targetColumnId: string) => void;
   onDelete: (cardId: string) => void;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [editing, setEditing] = useState(false);
   const [titulo, setTitulo] = useState(card.titulo);
   const [descricao, setDescricao] = useState(card.descricao ?? "");
+  const [dirty, setDirty] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  const otherColumns = allColumns.filter((c) => c.id !== card.column_id);
+  const column = columns.find((c) => c.id === card.column_id);
+  const others = columns.filter((c) => c.id !== card.column_id);
 
-  if (editing) {
-    return (
-      <div className="bg-white border border-fysi-mint-vivid rounded-[12px] p-2.5 flex flex-col gap-2">
-        <input
-          autoFocus
-          value={titulo}
-          onChange={(e) => setTitulo(e.target.value)}
-          className="rounded-[8px] border border-fysi-line bg-white px-2 py-1.5 text-sm font-medium text-fysi-deep"
-          placeholder="Título"
-        />
-        <textarea
-          value={descricao}
-          onChange={(e) => setDescricao(e.target.value)}
-          rows={3}
-          className="rounded-[8px] border border-fysi-line bg-white px-2 py-1.5 text-xs text-fysi-deep resize-none"
-          placeholder="Descrição (opcional)"
-        />
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              if (titulo.trim()) {
-                onUpdate(card.id, titulo.trim(), descricao.trim());
-                setEditing(false);
-              }
-            }}
-            disabled={!titulo.trim()}
-          >
-            Salvar
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => {
-              setTitulo(card.titulo);
-              setDescricao(card.descricao ?? "");
-              setEditing(false);
-            }}
-          >
-            Cancelar
-          </Button>
-        </div>
-      </div>
-    );
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  function save() {
+    if (!titulo.trim()) return;
+    onUpdate(card.id, titulo.trim(), descricao.trim());
+    setDirty(false);
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1500);
   }
 
   return (
     <div
-      className="group bg-white border border-fysi-line rounded-[12px] p-2.5 hover:border-fysi-deep/40 hover:shadow-sm transition relative cursor-pointer"
-      onClick={() => setEditing(true)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") setEditing(true);
-      }}
-      title="Abrir cartão"
+      className="fixed inset-0 z-50 bg-fysi-deep/40 backdrop-blur-sm flex items-start justify-center p-4 sm:p-8 overflow-y-auto"
+      onClick={onClose}
     >
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm text-fysi-deep font-medium leading-snug whitespace-pre-wrap min-w-0">
-          {card.titulo}
-        </p>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpen((v) => !v);
-          }}
-          className="shrink-0 w-7 h-7 grid place-items-center rounded-md text-fysi-muted hover:bg-fysi-deep/5 hover:text-fysi-deep"
-          title="Opções do cartão"
-        >
-          ⋯
-        </button>
-      </div>
-      {card.descricao ? (
-        <p className="text-xs text-fysi-muted mt-1 whitespace-pre-wrap line-clamp-3">
-          {card.descricao}
-        </p>
-      ) : (
-        <p className="text-xs text-fysi-muted/70 mt-1 italic">
-          Clique pra abrir e editar
-        </p>
-      )}
-
-      {menuOpen ? (
-        <div
-          className="absolute right-2 top-9 z-10 w-52 bg-white border border-fysi-line rounded-[12px] shadow-lg p-1 text-sm"
-          onClick={(e) => e.stopPropagation()}
-          onMouseLeave={() => setMenuOpen(false)}
-        >
-          <MenuItem
-            onClick={() => {
-              setEditing(true);
-              setMenuOpen(false);
-            }}
+      <div
+        className="w-full max-w-2xl bg-white rounded-[18px] shadow-2xl my-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-fysi-line">
+          <span className="inline-flex items-center gap-2 rounded-full bg-fysi-cream border border-fysi-line px-3 py-1 text-xs font-medium text-fysi-deep">
+            {column?.titulo ?? "Coluna"}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 grid place-items-center rounded-lg text-fysi-muted hover:bg-fysi-cream hover:text-fysi-deep"
+            title="Fechar"
           >
-            Editar
-          </MenuItem>
-          {otherColumns.length > 0 ? (
-            <>
-              <p className="px-2.5 pt-2 pb-1 text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted">
-                Mover para
-              </p>
-              {otherColumns.map((c) => (
-                <MenuItem
-                  key={c.id}
-                  onClick={() => {
-                    onMove(card.id, c.id);
-                    setMenuOpen(false);
-                  }}
-                >
-                  → {c.titulo}
-                </MenuItem>
-              ))}
-            </>
-          ) : null}
-          <MenuItem
-            danger
-            onClick={() => {
-              onDelete(card.id);
-              setMenuOpen(false);
-            }}
-          >
-            Excluir
-          </MenuItem>
+            ✕
+          </button>
         </div>
-      ) : null}
+
+        {/* Body */}
+        <div className="px-5 py-4 flex flex-col gap-5">
+          <div>
+            <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold">
+              Título
+            </label>
+            <input
+              value={titulo}
+              onChange={(e) => {
+                setTitulo(e.target.value);
+                setDirty(true);
+              }}
+              className="mt-1 w-full text-lg font-semibold text-fysi-deep bg-transparent border border-transparent hover:border-fysi-line focus:border-fysi-deep/40 rounded-[10px] px-2 py-1.5 -ml-2 focus:outline-none transition"
+              placeholder="Título do cartão"
+            />
+          </div>
+
+          <div>
+            <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold">
+              Descrição
+            </label>
+            <textarea
+              value={descricao}
+              onChange={(e) => {
+                setDescricao(e.target.value);
+                setDirty(true);
+              }}
+              rows={7}
+              placeholder="Adicione uma descrição mais detalhada… (briefing, roteiro, links, referências)"
+              className="mt-1 w-full text-sm text-fysi-deep bg-fysi-cream/40 border border-fysi-line rounded-[12px] px-3 py-2.5 focus:outline-none focus:border-fysi-deep/40 resize-y"
+            />
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+            <label className="flex items-center gap-2 text-sm text-fysi-muted">
+              Mover para
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) onMove(card.id, e.target.value);
+                }}
+                disabled={others.length === 0}
+                className="border border-fysi-line rounded-[10px] px-3 py-1.5 bg-white text-sm text-fysi-deep disabled:opacity-40"
+              >
+                <option value="">Escolher coluna…</option>
+                {others.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.titulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => onDelete(card.id)}
+              className="text-sm text-red-700 hover:underline"
+            >
+              Excluir cartão
+            </button>
+          </div>
+
+          <p className="text-[0.68rem] text-fysi-muted/80">
+            Em breve: etiquetas, datas, checklist e comentários.
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-fysi-line">
+          {saved ? (
+            <span className="text-xs text-fysi-green font-medium mr-auto">
+              Salvo ✓
+            </span>
+          ) : null}
+          <Button type="button" variant="ghost" onClick={onClose}>
+            Fechar
+          </Button>
+          <Button
+            type="button"
+            onClick={save}
+            disabled={!dirty || !titulo.trim()}
+          >
+            Salvar
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

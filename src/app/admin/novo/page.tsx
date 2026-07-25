@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Shell, ContentFrame } from "@/components/layout/shell";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { Eyebrow } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
@@ -23,13 +23,7 @@ export default async function NovoClientePage({
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
   return (
-    <Shell
-      tone="cream"
-      homeHref={`/admin${keyParam}`}
-      homeLabel="Voltar ao painel"
-      sectionLabel="Admin · Novo cliente"
-    >
-      <ContentFrame size="md">
+    <AdminShell active="clientes" keyParam={keyParam} userEmail={user.email}>
         <Link
           href={`/admin${keyParam}`}
           className="text-xs text-fysi-muted hover:text-fysi-deep mb-6 inline-block"
@@ -115,8 +109,7 @@ export default async function NovoClientePage({
             </Link>
           </div>
         </form>
-      </ContentFrame>
-    </Shell>
+    </AdminShell>
   );
 }
 

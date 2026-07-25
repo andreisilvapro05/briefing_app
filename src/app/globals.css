@@ -48,6 +48,26 @@
   letter-spacing: -0.012em;
 }
 
+/* Scrollbar fina e discreta pro kanban (o padrão grosso ficava feio). */
+.kanban-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--fysi-line-strong) transparent;
+}
+.kanban-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.kanban-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.kanban-scroll::-webkit-scrollbar-thumb {
+  background: var(--fysi-line-strong);
+  border-radius: 9999px;
+}
+.kanban-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--fysi-muted);
+}
+
 /* Prévia do contrato (HTML gerado do .docx via mammoth). O reset do Tailwind
    zera títulos/listas — aqui devolvemos espaçamento legível pro documento. */
 .contract-preview p {

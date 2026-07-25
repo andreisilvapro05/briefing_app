@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminShell } from "@/components/admin/admin-shell";
 import { listBriefingTemplates } from "@/lib/briefing-templates-server";
 import { createBriefingTemplateAction } from "./actions";
 
@@ -27,17 +26,8 @@ export default async function BriefingsPage({
   const templates = await listBriefingTemplates();
 
   return (
-    <Shell
-      tone="cream"
-      homeHref={`/admin${keyParam}`}
-      homeLabel="Voltar ao painel"
-      sectionLabel="Admin · Briefings"
-    >
-      <ContentFrame size="xl">
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          <AdminSidebar active="briefings" keyParam={keyParam} />
-          <div className="flex-1 min-w-0 w-full">
-            <header className="mb-6">
+    <AdminShell active="briefings" keyParam={keyParam} userEmail={user.email}>
+      <header className="mb-6">
               <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
                 <div>
                   <Eyebrow>Painel interno</Eyebrow>
@@ -109,10 +99,7 @@ export default async function BriefingsPage({
                   </li>
                 ))}
               </ul>
-            )}
-          </div>
-        </div>
-      </ContentFrame>
-    </Shell>
+      )}
+    </AdminShell>
   );
 }
