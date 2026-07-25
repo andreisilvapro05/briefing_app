@@ -64,15 +64,16 @@ export default async function AdminRelatoriosPage({
 
   return (
     <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={user.email}>
-        <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6">
+        <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <Eyebrow>Painel interno</Eyebrow>
-            <h1 className="fysi-display text-3xl md:text-4xl mt-2">Relatórios</h1>
-            <p className="text-fysi-muted text-sm mt-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">Relatórios</h1>
+            <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
               Visão geral de pipeline, conversão, receita e saúde dos projetos.
             </p>
           </div>
-          <Pill tone="muted">{stats.total} clientes</Pill>
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone="muted">{stats.total} clientes</Pill>
+          </div>
         </header>
 
         {/* KPIs */}

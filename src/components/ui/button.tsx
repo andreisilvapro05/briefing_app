@@ -29,8 +29,9 @@ const variants: Record<Variant, string> = {
     "bg-transparent text-fysi-deep border border-fysi-deep/15 " +
     "hover:bg-fysi-deep/[0.03] hover:border-fysi-deep/25",
   // Acento — amarelo Fysi. Uso pontual: envio final, próxima etapa.
+  // (o tamanho do texto vem de sizes[size]; não fixar aqui.)
   accent:
-    "bg-fysi-yellow text-fysi-deep uppercase tracking-[0.08em] text-sm " +
+    "bg-fysi-yellow text-fysi-deep uppercase tracking-[0.08em] " +
     "hover:brightness-95",
   // Ghost — sem fundo, sem borda. Para ações terciárias.
   ghost:

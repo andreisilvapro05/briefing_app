@@ -272,7 +272,7 @@ export default async function AdminClientPage({
                   client.project_type
                 : "Tipo a definir"}
             </Eyebrow>
-            <h1 className="fysi-display text-3xl md:text-4xl mt-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep mt-2">
               {client.empresa || client.nome}
             </h1>
             <p className="text-fysi-muted text-sm mt-1">{headerLinha}</p>

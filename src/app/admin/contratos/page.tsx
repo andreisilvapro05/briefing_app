@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Eyebrow, Pill } from "@/components/ui/pill";
+import { Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -84,23 +84,20 @@ export default async function ContractsPage({
 
   return (
     <AdminShell active="contratos" keyParam={keyParam} userEmail={user.email}>
-        <header className="mb-6">
-          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-            <div>
-              <Eyebrow>Painel interno</Eyebrow>
-              <h1 className="fysi-display text-3xl md:text-4xl mt-2">
-                Contratos
-              </h1>
-              <p className="text-fysi-muted text-sm mt-2 max-w-2xl">
-                Acompanhe cada contrato — pacote, valor e status — e abra o
-                contrato do cliente com um clique.
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Pill tone="muted">{total} no total</Pill>
-              <Pill tone="outline">{pendentes} pendentes</Pill>
-              <Pill tone="mint">{assinados} assinados</Pill>
-            </div>
+        <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+              Contratos
+            </h1>
+            <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
+              Acompanhe cada contrato — pacote, valor e status — e abra o
+              contrato do cliente com um clique.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone="muted">{total} no total</Pill>
+            <Pill tone="outline">{pendentes} pendentes</Pill>
+            <Pill tone="mint">{assinados} assinados</Pill>
           </div>
         </header>
 

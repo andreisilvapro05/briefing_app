@@ -9,6 +9,7 @@ export interface ContentCard {
   titulo: string;
   descricao: string | null;
   ordem: number;
+  imagens: string[];
 }
 
 export interface ContentColumn {

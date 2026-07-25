@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Eyebrow, Pill } from "@/components/ui/pill";
+import { Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -55,18 +55,17 @@ export default async function BriefingsPage({
 
   return (
     <AdminShell active="briefings" keyParam={keyParam} userEmail={user.email}>
-      <header className="mb-6">
-              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
-                <div>
-                  <Eyebrow>Painel interno</Eyebrow>
-                  <h1 className="fysi-display text-3xl md:text-4xl mt-2">
-                    Briefings
-                  </h1>
-                  <p className="text-fysi-muted text-sm mt-2">
-                    Monte um briefing de perguntas uma vez e aplique a quantos
-                    clientes quiser.
-                  </p>
-                </div>
+      <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+                  Briefings
+                </h1>
+                <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
+                  Monte um briefing de perguntas uma vez e aplique a quantos
+                  clientes quiser.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 <Pill tone="muted">
                   {templates.length} briefing
                   {templates.length === 1 ? "" : "s"}
@@ -132,9 +131,9 @@ export default async function BriefingsPage({
             {/* Briefings dos clientes */}
             <section className="mt-10">
               <header className="mb-4">
-                <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+                <h2 className="text-lg font-semibold tracking-tight text-fysi-deep">
                   Briefings dos clientes
-                </h1>
+                </h2>
                 <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
                   Encontre o briefing de um cliente específico e abra direto na
                   ficha dele.

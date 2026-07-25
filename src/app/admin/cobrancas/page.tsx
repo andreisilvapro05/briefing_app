@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Eyebrow, Pill } from "@/components/ui/pill";
+import { Pill } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -61,18 +61,19 @@ export default async function CobrancasPage({
 
   return (
     <AdminShell active="cobrancas" keyParam={keyParamFirst} userEmail={user.email}>
-        <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-6">
+        <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <Eyebrow>Painel interno</Eyebrow>
-            <h1 className="fysi-display text-3xl md:text-4xl mt-2">
+            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
               Cobranças mensais
             </h1>
-            <p className="text-fysi-muted text-sm mt-2">
+            <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
               Clientes recorrentes (SEO, manutenção, hosting). Acompanha o que
               já foi pago no mês e o que ainda falta.
             </p>
           </div>
-          <Pill tone="mint">{formatBRL(stats.mrr)} / mês</Pill>
+          <div className="flex flex-wrap items-center gap-2">
+            <Pill tone="mint">{formatBRL(stats.mrr)} / mês</Pill>
+          </div>
         </header>
 
         {/* KPIs */}

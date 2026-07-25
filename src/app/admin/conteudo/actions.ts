@@ -196,6 +196,32 @@ export async function moveCardAction(formData: FormData) {
   revalidatePath(PATH);
 }
 
+/** Salva o array de imagens (URLs) de um cartão. */
+export async function setCardImagesAction(formData: FormData) {
+  const service = await guard(formData);
+  const cardId = String(formData.get("cardId") ?? "");
+  if (!cardId) return;
+
+  let imagens: string[] = [];
+  try {
+    const parsed = JSON.parse(String(formData.get("imagens") ?? "[]"));
+    if (Array.isArray(parsed)) {
+      imagens = parsed
+        .map((x) => String(x))
+        .filter((u) => /^https?:\/\//i.test(u))
+        .slice(0, 20);
+    }
+  } catch {
+    return;
+  }
+
+  await service
+    .from("content_cards")
+    .update({ imagens, updated_at: new Date().toISOString() })
+    .eq("id", cardId);
+  revalidatePath(PATH);
+}
+
 export async function deleteCardAction(formData: FormData) {
   const service = await guard(formData);
   const cardId = String(formData.get("cardId") ?? "");

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Eyebrow, Pill } from "@/components/ui/pill";
+import { Pill } from "@/components/ui/pill";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
@@ -175,14 +175,14 @@ export default async function AdminPage({
 
   return (
     <AdminShell active="clientes" keyParam={keyParamFirst} userEmail={user.email}>
-        <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 mb-6 pb-4 border-b border-fysi-line">
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-2.5">
-              <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep leading-none">
-                Briefings ativos
-              </h1>
-              <Eyebrow className="text-[0.62rem]">Painel interno</Eyebrow>
-            </div>
+        <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+              Briefings ativos
+            </h1>
+            <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
+              Todos os clientes e o andamento de cada projeto.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">

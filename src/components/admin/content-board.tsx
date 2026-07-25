@@ -12,6 +12,7 @@ import {
   updateCardAction,
   moveCardAction,
   deleteCardAction,
+  setCardImagesAction,
 } from "@/app/admin/conteudo/actions";
 import type { ContentCard, ContentColumn } from "@/lib/content-board";
 
@@ -108,6 +109,7 @@ export function ContentBoard({
                       titulo,
                       descricao: null,
                       ordem: c.cards.length,
+                      imagens: [],
                     },
                   ],
                 }
@@ -168,6 +170,38 @@ export function ContentBoard({
     startTransition(() => {
       deleteCardAction(fd({ cardId }));
     });
+  }
+
+  function updateCardImages(cardId: string, imagens: string[]) {
+    setColumns((prev) =>
+      prev.map((c) => ({
+        ...c,
+        cards: c.cards.map((card) =>
+          card.id === cardId ? { ...card, imagens } : card
+        ),
+      }))
+    );
+    startTransition(() => {
+      setCardImagesAction(fd({ cardId, imagens: JSON.stringify(imagens) }));
+    });
+  }
+
+  // Faz upload de uma imagem e devolve a URL pública (ou null se falhar).
+  async function uploadImage(file: File): Promise<string | null> {
+    const form = new FormData();
+    form.append("file", file);
+    const q = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+    try {
+      const res = await fetch(`/api/admin/conteudo/upload${q}`, {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) return null;
+      const data = await res.json().catch(() => null);
+      return data?.url ?? null;
+    } catch {
+      return null;
+    }
   }
 
   if (columns.length === 0) {
@@ -287,6 +321,8 @@ export function ContentBoard({
             deleteCard(cardId);
             setOpenCardId(null);
           }}
+          onUpdateImages={updateCardImages}
+          onUploadImage={uploadImage}
         />
       ) : null}
     </div>
@@ -437,6 +473,14 @@ function ColumnPanel({
             onClick={() => onOpenCard(card.id)}
             className="group text-left bg-white border border-fysi-line rounded-[12px] p-2.5 hover:border-fysi-deep/40 hover:shadow-sm transition"
           >
+            {card.imagens?.length ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={card.imagens[0]}
+                alt=""
+                className="w-full h-28 object-cover rounded-[8px] mb-2"
+              />
+            ) : null}
             <p className="text-sm text-fysi-deep font-medium leading-snug whitespace-pre-wrap">
               {card.titulo}
             </p>
@@ -509,6 +553,8 @@ function CardModal({
   onUpdate,
   onMove,
   onDelete,
+  onUpdateImages,
+  onUploadImage,
 }: {
   card: ContentCard;
   columns: ContentColumn[];
@@ -516,11 +562,42 @@ function CardModal({
   onUpdate: (cardId: string, titulo: string, descricao: string) => void;
   onMove: (cardId: string, targetColumnId: string) => void;
   onDelete: (cardId: string) => void;
+  onUpdateImages: (cardId: string, imagens: string[]) => void;
+  onUploadImage: (file: File) => Promise<string | null>;
 }) {
   const [titulo, setTitulo] = useState(card.titulo);
   const [descricao, setDescricao] = useState(card.descricao ?? "");
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
+
+  const imagens = card.imagens ?? [];
+
+  async function handleFiles(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploadErr(null);
+    setUploading(true);
+    const added: string[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      const url = await onUploadImage(file);
+      if (url) added.push(url);
+    }
+    setUploading(false);
+    if (added.length) {
+      onUpdateImages(card.id, [...imagens, ...added]);
+    } else {
+      setUploadErr("Não consegui subir a imagem. Tenta de novo.");
+    }
+  }
+
+  function removeImage(url: string) {
+    onUpdateImages(
+      card.id,
+      imagens.filter((u) => u !== url)
+    );
+  }
 
   const column = columns.find((c) => c.id === card.column_id);
   const others = columns.filter((c) => c.id !== card.column_id);
@@ -596,6 +673,63 @@ function CardModal({
               placeholder="Adicione uma descrição mais detalhada… (briefing, roteiro, links, referências)"
               className="mt-1 w-full text-sm text-fysi-deep bg-fysi-cream/40 border border-fysi-line rounded-[12px] px-3 py-2.5 focus:outline-none focus:border-fysi-deep/40 resize-y"
             />
+          </div>
+
+          {/* Imagens */}
+          <div>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold">
+                Imagens
+              </label>
+              <label className="text-xs font-medium text-fysi-deep hover:text-fysi-green cursor-pointer">
+                {uploading ? "Enviando…" : "+ Adicionar imagem"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    handleFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {uploadErr ? (
+              <p className="text-xs text-red-600 mt-1">{uploadErr}</p>
+            ) : null}
+            {imagens.length > 0 ? (
+              <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {imagens.map((url) => (
+                  <div
+                    key={url}
+                    className="relative group rounded-[10px] overflow-hidden border border-fysi-line"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <a href={url} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={url}
+                        alt=""
+                        className="w-full h-24 object-cover"
+                      />
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => removeImage(url)}
+                      className="absolute top-1 right-1 w-6 h-6 grid place-items-center rounded-full bg-white/90 text-fysi-deep text-xs shadow hover:bg-white"
+                      title="Remover imagem"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-fysi-muted/70 mt-1">
+                Nenhuma imagem. Adicione referências, prints ou artes.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">

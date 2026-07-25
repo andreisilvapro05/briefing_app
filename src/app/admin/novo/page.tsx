@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { Eyebrow } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
-import { AdminTabs } from "@/components/admin/admin-tabs";
 import { createClientAction } from "../[id]/actions";
 
 export const dynamic = "force-dynamic";
@@ -24,26 +22,16 @@ export default async function NovoClientePage({
 
   return (
     <AdminShell active="clientes" keyParam={keyParam} userEmail={user.email}>
-        <Link
-          href={`/admin${keyParam}`}
-          className="text-xs text-fysi-muted hover:text-fysi-deep mb-6 inline-block"
-        >
-          ← Voltar à lista
-        </Link>
-
         <header className="mb-6">
-          <Eyebrow>Painel interno</Eyebrow>
-          <h1 className="fysi-display text-3xl md:text-4xl mt-2">
+          <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
             Novo cliente
           </h1>
-          <p className="text-sm text-fysi-muted mt-2 leading-relaxed">
+          <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
             Cadastre um cliente direto pelo admin (sem ele passar pelo fluxo
             público da Tela 1). Se o WhatsApp já existe, abrimos o cliente
             existente em vez de criar duplicado.
           </p>
         </header>
-
-        <AdminTabs active="clientes" keyParam={keyParam} />
 
         <form
           action={createClientAction}
