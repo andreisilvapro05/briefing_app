@@ -12,6 +12,7 @@ type AdminSection =
   | "clientes"
   | "briefings"
   | "quadro"
+  | "conteudo"
   | "cobrancas"
   | "relatorios"
   | "contratos";
@@ -74,6 +75,17 @@ const NAV: NavItem[] = [
       <I>
         <rect x="3" y="3" width="18" height="18" rx="2" />
         <path d="M9 3v18M15 3v18" />
+      </I>
+    ),
+  },
+  {
+    id: "conteudo",
+    label: "Conteúdo",
+    href: (k) => `/admin/conteudo${k}`,
+    icon: (
+      <I>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
       </I>
     ),
   },
