@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { StatusChanger } from "@/components/admin/status-changer";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import {
   GENERAL_LANES,
@@ -51,7 +52,8 @@ export default async function AdminListaPage({
           Projetos por status
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
-          Visão em lista dos projetos, agrupados pela etapa atual do fluxo.
+          Visão em lista dos projetos por etapa do fluxo. Mude o status na
+          própria linha pra mover o projeto entre os grupos.
         </p>
       </header>
 
@@ -132,8 +134,12 @@ export default async function AdminListaPage({
                         {nome}
                       </span>
                       <span className="text-fysi-muted truncate">{tipoLabel}</span>
-                      <span className="text-fysi-muted truncate">
-                        {c.status || "—"}
+                      <span className="truncate">
+                        <StatusChanger
+                          clientId={c.id}
+                          status={c.status || "nao-iniciado"}
+                          urlKey={urlKey ?? undefined}
+                        />
                       </span>
                       <span className="text-fysi-deep tabular-nums">{pagamento}</span>
                       <a

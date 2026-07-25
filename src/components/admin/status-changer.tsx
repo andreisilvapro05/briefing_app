@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { setClientStatusAction } from "@/app/admin/[id]/actions";
 
 /**
@@ -33,6 +34,7 @@ export function StatusChanger({
   status: string;
   urlKey?: string;
 }) {
+  const router = useRouter();
   const [current, setCurrent] = useState(status);
   const [pending, startTransition] = useTransition();
 
@@ -43,8 +45,11 @@ export function StatusChanger({
     fd.append("clientId", clientId);
     fd.append("status", next);
     if (urlKey) fd.append("key", urlKey);
-    startTransition(() => {
-      setClientStatusAction(fd);
+    startTransition(async () => {
+      await setClientStatusAction(fd);
+      // Re-renderiza a página atual (força-dinâmica) pra o item reagrupar
+      // na hora — ex: na Lista por status, muda de grupo ao trocar o status.
+      router.refresh();
     });
   }
 
