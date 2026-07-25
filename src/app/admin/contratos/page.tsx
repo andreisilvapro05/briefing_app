@@ -237,7 +237,9 @@ export default async function ContractsPage({
                       </td>
                       <td className="px-5 py-4 text-right">
                         <Link
-                          href={`/admin/${c.id}${keyParam}`}
+                          href={`/admin/${c.id}?tab=contrato${
+                            keyParam ? `&${keyParam.slice(1)}` : ""
+                          }`}
                           className="text-xs font-medium text-fysi-deep hover:underline"
                         >
                           Abrir contrato →
