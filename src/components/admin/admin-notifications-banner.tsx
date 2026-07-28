@@ -14,28 +14,35 @@ export interface AdminNotification {
   created_at: string;
 }
 
-// Cada tipo carrega só um ícone discreto + a cor do dot sinalizador.
-// Nada de fundo colorido gritante — o aviso é uma linha, não um cartaz.
-const KIND_META: Record<string, { emoji: string; label: string; dot: string }> = {
+// Cada tipo carrega um ícone + a cor do dot sinalizador + o tom do círculo
+// que envolve o emoji (dá presença ao aviso sem virar cartaz gritante).
+const KIND_META: Record<
+  string,
+  { emoji: string; label: string; dot: string; ring: string }
+> = {
   "contrato.preenchido": {
     emoji: "🚀",
     label: "Elevou o nível",
     dot: "bg-fysi-yellow",
+    ring: "bg-fysi-yellow/25",
   },
   "briefing.concluido": {
     emoji: "✅",
     label: "Briefing concluído",
     dot: "bg-fysi-mint-vivid",
+    ring: "bg-fysi-mint/40",
   },
   "pagamento.recebido": {
     emoji: "💰",
     label: "Pagamento recebido",
     dot: "bg-fysi-mint-vivid",
+    ring: "bg-fysi-mint/40",
   },
   outro: {
     emoji: "🔔",
     label: "Aviso",
     dot: "bg-fysi-line-strong",
+    ring: "bg-fysi-cream",
   },
 };
 
@@ -71,12 +78,12 @@ export function AdminNotificationsBanner({
   }
 
   return (
-    <div className="mb-6 overflow-hidden rounded-[12px] border border-fysi-line bg-white">
-      <div className="flex items-center gap-2 border-b border-fysi-line bg-fysi-cream/60 px-3 py-1.5">
-        <span className="text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-fysi-muted">
+    <div className="mb-6 overflow-hidden rounded-[16px] border border-fysi-line bg-white shadow-sm">
+      <div className="flex items-center gap-2.5 border-b border-fysi-line bg-fysi-cream/60 px-4 py-3">
+        <span className="text-[0.8rem] font-semibold uppercase tracking-[0.12em] text-fysi-deep">
           Avisos
         </span>
-        <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-fysi-deep px-1 text-[0.6rem] font-semibold leading-none text-fysi-cream">
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-fysi-deep px-1.5 text-[0.7rem] font-semibold leading-none text-fysi-cream">
           {notifications.length}
         </span>
       </div>
@@ -103,31 +110,35 @@ export function AdminNotificationsBanner({
             <li key={n.id} className="group/row flex items-center">
               <Link
                 href={href}
-                className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 transition-colors hover:bg-fysi-cream/50"
+                className="flex min-w-0 flex-1 items-center gap-3.5 px-4 py-4 transition-colors hover:bg-fysi-cream/50"
               >
-                <span className="relative flex shrink-0">
+                <span
+                  className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${meta.ring}`}
+                >
+                  <span className="text-xl leading-none" aria-hidden>
+                    {meta.emoji}
+                  </span>
                   <span
-                    className={`h-1.5 w-1.5 rounded-full ${meta.dot}`}
+                    className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`}
                     aria-hidden
                   />
                 </span>
 
-                <span className="shrink-0 text-sm leading-none" aria-hidden>
-                  {meta.emoji}
-                </span>
-
-                <span className="min-w-0 flex-1 truncate text-[0.8rem] font-medium text-fysi-deep">
-                  <span className="text-fysi-muted">{meta.label}</span>
-                  <span className="mx-1.5 text-fysi-line-strong">·</span>
-                  {sanitizeForBanner(n.title)}
+                <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <span className="text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-fysi-muted">
+                    {meta.label}
+                  </span>
+                  <span className="truncate text-base font-semibold text-fysi-deep">
+                    {sanitizeForBanner(n.title)}
+                  </span>
                   {n.message && !looksLikePII(n.message) ? (
-                    <span className="ml-1.5 font-normal text-fysi-muted">
+                    <span className="truncate text-sm font-normal text-fysi-muted">
                       {n.message}
                     </span>
                   ) : null}
                 </span>
 
-                <span className="shrink-0 whitespace-nowrap text-[0.65rem] tabular-nums text-fysi-muted">
+                <span className="shrink-0 whitespace-nowrap text-xs tabular-nums text-fysi-muted">
                   {when}
                 </span>
               </Link>
@@ -136,7 +147,7 @@ export function AdminNotificationsBanner({
                 type="button"
                 onClick={(e) => dismiss(e, n.id)}
                 disabled={pending}
-                className="mr-1.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs text-fysi-muted transition-colors hover:bg-fysi-cream hover:text-fysi-deep disabled:opacity-40"
+                className="mr-2.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm text-fysi-muted transition-colors hover:bg-fysi-cream hover:text-fysi-deep disabled:opacity-40"
                 title="Dispensar aviso"
                 aria-label="Dispensar aviso"
               >
