@@ -6,6 +6,7 @@ import {
   waLink,
   PAYMENT_LINKS,
   FYSI_ASAAS_LINK,
+  PIX_KEYS,
 } from "@/lib/cobranca-message";
 
 /**
@@ -30,6 +31,8 @@ export function ChargeButton({
   const [copied, setCopied] = useState(false);
   // Link escolhido: "" = link padrão da Fysi; ou o id de um PAYMENT_LINKS.
   const [linkId, setLinkId] = useState("");
+  // Chave Pix escolhida (CNPJ ou e-mail).
+  const [pixId, setPixId] = useState(PIX_KEYS[0].id);
   // Posição fixa do popover (medida do botão) — evita corte em tabelas com
   // overflow. { top, left } em coordenadas de viewport.
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -38,7 +41,8 @@ export function ChargeButton({
 
   const chosen = PAYMENT_LINKS.find((l) => l.id === linkId);
   const link = chosen?.url ?? FYSI_ASAAS_LINK;
-  const msg = buildChargeMessage({ nome, valor, descricao, link });
+  const pixKey = (PIX_KEYS.find((k) => k.id === pixId) ?? PIX_KEYS[0]).value;
+  const msg = buildChargeMessage({ nome, valor, descricao, link, pix: pixKey });
   const wa = waLink(whatsapp, msg);
 
   const PANEL_W = 288; // w-72
@@ -103,6 +107,32 @@ export function ChargeButton({
           style={{ top: pos.top, left: pos.left }}
         >
           <label className="block text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium mb-1">
+            Chave Pix
+          </label>
+          <div className="flex gap-1 rounded-full bg-fysi-cream/70 p-0.5">
+            {PIX_KEYS.map((k) => {
+              const active = k.id === pixId;
+              return (
+                <button
+                  key={k.id}
+                  type="button"
+                  onClick={() => setPixId(k.id)}
+                  className={`flex-1 rounded-full px-2 py-1 text-xs font-medium transition ${
+                    active
+                      ? "bg-fysi-deep text-fysi-cream"
+                      : "text-fysi-deep hover:bg-white"
+                  }`}
+                >
+                  {k.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[0.7rem] text-fysi-muted break-all">
+            {pixKey}
+          </p>
+
+          <label className="block text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium mb-1 mt-3">
             Link de pagamento (cartão)
           </label>
           <select

@@ -6,6 +6,21 @@
 
 /** Chave Pix (CNPJ) padrão da Fysi. */
 export const FYSI_PIX_KEY = "53.470.438/0001-08";
+/** Chave Pix (e-mail) da Fysi. */
+export const FYSI_PIX_EMAIL = "contato@fysilabdigital.com.br";
+
+/** Chaves Pix disponíveis pra alternar na hora de cobrar. */
+export interface PixKey {
+  id: string;
+  label: string;
+  value: string;
+}
+
+export const PIX_KEYS: PixKey[] = [
+  { id: "cnpj", label: "CNPJ", value: FYSI_PIX_KEY },
+  { id: "email", label: "E-mail", value: FYSI_PIX_EMAIL },
+];
+
 /** Link padrão de pagamento parcelado no cartão (Asaas). */
 export const FYSI_ASAAS_LINK = "https://www.asaas.com/c/c4pzpl6qzvb61hvg";
 
@@ -85,6 +100,7 @@ export function buildChargeMessage(opts: {
   const nome = firstName(opts.nome);
   const pix = opts.pix || FYSI_PIX_KEY;
   const link = opts.link || FYSI_ASAAS_LINK;
+  const pixTipo = pix.includes("@") ? "e-mail" : "CNPJ";
   const oQue = opts.descricao?.trim()
     ? `da cobrança *${opts.descricao.trim()}*`
     : "do seu projeto com a Fysi Lab";
@@ -95,7 +111,7 @@ export function buildChargeMessage(opts: {
     `Valor em aberto: *${opts.valor}*`,
     "",
     "Segue os dados de pagamento:",
-    `• Pix (CNPJ): ${pix}`,
+    `• Pix (${pixTipo}): ${pix}`,
     `• Cartão em até 8x: ${link}`,
     "",
     "Qualquer dúvida é só chamar. Obrigado! 💛",

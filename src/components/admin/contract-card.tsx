@@ -10,7 +10,7 @@ import {
   STANDARD_TEMPLATES,
   type ContractTemplate,
 } from "@/lib/contract-templates";
-import { PAYMENT_LINKS } from "@/lib/cobranca-message";
+import { PAYMENT_LINKS, PIX_KEYS } from "@/lib/cobranca-message";
 
 /**
  * Card de contrato no /admin/[id]:
@@ -535,8 +535,27 @@ export function ContractCard(props: ContractCardProps) {
                 </Button>
               </div>
             </div>
-            <label className="flex flex-col gap-1">
-              <span className="text-xs text-fysi-muted">Chave Pix (CNPJ)</span>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-xs text-fysi-muted">Chave Pix</span>
+              <div className="flex gap-1 rounded-full bg-fysi-cream/70 p-0.5 w-fit">
+                {PIX_KEYS.map((k) => {
+                  const active = pixKey === k.value;
+                  return (
+                    <button
+                      key={k.id}
+                      type="button"
+                      onClick={() => setPixKey(k.value)}
+                      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                        active
+                          ? "bg-fysi-deep text-fysi-cream"
+                          : "text-fysi-deep hover:bg-white"
+                      }`}
+                    >
+                      {k.label}
+                    </button>
+                  );
+                })}
+              </div>
               <input
                 value={pixKey}
                 onChange={(e) => setPixKey(e.target.value)}
