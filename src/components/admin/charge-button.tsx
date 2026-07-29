@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { buildChargeMessage, waLink } from "@/lib/cobranca-message";
+import { useEffect, useRef, useState } from "react";
+import {
+  buildChargeMessage,
+  waLink,
+  PAYMENT_LINKS,
+  FYSI_ASAAS_LINK,
+} from "@/lib/cobranca-message";
 
 /**
- * Botão de cobrança: abre o WhatsApp do cliente com a mensagem de pagamento
- * (Pix + cartão) já pronta, e permite copiar a mensagem (útil quando não há
- * WhatsApp cadastrado). Usado nas seções de Cobranças.
+ * Botão de cobrança: abre um popover onde você escolhe o link de pagamento
+ * salvo (Asaas) e dispara a cobrança pelo WhatsApp com a mensagem pronta
+ * (Pix + cartão + valor), ou copia a mensagem. Usado nas seções de Cobranças.
  */
 export function ChargeButton({
   nome,
@@ -21,9 +26,53 @@ export function ChargeButton({
   descricao?: string | null;
   compact?: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const msg = buildChargeMessage({ nome, valor, descricao });
+  // Link escolhido: "" = link padrão da Fysi; ou o id de um PAYMENT_LINKS.
+  const [linkId, setLinkId] = useState("");
+  // Posição fixa do popover (medida do botão) — evita corte em tabelas com
+  // overflow. { top, left } em coordenadas de viewport.
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const chosen = PAYMENT_LINKS.find((l) => l.id === linkId);
+  const link = chosen?.url ?? FYSI_ASAAS_LINK;
+  const msg = buildChargeMessage({ nome, valor, descricao, link });
   const wa = waLink(whatsapp, msg);
+
+  const PANEL_W = 288; // w-72
+
+  function toggleOpen() {
+    setOpen((o) => {
+      const next = !o;
+      if (next && triggerRef.current) {
+        const r = triggerRef.current.getBoundingClientRect();
+        const left = Math.max(8, Math.min(r.right - PANEL_W, window.innerWidth - PANEL_W - 8));
+        setPos({ top: r.bottom + 6, left });
+      }
+      return next;
+    });
+  }
+
+  // Fecha o popover ao clicar fora ou ao rolar a página.
+  useEffect(() => {
+    if (!open) return;
+    function onDown(e: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    function onScroll() {
+      setOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("scroll", onScroll, true);
+    };
+  }, [open]);
 
   async function copy() {
     try {
@@ -36,27 +85,70 @@ export function ChargeButton({
   }
 
   return (
-    <div className="inline-flex items-center gap-1.5">
-      {wa ? (
-        <a
-          href={wa}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 text-white text-xs font-medium px-3 py-1.5 hover:bg-emerald-700 transition"
-          title="Abrir WhatsApp com a cobrança pronta"
-        >
-          <WhatsAppGlyph />
-          {compact ? "Cobrar" : "Cobrar no WhatsApp"}
-        </a>
-      ) : null}
+    <div className="inline-block" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={copy}
-        className="inline-flex items-center gap-1 rounded-full border border-fysi-line bg-white text-xs text-fysi-deep px-3 py-1.5 hover:border-fysi-deep/40 transition"
-        title="Copiar a mensagem de cobrança"
+        onClick={toggleOpen}
+        className="inline-flex items-center gap-1.5 rounded-full bg-emerald-600 text-white text-xs font-medium px-3 py-1.5 hover:bg-emerald-700 transition"
+        title="Cobrar este cliente"
       >
-        {copied ? "✓ Copiado" : "Copiar cobrança"}
+        <WhatsAppGlyph />
+        {compact ? "Cobrar" : "Cobrar no WhatsApp"}
       </button>
+
+      {open && pos ? (
+        <div
+          className="fixed z-50 w-72 rounded-[14px] border border-fysi-line bg-white p-3 shadow-lg"
+          style={{ top: pos.top, left: pos.left }}
+        >
+          <label className="block text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium mb-1">
+            Link de pagamento (cartão)
+          </label>
+          <select
+            value={linkId}
+            onChange={(e) => setLinkId(e.target.value)}
+            className="w-full rounded-[10px] border border-fysi-line bg-white px-2.5 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+          >
+            <option value="">Link padrão da Fysi</option>
+            {PAYMENT_LINKS.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+
+          <p className="mt-2 text-[0.7rem] text-fysi-muted break-all">
+            {link}
+          </p>
+
+          <div className="mt-3 flex items-center gap-2">
+            {wa ? (
+              <a
+                href={wa}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setOpen(false)}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-full bg-emerald-600 text-white text-xs font-medium px-3 py-2 hover:bg-emerald-700 transition"
+              >
+                <WhatsAppGlyph />
+                Abrir WhatsApp
+              </a>
+            ) : (
+              <span className="flex-1 text-[0.7rem] text-fysi-muted">
+                Sem WhatsApp cadastrado
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={copy}
+              className="inline-flex items-center gap-1 rounded-full border border-fysi-line bg-white text-xs text-fysi-deep px-3 py-2 hover:border-fysi-deep/40 transition"
+            >
+              {copied ? "✓ Copiado" : "Copiar"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

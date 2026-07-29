@@ -9,6 +9,51 @@ export const FYSI_PIX_KEY = "53.470.438/0001-08";
 /** Link padrão de pagamento parcelado no cartão (Asaas). */
 export const FYSI_ASAAS_LINK = "https://www.asaas.com/c/c4pzpl6qzvb61hvg";
 
+/**
+ * Catálogo de links de pagamento (Asaas) salvos — normalmente um por
+ * pacote/valor. Serve pra escolher o link certo na hora de cobrar ou de
+ * montar o contrato, sem precisar colar a URL toda vez.
+ */
+export interface PaymentLink {
+  id: string;
+  label: string;
+  valor: number;
+  url: string;
+}
+
+export const PAYMENT_LINKS: PaymentLink[] = [
+  {
+    id: "l1997",
+    label: "R$ 1.997 — parcelado",
+    valor: 1997,
+    url: "https://www.asaas.com/c/nabdcnbx9cv3b9le",
+  },
+  {
+    id: "l1800",
+    label: "R$ 1.800 — 6x no cartão",
+    valor: 1800,
+    url: "https://www.asaas.com/c/6o0z07fwwg4hzpvv",
+  },
+  {
+    id: "l2300",
+    label: "R$ 2.300",
+    valor: 2300,
+    url: "https://www.asaas.com/c/1qs7h6q2u16jcph1",
+  },
+  {
+    id: "l1600",
+    label: "R$ 1.600",
+    valor: 1600,
+    url: "https://www.asaas.com/c/fp59l88ygq16opth",
+  },
+  {
+    id: "l1497",
+    label: "R$ 1.497",
+    valor: 1497,
+    url: "https://www.asaas.com/c/ozyxk99adltdm2z8",
+  },
+];
+
 function firstName(nome: string): string {
   return (nome || "").trim().split(/\s+/)[0] || "";
 }

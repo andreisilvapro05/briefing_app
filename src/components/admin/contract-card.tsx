@@ -10,6 +10,7 @@ import {
   STANDARD_TEMPLATES,
   type ContractTemplate,
 } from "@/lib/contract-templates";
+import { PAYMENT_LINKS } from "@/lib/cobranca-message";
 
 /**
  * Card de contrato no /admin/[id]:
@@ -885,6 +886,26 @@ export function ContractCard(props: ContractCardProps) {
               "Página profissional com conteúdo pronto\nDesign responsivo e escaneável\nOtimização de velocidade\nInstalação de pixel e Tags\nPublicação completa + backup"
             }
           />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-fysi-muted uppercase tracking-[0.08em]">
+              Links salvos
+            </label>
+            <select
+              value=""
+              onChange={(e) => {
+                const l = PAYMENT_LINKS.find((x) => x.id === e.target.value);
+                if (l) setLinkPagamento(l.url);
+              }}
+              className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+            >
+              <option value="">Escolher um link salvo…</option>
+              {PAYMENT_LINKS.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <Input
             label="Link de parcelamento (cartão)"
             name="linkParcelamento"
@@ -892,7 +913,7 @@ export function ContractCard(props: ContractCardProps) {
             value={linkPagamento}
             onChange={(e) => setLinkPagamento(e.target.value)}
             placeholder="https://www.asaas.com/c/..."
-            hint="Link Asaas (ou outro) gerado pra esse cliente específico."
+            hint="Escolha um link salvo acima ou cole um específico pra esse cliente."
           />
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
