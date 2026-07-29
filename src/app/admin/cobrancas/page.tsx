@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { ChargeButton } from "@/components/admin/charge-button";
 import {
   formatBRL,
   mesRef,
@@ -50,7 +51,7 @@ export default async function CobrancasPage({
   // Pagamentos do cliente) — aqui a gente centraliza o que falta receber.
   const { data: clientesPagData } = await service
     .from("clients")
-    .select("id, nome, empresa, pagamento_total, pagamento_pago, pagamento_observacao")
+    .select("id, nome, empresa, whatsapp, pagamento_total, pagamento_pago, pagamento_observacao")
     .gt("pagamento_total", 0);
   const projetosPendentes = (
     (clientesPagData as
@@ -58,6 +59,7 @@ export default async function CobrancasPage({
           id: string;
           nome: string;
           empresa: string | null;
+          whatsapp: string | null;
           pagamento_total: number | null;
           pagamento_pago: number | null;
           pagamento_observacao: string | null;
@@ -192,14 +194,22 @@ export default async function CobrancasPage({
                         {formatBRL(c.falta)}
                       </td>
                       <td className="py-2.5 pl-3 text-right whitespace-nowrap">
-                        <a
-                          href={`/admin/${c.id}?tab=pagamentos${
-                            urlKey ? `&key=${encodeURIComponent(urlKey)}` : ""
-                          }`}
-                          className="text-xs font-medium text-fysi-deep hover:underline"
-                        >
-                          Abrir pagamentos →
-                        </a>
+                        <div className="inline-flex items-center gap-2">
+                          <ChargeButton
+                            nome={c.nome}
+                            valor={formatBRL(c.falta)}
+                            whatsapp={c.whatsapp}
+                            compact
+                          />
+                          <a
+                            href={`/admin/${c.id}?tab=pagamentos${
+                              urlKey ? `&key=${encodeURIComponent(urlKey)}` : ""
+                            }`}
+                            className="text-xs font-medium text-fysi-deep hover:underline"
+                          >
+                            Abrir →
+                          </a>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -502,17 +512,25 @@ function CobrancaCard({
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-2 pt-2 border-t border-fysi-line">
+      <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-fysi-line">
         {!pagoEsteMes && cobranca.ativa ? (
-          <form action={marcarPagoEsteMesAction}>
-            <input type="hidden" name="id" value={cobranca.id} />
-            {urlKey ? (
-              <input type="hidden" name="key" value={urlKey} />
-            ) : null}
-            <Button type="submit" size="sm">
-              ✓ Marcar pago hoje
-            </Button>
-          </form>
+          <>
+            <form action={marcarPagoEsteMesAction}>
+              <input type="hidden" name="id" value={cobranca.id} />
+              {urlKey ? (
+                <input type="hidden" name="key" value={urlKey} />
+              ) : null}
+              <Button type="submit" size="sm">
+                ✓ Marcar pago hoje
+              </Button>
+            </form>
+            <ChargeButton
+              nome={cobranca.nome}
+              valor={formatBRL(Number(cobranca.valor_mensal))}
+              whatsapp={cobranca.whatsapp}
+              descricao={cobranca.descricao}
+            />
+          </>
         ) : null}
 
         <details className="text-xs">
