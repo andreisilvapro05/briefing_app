@@ -3,7 +3,10 @@
 import { useTransition, type MouseEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { dismissNotificationAction } from "@/app/admin/actions";
+import {
+  dismissAllNotificationsAction,
+  dismissNotificationAction,
+} from "@/app/admin/actions";
 
 export interface AdminNotification {
   id: string;
@@ -77,6 +80,15 @@ export function AdminNotificationsBanner({
     });
   }
 
+  function dismissAll() {
+    const fd = new FormData();
+    if (urlKey) fd.append("key", urlKey);
+    startTransition(async () => {
+      await dismissAllNotificationsAction(fd);
+      router.refresh();
+    });
+  }
+
   return (
     <div className="mb-6 overflow-hidden rounded-[16px] border border-fysi-line bg-white shadow-sm">
       <div className="flex items-center gap-2.5 border-b border-fysi-line bg-fysi-cream/60 px-4 py-3">
@@ -86,6 +98,14 @@ export function AdminNotificationsBanner({
         <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-fysi-deep px-1.5 text-[0.7rem] font-semibold leading-none text-fysi-cream">
           {notifications.length}
         </span>
+        <button
+          type="button"
+          onClick={dismissAll}
+          disabled={pending}
+          className="ml-auto text-xs font-medium text-fysi-muted hover:text-fysi-deep disabled:opacity-40"
+        >
+          Limpar todos
+        </button>
       </div>
 
       <ul className="divide-y divide-fysi-line">
