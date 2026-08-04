@@ -71,8 +71,19 @@ export function buildClientTemplateVars(client: {
     .filter((p) => p && p.trim())
     .join(", CEP ");
 
+  // CONTRATANTE: quando é empresa (tem CNPJ), o nome do contrato é a razão
+  // social (ou o nome fantasia da empresa, se não houver razão social); a
+  // pessoa física vira o representante que assina. Pessoa física continua
+  // sendo a própria parte.
+  const razaoOrEmpresa =
+    (client.razao_social && client.razao_social.trim()) ||
+    (client.empresa && client.empresa.trim()) ||
+    "";
+  const nome_cliente = isPJ && razaoOrEmpresa ? razaoOrEmpresa : client.nome;
+
   return {
-    nome_cliente: client.nome,
+    nome_cliente,
+    representante_cliente: client.nome,
     tipo_pessoa,
     documento_descricao,
     documento_numero,

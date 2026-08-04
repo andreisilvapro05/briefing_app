@@ -767,6 +767,9 @@ Qualquer dúvida, é só responder por aqui.`}
             clientId={client.id}
             clientName={client.nome ?? null}
             clientEmail={client.email ?? null}
+            clientEmpresa={client.empresa ?? null}
+            clientRazaoSocial={client.razao_social ?? null}
+            clientCnpj={client.cnpj ?? null}
             autentiqueDocumentId={client.autentique_document_id ?? null}
             contratoStatus={client.contrato_status ?? null}
             contratoSignedUrl={client.contrato_signed_url ?? null}

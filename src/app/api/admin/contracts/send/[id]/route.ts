@@ -93,11 +93,19 @@ export async function POST(
   }
   const tplBuffer = Buffer.from(await tplBlob.arrayBuffer());
 
+  // É empresa? (tem CNPJ) → CONTRATANTE = razão social/empresa, e a pessoa
+  // que o admin digitou (signerName) é o representante que assina.
+  const isPJ = !!(client.cnpj && String(client.cnpj).trim());
+
   // Vars (cliente + dados que o admin digitou). signerName e recipientEmail
   // sobrescrevem o que vem do banco — admin tem a palavra final.
   const vars = {
     ...buildClientTemplateVars(client),
-    nome_cliente: effectiveNome,
+    // Representante (assinante) sempre reflete o nome digitado pelo admin.
+    representante_cliente: effectiveNome,
+    // Pessoa física: a parte é a própria pessoa (respeita o nome digitado).
+    // Empresa (PJ): mantém a razão social vinda de buildClientTemplateVars.
+    ...(isPJ ? {} : { nome_cliente: effectiveNome }),
     email_cliente: signerEmail,
     pacote_nome: body.pacoteNome,
     valor_parcelamento: body.valorParcelamento,

@@ -25,6 +25,9 @@ interface ContractCardProps {
   clientId: string;
   clientName: string | null;
   clientEmail: string | null;
+  clientEmpresa?: string | null;
+  clientRazaoSocial?: string | null;
+  clientCnpj?: string | null;
   autentiqueDocumentId: string | null;
   contratoStatus: string | null;
   contratoSignedUrl: string | null;
@@ -838,9 +841,32 @@ export function ContractCard(props: ContractCardProps) {
               </div>
             ) : null}
           </div>
+          {(() => {
+            const isPJ = !!(props.clientCnpj && props.clientCnpj.trim());
+            if (!isPJ) return null;
+            const entity =
+              props.clientRazaoSocial?.trim() ||
+              props.clientEmpresa?.trim() ||
+              "";
+            if (!entity) return null;
+            return (
+              <div className="rounded-[12px] border border-fysi-mint-vivid/40 bg-fysi-mint/20 px-3.5 py-2.5 text-sm">
+                <span className="text-fysi-muted">CONTRATANTE (empresa): </span>
+                <span className="font-semibold text-fysi-deep">{entity}</span>
+                <span className="text-fysi-muted">
+                  {" "}
+                  · CNPJ {props.clientCnpj?.trim()}
+                </span>
+                <p className="text-[0.72rem] text-fysi-muted mt-0.5">
+                  O contrato usa a razão social como CONTRATANTE; a pessoa abaixo
+                  entra como representante que assina.
+                </p>
+              </div>
+            );
+          })()}
           <div className="grid sm:grid-cols-2 gap-3">
             <Input
-              label="Nome completo do signatário"
+              label="Nome completo do signatário (representante)"
               name="signerName"
               required
               value={signerName}
@@ -848,7 +874,7 @@ export function ContractCard(props: ContractCardProps) {
               placeholder="Nome completo legal"
               hint={
                 props.clientName
-                  ? "Vem do cadastro. Edite se quiser o nome legal completo."
+                  ? "Vem do cadastro. Para empresa, é quem assina em nome dela."
                   : "Digite o nome completo legal — salvamos no cliente."
               }
             />
