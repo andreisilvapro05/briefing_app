@@ -24,6 +24,7 @@ const Body = z.object({
   prazoExecucao: z.string().min(1).max(200),
   escopoProjeto: z.string().min(1).max(5000),
   linkParcelamento: z.string().min(1).max(500),
+  chavePix: z.string().max(200).optional(),
 });
 
 const DOCX_MIME =
@@ -81,6 +82,12 @@ export async function POST(
     prazo_execucao: body.prazoExecucao,
     escopo_projeto: body.escopoProjeto,
     link_parcelamento: body.linkParcelamento,
+    chave_pix: body.chavePix ?? "",
+    chave_pix_tipo: body.chavePix
+      ? body.chavePix.includes("@")
+        ? "e-mail"
+        : "CNPJ"
+      : "",
   };
 
   let filled: Buffer;

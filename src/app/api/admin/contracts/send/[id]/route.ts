@@ -27,6 +27,8 @@ const Body = z.object({
   prazoExecucao: z.string().min(1).max(200),
   escopoProjeto: z.string().min(1).max(5000),
   linkParcelamento: z.string().min(1).max(500),
+  // Chave Pix escolhida no form (CNPJ/e-mail/outra) — entra no contrato.
+  chavePix: z.string().max(200).optional(),
   // Email do signatário. Se omitido, usa client.email do banco. Útil pro admin
   // mandar o contrato pra um cliente que ainda não preencheu o /contrato.
   recipientEmail: z.string().email().optional(),
@@ -112,6 +114,12 @@ export async function POST(
     prazo_execucao: body.prazoExecucao,
     escopo_projeto: body.escopoProjeto,
     link_parcelamento: body.linkParcelamento,
+    chave_pix: body.chavePix ?? "",
+    chave_pix_tipo: body.chavePix
+      ? body.chavePix.includes("@")
+        ? "e-mail"
+        : "CNPJ"
+      : "",
   };
 
   // Preenche o .docx

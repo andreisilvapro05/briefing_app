@@ -209,6 +209,7 @@ export function ContractCard(props: ContractCardProps) {
             prazoExecucao: prazo,
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
+            chavePix: pixKey || undefined,
             recipientEmail: recipientEmail || undefined,
             signerName: signerName || undefined,
           }),
@@ -249,6 +250,7 @@ export function ContractCard(props: ContractCardProps) {
             prazoExecucao: prazo,
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
+            chavePix: pixKey || undefined,
             recipientEmail: recipientEmail || undefined,
             signerName: signerName || undefined,
           }),
@@ -362,6 +364,7 @@ export function ContractCard(props: ContractCardProps) {
             prazoExecucao: prazo,
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
+            chavePix: pixKey || undefined,
           }),
         }
       );
@@ -960,6 +963,40 @@ export function ContractCard(props: ContractCardProps) {
             placeholder="https://www.asaas.com/c/..."
             hint="Escolha um link salvo acima ou cole um específico pra esse cliente."
           />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-fysi-muted uppercase tracking-[0.08em]">
+              Chave Pix (entra no contrato)
+            </label>
+            <div className="flex gap-1 rounded-full bg-fysi-cream/70 p-0.5 w-fit">
+              {PIX_KEYS.map((k) => {
+                const active = pixKey === k.value;
+                return (
+                  <button
+                    key={k.id}
+                    type="button"
+                    onClick={() => setPixKey(k.value)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                      active
+                        ? "bg-fysi-deep text-fysi-cream"
+                        : "text-fysi-deep hover:bg-white"
+                    }`}
+                  >
+                    Pix {k.label}
+                  </button>
+                );
+              })}
+            </div>
+            <input
+              value={pixKey}
+              onChange={(e) => setPixKey(e.target.value)}
+              className="border border-fysi-line rounded-[10px] px-3 py-2 bg-white text-sm text-fysi-deep font-mono"
+              placeholder="Chave Pix"
+            />
+            <p className="text-xs text-fysi-muted">
+              Alterna entre CNPJ e e-mail — ou digite outra. Vai pro contrato
+              como {"{{"}chave_pix{"}}"}.
+            </p>
+          </div>
           {error ? <p className="text-xs text-red-600">{error}</p> : null}
 
           {showPreview && previewHtml !== null ? (
