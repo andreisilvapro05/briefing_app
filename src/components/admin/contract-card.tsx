@@ -135,6 +135,14 @@ export function ContractCard(props: ContractCardProps) {
   // Permite re-abrir o form de proposta mesmo quando já existe um contrato
   // (ex: pra ajustar valores e enviar uma nova versão).
   const [forceEditMode, setForceEditMode] = useState(false);
+  // Modelo de contrato escolhido + campos do modelo de Tráfego Pago.
+  const [modelo, setModelo] = useState<"padrao" | "trafego">("padrao");
+  const [valorMensal, setValorMensal] = useState("");
+  const [diaPagamento, setDiaPagamento] = useState("10");
+  const [formaPagamento, setFormaPagamento] = useState("Pix");
+  const [avisoPrevio, setAvisoPrevio] = useState("15 (quinze)");
+  const [multaRescisao, setMultaRescisao] = useState("20");
+  const [cidadeForo, setCidadeForo] = useState("Taió/SC");
   // Templates de proposta (pacotes padrão + clientes anteriores).
   const [showTemplates, setShowTemplates] = useState(false);
   const [clientTemplates, setClientTemplates] = useState<
@@ -204,11 +212,18 @@ export function ContractCard(props: ContractCardProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            modelo,
             pacoteNome: pacote,
             valorParcelamento: valor,
             prazoExecucao: prazo,
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
+            valorMensal,
+            diaPagamento,
+            formaPagamento,
+            avisoPrevio,
+            multaRescisao,
+            cidadeForo,
             chavePix: pixKey || undefined,
             recipientEmail: recipientEmail || undefined,
             signerName: signerName || undefined,
@@ -231,7 +246,10 @@ export function ContractCard(props: ContractCardProps) {
 
   async function preview() {
     // Valida que os campos da proposta estão preenchidos antes de chamar.
-    if (!pacote || !valor || !prazo || !escopo || !linkPagamento) {
+    if (
+      modelo === "padrao" &&
+      (!pacote || !valor || !prazo || !escopo || !linkPagamento)
+    ) {
       setStatus("error");
       setError("Preenche todos os campos da proposta primeiro.");
       return;
@@ -245,11 +263,18 @@ export function ContractCard(props: ContractCardProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            modelo,
             pacoteNome: pacote,
             valorParcelamento: valor,
             prazoExecucao: prazo,
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
+            valorMensal,
+            diaPagamento,
+            formaPagamento,
+            avisoPrevio,
+            multaRescisao,
+            cidadeForo,
             chavePix: pixKey || undefined,
             recipientEmail: recipientEmail || undefined,
             signerName: signerName || undefined,
@@ -334,7 +359,10 @@ export function ContractCard(props: ContractCardProps) {
   // Pré-visualização inline (HTML): usa os mesmos dados da proposta (que já
   // vêm preenchidos do contrato quando ele existe) e renderiza dentro do card.
   async function previewInline(force = false) {
-    if (!pacote || !valor || !prazo || !escopo || !linkPagamento) {
+    if (
+      modelo === "padrao" &&
+      (!pacote || !valor || !prazo || !escopo || !linkPagamento)
+    ) {
       setError("Faltam dados da proposta pra pré-visualizar.");
       return;
     }
@@ -359,11 +387,18 @@ export function ContractCard(props: ContractCardProps) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            modelo,
             pacoteNome: pacote,
             valorParcelamento: valor,
             prazoExecucao: prazo,
             escopoProjeto: escopo,
             linkParcelamento: linkPagamento,
+            valorMensal,
+            diaPagamento,
+            formaPagamento,
+            avisoPrevio,
+            multaRescisao,
+            cidadeForo,
             chavePix: pixKey || undefined,
           }),
         }
@@ -760,7 +795,37 @@ export function ContractCard(props: ContractCardProps) {
             endereço) vem do cadastro do cliente.
           </p>
 
-          {/* Pré-preencher de template */}
+          {/* Modelo de contrato */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-fysi-muted uppercase tracking-[0.08em]">
+              Modelo de contrato
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: "padrao", label: "Padrão (landing / site)" },
+                { id: "trafego", label: "Tráfego Pago (anúncios)" },
+              ].map((m) => {
+                const active = modelo === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setModelo(m.id as "padrao" | "trafego")}
+                    className={`rounded-full border px-3.5 py-1.5 text-sm transition ${
+                      active
+                        ? "bg-fysi-deep text-fysi-cream border-fysi-deep"
+                        : "bg-white text-fysi-deep border-fysi-line hover:border-fysi-deep/40"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Pré-preencher de template (só no modelo padrão) */}
+          {modelo === "padrao" ? (
           <div className="rounded-[14px] border border-fysi-line bg-fysi-cream/40 p-3 flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-fysi-deep font-medium">
@@ -844,6 +909,7 @@ export function ContractCard(props: ContractCardProps) {
               </div>
             ) : null}
           </div>
+          ) : null}
           {(() => {
             const isPJ = !!(props.clientCnpj && props.clientCnpj.trim());
             if (!isPJ) return null;
@@ -896,6 +962,8 @@ export function ContractCard(props: ContractCardProps) {
               }
             />
           </div>
+          {modelo === "padrao" ? (
+          <>
           <div className="grid sm:grid-cols-2 gap-3">
             <Input
               label="Pacote"
@@ -963,6 +1031,65 @@ export function ContractCard(props: ContractCardProps) {
             placeholder="https://www.asaas.com/c/..."
             hint="Escolha um link salvo acima ou cole um específico pra esse cliente."
           />
+          </>
+          ) : (
+          <>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input
+              label="Valor mensal"
+              name="valorMensal"
+              value={valorMensal}
+              onChange={(e) => setValorMensal(e.target.value)}
+              placeholder="R$ 1.500,00 (mil e quinhentos reais)"
+              hint="Valor da mensalidade de gestão de anúncios."
+            />
+            <Input
+              label="Dia de pagamento"
+              name="diaPagamento"
+              value={diaPagamento}
+              onChange={(e) => setDiaPagamento(e.target.value)}
+              placeholder="10"
+            />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input
+              label="Forma de pagamento"
+              name="formaPagamento"
+              value={formaPagamento}
+              onChange={(e) => setFormaPagamento(e.target.value)}
+              placeholder="Pix"
+            />
+            <Input
+              label="Aviso prévio (rescisão)"
+              name="avisoPrevio"
+              value={avisoPrevio}
+              onChange={(e) => setAvisoPrevio(e.target.value)}
+              placeholder="15 (quinze)"
+            />
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Input
+              label="Multa de rescisão (%)"
+              name="multaRescisao"
+              value={multaRescisao}
+              onChange={(e) => setMultaRescisao(e.target.value)}
+              placeholder="20"
+            />
+            <Input
+              label="Cidade do foro"
+              name="cidadeForo"
+              value={cidadeForo}
+              onChange={(e) => setCidadeForo(e.target.value)}
+              placeholder="Taió/SC"
+            />
+          </div>
+          <p className="text-[0.72rem] text-fysi-muted">
+            Contrato mensal de gestão de anúncios (Meta/Google). Nome, documento,
+            endereço e e-mail vêm do cadastro do cliente. Deixe em branco pra usar
+            os valores padrão.
+          </p>
+          </>
+          )}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-fysi-muted uppercase tracking-[0.08em]">
               Chave Pix (entra no contrato)

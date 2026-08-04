@@ -7,6 +7,11 @@ import {
   buildClientTemplateVars,
   fillDocxTemplate,
 } from "@/lib/contract-template";
+import {
+  getContractModel,
+  loadContractTemplateBuffer,
+  trafegoVars,
+} from "@/lib/contract-models";
 
 /**
  * Pré-visualização: preenche o template e devolve o .docx pra download.
@@ -19,11 +24,18 @@ import {
  */
 
 const Body = z.object({
-  pacoteNome: z.string().min(1).max(200),
-  valorParcelamento: z.string().min(1).max(500),
-  prazoExecucao: z.string().min(1).max(200),
-  escopoProjeto: z.string().min(1).max(5000),
-  linkParcelamento: z.string().min(1).max(500),
+  modelo: z.enum(["padrao", "trafego"]).optional().default("padrao"),
+  pacoteNome: z.string().max(200).optional(),
+  valorParcelamento: z.string().max(500).optional(),
+  prazoExecucao: z.string().max(200).optional(),
+  escopoProjeto: z.string().max(5000).optional(),
+  linkParcelamento: z.string().max(500).optional(),
+  valorMensal: z.string().max(200).optional(),
+  diaPagamento: z.string().max(50).optional(),
+  formaPagamento: z.string().max(100).optional(),
+  avisoPrevio: z.string().max(100).optional(),
+  multaRescisao: z.string().max(50).optional(),
+  cidadeForo: z.string().max(120).optional(),
   chavePix: z.string().max(200).optional(),
 });
 
@@ -56,12 +68,9 @@ export async function POST(
     .maybeSingle();
   if (clientErr || !client) return errorResponse("client-not-found", 404);
 
-  const { data: tplBlob, error: tplErr } = await service.storage
-    .from("contracts-templates")
-    .download("modelo.docx");
-  if (tplErr || !tplBlob) return errorResponse("template-not-uploaded", 412);
-
-  const tplBuffer = Buffer.from(await tplBlob.arrayBuffer());
+  const model = getContractModel(body.modelo);
+  const tplBuffer = await loadContractTemplateBuffer(model, service);
+  if (!tplBuffer) return errorResponse("template-not-uploaded", 412);
 
   // Substitui dados em branco por exemplos só pra preview.
   const clientVars = buildClientTemplateVars(client);
@@ -77,11 +86,12 @@ export async function POST(
     endereco_cliente:
       clientVars.endereco_cliente ||
       "Rua de Exemplo, 123, Cidade/UF, CEP 00000-000 (exemplo)",
-    pacote_nome: body.pacoteNome,
-    valor_parcelamento: body.valorParcelamento,
-    prazo_execucao: body.prazoExecucao,
-    escopo_projeto: body.escopoProjeto,
-    link_parcelamento: body.linkParcelamento,
+    pacote_nome: body.pacoteNome ?? "",
+    valor_parcelamento: body.valorParcelamento ?? "",
+    prazo_execucao: body.prazoExecucao ?? "",
+    escopo_projeto: body.escopoProjeto ?? "",
+    link_parcelamento: body.linkParcelamento ?? "",
+    ...(model.id === "trafego" ? trafegoVars(body) : {}),
     chave_pix: body.chavePix ?? "",
     chave_pix_tipo: body.chavePix
       ? body.chavePix.includes("@")

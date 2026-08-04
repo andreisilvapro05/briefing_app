@@ -8,6 +8,11 @@ import {
   buildClientTemplateVars,
   fillDocxTemplate,
 } from "@/lib/contract-template";
+import {
+  getContractModel,
+  loadContractTemplateBuffer,
+  trafegoVars,
+} from "@/lib/contract-models";
 import { createDocument } from "@/lib/autentique";
 
 /**
@@ -22,11 +27,21 @@ import { createDocument } from "@/lib/autentique";
  */
 
 const Body = z.object({
-  pacoteNome: z.string().min(1).max(200),
-  valorParcelamento: z.string().min(1).max(500),
-  prazoExecucao: z.string().min(1).max(200),
-  escopoProjeto: z.string().min(1).max(5000),
-  linkParcelamento: z.string().min(1).max(500),
+  // Qual modelo de contrato usar. Default = "padrao" (modelo do storage).
+  modelo: z.enum(["padrao", "trafego"]).optional().default("padrao"),
+  // Campos do modelo padrão (landing/site). Opcionais no schema; a UI exige.
+  pacoteNome: z.string().max(200).optional(),
+  valorParcelamento: z.string().max(500).optional(),
+  prazoExecucao: z.string().max(200).optional(),
+  escopoProjeto: z.string().max(5000).optional(),
+  linkParcelamento: z.string().max(500).optional(),
+  // Campos do modelo de Tráfego Pago (todos com default no servidor).
+  valorMensal: z.string().max(200).optional(),
+  diaPagamento: z.string().max(50).optional(),
+  formaPagamento: z.string().max(100).optional(),
+  avisoPrevio: z.string().max(100).optional(),
+  multaRescisao: z.string().max(50).optional(),
+  cidadeForo: z.string().max(120).optional(),
   // Chave Pix escolhida no form (CNPJ/e-mail/outra) — entra no contrato.
   chavePix: z.string().max(200).optional(),
   // Email do signatário. Se omitido, usa client.email do banco. Útil pro admin
@@ -86,14 +101,12 @@ export async function POST(
     return errorResponse("signer-name-missing", 400);
   }
 
-  // Template
-  const { data: tplBlob, error: tplErr } = await service.storage
-    .from("contracts-templates")
-    .download("modelo.docx");
-  if (tplErr || !tplBlob) {
+  // Template do modelo escolhido (storage p/ padrão, embutido p/ tráfego).
+  const model = getContractModel(body.modelo);
+  const tplBuffer = await loadContractTemplateBuffer(model, service);
+  if (!tplBuffer) {
     return errorResponse("template-not-uploaded", 412);
   }
-  const tplBuffer = Buffer.from(await tplBlob.arrayBuffer());
 
   // É empresa? (tem CNPJ) → CONTRATANTE = razão social/empresa, e a pessoa
   // que o admin digitou (signerName) é o representante que assina.
@@ -109,11 +122,14 @@ export async function POST(
     // Empresa (PJ): mantém a razão social vinda de buildClientTemplateVars.
     ...(isPJ ? {} : { nome_cliente: effectiveNome }),
     email_cliente: signerEmail,
-    pacote_nome: body.pacoteNome,
-    valor_parcelamento: body.valorParcelamento,
-    prazo_execucao: body.prazoExecucao,
-    escopo_projeto: body.escopoProjeto,
-    link_parcelamento: body.linkParcelamento,
+    // Campos do modelo padrão.
+    pacote_nome: body.pacoteNome ?? "",
+    valor_parcelamento: body.valorParcelamento ?? "",
+    prazo_execucao: body.prazoExecucao ?? "",
+    escopo_projeto: body.escopoProjeto ?? "",
+    link_parcelamento: body.linkParcelamento ?? "",
+    // Campos do modelo de tráfego (com defaults).
+    ...(model.id === "trafego" ? trafegoVars(body) : {}),
     chave_pix: body.chavePix ?? "",
     chave_pix_tipo: body.chavePix
       ? body.chavePix.includes("@")
