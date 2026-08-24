@@ -33,8 +33,8 @@ const Body = z
     // Dados específicos do contrato:
     endereco: z.string().min(1),
     cep: z.string().min(1),
-    // CPF opcional — cliente de outro país não tem CPF.
-    cpf: z.string().optional(),
+    // CPF obrigatório (necessário pro contrato/assinatura).
+    cpf: z.string().min(1),
     como_conheceu: z.string().min(1),
     rg: z.string().optional(),
     cnpj: z.string().optional(),
@@ -103,19 +103,41 @@ export async function POST(request: NextRequest) {
       clientId = found.id;
       existingEmail = found.email ?? null;
     } else {
-      const { data: created, error: insertErr } = await service
-        .from("clients")
-        .insert({
-          nome,
-          whatsapp,
-          email: parsed.email,
-          empresa: parsed.empresa,
-          status: "em-andamento",
-          project_type: parsed.project_type ?? null,
-          magic_slug: generateMagicSlug({ nome, empresa: parsed.empresa }),
-        })
-        .select("id")
-        .single();
+      const baseInsert = {
+        nome,
+        whatsapp,
+        email: parsed.email,
+        empresa: parsed.empresa,
+        status: "em-andamento",
+        magic_slug: generateMagicSlug({ nome, empresa: parsed.empresa }),
+      };
+      let created: { id: string } | null = null;
+      let insertErr: unknown = null;
+      {
+        const r = await service
+          .from("clients")
+          .insert({ ...baseInsert, project_type: parsed.project_type ?? null })
+          .select("id")
+          .single();
+        created = r.data;
+        insertErr = r.error;
+        // Se o CHECK do banco ainda não aceita esse project_type (ex: 'outro',
+        // 'seo'), salva SEM o tipo pra não travar o cliente. A correção real é
+        // rodar a migration 20260729120000_fix_project_type_status_checks.sql.
+        if (r.error && isCheckViolation(r.error)) {
+          console.warn(
+            "[contrato] project_type rejeitado pelo CHECK do banco — salvando sem tipo. Rode a migration de checks.",
+            parsed.project_type
+          );
+          const r2 = await service
+            .from("clients")
+            .insert(baseInsert)
+            .select("id")
+            .single();
+          created = r2.data;
+          insertErr = r2.error;
+        }
+      }
       if (insertErr || !created) {
         logServerError("cliente.contrato.create", insertErr);
         return errorResponse("create-failed", 500, insertErr);
@@ -168,10 +190,25 @@ export async function POST(request: NextRequest) {
     updatePayload.project_type = parsed.project_type;
   }
 
-  const { error } = await service
+  let { error } = await service
     .from("clients")
     .update(updatePayload)
     .eq("id", clientId);
+
+  // Mesmo fallback do insert: se o project_type bater no CHECK antigo, salva
+  // o resto sem o tipo em vez de perder tudo que o cliente preencheu.
+  if (error && isCheckViolation(error) && "project_type" in updatePayload) {
+    console.warn(
+      "[contrato] project_type rejeitado no update — salvando sem tipo. Rode a migration de checks.",
+      updatePayload.project_type
+    );
+    const retryPayload = { ...updatePayload };
+    delete retryPayload.project_type;
+    ({ error } = await service
+      .from("clients")
+      .update(retryPayload)
+      .eq("id", clientId));
+  }
 
   if (error) {
     logServerError("cliente.contrato", error);
@@ -266,4 +303,13 @@ export async function POST(request: NextRequest) {
         }
       : null,
   });
+}
+
+/** Erro de violação de CHECK do Postgres (código 23514). */
+function isCheckViolation(err: unknown): boolean {
+  return (
+    !!err &&
+    typeof err === "object" &&
+    (err as { code?: string }).code === "23514"
+  );
 }

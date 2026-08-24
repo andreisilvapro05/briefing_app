@@ -115,6 +115,7 @@ function dadosComplete(d: DraftState): boolean {
     !!d.empresa.trim() &&
     !!d.endereco.trim() &&
     !!d.cep.trim() &&
+    !!d.cpf.trim() &&
     !!d.como_conheceu
   );
 }
@@ -170,6 +171,7 @@ export function ContratarWizard() {
     if (!draft.whatsapp.trim()) return setError("Informe seu WhatsApp.");
     if (!EMAIL_REGEX.test(draft.email)) return setError("E-mail inválido.");
     if (!draft.empresa.trim()) return setError("Informe a empresa ou projeto.");
+    if (!draft.cpf.trim()) return setError("Informe o CPF.");
     if (
       !draft.endereco.trim() ||
       !draft.cep.trim() ||
@@ -529,9 +531,9 @@ function PanelDados({
       <Section titulo="Documentos">
         <div className="grid sm:grid-cols-2 gap-4">
           <Input
-            label="CPF"
-            optional
-            hint="Deixe em branco se o cliente for de outro país."
+            label="CPF*"
+            required
+            hint="Necessário pro contrato."
             value={draft.cpf}
             onChange={(e) => onChange("cpf", e.target.value)}
             placeholder="000.000.000-00"
