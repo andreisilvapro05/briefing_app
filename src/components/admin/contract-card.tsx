@@ -113,6 +113,10 @@ export function ContractCard(props: ContractCardProps) {
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  // Assinatura dos dados usados na última prévia gerada. Se os campos mudarem
+  // (ex: trocar a chave Pix), a prévia fica "stale" e o botão refaz a busca
+  // em vez de só reabrir o cache antigo.
+  const [previewSig, setPreviewSig] = useState<string | null>(null);
   // Bloco "dados de pagamento" (copiável). Mensagem editável, montada a partir
   // do valor + link de parcelamento + chave Pix (CNPJ da Fysi).
   const [pixKey, setPixKey] = useState(DEFAULT_PIX_KEY);
@@ -356,6 +360,26 @@ export function ContractCard(props: ContractCardProps) {
     }
   }
 
+  // Assinatura dos dados que entram na prévia — muda quando o admin edita
+  // qualquer campo (inclusive a chave Pix e o modelo).
+  function buildPreviewSig() {
+    return JSON.stringify([
+      modelo,
+      pacote,
+      valor,
+      prazo,
+      escopo,
+      linkPagamento,
+      pixKey,
+      valorMensal,
+      diaPagamento,
+      formaPagamento,
+      avisoPrevio,
+      multaRescisao,
+      cidadeForo,
+    ]);
+  }
+
   // Pré-visualização inline (HTML): usa os mesmos dados da proposta (que já
   // vêm preenchidos do contrato quando ele existe) e renderiza dentro do card.
   async function previewInline(force = false) {
@@ -366,14 +390,17 @@ export function ContractCard(props: ContractCardProps) {
       setError("Faltam dados da proposta pra pré-visualizar.");
       return;
     }
+    const sig = buildPreviewSig();
+    const stale = sig !== previewSig;
     if (!force) {
-      // Toggle: se já está aberto, fecha.
       if (showPreview) {
-        setShowPreview(false);
-        return;
-      }
-      // Já carregado? Só reabre sem refazer o fetch.
-      if (previewHtml) {
+        // Aberta e nada mudou → fecha (toggle). Mudou → refaz a busca embaixo.
+        if (!stale) {
+          setShowPreview(false);
+          return;
+        }
+      } else if (previewHtml && !stale) {
+        // Fechada, mas o cache ainda vale → só reabre sem refazer o fetch.
         setShowPreview(true);
         return;
       }
@@ -409,6 +436,7 @@ export function ContractCard(props: ContractCardProps) {
         return;
       }
       setPreviewHtml(typeof data.html === "string" ? data.html : "");
+      setPreviewSig(sig);
       setShowPreview(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro inesperado");
@@ -736,7 +764,9 @@ export function ContractCard(props: ContractCardProps) {
               {previewLoading
                 ? "Gerando…"
                 : showPreview
-                  ? "Ocultar prévia"
+                  ? previewSig !== null && buildPreviewSig() !== previewSig
+                    ? "🔄 Atualizar prévia"
+                    : "Ocultar prévia"
                   : "👁 Pré-visualizar contrato"}
             </Button>
             {props.contratoStatus !== "assinado" ? (
