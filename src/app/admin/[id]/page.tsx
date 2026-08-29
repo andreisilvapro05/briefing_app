@@ -79,6 +79,7 @@ export default async function AdminClientPage({
     "geral",
     "ei",
     "briefing",
+    "tarefas",
     "contrato",
     "pagamentos",
     "entrega",
