@@ -221,3 +221,34 @@ Não há dependência bloqueante — o autofill degrada graciosamente (campos se
 6. **(Opcional / fast-follow)** — `createClickUpPhaseTasks` atrás de flag; auto-avanço de `current_stage_index` ao completar fase; enriquecer card do Quadro com % de tarefas.
 
 Cada passo é mergeável sozinho: 1-2 não têm efeito visível; 3-4 entregam gestão de tarefas; 5 entrega a consolidação automática do EI; 6 é gordura opcional.
+
+## 9. Addendum (2026-08-29) — templates confirmados, escopo desta rodada
+
+Resolve a openQuestion #1 do §7 parcialmente, com exemplos reais mostrados pelo usuário
+(prints de um quadro estilo ClickUp já em uso pela equipe):
+
+- **`landing-com-copy`**: Copy LP → Informações Iniciais → Design → Ajustes → Implementação
+  → DEP + Otimização (6 tarefas, confirmado via projeto "Katlyn Adv").
+- **`landing-sem-copy`**: Informações Iniciais → Design → Ajustes → Implementação →
+  DEP + Otimização (5 tarefas, sem Copy LP — confirmado via projeto "César", que não tem
+  Copy LP na lista de subtarefas).
+- **`site-completo`**, **`seo`**, **`outro`**: ainda **não confirmados** pelo usuário.
+  Extrapolação proposta pra implementação: `site-completo` reusa o template de
+  `landing-com-copy` trocando "Design" por "Design (múltiplas páginas)"; `seo` e `outro`
+  reusam os títulos de etapa já existentes em `buildTimeline` (`project-types.ts`) como
+  tarefas de uma fase única cada (sem quebrar em `info-inicial/design/ajustes/...` — o
+  `phase_key` desses dois tipos não precisa reusar as chaves de landing/site). Ajustável
+  depois sem migration — é código.
+
+**Escopo confirmado desta rodada de implementação:** só o núcleo — passos 1–4 da ordem de
+implementação acima (template em código, migration `project_tasks`, server actions,
+aba "Tarefas" + `TasksBoard`). **Passo 5 (autofill do EI) e passo 6 (espelho ClickUp)
+ficam de fora** — não entram nesta implementação.
+
+**Status das tarefas (confirmado 2026-08-29):** o `status text check(...)` do §4 original (`'todo'/'doing'/'done'`) foi substituído por uma taxonomia de 13 valores igual à usada no ClickUp da equipe hoje (confirmado via prints), divididos em 2 grupos — **ativo** (parado, nem-comecou-nada, a-iniciar, onboarding, redacao-copy, design-pagina, validacao-design-copy, ajustes-design-copy, implementacao, validacao-implementacao, ajuste-implementacao, otimizacao-entrega) e **fechado** (completo-entregue). O grupo (não o valor específico) determina: (a) `concluida_em` é preenchido quando o status entra no grupo fechado; (b) a data de vencimento para de ser destacada como atrasada; (c) a tarefa fica recolhida por padrão atrás de um toggle "Mostrar N fechados" na UI. Fechar não é arquivar — arquivamento não existe nesta rodada. Ver plano de implementação para os valores exatos e o mapeamento de grupo: `docs/superpowers/plans/2026-08-29-tarefas-por-projeto.md`.
+
+**"Responsável" desta rodada:** conforme já decidido no §3.3/§4 original, fica como campo
+de texto simples (não FK pra tabela nova) — a Caixa 0 (login individual, `team_members`
+com auth) foi explicitamente **adiada** pelo usuário em 2026-08-29. A lista de nomes pra
+popular o seletor (não é tabela — é uma constante em código, ex. `src/lib/team.ts`) é:
+Tainá, Valéria, Karine, Andrei.
