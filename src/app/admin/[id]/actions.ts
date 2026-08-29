@@ -16,6 +16,15 @@ import { createClientFolders } from "@/lib/google-drive";
 import type { EIData } from "@/lib/ei-template";
 import type { EntregaDocumento } from "@/lib/entrega";
 import type { Moodboard } from "@/lib/moodboard";
+import {
+  DEFAULT_PROJECT_TASKS,
+  TASK_STATUS_OPTIONS,
+  TASK_STATUS_GROUP,
+  TASK_PRIORITY_OPTIONS,
+  TEAM_MEMBERS,
+  type TaskStatus,
+} from "@/lib/project-tasks";
+import type { ProjectType } from "@/lib/types";
 
 /**
  * Reenviar magic link para o cliente (acionado pelo admin).
@@ -890,6 +899,169 @@ export async function deleteCustomQuestionAction(formData: FormData) {
     .from("client_custom_questions")
     .delete()
     .eq("id", questionId);
+
+  if (clientId) revalidatePath(`/admin/${clientId}`);
+}
+
+const TASK_STATUS_VALUES = TASK_STATUS_OPTIONS.map((o) => o.value);
+const TASK_PRIORITY_VALUES = TASK_PRIORITY_OPTIONS.map((o) => o.value).filter(
+  Boolean
+);
+const TEAM_MEMBER_VALUES = TEAM_MEMBERS.map((m) => m.value);
+
+/**
+ * Gera as tarefas do template a partir do project_type do cliente.
+ * Idempotente: não faz nada se já houver alguma tarefa (evita duplicar
+ * se o admin clicar duas vezes ou o tipo mudar depois).
+ */
+export async function seedProjectTasksAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const service = createSupabaseServiceRoleClient();
+
+  const { data: client } = await service
+    .from("clients")
+    .select("project_type")
+    .eq("id", clientId)
+    .maybeSingle();
+  const projectType = (
+    client as { project_type: ProjectType | null } | null
+  )?.project_type;
+  if (!projectType) return;
+
+  const { count } = await service
+    .from("project_tasks")
+    .select("id", { count: "exact", head: true })
+    .eq("client_id", clientId);
+  if ((count ?? 0) > 0) return;
+
+  const titulos = DEFAULT_PROJECT_TASKS[projectType] ?? [];
+  if (titulos.length === 0) return;
+
+  await service.from("project_tasks").insert(
+    titulos.map((titulo, i) => ({
+      client_id: clientId,
+      titulo,
+      ordem: i,
+      origem: "template" as const,
+    }))
+  );
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Adiciona uma tarefa ad-hoc (fora do template) ao final da lista do cliente.
+ */
+export async function addProjectTaskAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  const titulo = String(formData.get("titulo") ?? "").trim();
+  if (!clientId || !titulo) return;
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: maxRow } = await service
+    .from("project_tasks")
+    .select("ordem")
+    .eq("client_id", clientId)
+    .order("ordem", { ascending: false })
+    .limit(1);
+  const nextOrdem =
+    (Array.isArray(maxRow) && maxRow.length
+      ? Number((maxRow[0] as { ordem: number }).ordem ?? -1)
+      : -1) + 1;
+
+  await service.from("project_tasks").insert({
+    client_id: clientId,
+    titulo,
+    ordem: nextOrdem,
+    origem: "manual",
+  });
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Remove uma tarefa.
+ */
+export async function removeProjectTaskAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const taskId = String(formData.get("taskId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!taskId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service.from("project_tasks").delete().eq("id", taskId);
+
+  if (clientId) revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Atualização parcial de uma tarefa — só grava os campos presentes no
+ * FormData (mesmo padrão de setClientContractDataAction). Usado pra editar
+ * status/prioridade/responsável/datas inline, um de cada vez.
+ */
+export async function updateProjectTaskAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const taskId = String(formData.get("taskId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!taskId) return;
+
+  const update: Record<string, unknown> = {};
+
+  if (formData.has("status")) {
+    const status = String(formData.get("status") ?? "");
+    if (!TASK_STATUS_VALUES.includes(status as TaskStatus)) return;
+    update.status = status;
+    // Grupo "fechado" (hoje só "completo-entregue") marca concluida_em e é
+    // o que faz a data de vencimento parar de ser destacada como atrasada
+    // na UI (ver TaskRow no Task 5). Fechar != arquivar — não existe
+    // arquivamento nesta rodada.
+    update.concluida_em =
+      TASK_STATUS_GROUP[status as TaskStatus] === "fechado"
+        ? new Date().toISOString()
+        : null;
+  }
+
+  if (formData.has("prioridade")) {
+    const prioridade = String(formData.get("prioridade") ?? "");
+    if (prioridade && !TASK_PRIORITY_VALUES.includes(prioridade)) return;
+    update.prioridade = prioridade || null;
+  }
+
+  if (formData.has("responsavel")) {
+    const responsavel = String(formData.get("responsavel") ?? "");
+    if (responsavel && !TEAM_MEMBER_VALUES.includes(responsavel)) return;
+    update.responsavel = responsavel || null;
+  }
+
+  if (formData.has("dataInicial")) {
+    update.data_inicial = String(formData.get("dataInicial") ?? "").trim() || null;
+  }
+
+  if (formData.has("dataVencimento")) {
+    update.data_vencimento =
+      String(formData.get("dataVencimento") ?? "").trim() || null;
+  }
+
+  if (Object.keys(update).length === 0) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service.from("project_tasks").update(update).eq("id", taskId);
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
 }
