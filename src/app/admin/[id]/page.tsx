@@ -47,6 +47,9 @@ import {
 } from "./actions";
 import { generateMagicSlug } from "@/lib/slug";
 import { ProjectStageControls } from "@/components/admin/project-stage-controls";
+import { TasksBoard } from "@/components/admin/tasks-board";
+import { listProjectTasks } from "@/lib/project-tasks-server";
+import { TASK_STATUS_GROUP } from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -99,11 +102,12 @@ export default async function AdminClientPage({
 
   const service = createSupabaseServiceRoleClient();
 
-  const [{ data: client }, { data: responses }, { data: files }] =
+  const [{ data: client }, { data: responses }, { data: files }, tasks] =
     await Promise.all([
       service.from("clients").select("*").eq("id", id).maybeSingle(),
       service.from("briefing_responses").select("*").eq("client_id", id),
       service.from("briefing_files").select("*").eq("client_id", id),
+      listProjectTasks(id),
     ]);
 
   if (!client) {
@@ -244,6 +248,15 @@ export default async function AdminClientPage({
       if (m.status === "enviado") return { tone: "yellow" as const, label: "enviado" };
       if (m.items?.length > 0) return { tone: "muted" as const, label: `${m.items.length} cards` };
       return undefined;
+    })(),
+    tarefas: (() => {
+      if (tasks.length === 0) return undefined;
+      const fechadas = tasks.filter(
+        (t) => TASK_STATUS_GROUP[t.status] === "fechado"
+      ).length;
+      return fechadas === tasks.length
+        ? { tone: "mint" as const, label: "✓ completo" }
+        : { tone: "yellow" as const, label: `${fechadas}/${tasks.length}` };
     })(),
   };
 
@@ -1138,6 +1151,15 @@ Qualquer dúvida, é só responder por aqui.`}
           </div>
         )}
         </>
+        ) : null}
+
+        {tab === "tarefas" ? (
+          <TasksBoard
+            clientId={client.id}
+            urlKey={urlKey ?? undefined}
+            projectType={(client.project_type as ProjectType | null) ?? null}
+            tasks={tasks}
+          />
         ) : null}
           </div>
         </div>
