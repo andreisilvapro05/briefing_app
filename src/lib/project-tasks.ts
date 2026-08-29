@@ -27,6 +27,7 @@ export type TaskStatus =
   | "validacao-implementacao"
   | "ajuste-implementacao"
   | "otimizacao-entrega"
+  | "concluido"
   | "completo-entregue";
 
 export type TaskStatusGroup = "ativo" | "fechado";
@@ -44,6 +45,7 @@ export const TASK_STATUS_GROUP: Record<TaskStatus, TaskStatusGroup> = {
   "validacao-implementacao": "ativo",
   "ajuste-implementacao": "ativo",
   "otimizacao-entrega": "ativo",
+  concluido: "fechado",
   "completo-entregue": "fechado",
 };
 
@@ -60,13 +62,14 @@ export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: "validacao-implementacao", label: "Validação Implementação" },
   { value: "ajuste-implementacao", label: "Ajuste Implementação" },
   { value: "otimizacao-entrega", label: "Otimização+Entrega" },
+  { value: "concluido", label: "Concluído" },
   { value: "completo-entregue", label: "Completo | Entregue" },
 ];
 
 export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
   parado: "bg-red-50 text-red-700 border-red-200",
   "nem-comecou-nada": "bg-fysi-cream text-fysi-muted border-fysi-line",
-  "a-iniciar": "bg-fysi-cream text-fysi-muted border-fysi-line",
+  "a-iniciar": "bg-white text-fysi-deep border-fysi-line",
   onboarding: "bg-indigo-50 text-indigo-700 border-indigo-200",
   "redacao-copy": "bg-pink-50 text-pink-700 border-pink-200",
   "design-pagina": "bg-violet-50 text-violet-700 border-violet-200",
@@ -76,6 +79,7 @@ export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
   "validacao-implementacao": "bg-red-50 text-red-700 border-red-200",
   "ajuste-implementacao": "bg-amber-50 text-amber-700 border-amber-200",
   "otimizacao-entrega": "bg-orange-50 text-orange-700 border-orange-200",
+  concluido: "bg-emerald-50 text-emerald-700 border-emerald-200",
   "completo-entregue": "bg-fysi-mint/40 text-fysi-deep border-fysi-mint/60",
 };
 
