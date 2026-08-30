@@ -36,3 +36,32 @@ export async function listProjectTasks(
     .order("created_at", { ascending: true });
   return ((data as Record<string, unknown>[]) ?? []).map(normalizeTask);
 }
+
+export interface ProjectTaskClient {
+  id: string;
+  nome: string | null;
+  empresa: string | null;
+}
+
+/**
+ * Todas as tarefas de todos os clientes, com o cliente dono junto — usada
+ * pela visão central /admin/tarefas (ver [[feedback_nao_enterrar_por_cliente]]).
+ * Sem filtro de client_id — é intencionalmente um full scan de project_tasks,
+ * aceitável no volume atual (~35 clientes, algumas dezenas de tarefas cada).
+ */
+export async function listAllProjectTasks(): Promise<
+  (ProjectTask & { client: ProjectTaskClient })[]
+> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("project_tasks")
+    .select("*, clients(id, nome, empresa)")
+    .order("data_vencimento", { ascending: true, nullsFirst: false });
+
+  return ((data as Record<string, unknown>[]) ?? [])
+    .filter((row) => row.clients)
+    .map((row) => ({
+      ...normalizeTask(row),
+      client: row.clients as ProjectTaskClient,
+    }));
+}

@@ -15,6 +15,7 @@ export type AdminSection =
   | "lista"
   | "briefings"
   | "quadro"
+  | "tarefas"
   | "estruturas-iniciais"
   | "conteudo"
   | "contratos"
@@ -78,6 +79,14 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <path d="M9 3v18M15 3v18" />
     </I>
   ),
+  tarefas: (
+    <I>
+      <rect x="3" y="5" width="4" height="4" rx="1" />
+      <path d="M9 7h12" />
+      <rect x="3" y="15" width="4" height="4" rx="1" />
+      <path d="M9 17h12" />
+    </I>
+  ),
   "estruturas-iniciais": (
     <I>
       <path d="M12 2 2 7l10 5 10-5-10-5Z" />
@@ -133,6 +142,7 @@ const AREAS: NavArea[] = [
       item("lista", "Lista por status", "/admin/lista"),
       item("briefings", "Briefings", "/admin/briefings"),
       item("quadro", "Quadro", "/admin/quadro"),
+      item("tarefas", "Tarefas", "/admin/tarefas"),
       item("estruturas-iniciais", "Estruturas Iniciais", "/admin/estruturas-iniciais"),
     ],
   },

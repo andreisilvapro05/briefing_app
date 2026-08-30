@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,14 +28,17 @@ function isOverdue(dataVencimento: string, status: TaskStatus): boolean {
   return dataVencimento < hoje;
 }
 
-function TaskRow({
+export function TaskRow({
   task,
   clientId,
   urlKey,
+  clienteCell,
 }: {
   task: ProjectTask;
   clientId: string;
   urlKey?: string;
+  /** Célula extra no início da linha (link pro cliente) — só a visão consolidada de /admin/tarefas usa. */
+  clienteCell?: ReactNode;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -74,6 +77,9 @@ function TaskRow({
 
   return (
     <tr className="border-t border-fysi-line">
+      {clienteCell ? (
+        <td className="px-3 py-2.5 text-sm text-fysi-deep">{clienteCell}</td>
+      ) : null}
       <td className="px-3 py-2.5 text-sm text-fysi-deep">{task.titulo}</td>
       <td className="px-3 py-2.5">
         <select
