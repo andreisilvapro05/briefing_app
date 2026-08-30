@@ -13,7 +13,8 @@ import { getServerEnv } from "./env";
  * basta limpar o cookie.
  */
 
-const COOKIE_NAME = "fysi-admin";
+export const ADMIN_SESSION_COOKIE_NAME = "fysi-admin";
+const COOKIE_NAME = ADMIN_SESSION_COOKIE_NAME;
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 dias
 
 function sessionToken(): string {
@@ -26,18 +27,28 @@ function sessionToken(): string {
     .digest("hex");
 }
 
-export async function setAdminSessionCookie() {
-  const token = sessionToken();
-  const cookieStore = await cookies();
-  cookieStore.set({
+/**
+ * Opções do cookie de sessão (nome, token HMAC, flags) — exportado pra
+ * `src/proxy.ts` também poder setar esse MESMO cookie via a API de
+ * `NextResponse.cookies` (diferente da `cookies()` de next/headers usada
+ * aqui), sem duplicar a lógica do token nem arriscar os dois lugares
+ * divergirem se a config mudar.
+ */
+export function adminSessionCookieOptions() {
+  return {
     name: COOKIE_NAME,
-    value: token,
+    value: sessionToken(),
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "lax" as const,
     path: "/",
     maxAge: COOKIE_MAX_AGE,
-  });
+  };
+}
+
+export async function setAdminSessionCookie() {
+  const cookieStore = await cookies();
+  cookieStore.set(adminSessionCookieOptions());
 }
 
 export async function clearAdminSessionCookie() {
