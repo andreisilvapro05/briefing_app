@@ -56,6 +56,9 @@ next-env.d.ts
 # Serena CLI local project state
 .serena/
 
+# Superpowers subagent-driven-development scratch (ledgers, briefs, reports)
+.superpowers/
+
 # Supabase CLI runtime
 supabase/.branches
 supabase/.temp
