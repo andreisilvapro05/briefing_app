@@ -18,6 +18,9 @@ import {
 
 export const dynamic = "force-dynamic";
 
+/** ClientForLane + o campo que só esta página usa (não faz parte do contrato de lane). */
+type ClientWithOrigem = ClientForLane & { como_conheceu: string | null };
+
 export default async function AdminRelatoriosPage({
   searchParams,
 }: {
@@ -34,11 +37,11 @@ export default async function AdminRelatoriosPage({
   const { data } = await service
     .from("clients")
     .select(
-      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
+      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, como_conheceu"
     )
     .order("created_at", { ascending: false });
 
-  const clients = (data as ClientForLane[]) ?? [];
+  const clients = (data as ClientWithOrigem[]) ?? [];
   const stats = computeStats(clients);
 
   // Cobranças mensais — pra mostrar MRR + receita recorrente no relatório
@@ -61,6 +64,14 @@ export default async function AdminRelatoriosPage({
   const tipoEntries = Array.from(stats.porTipo.entries())
     .sort((a, b) => b[1] - a[1]);
   const maxTipo = Math.max(1, ...tipoEntries.map(([, n]) => n));
+
+  const porOrigem = new Map<string, number>();
+  clients.forEach((c) => {
+    const key = c.como_conheceu?.trim() || "Não informado";
+    porOrigem.set(key, (porOrigem.get(key) ?? 0) + 1);
+  });
+  const origemEntries = Array.from(porOrigem.entries()).sort((a, b) => b[1] - a[1]);
+  const maxOrigem = Math.max(1, ...origemEntries.map(([, n]) => n));
 
   return (
     <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={user.email}>
@@ -355,6 +366,47 @@ export default async function AdminRelatoriosPage({
                   <div key={tipo} className="flex items-center gap-3">
                     <div className="w-44 shrink-0 text-[0.7rem] text-fysi-deep font-medium truncate">
                       {label}
+                    </div>
+                    <div className="flex-1 h-5 bg-fysi-cream/50 rounded-md overflow-hidden">
+                      <div
+                        className="h-full bg-fysi-deep transition-[width]"
+                        style={{ width: `${Math.max(2, pct)}%` }}
+                      />
+                    </div>
+                    <div className="w-20 shrink-0 text-right text-xs text-fysi-deep tabular-nums">
+                      <span className="font-semibold">{count}</span>
+                      <span className="text-fysi-muted ml-1">
+                        ({totalPct.toFixed(0)}%)
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Como nos conheceu */}
+        <section className="bg-white rounded-[20px] border border-fysi-line p-5 mb-6">
+          <div className="flex items-baseline justify-between mb-4">
+            <Eyebrow>Como nos conheceu</Eyebrow>
+            <span className="text-[0.7rem] text-fysi-muted">
+              {origemEntries.length} origem(ns)
+            </span>
+          </div>
+          {origemEntries.length === 0 ? (
+            <p className="text-sm text-fysi-muted italic">
+              Sem clientes ainda.
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {origemEntries.map(([origem, count]) => {
+                const pct = (count / maxOrigem) * 100;
+                const totalPct = stats.total > 0 ? (count / stats.total) * 100 : 0;
+                return (
+                  <div key={origem} className="flex items-center gap-3">
+                    <div className="w-44 shrink-0 text-[0.7rem] text-fysi-deep font-medium truncate">
+                      {origem}
                     </div>
                     <div className="flex-1 h-5 bg-fysi-cream/50 rounded-md overflow-hidden">
                       <div
