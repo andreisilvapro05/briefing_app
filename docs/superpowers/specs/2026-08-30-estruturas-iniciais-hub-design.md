@@ -131,14 +131,15 @@ topbar):
   documentos de cliente em ordem alfabética por título. Cada item mostra
   o título e é um link (Next `<Link>`) pra
   `/admin/estruturas-iniciais/[docId]`.
-- **Painel do documento** (direita, ocupa o resto): o documento
-  selecionado, renderizado em formato de leitura contínua — não
-  fieldsets em caixa. Título grande (nome do cliente ou "Modelo"), linha
-  de metadados ("Atualizado em..."), e os blocos do EI em sequência:
-  Acesso e materiais, Referências, Copy do cliente, COPY (seções),
-  Rodapé — cada label de campo como uma tag colorida inline (reaproveita
-  os tons já usados no app: `fysi-mint`, `fysi-cream`, etc., sem cor
-  nova), texto do valor editável diretamente ali (ver §6.2).
+- **Painel do documento** (direita, ocupa o resto): reaproveita o par
+  `EIView`/`EIDocument` que já existe (`src/components/admin/ei-view.tsx`,
+  `ei-document.tsx`, commit `d7d3782` de julho) — toggle "Documento" /
+  "Editar" já pronto e já com a cara certa (título grande, metadados,
+  labels em caixa alta como tag, texto corrido, sem fieldsets em caixa).
+  Não precisa reconstruir esse visual do zero. O que muda: `EIView` passa
+  a receber os dados de um `ei_documents` (via `docId`), não mais de um
+  `client_id` direto; e o modo "Editar" (`EIEditor`) troca o botão
+  "Salvar EI" por autosave por campo (ver §6.2).
 
 Rotas:
 - `/admin/estruturas-iniciais` → redireciona pro Modelo (sempre existe,
@@ -153,12 +154,15 @@ texto) salva sozinho no `onBlur`. Indicador discreto no topo do painel
 textual que já existe no `EIEditor` atual (`Salvo em {hora}`), só que
 disparado automaticamname em vez de por clique.
 
-Implementação: mantém o mesmo formato de payload do `setEIAction` atual
-(manda o objeto `EIData` inteiro serializado) — só troca o gatilho (blur
-em vez de clique em "Salvar"). Evita ter que construir merge parcial de
-JSON no servidor; o componente já mantém o `EIData` completo em estado
-local, então cada blur reenvia o objeto todo, que é barato (é um único
-UPDATE por client_id/doc id).
+Implementação: `EIEditor` já mantém o `EIData` completo em estado local
+e já serializa o objeto inteiro pra salvar (hoje via `setEIAction`,
+disparado pelo botão "Salvar EI"). A mudança é: (1) trocar `setEIAction`
+por `updateEIDocumentAction` (grava em `ei_documents` por `docId`, não
+mais em `clients` por `clientId`); (2) adicionar `onBlur={save}` em cada
+campo (`Input`/`Textarea`, inclusive os de cada seção dinâmica) e remover
+o botão "Salvar EI"; o indicador "Salvo em {hora}" que já existe continua
+igual, só passa a atualizar sozinho a cada blur em vez de a cada clique.
+Cada blur reenvia o objeto `EIData` inteiro — barato, um único UPDATE.
 
 ### 6.3 Criar um documento novo
 
@@ -197,15 +201,17 @@ separada.
   de criar.
 
 **Modificados:**
-- `src/components/admin/ei-editor.tsx` — reescrito como o painel de
-  leitura/edição em formato documento (ainda consome `EIData`/
-  `ei-template.ts`, mas troca o visual de formulário por texto contínuo
-  com autosave). Passa a ser usado pelo hub, não mais embutido direto na
-  ficha do cliente.
+- `src/components/admin/ei-editor.tsx` — troca `clientId`+`setEIAction`
+  por `docId`+`updateEIDocumentAction`; remove o botão "Salvar EI" e
+  adiciona `onBlur` de autosave em cada campo. Visual não muda (o
+  formulário em si continua o mesmo, só o gatilho de salvar).
+- `src/components/admin/ei-view.tsx` — troca as props ligadas a cliente
+  (`clientId`) pelas ligadas a documento (`docId`); `EIDocument` recebe
+  os mesmos dados de sempre (não muda).
 - `src/components/admin/admin-shell.tsx` — novo item de nav
   "Estruturas Iniciais" na área Projetos.
 - `src/app/admin/[id]/page.tsx` — aba "ei" vira card com link/criar em
-  vez do formulário embutido.
+  vez do `EIView` embutido.
 - `src/app/admin/[id]/actions.ts` — `setEIAction` fica sem uso (a
   gravação passa a ser via `updateEIDocumentAction`); remover depois de
   confirmar que nada mais chama.
