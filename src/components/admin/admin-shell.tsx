@@ -216,22 +216,17 @@ export function AdminShell({
                       <Link
                         href={it.href(keyParam)}
                         aria-current={isActive ? "page" : undefined}
-                        style={
-                          isActive
-                            ? { boxShadow: "inset 3px 0 0 var(--fysi-mint-vivid)" }
-                            : undefined
-                        }
                         className={cn(
                           "flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[0.86rem] font-medium border transition",
                           isActive
-                            ? "bg-fysi-mint border-fysi-mint-vivid text-fysi-deep font-semibold"
+                            ? "bg-fysi-deep border-fysi-deep text-fysi-cream font-semibold"
                             : "border-transparent text-fysi-deep hover:bg-fysi-cream"
                         )}
                       >
                         <span
                           className={cn(
                             "shrink-0",
-                            isActive ? "text-fysi-deep" : "text-fysi-muted"
+                            isActive ? "text-fysi-cream" : "text-fysi-muted"
                           )}
                         >
                           {it.icon}
@@ -289,7 +284,7 @@ export function AdminShell({
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition",
                       isActive
-                        ? "bg-fysi-mint border-fysi-mint-vivid text-fysi-deep"
+                        ? "bg-fysi-deep border-fysi-deep text-fysi-cream"
                         : "border-fysi-line text-fysi-muted"
                     )}
                   >
