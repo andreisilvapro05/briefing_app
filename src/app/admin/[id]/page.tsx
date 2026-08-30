@@ -23,8 +23,8 @@ import type { ProjectType } from "@/lib/types";
 import { ContractCard } from "@/components/admin/contract-card";
 import { MateriaisPainel } from "@/components/admin/materiais-painel";
 import { ClientTabs, type ClientTab } from "@/components/admin/client-tabs";
-import { EIView } from "@/components/admin/ei-view";
-import type { EIData } from "@/lib/ei-template";
+import { createEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
+import { getClientEIDocumentId } from "@/lib/ei-documents-server";
 import { EntregaEditor } from "@/components/admin/entrega-editor";
 import { MoodboardEditor } from "@/components/admin/moodboard-editor";
 import { ProblemasEditor } from "@/components/admin/problemas-editor";
@@ -102,12 +102,13 @@ export default async function AdminClientPage({
 
   const service = createSupabaseServiceRoleClient();
 
-  const [{ data: client }, { data: responses }, { data: files }, tasks] =
+  const [{ data: client }, { data: responses }, { data: files }, tasks, eiDocId] =
     await Promise.all([
       service.from("clients").select("*").eq("id", id).maybeSingle(),
       service.from("briefing_responses").select("*").eq("client_id", id),
       service.from("briefing_files").select("*").eq("client_id", id),
       listProjectTasks(id),
+      getClientEIDocumentId(id),
     ]);
 
   if (!client) {
@@ -657,20 +658,41 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
 
         {tab === "ei" ? (
-        <EIView
-          clientId={client.id}
-          clientName={client.nome ?? null}
-          empresa={client.empresa ?? null}
-          urlKey={urlKey ?? null}
-          initial={(client.ei_data as EIData | null) ?? null}
-          atualizadoAt={client.ei_atualizado_at ?? null}
-          fallbackDrive={
-            (client as { fysi_drive_link?: string | null }).fysi_drive_link ??
-            (client as { cliente_drive_link?: string | null })
-              .cliente_drive_link ??
-            null
-          }
-        />
+          <section className="bg-white border border-fysi-line rounded-[20px] p-8 text-center">
+            {eiDocId ? (
+              <>
+                <p className="text-fysi-deep font-medium">
+                  Estrutura Inicial deste cliente
+                </p>
+                <a
+                  href={`/admin/estruturas-iniciais/${eiDocId}${
+                    urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""
+                  }`}
+                  className="inline-flex items-center gap-2 mt-4 rounded-full bg-fysi-mint border border-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2"
+                >
+                  Abrir Estrutura Inicial ↗
+                </a>
+              </>
+            ) : (
+              <>
+                <p className="text-fysi-deep font-medium">
+                  Nenhuma Estrutura Inicial ainda.
+                </p>
+                <form action={createEIDocumentAction}>
+                  <input type="hidden" name="clientId" value={client.id} />
+                  {urlKey ? (
+                    <input type="hidden" name="key" value={urlKey} />
+                  ) : null}
+                  <button
+                    type="submit"
+                    className="inline-flex items-center gap-2 mt-4 rounded-full bg-fysi-mint border border-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2"
+                  >
+                    Criar a partir do Modelo
+                  </button>
+                </form>
+              </>
+            )}
+          </section>
         ) : null}
 
         {tab === "briefing" ? (
