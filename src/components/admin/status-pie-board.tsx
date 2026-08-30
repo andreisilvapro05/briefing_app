@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
+import { TASK_STATUS_OPTIONS, TASK_STATUS_TONE, type TaskStatus } from "@/lib/project-tasks";
 
 /**
  * Pizza (donut) interativa de projetos por status + lista embaixo.
@@ -18,6 +19,8 @@ export interface LaneClient {
   status: string;
   pagamento: string;
   created_at: string;
+  /** Status real da tarefa "atual" (produção) — null se ainda pré-produção ou sem tarefas geradas. */
+  taskStatus: TaskStatus | null;
 }
 
 export interface LaneGroup {
@@ -304,11 +307,20 @@ export function StatusPieBoard({
                 </span>
                 <span className="text-fysi-muted truncate">{c.tipo}</span>
                 <span className="truncate">
-                  <StatusChanger
-                    clientId={c.id}
-                    status={c.status || "nao-iniciado"}
-                    urlKey={urlKey}
-                  />
+                  {c.taskStatus ? (
+                    <span
+                      className={`inline-block rounded-full border text-xs font-medium px-2.5 py-1 ${TASK_STATUS_TONE[c.taskStatus]}`}
+                      title="Status real da tarefa atual — edite em Tarefas"
+                    >
+                      {TASK_STATUS_OPTIONS.find((o) => o.value === c.taskStatus)?.label ?? c.taskStatus}
+                    </span>
+                  ) : (
+                    <StatusChanger
+                      clientId={c.id}
+                      status={c.status || "nao-iniciado"}
+                      urlKey={urlKey}
+                    />
+                  )}
                 </span>
                 <span className="text-fysi-deep tabular-nums">
                   {c.pagamento}

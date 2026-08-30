@@ -1,5 +1,9 @@
 import { createSupabaseServiceRoleClient } from "./supabase/server";
-import type { ProjectTask, TaskStatus } from "./project-tasks";
+import {
+  currentProductionStatus,
+  type ProjectTask,
+  type TaskStatus,
+} from "./project-tasks";
 
 /**
  * Leitura server-only das tarefas de um cliente (usa service-role). Separado
@@ -64,4 +68,29 @@ export async function listAllProjectTasks(): Promise<
       ...normalizeTask(row),
       client: row.clients as ProjectTaskClient,
     }));
+}
+
+/**
+ * Status de produção "atual" de cada cliente que já tem tarefas geradas —
+ * usado por `laneForClient` (workflow-lanes.ts) pra categorizar a fase de
+ * produção pelos status reais das tarefas, não mais por um heurístico de
+ * current_stage_index. Clientes sem nenhuma tarefa não aparecem no Map.
+ */
+export async function getCurrentProductionStatuses(): Promise<
+  Map<string, TaskStatus>
+> {
+  const all = await listAllProjectTasks();
+  const byClient = new Map<string, ProjectTask[]>();
+  for (const t of all) {
+    const arr = byClient.get(t.client_id);
+    if (arr) arr.push(t);
+    else byClient.set(t.client_id, [t]);
+  }
+
+  const result = new Map<string, TaskStatus>();
+  for (const [clientId, tasks] of byClient) {
+    const status = currentProductionStatus(tasks);
+    if (status) result.set(clientId, status);
+  }
+  return result;
 }

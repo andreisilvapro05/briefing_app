@@ -165,3 +165,20 @@ export const DEFAULT_PROJECT_TASKS: Record<ProjectType, string[]> = {
   ],
   outro: ["Planejamento", "Execução", "Entrega"],
 };
+
+/**
+ * Status "atual" de um projeto em produção, derivado das tarefas reais dele
+ * — a primeira tarefa (por `ordem`) ainda no grupo "ativo"; se todas
+ * estiverem fechadas, a última (deveria ser "completo-entregue"). `null` se
+ * não há nenhuma tarefa ainda (projeto pronto pra produção, mas sem
+ * checklist gerado). Usado por `laneForClient` (workflow-lanes.ts) pra
+ * substituir a categorização antiga por etapa de `current_stage_index`.
+ */
+export function currentProductionStatus(
+  tasks: ProjectTask[]
+): TaskStatus | null {
+  if (tasks.length === 0) return null;
+  const sorted = [...tasks].sort((a, b) => a.ordem - b.ordem);
+  const ativa = sorted.find((t) => TASK_STATUS_GROUP[t.status] === "ativo");
+  return (ativa ?? sorted[sorted.length - 1]).status;
+}

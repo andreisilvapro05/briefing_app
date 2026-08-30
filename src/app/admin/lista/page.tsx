@@ -9,6 +9,7 @@ import {
   laneForClient,
   type ClientForLane,
 } from "@/lib/workflow-lanes";
+import { getCurrentProductionStatuses } from "@/lib/project-tasks-server";
 import {
   StatusPieBoard,
   type LaneGroup,
@@ -44,19 +45,24 @@ export default async function AdminListaPage({
   const novoHref = `/admin/novo${keyParam}`;
 
   const service = createSupabaseServiceRoleClient();
-  const { data } = await service
-    .from("clients")
-    .select(
-      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
-    )
-    .order("created_at", { ascending: false });
+  const [{ data }, productionStatuses] = await Promise.all([
+    service
+      .from("clients")
+      .select(
+        "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
+      )
+      .order("created_at", { ascending: false }),
+    getCurrentProductionStatuses(),
+  ]);
 
   const clients = (data as ClientForLane[]) ?? [];
 
   // Agrupa por lane e monta os grupos serializáveis pro componente client.
   const byLane = new Map<string, ClientForLane[]>();
   GENERAL_LANES.forEach((l) => byLane.set(l.id, []));
-  clients.forEach((c) => byLane.get(laneForClient(c))?.push(c));
+  clients.forEach((c) =>
+    byLane.get(laneForClient(c, productionStatuses.get(c.id)))?.push(c)
+  );
 
   const groups: LaneGroup[] = GENERAL_LANES.map((lane) => ({
     id: lane.id,
@@ -76,6 +82,7 @@ export default async function AdminListaPage({
         status: c.status || "nao-iniciado",
         pagamento: total > 0 ? `${Math.round((pago / total) * 100)}%` : "—",
         created_at: c.created_at,
+        taskStatus: productionStatuses.get(c.id) ?? null,
       };
     }),
   }));

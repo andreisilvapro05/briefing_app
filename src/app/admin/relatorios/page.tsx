@@ -15,6 +15,7 @@ import {
   computeStats,
   type ClientForLane,
 } from "@/lib/workflow-lanes";
+import { getCurrentProductionStatuses } from "@/lib/project-tasks-server";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,8 @@ export default async function AdminRelatoriosPage({
     .order("created_at", { ascending: false });
 
   const clients = (data as ClientWithOrigem[]) ?? [];
-  const stats = computeStats(clients);
+  const productionStatuses = await getCurrentProductionStatuses();
+  const stats = computeStats(clients, productionStatuses);
 
   // Cobranças mensais — pra mostrar MRR + receita recorrente no relatório
   const { data: cobrancasData } = await service

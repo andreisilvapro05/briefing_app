@@ -11,6 +11,7 @@ import {
   laneForClient,
   type ClientForLane,
 } from "@/lib/workflow-lanes";
+import { getCurrentProductionStatuses } from "@/lib/project-tasks-server";
 
 export const dynamic = "force-dynamic";
 
@@ -42,13 +43,18 @@ export default async function AdminQuadroPage({
 
   if (tipoFilter) query = query.eq("project_type", tipoFilter);
 
-  const { data } = await query;
+  const [{ data }, productionStatuses] = await Promise.all([
+    query,
+    getCurrentProductionStatuses(),
+  ]);
   const clients = (data as ClientForLane[]) ?? [];
 
   // Agrupa por lane
   const byLane = new Map<string, ClientForLane[]>();
   GENERAL_LANES.forEach((l) => byLane.set(l.id, []));
-  clients.forEach((c) => byLane.get(laneForClient(c))?.push(c));
+  clients.forEach((c) =>
+    byLane.get(laneForClient(c, productionStatuses.get(c.id)))?.push(c)
+  );
 
   return (
     <AdminShell active="quadro" keyParam={keyParamFirst} userEmail={user.email}>
