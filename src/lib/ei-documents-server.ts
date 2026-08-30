@@ -41,7 +41,10 @@ function normalize(row: RawRow): EIDocument {
     clientId: row.client_id,
     isTemplate: row.is_template,
     nome: row.nome,
-    eiData: row.ei_data ?? emptyEI(),
+    // Deep-default (não `??`): `{}`/objeto parcial no banco (ex.: seed antigo
+    // do Modelo) é truthy, então `??` não substitui — mas ainda falta os
+    // campos exigidos por EIData (secoes, etc), o que derruba todo consumidor.
+    eiData: { ...emptyEI(), ...(row.ei_data ?? {}) },
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     client: clientInfo(row),

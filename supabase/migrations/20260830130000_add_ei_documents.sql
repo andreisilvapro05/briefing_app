@@ -35,9 +35,34 @@ alter table public.ei_documents enable row level security;
 comment on table public.ei_documents is
   'Hub de Estruturas Iniciais (EI) — um documento por cliente + o Modelo (client_id null).';
 
--- Semeia o Modelo, se ainda não existir.
+-- Semeia o Modelo, se ainda não existir. O literal abaixo espelha o shape
+-- de emptyEI()/emptySecao() em src/lib/ei-template.ts — Postgres não pode
+-- chamar TS, então mantemos os dois em sincronia manualmente.
 insert into public.ei_documents (nome, is_template, ei_data)
-select 'Modelo', true, '{}'::jsonb
+select 'Modelo', true, '{
+  "dadosAcesso": "",
+  "briefingLink": "",
+  "driveLink": "",
+  "logo": "",
+  "imagens": "",
+  "fonteLetra": "",
+  "cores": "",
+  "paginasReferencia": "",
+  "referenciasGerais": "",
+  "copyExterno": "",
+  "menuTem": "",
+  "secoes": [
+    {
+      "nome": "SEÇÃO 01",
+      "obs": "",
+      "ref": "",
+      "titulo": "",
+      "texto": "",
+      "cta": ""
+    }
+  ],
+  "rodape": ""
+}'::jsonb
 where not exists (select 1 from public.ei_documents where is_template);
 
 -- Backfill idempotente: qualquer clients.ei_data já preenchido vira uma
