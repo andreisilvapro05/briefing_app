@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Eyebrow } from "@/components/ui/pill";
-import { setEIAction } from "@/app/admin/[id]/actions";
+import { updateEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
 import {
   emptyEI,
   emptySecao,
@@ -22,21 +22,17 @@ import {
  * briefing: dados de acesso, refs visuais, copy por seção. Espelha o
  * template do Notion/Word que a Sara usa hoje.
  *
- * UX: form com seções dinâmicas (adicionar/remover/reordenar). Auto-save
- * desativado de propósito — admin clica em "Salvar" pra commitar (evita
- * "tinta digital" indo pro server a cada keystroke).
+ * UX: form com seções dinâmicas (adicionar/remover/reordenar). Autosave
+ * por campo — cada `onBlur` dispara `save()`, não existe mais botão
+ * "Salvar" manual.
  */
 export function EIEditor({
-  clientId,
-  clientName,
-  empresa,
+  docId,
   urlKey,
   initial,
   atualizadoAt,
 }: {
-  clientId: string;
-  clientName: string | null;
-  empresa: string | null;
+  docId: string;
   urlKey: string | null;
   initial: EIData | null;
   atualizadoAt: string | null;
@@ -86,15 +82,16 @@ export function EIEditor({
 
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  /** Autosave — chamado no onBlur de cada campo (ver §6.2 do spec). */
   function save() {
     const formData = new FormData();
-    formData.append("clientId", clientId);
+    formData.append("docId", docId);
     if (urlKey) formData.append("key", urlKey);
     formData.append("eiJson", JSON.stringify(data));
     setSaveError(null);
     startTransition(async () => {
       try {
-        await setEIAction(formData);
+        await updateEIDocumentAction(formData);
         setSavedAt(new Date().toISOString());
       } catch (err) {
         setSaveError(
@@ -106,10 +103,7 @@ export function EIEditor({
     });
   }
 
-  const markdown = renderEIMarkdown(data, {
-    clientName: clientName ?? undefined,
-    empresa: empresa ?? undefined,
-  });
+  const markdown = renderEIMarkdown(data);
 
   function copyMarkdown() {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -122,10 +116,7 @@ export function EIEditor({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const slug = (empresa ?? clientName ?? "cliente")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .slice(0, 50);
+    const slug = docId.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
     a.download = `EI-${slug}.md`;
     document.body.appendChild(a);
     a.click();
@@ -179,9 +170,9 @@ export function EIEditor({
           >
             ⬇ .md
           </Button>
-          <Button type="button" size="sm" onClick={save} disabled={pending}>
-            {pending ? "Salvando…" : "Salvar EI"}
-          </Button>
+          {pending ? (
+            <span className="text-xs text-fysi-muted px-2">Salvando…</span>
+          ) : null}
         </div>
       </div>
 
@@ -197,6 +188,7 @@ export function EIEditor({
               label="Dados de acesso (domínio / hospedagem / WordPress)"
               value={data.dadosAcesso}
               onChange={(e) => update("dadosAcesso", e.target.value)}
+              onBlur={save}
               rows={3}
               placeholder="user/senha pro WordPress, painel de hospedagem, DNS..."
             />
@@ -205,12 +197,14 @@ export function EIEditor({
                 label="Link do briefing"
                 value={data.briefingLink}
                 onChange={(e) => update("briefingLink", e.target.value)}
+                onBlur={save}
                 placeholder="https://app.fysilabdigital.com.br/admin/..."
               />
               <Input
                 label="Link do Drive"
                 value={data.driveLink}
                 onChange={(e) => update("driveLink", e.target.value)}
+                onBlur={save}
                 placeholder="https://drive.google.com/..."
               />
             </div>
@@ -219,12 +213,14 @@ export function EIEditor({
                 label="Logo"
                 value={data.logo}
                 onChange={(e) => update("logo", e.target.value)}
+                onBlur={save}
                 placeholder="Link da pasta ou arquivo principal"
               />
               <Input
                 label="Imagens"
                 value={data.imagens}
                 onChange={(e) => update("imagens", e.target.value)}
+                onBlur={save}
                 placeholder="Link da pasta de imagens"
               />
             </div>
@@ -233,12 +229,14 @@ export function EIEditor({
                 label="Fonte de letra"
                 value={data.fonteLetra}
                 onChange={(e) => update("fonteLetra", e.target.value)}
+                onBlur={save}
                 placeholder="Ex: Inter, Fraunces, etc"
               />
               <Input
                 label="Cores"
                 value={data.cores}
                 onChange={(e) => update("cores", e.target.value)}
+                onBlur={save}
                 placeholder="#042B30, #C8E3DA..."
               />
             </div>
@@ -250,6 +248,7 @@ export function EIEditor({
               label="Páginas de referência e referências visuais"
               value={data.paginasReferencia}
               onChange={(e) => update("paginasReferencia", e.target.value)}
+              onBlur={save}
               rows={3}
               placeholder="Cole aqui as URLs ou descreva as refs..."
             />
@@ -257,6 +256,7 @@ export function EIEditor({
               label="Referências gerais"
               value={data.referenciasGerais}
               onChange={(e) => update("referenciasGerais", e.target.value)}
+              onBlur={save}
               rows={4}
               hint="Sara: deixe o link relacionado ao nicho do projeto"
               placeholder="• Cole referências aqui"
@@ -292,6 +292,7 @@ export function EIEditor({
               label="Informações adicionais ou copy que o cliente enviou"
               value={data.copyExterno}
               onChange={(e) => update("copyExterno", e.target.value)}
+              onBlur={save}
               rows={4}
               placeholder="Cole aqui o que o cliente já mandou pronto"
             />
@@ -303,6 +304,7 @@ export function EIEditor({
               label="MENU tem?"
               value={data.menuTem}
               onChange={(e) => update("menuTem", e.target.value)}
+              onBlur={save}
               placeholder="Ex: Sim — Home, Sobre, Serviços, Depoimentos, Contato"
             />
 
@@ -316,6 +318,7 @@ export function EIEditor({
                   onChange={(patch) => updateSecao(i, patch)}
                   onRemove={() => removeSecao(i)}
                   onMove={(dir) => moveSecao(i, dir)}
+                  onBlurSave={save}
                 />
               ))}
             </div>
@@ -337,17 +340,11 @@ export function EIEditor({
               label="Texto / estrutura do rodapé"
               value={data.rodape}
               onChange={(e) => update("rodape", e.target.value)}
+              onBlur={save}
               rows={3}
               placeholder="Endereço, redes sociais, CNPJ, copyright..."
             />
           </Block>
-
-          {/* Salvar duplicado embaixo (UX) */}
-          <div className="flex justify-end pt-2 border-t border-fysi-line">
-            <Button type="button" onClick={save} disabled={pending}>
-              {pending ? "Salvando…" : "Salvar EI"}
-            </Button>
-          </div>
         </div>
       )}
     </section>
@@ -378,6 +375,7 @@ function SecaoEditor({
   onChange,
   onRemove,
   onMove,
+  onBlurSave,
 }: {
   secao: EISecao;
   index: number;
@@ -385,6 +383,7 @@ function SecaoEditor({
   onChange: (patch: Partial<EISecao>) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
+  onBlurSave: () => void;
 }) {
   return (
     <div className="rounded-[14px] border border-fysi-line bg-fysi-cream/30 p-4 flex flex-col gap-3">
@@ -393,6 +392,7 @@ function SecaoEditor({
           <Input
             value={secao.nome}
             onChange={(e) => onChange({ nome: e.target.value })}
+            onBlur={onBlurSave}
             placeholder="SEÇÃO 01"
           />
         </div>
@@ -432,12 +432,14 @@ function SecaoEditor({
           label="*obs"
           value={secao.obs}
           onChange={(e) => onChange({ obs: e.target.value })}
+          onBlur={onBlurSave}
           placeholder="Nota interna pra equipe"
         />
         <Input
           label="Ref"
           value={secao.ref}
           onChange={(e) => onChange({ ref: e.target.value })}
+          onBlur={onBlurSave}
           placeholder="Link de referência visual"
         />
       </div>
@@ -446,12 +448,14 @@ function SecaoEditor({
         label="[Título]"
         value={secao.titulo}
         onChange={(e) => onChange({ titulo: e.target.value })}
+        onBlur={onBlurSave}
         placeholder="Título principal da seção"
       />
       <Textarea
         label="[Texto]"
         value={secao.texto}
         onChange={(e) => onChange({ texto: e.target.value })}
+        onBlur={onBlurSave}
         rows={3}
         placeholder="Copy / texto da seção"
       />
@@ -459,6 +463,7 @@ function SecaoEditor({
         label="[CTA] (opcional)"
         value={secao.cta}
         onChange={(e) => onChange({ cta: e.target.value })}
+        onBlur={onBlurSave}
         placeholder="Ex: AGENDAR CONSULTA"
       />
     </div>
