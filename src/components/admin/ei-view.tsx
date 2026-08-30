@@ -10,7 +10,7 @@ import type { EIData } from "@/lib/ei-template";
  * "Editar" pra ir ao formulário. Documento é o que a equipe usa pra produzir.
  */
 export function EIView(props: {
-  clientId: string;
+  docId: string;
   clientName: string | null;
   empresa: string | null;
   urlKey: string | null;
@@ -46,9 +46,7 @@ export function EIView(props: {
         />
       ) : (
         <EIEditor
-          clientId={props.clientId}
-          clientName={props.clientName}
-          empresa={props.empresa}
+          docId={props.docId}
           urlKey={props.urlKey}
           initial={props.initial}
           atualizadoAt={props.atualizadoAt}
