@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,16 +23,22 @@ import {
  * template do Notion/Word que a Sara usa hoje.
  *
  * UX: form com seções dinâmicas (adicionar/remover/reordenar). Autosave
- * por campo — cada `onBlur` dispara `save()`, não existe mais botão
- * "Salvar" manual.
+ * por campo — cada `onBlur` dispara `save()` — e também um autosave
+ * debounced em qualquer mudança de `data` (cobre os botões estruturais:
+ * adicionar/remover/reordenar seção, refs padrão por nicho), não existe
+ * mais botão "Salvar" manual.
  */
 export function EIEditor({
   docId,
+  clientName,
+  empresa,
   urlKey,
   initial,
   atualizadoAt,
 }: {
   docId: string;
+  clientName: string | null;
+  empresa: string | null;
   urlKey: string | null;
   initial: EIData | null;
   atualizadoAt: string | null;
@@ -103,7 +109,28 @@ export function EIEditor({
     });
   }
 
-  const markdown = renderEIMarkdown(data);
+  // Autosave de fallback: dispara em QUALQUER mudança de `data`, debounced.
+  // Cobre os caminhos que não passam por onBlur — addSecao/removeSecao/
+  // moveSecao e os botões de "refs padrão por nicho", que só chamam
+  // setData(...). Pula o save no mount (data "muda" do valor inicial ali
+  // também, e não queremos um POST antes de qualquer edição do usuário).
+  // Pode duplicar com o save() manual de algum onBlur — inofensivo (re-save
+  // idempotente do mesmo `data`).
+  const hasMountedRef = useRef(false);
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    const timeout = setTimeout(() => save(), 800);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  const markdown = renderEIMarkdown(data, {
+    clientName: clientName ?? undefined,
+    empresa: empresa ?? undefined,
+  });
 
   function copyMarkdown() {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -116,7 +143,10 @@ export function EIEditor({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    const slug = docId.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
+    const slug = (empresa ?? clientName ?? "cliente")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .slice(0, 50);
     a.download = `EI-${slug}.md`;
     document.body.appendChild(a);
     a.click();

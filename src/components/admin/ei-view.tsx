@@ -47,6 +47,8 @@ export function EIView(props: {
       ) : (
         <EIEditor
           docId={props.docId}
+          clientName={props.clientName}
+          empresa={props.empresa}
           urlKey={props.urlKey}
           initial={props.initial}
           atualizadoAt={props.atualizadoAt}
