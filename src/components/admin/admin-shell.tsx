@@ -180,9 +180,9 @@ export function AdminShell({
           href={`/admin${keyParam}`}
           className="flex items-center gap-2.5 px-4 h-14 border-b border-fysi-line hover:bg-fysi-cream/60 transition shrink-0"
         >
-          <span className="w-8 h-8 rounded-[9px] bg-fysi-deep grid place-items-center shrink-0">
+          <span className="w-8 h-8 grid place-items-center shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/fysilab-light.png" alt="" className="h-3.5 w-auto" />
+            <img src="/fysilab-symbol.png" alt="" className="h-full w-auto" />
           </span>
           <span className="flex flex-col leading-tight min-w-0">
             <span className="text-sm font-semibold tracking-tight truncate">
