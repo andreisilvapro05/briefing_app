@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
+import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 
 /**
  * Pizza (donut) interativa de projetos por status + lista embaixo.
@@ -16,6 +17,7 @@ export interface LaneClient {
   tipo: string;
   status: string;
   pagamento: string;
+  created_at: string;
 }
 
 export interface LaneGroup {
@@ -44,6 +46,22 @@ function annularPath(a0: number, a1: number): string {
   return `M ${ox0} ${oy0} A ${R} ${R} 0 ${large} 1 ${ox1} ${oy1} L ${ix1} ${iy1} A ${R_IN} ${R_IN} 0 ${large} 0 ${ix0} ${iy0} Z`;
 }
 
+type PeriodoFiltro = "todos" | Periodo;
+
+const PERIODO_OPTIONS: { value: PeriodoFiltro; label: string }[] = [
+  { value: "todos", label: "Todo o período" },
+  { value: "semana", label: "Esta semana" },
+  { value: "mes", label: "Este mês" },
+];
+
+/** Cliente entrou dentro do período (por created_at). "todos" nunca filtra. */
+function withinPeriod(createdAt: string, periodo: PeriodoFiltro): boolean {
+  if (periodo === "todos") return true;
+  const created = new Date(createdAt).getTime();
+  if (Number.isNaN(created)) return true;
+  return created >= inicioDoPeriodo(periodo).getTime();
+}
+
 export function StatusPieBoard({
   groups,
   keyParam,
@@ -55,9 +73,19 @@ export function StatusPieBoard({
   urlKey?: string;
   novoHref: string;
 }) {
-  const withCount = groups.filter((g) => g.clients.length > 0);
-  const total = withCount.reduce((s, g) => s + g.clients.length, 0);
+  const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
   const [selected, setSelected] = useState<string | null>(null);
+
+  const periodGroups: LaneGroup[] =
+    periodo === "todos"
+      ? groups
+      : groups.map((g) => ({
+          ...g,
+          clients: g.clients.filter((c) => withinPeriod(c.created_at, periodo)),
+        }));
+
+  const withCount = periodGroups.filter((g) => g.clients.length > 0);
+  const total = withCount.reduce((s, g) => s + g.clients.length, 0);
 
   // Segmentos do donut (começa no topo, -90°)
   let acc = 0;
@@ -73,21 +101,43 @@ export function StatusPieBoard({
     setSelected((s) => (s === id ? null : id));
   }
 
-  const shown = selected
-    ? withCount.filter((g) => g.id === selected)
-    : withCount;
+  // Se o período mudou e esvaziou a lane selecionada, trata como "nenhuma
+  // selecionada" em vez de mostrar um filtro apontando pra uma lane vazia.
+  const selectedGroup = selected
+    ? (withCount.find((g) => g.id === selected) ?? null)
+    : null;
+
+  const shown = selectedGroup ? [selectedGroup] : withCount;
 
   return (
     <div>
       {/* Pizza + legenda */}
       <section className="bg-white border border-fysi-line rounded-[16px] p-5 mb-5">
-        <div className="flex items-baseline justify-between mb-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
           <h2 className="text-[0.7rem] uppercase tracking-[0.14em] text-fysi-muted font-semibold">
             Projetos por status
           </h2>
-          <span className="text-[0.7rem] text-fysi-muted">
-            {total} total · clique numa fatia pra filtrar
-          </span>
+          <div className="flex items-center gap-3">
+            <div className="inline-flex rounded-full border border-fysi-line bg-fysi-cream/40 p-0.5 text-[0.7rem]">
+              {PERIODO_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPeriodo(opt.value)}
+                  className={`px-2.5 py-1 rounded-full font-medium transition ${
+                    periodo === opt.value
+                      ? "bg-fysi-deep text-fysi-cream"
+                      : "text-fysi-muted hover:text-fysi-deep"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <span className="text-[0.7rem] text-fysi-muted whitespace-nowrap">
+              {total} total · clique numa fatia pra filtrar
+            </span>
+          </div>
         </div>
 
         {total === 0 ? (
@@ -143,10 +193,7 @@ export function StatusPieBoard({
                 fontWeight="700"
                 style={{ fill: "var(--fysi-deep)" }}
               >
-                {selected
-                  ? withCount.find((g) => g.id === selected)?.clients.length ??
-                    total
-                  : total}
+                {selectedGroup ? selectedGroup.clients.length : total}
               </text>
               <text
                 x={CX}
@@ -156,7 +203,7 @@ export function StatusPieBoard({
                 letterSpacing="1.5"
                 style={{ fill: "var(--fysi-muted)" }}
               >
-                {selected ? "NESTA ETAPA" : "PROJETOS"}
+                {selectedGroup ? "NESTA ETAPA" : "PROJETOS"}
               </text>
             </svg>
 
@@ -194,7 +241,7 @@ export function StatusPieBoard({
       </section>
 
       {/* Barra de filtro ativo */}
-      {selected ? (
+      {selectedGroup ? (
         <div className="flex items-center gap-3 mb-3 text-sm">
           <button
             type="button"
@@ -204,7 +251,7 @@ export function StatusPieBoard({
             ← Todos os status
           </button>
           <span className="text-fysi-deep font-medium">
-            Mostrando: {withCount.find((g) => g.id === selected)?.label}
+            Mostrando: {selectedGroup.label}
           </span>
         </div>
       ) : null}

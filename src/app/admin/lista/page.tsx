@@ -75,6 +75,7 @@ export default async function AdminListaPage({
           : "—",
         status: c.status || "nao-iniciado",
         pagamento: total > 0 ? `${Math.round((pago / total) * 100)}%` : "—",
+        created_at: c.created_at,
       };
     }),
   }));

@@ -5,6 +5,7 @@ import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { TemplateUploader } from "@/components/admin/template-uploader";
+import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,20 @@ interface ContractRow {
 interface SearchParams {
   key?: string;
   status?: string;
+  periodo?: string;
+}
+
+const PERIODO_LABELS: Record<string, string> = {
+  semana: "Esta semana",
+  mes: "Este mês",
+};
+
+/** Início do período em ISO, pra filtrar updated_at >= isso. */
+function periodoDesde(periodo: string): string | null {
+  if (periodo === "semana" || periodo === "mes") {
+    return inicioDoPeriodo(periodo as Periodo).toISOString();
+  }
+  return null;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -62,6 +77,8 @@ export default async function ContractsPage({
     .order("updated_at", { ascending: false });
 
   if (params.status) query = query.eq("contrato_status", params.status);
+  const desde = params.periodo ? periodoDesde(params.periodo) : null;
+  if (desde) query = query.gte("updated_at", desde);
 
   const { data } = await query;
   const contracts: ContractRow[] = (data as ContractRow[]) ?? [];
@@ -129,13 +146,27 @@ export default async function ContractsPage({
               <option value="cancelado">Cancelado</option>
             </select>
           </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-fysi-muted uppercase tracking-[0.1em]">
+              Período (atualizado)
+            </label>
+            <select
+              name="periodo"
+              defaultValue={params.periodo ?? ""}
+              className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep"
+            >
+              <option value="">Todo o período</option>
+              <option value="semana">Esta semana</option>
+              <option value="mes">Este mês</option>
+            </select>
+          </div>
           <button
             type="submit"
             className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
           >
             Filtrar
           </button>
-          {params.status ? (
+          {params.status || params.periodo ? (
             <Link
               href={`/admin/contratos${keyParam}`}
               className="rounded-full border border-fysi-line text-sm text-fysi-muted px-3 py-2 hover:text-fysi-deep hover:border-fysi-deep/30"
@@ -144,6 +175,13 @@ export default async function ContractsPage({
             </Link>
           ) : null}
         </form>
+
+        {params.periodo ? (
+          <p className="text-xs text-fysi-muted mb-3">
+            {contracts.length} contrato{contracts.length === 1 ? "" : "s"} ·{" "}
+            {PERIODO_LABELS[params.periodo] ?? params.periodo}
+          </p>
+        ) : null}
 
         <div className="bg-white border border-fysi-line rounded-[20px] overflow-hidden">
           <table className="w-full text-sm">
@@ -164,8 +202,8 @@ export default async function ContractsPage({
                     colSpan={6}
                     className="px-5 py-8 text-center text-fysi-muted"
                   >
-                    {params.status
-                      ? "Nenhum contrato com esse status."
+                    {params.status || params.periodo
+                      ? "Nenhum contrato bate com esse filtro."
                       : (
                         <>
                           Nenhum contrato gerado ainda. Vá em{" "}
