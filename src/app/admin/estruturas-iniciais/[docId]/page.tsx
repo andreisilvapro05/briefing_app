@@ -28,12 +28,14 @@ export default async function EIDocumentPage({
   const visibleIds = await getVisibleClientIds(member);
 
   const [docsAll, doc, clientsWithoutDocAll] = await Promise.all([
-    listEIDocuments(),
+    listEIDocuments("ei"),
     getEIDocument(docId),
-    listClientsWithoutEIDocument(),
+    listClientsWithoutEIDocument("ei"),
   ]);
 
-  if (!doc) redirect(`/admin/estruturas-iniciais${keyParamFirst}`);
+  if (!doc || doc.kind !== "ei") {
+    redirect(`/admin/estruturas-iniciais${keyParamFirst}`);
+  }
   // "basico" só acessa o Modelo (sem cliente) e os documentos dos clientes
   // em que tem tarefa atribuída — mesmo por URL direta.
   if (visibleIds && doc.clientId && !visibleIds.has(doc.clientId)) {

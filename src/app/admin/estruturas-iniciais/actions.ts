@@ -29,6 +29,7 @@ export async function createEIDocumentAction(formData: FormData) {
     .from("ei_documents")
     .select("id")
     .eq("client_id", clientId)
+    .eq("kind", "ei")
     .maybeSingle();
   if (existing) {
     redirect(
@@ -36,12 +37,12 @@ export async function createEIDocumentAction(formData: FormData) {
     );
   }
 
-  const template = await getTemplateDocument();
+  const template = await getTemplateDocument("ei");
   const blocks = template?.blocks ?? [];
 
   const { data: created } = await service
     .from("ei_documents")
-    .insert({ client_id: clientId, ei_data: { blocks } })
+    .insert({ client_id: clientId, kind: "ei", ei_data: { blocks } })
     .select("id")
     .single();
 

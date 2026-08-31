@@ -24,7 +24,11 @@ import { ContractCard } from "@/components/admin/contract-card";
 import { MateriaisPainel } from "@/components/admin/materiais-painel";
 import { ClientTabs, type ClientTab } from "@/components/admin/client-tabs";
 import { createEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
-import { getClientEIDocumentId } from "@/lib/ei-documents-server";
+import {
+  getClientEIDocumentId,
+  getOrCreateClientDocument,
+} from "@/lib/ei-documents-server";
+import { EIView } from "@/components/admin/ei-view";
 import { EntregaEditor } from "@/components/admin/entrega-editor";
 import { MoodboardEditor } from "@/components/admin/moodboard-editor";
 import { ProblemasEditor } from "@/components/admin/problemas-editor";
@@ -109,14 +113,21 @@ export default async function AdminClientPage({
 
   const service = createSupabaseServiceRoleClient();
 
-  const [{ data: client }, { data: responses }, { data: files }, tasks, eiDocId] =
-    await Promise.all([
-      service.from("clients").select("*").eq("id", id).maybeSingle(),
-      service.from("briefing_responses").select("*").eq("client_id", id),
-      service.from("briefing_files").select("*").eq("client_id", id),
-      listProjectTasks(id),
-      getClientEIDocumentId(id),
-    ]);
+  const [
+    { data: client },
+    { data: responses },
+    { data: files },
+    tasks,
+    eiDocId,
+    briefingDoc,
+  ] = await Promise.all([
+    service.from("clients").select("*").eq("id", id).maybeSingle(),
+    service.from("briefing_responses").select("*").eq("client_id", id),
+    service.from("briefing_files").select("*").eq("client_id", id),
+    listProjectTasks(id),
+    getClientEIDocumentId(id),
+    getOrCreateClientDocument(id, "briefing"),
+  ]);
 
   if (!client) {
     return (
@@ -1057,7 +1068,25 @@ Qualquer dúvida, é só responder por aqui.`}
 
         {tab === "briefing" ? (
         <>
-        {/* Resumo de preenchimento do briefing */}
+        {/* Documento de briefing — preenchido junto com o cliente durante a
+            call, estilo Notion/ClickUp (mesmo editor de blocos da Estrutura
+            Inicial). Pedido do usuário 2026-08-31, ver referência real em
+            https://app.clickup.com/31006509/docs/xj7td-41071. */}
+        {briefingDoc ? (
+          <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+            <Eyebrow>Briefing — documento da call</Eyebrow>
+            <div className="mt-4">
+              <EIView
+                docId={briefingDoc.id}
+                urlKey={urlKey}
+                initialBlocks={briefingDoc.blocks}
+                atualizadoAt={briefingDoc.updatedAt}
+              />
+            </div>
+          </section>
+        ) : null}
+
+        {/* Resumo de preenchimento do briefing (formulário que o cliente preenche sozinho) */}
         <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
           <div className="flex items-baseline justify-between mb-4">
             <Eyebrow>Preenchimento do briefing</Eyebrow>

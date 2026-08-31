@@ -6,7 +6,15 @@ import type { PartialBlock } from "@blocknote/core";
  * (clientId setado). Ver docs/superpowers/specs/
  * 2026-08-30-estruturas-iniciais-hub-design.md e
  * 2026-08-30-ei-documento-blocos-design.md
+ *
+ * A mesma tabela (ei_documents) guarda dois "tipos" de documento (`kind`):
+ * "ei" (Estrutura Inicial) e "briefing" (documento de briefing preenchido
+ * com o cliente durante a call, no estilo ClickUp/Notion — pedido do
+ * usuário em 2026-08-31, ver https://app.clickup.com/31006509/docs/xj7td-41071).
+ * Cada kind tem no máximo 1 Modelo e no máximo 1 documento por cliente
+ * (unique index em (client_id, kind) e em (kind) where is_template).
  */
+export type EIDocumentKind = "ei" | "briefing";
 
 export interface EIDocumentClientInfo {
   id: string;
@@ -23,6 +31,7 @@ export interface EIDocumentSummary {
   title: string;
   isTemplate: boolean;
   clientId: string | null;
+  kind: EIDocumentKind;
   updatedAt: string;
 }
 
@@ -31,6 +40,7 @@ export interface EIDocument {
   id: string;
   clientId: string | null;
   isTemplate: boolean;
+  kind: EIDocumentKind;
   nome: string | null;
   blocks: PartialBlock[];
   createdAt: string;

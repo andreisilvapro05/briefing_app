@@ -14,7 +14,7 @@ export default async function EstruturasIniciaisIndexPage({
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
 
-  const template = await getTemplateDocument();
+  const template = await getTemplateDocument("ei");
   const kp = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   redirect(`/admin/estruturas-iniciais/${template?.id ?? ""}${kp}`);
 }
