@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,13 +35,13 @@ function isOverdue(dataVencimento: string, status: TaskStatus): boolean {
   return dataVencimento < hoje;
 }
 
-/** Mesmo espírito do TASK_STATUS_TONE, pra prioridade virar um badge colorido em vez de select cru. */
-const TASK_PRIORITY_TONE: Record<string, string> = {
-  "": "bg-white text-fysi-muted border-fysi-line",
-  urgente: "bg-red-50 text-red-700 border-red-200",
-  alta: "bg-orange-50 text-orange-700 border-orange-200",
-  normal: "bg-blue-50 text-blue-700 border-blue-200",
-  baixa: "bg-fysi-cream text-fysi-muted border-fysi-line",
+/** Cor da bandeira por prioridade — igual ClickUp (bandeira, sem texto ao lado). */
+const TASK_PRIORITY_FLAG: Record<string, string> = {
+  "": "text-fysi-line",
+  urgente: "text-red-600",
+  alta: "text-orange-500",
+  normal: "text-blue-500",
+  baixa: "text-fysi-muted",
 };
 
 function GripIcon() {
@@ -48,6 +54,163 @@ function GripIcon() {
       <circle cx="2.5" cy="13.5" r="1.4" />
       <circle cx="7.5" cy="13.5" r="1.4" />
     </svg>
+  );
+}
+
+function FlagIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+    >
+      <path d="M5 3a1 1 0 0 1 1-1h11.5a1 1 0 0 1 .8 1.6L15.25 8l3.05 4.4a1 1 0 0 1-.8 1.6H7a1 1 0 0 0-1 1V21a1 1 0 1 1-2 0V3z" />
+    </svg>
+  );
+}
+
+/** Fecha um popover ao clicar fora dele. */
+function useClickOutside(
+  ref: React.RefObject<HTMLElement | null>,
+  onOutside: () => void
+) {
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) onOutside();
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [ref, onOutside]);
+}
+
+/** Bandeira colorida (sem texto) — clique abre a lista de prioridades, igual ClickUp. */
+function PriorityPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, () => setOpen(false));
+  const current = TASK_PRIORITY_OPTIONS.find((o) => o.value === value);
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        title={current?.label}
+        className={`w-7 h-7 rounded-md grid place-items-center hover:bg-fysi-cream transition disabled:opacity-50 ${
+          TASK_PRIORITY_FLAG[value] ?? TASK_PRIORITY_FLAG[""]
+        }`}
+      >
+        <FlagIcon />
+      </button>
+      {open ? (
+        <div className="absolute z-20 top-full left-0 mt-1 w-40 bg-white border border-fysi-line rounded-[10px] shadow-lg py-1">
+          {TASK_PRIORITY_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => {
+                onChange(o.value);
+                setOpen(false);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-fysi-cream ${
+                o.value === value
+                  ? "font-semibold text-fysi-deep"
+                  : "text-fysi-muted"
+              }`}
+            >
+              <FlagIcon
+                className={TASK_PRIORITY_FLAG[o.value] ?? TASK_PRIORITY_FLAG[""]}
+              />
+              {o.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Avatar só com iniciais (sem nome ao lado) — clique abre a lista da equipe, igual ClickUp. */
+function AssigneePicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, () => setOpen(false));
+  const current = TEAM_MEMBERS.find((m) => m.value === value);
+
+  return (
+    <div ref={ref} className="relative inline-block">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => setOpen((v) => !v)}
+        title={current?.label ?? "Sem responsável"}
+        className={`w-6 h-6 rounded-full grid place-items-center text-[0.58rem] font-bold text-white transition disabled:opacity-50 hover:ring-2 hover:ring-fysi-deep/15 ${
+          current?.cor ?? "bg-fysi-line"
+        }`}
+      >
+        {current?.iniciais ?? "—"}
+      </button>
+      {open ? (
+        <div className="absolute z-20 top-full left-0 mt-1 w-44 bg-white border border-fysi-line rounded-[10px] shadow-lg py-1 max-h-56 overflow-y-auto">
+          <button
+            type="button"
+            onClick={() => {
+              onChange("");
+              setOpen(false);
+            }}
+            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-fysi-cream ${
+              !value ? "font-semibold text-fysi-deep" : "text-fysi-muted"
+            }`}
+          >
+            <span className="w-5 h-5 rounded-full bg-fysi-line grid place-items-center text-white text-[0.55rem]">
+              —
+            </span>
+            Sem responsável
+          </button>
+          {TEAM_MEMBERS.map((m) => (
+            <button
+              key={m.value}
+              type="button"
+              onClick={() => {
+                onChange(m.value);
+                setOpen(false);
+              }}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-fysi-cream ${
+                m.value === value
+                  ? "font-semibold text-fysi-deep"
+                  : "text-fysi-muted"
+              }`}
+            >
+              <span
+                className={`w-5 h-5 rounded-full grid place-items-center text-white text-[0.55rem] font-bold ${m.cor}`}
+              >
+                {m.iniciais}
+              </span>
+              {m.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -167,7 +330,6 @@ export function TaskRow({
   }
 
   const totalCols = (clienteCell ? 1 : 0) + 7;
-  const currentMember = TEAM_MEMBERS.find((m) => m.value === responsavel);
   const fieldClass =
     "rounded-[8px] border border-transparent hover:border-fysi-line focus:border-fysi-deep/40 bg-transparent hover:bg-white focus:bg-white text-xs px-2 py-1 transition-colors focus:outline-none";
 
@@ -226,48 +388,24 @@ export function TaskRow({
           </select>
         </td>
         <td className="px-3 py-2">
-          <select
+          <PriorityPicker
             value={prioridade}
             disabled={pending}
-            onChange={(e) => {
-              setPrioridade(e.target.value);
-              saveField("prioridade", e.target.value);
+            onChange={(v) => {
+              setPrioridade(v);
+              saveField("prioridade", v);
             }}
-            className={`rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_PRIORITY_TONE[prioridade] ?? TASK_PRIORITY_TONE[""]}`}
-          >
-            {TASK_PRIORITY_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          />
         </td>
         <td className="px-3 py-2">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`w-5 h-5 rounded-full grid place-items-center text-[0.55rem] font-bold text-white shrink-0 ${
-                currentMember?.cor ?? "bg-fysi-line"
-              }`}
-            >
-              {currentMember?.iniciais ?? "—"}
-            </span>
-            <select
-              value={responsavel}
-              disabled={pending}
-              onChange={(e) => {
-                setResponsavel(e.target.value);
-                saveField("responsavel", e.target.value);
-              }}
-              className={fieldClass}
-            >
-              <option value="">Sem responsável</option>
-              {TEAM_MEMBERS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
+          <AssigneePicker
+            value={responsavel}
+            disabled={pending}
+            onChange={(v) => {
+              setResponsavel(v);
+              saveField("responsavel", v);
+            }}
+          />
         </td>
         <td className="px-3 py-2">
           <input

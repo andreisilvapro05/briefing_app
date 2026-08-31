@@ -120,12 +120,12 @@ export interface TeamMember {
 }
 
 export const TEAM_MEMBERS: TeamMember[] = [
-  { value: "taina", label: "Tainá", iniciais: "TN", cor: "bg-amber-500" },
-  { value: "valeria", label: "Valéria", iniciais: "VL", cor: "bg-pink-500" },
-  { value: "karine", label: "Karine", iniciais: "KR", cor: "bg-violet-500" },
-  { value: "andrei", label: "Andrei", iniciais: "AN", cor: "bg-indigo-500" },
-  { value: "gabriel", label: "Gabriel", iniciais: "GB", cor: "bg-cyan-600" },
-  { value: "lucas", label: "Lucas", iniciais: "LC", cor: "bg-emerald-600" },
+  { value: "taina", label: "Tainá", iniciais: "T", cor: "bg-amber-500" },
+  { value: "valeria", label: "Valéria", iniciais: "VN", cor: "bg-pink-500" },
+  { value: "karine", label: "Karine", iniciais: "KS", cor: "bg-violet-500" },
+  { value: "andrei", label: "Andrei", iniciais: "A", cor: "bg-indigo-500" },
+  { value: "gabriel", label: "Gabriel", iniciais: "GG", cor: "bg-cyan-600" },
+  { value: "lucas", label: "Lucas", iniciais: "LM", cor: "bg-emerald-600" },
 ];
 
 export interface ProjectTask {
