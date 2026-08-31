@@ -119,23 +119,33 @@ export function isClientStuck(c: ClientForLane, now: number = Date.now()): boole
 }
 
 /**
- * Mapeia um cliente para sua lane atual com base nos campos disponíveis e,
- * pra fase de produção, no status do próprio projeto (`clients.status`).
+ * Mapeia um cliente para sua lane atual. Se o cliente já tem pelo menos uma
+ * tarefa de produção gerada (`project_tasks`), a lane vem 100% do status do
+ * projeto — os campos de funil comercial (contrato/chamada/briefing) são
+ * ignorados. Muitos clientes legados nunca passaram pelo onboarding do app
+ * (vieram de fora, direto pra produção) e ficam com esses campos vazios pra
+ * sempre; usar esses campos pra quem já tem tarefas geradas classificava
+ * quase todo mundo como "lead"/"aguardando contrato" quando na real já
+ * estava em produção (confirmado: 30 de 33 clientes com tarefas geradas
+ * caíam no funil comercial em 2026-08-31, achado do usuário). Só quem
+ * ainda NÃO tem nenhuma tarefa gerada usa o funil comercial de fato.
  * Determinístico, sem efeitos colaterais. Sempre a fase REAL — inatividade
  * não empurra o cliente pra uma lane "parado" à parte (ver isClientStuck).
  */
-export function laneForClient(c: ClientForLane): string {
-  if (!c.contrato_preenchido_at) {
-    return "lead";
-  }
-  if (c.contrato_status !== "assinado") {
-    return "contrato_aberto";
-  }
-  if (!c.chamada_agendada_at) {
-    return "agendar_chamada";
-  }
-  if (!c.briefing_submitted_at) {
-    return "briefing";
+export function laneForClient(c: ClientForLane, hasTasks = false): string {
+  if (!hasTasks) {
+    if (!c.contrato_preenchido_at) {
+      return "lead";
+    }
+    if (c.contrato_status !== "assinado") {
+      return "contrato_aberto";
+    }
+    if (!c.chamada_agendada_at) {
+      return "agendar_chamada";
+    }
+    if (!c.briefing_submitted_at) {
+      return "briefing";
+    }
   }
 
   // Produção — status do projeto principal. Cai no default se o valor não
@@ -163,7 +173,10 @@ export interface ClientStats {
   ultimosMeses: Array<{ label: string; count: number }>;
 }
 
-export function computeStats(clients: ClientForLane[]): ClientStats {
+export function computeStats(
+  clients: ClientForLane[],
+  clientIdsWithTasks: Set<string> = new Set()
+): ClientStats {
   const porLane = new Map<string, ClientForLane[]>();
   GENERAL_LANES.forEach((l) => porLane.set(l.id, []));
   const porTipo = new Map<string, number>();
@@ -173,7 +186,7 @@ export function computeStats(clients: ClientForLane[]): ClientStats {
   const parados: ClientForLane[] = [];
 
   clients.forEach((c) => {
-    const lane = laneForClient(c);
+    const lane = laneForClient(c, clientIdsWithTasks.has(c.id));
     porLane.get(lane)?.push(c);
 
     const tipo = c.project_type ?? "—";

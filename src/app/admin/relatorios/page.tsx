@@ -16,6 +16,7 @@ import {
   statusLaneId,
   type ClientForLane,
 } from "@/lib/workflow-lanes";
+import { getTasksByClient } from "@/lib/project-tasks-server";
 export const dynamic = "force-dynamic";
 
 /** ClientForLane + o campo que só esta página usa (não faz parte do contrato de lane). */
@@ -48,7 +49,8 @@ export default async function AdminRelatoriosPage({
     const { data } = await clientsQuery;
     clients = (data as ClientWithOrigem[]) ?? [];
   }
-  const stats = computeStats(clients);
+  const tasksByClient = await getTasksByClient();
+  const stats = computeStats(clients, new Set(tasksByClient.keys()));
 
   // Cobranças mensais — pra mostrar MRR + receita recorrente no relatório.
   // Cobrança sem client_id é "externa" (fora de projeto) — não entra pra
