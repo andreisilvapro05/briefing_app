@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   seedProjectTasksAction,
@@ -15,6 +16,10 @@ import {
   removeProjectTaskAction,
   updateProjectTaskAction,
   reorderProjectTasksAction,
+  getProjectTaskCommentsAction,
+  addProjectTaskCommentAction,
+  deleteProjectTaskCommentAction,
+  type ProjectTaskComment,
 } from "@/app/admin/[id]/actions";
 import {
   TASK_STATUS_OPTIONS,
@@ -54,6 +59,91 @@ function GripIcon() {
       <circle cx="2.5" cy="13.5" r="1.4" />
       <circle cx="7.5" cy="13.5" r="1.4" />
     </svg>
+  );
+}
+
+/**
+ * Larguras de coluna editáveis por arrastar a borda — persistidas por
+ * viewer em localStorage (chave por tabela, já que Tarefas do cliente,
+ * Tarefas de todos os projetos e o accordion da pizza têm colunas
+ * diferentes). Começa nos defaults (server e client renderizam igual, sem
+ * mismatch de hidratação) e só troca pro valor salvo depois de montar.
+ */
+export function useColumnWidths(storageKey: string, defaults: number[]) {
+  const [widths, setWidths] = useState<number[]>(defaults);
+  const widthsRef = useRef(widths);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length === defaults.length) {
+          widthsRef.current = parsed;
+          setWidths(parsed);
+        }
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch {}
+  }, [storageKey]);
+
+  function startResize(index: number) {
+    return (e: React.MouseEvent) => {
+      e.preventDefault();
+      const startX = e.clientX;
+      const startWidth = widthsRef.current[index];
+      function onMove(ev: MouseEvent) {
+        const next = widthsRef.current.slice();
+        next[index] = Math.max(48, startWidth + (ev.clientX - startX));
+        widthsRef.current = next;
+        setWidths(next);
+      }
+      function onUp() {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(widthsRef.current));
+        } catch {}
+      }
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+  }
+
+  const total = widths.reduce((s, w) => s + w, 0);
+  return { widths, total, startResize };
+}
+
+export function ColGroup({ widths }: { widths: number[] }) {
+  return (
+    <colgroup>
+      {widths.map((w, i) => (
+        <col key={i} style={{ width: w }} />
+      ))}
+    </colgroup>
+  );
+}
+
+/** Cabeçalho de coluna com a alça de redimensionar na borda direita. */
+export function ResizableTh({
+  children,
+  onResizeStart,
+  className = "",
+}: {
+  children?: ReactNode;
+  onResizeStart?: (e: React.MouseEvent) => void;
+  className?: string;
+}) {
+  return (
+    <th className={`relative px-3 py-2 font-medium ${className}`}>
+      <span className="truncate block pr-2">{children}</span>
+      {onResizeStart ? (
+        <span
+          onMouseDown={onResizeStart}
+          className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-fysi-deep/15 active:bg-fysi-deep/25 select-none"
+        />
+      ) : null}
+    </th>
   );
 }
 
@@ -283,6 +373,8 @@ export function TaskRow({
   urlKey,
   clienteCell,
   drag,
+  eiDocId,
+  eiHref,
 }: {
   task: ProjectTask;
   clientId: string;
@@ -291,6 +383,9 @@ export function TaskRow({
   clienteCell?: ReactNode;
   /** Handlers de drag-and-drop — só faz sentido dentro da lista de um único cliente (ver useTaskDrag). */
   drag?: DragHandlers;
+  /** null = cliente ainda não tem Estrutura Inicial (link leva pro hub em vez do documento). */
+  eiDocId?: string | null;
+  eiHref?: string;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -344,10 +439,12 @@ export function TaskRow({
         } ${drag?.isOver ? "bg-fysi-mint/20" : ""}`}
       >
         {clienteCell ? (
-          <td className="px-3 py-2 text-sm text-fysi-deep">{clienteCell}</td>
+          <td className="px-3 py-2 text-sm text-fysi-deep overflow-hidden truncate">
+            {clienteCell}
+          </td>
         ) : null}
-        <td className="px-3 py-2 text-sm text-fysi-deep">
-          <div className="flex items-center gap-1.5">
+        <td className="px-3 py-2 text-sm text-fysi-deep overflow-hidden">
+          <div className="flex items-center gap-1.5 min-w-0">
             {drag ? (
               <span
                 draggable
@@ -362,7 +459,7 @@ export function TaskRow({
             <button
               type="button"
               onClick={() => setExpanded((v) => !v)}
-              className="text-left hover:underline underline-offset-2"
+              className="text-left hover:underline underline-offset-2 truncate min-w-0"
               title="Ver informações da tarefa"
             >
               {task.titulo}
@@ -378,7 +475,7 @@ export function TaskRow({
               setStatus(next);
               saveField("status", next);
             }}
-            className={`rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[status]}`}
+            className={`max-w-full rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[status]}`}
           >
             {TASK_STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -387,7 +484,7 @@ export function TaskRow({
             ))}
           </select>
         </td>
-        <td className="px-3 py-2">
+        <td className="px-3 py-2 overflow-hidden">
           <PriorityPicker
             value={prioridade}
             disabled={pending}
@@ -397,7 +494,7 @@ export function TaskRow({
             }}
           />
         </td>
-        <td className="px-3 py-2">
+        <td className="px-3 py-2 overflow-hidden">
           <AssigneePicker
             value={responsavel}
             disabled={pending}
@@ -407,31 +504,31 @@ export function TaskRow({
             }}
           />
         </td>
-        <td className="px-3 py-2">
+        <td className="px-3 py-2 overflow-hidden">
           <input
             type="date"
             value={dataInicial}
             disabled={pending}
             onChange={(e) => setDataInicial(e.target.value)}
             onBlur={() => saveField("dataInicial", dataInicial)}
-            className={fieldClass}
+            className={`max-w-full ${fieldClass}`}
           />
         </td>
-        <td className="px-3 py-2">
+        <td className="px-3 py-2 overflow-hidden">
           <input
             type="date"
             value={dataVencimento}
             disabled={pending}
             onChange={(e) => setDataVencimento(e.target.value)}
             onBlur={() => saveField("dataVencimento", dataVencimento)}
-            className={`${fieldClass} ${
+            className={`max-w-full ${fieldClass} ${
               isOverdue(dataVencimento, status)
                 ? "!border-red-300 text-red-700"
                 : ""
             }`}
           />
         </td>
-        <td className="px-3 py-2 text-right">
+        <td className="px-3 py-2 text-right overflow-hidden">
           <button
             type="button"
             onClick={remove}
@@ -444,20 +541,33 @@ export function TaskRow({
       </tr>
       {expanded ? (
         <tr className="bg-fysi-cream/30 border-t border-fysi-line">
-          <td colSpan={totalCols} className="px-3 py-3">
-            <div className="max-w-xl">
-              <label className="block text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
-                Observações da tarefa
-              </label>
-              <textarea
-                value={observacoes}
-                disabled={pending}
-                onChange={(e) => setObservacoes(e.target.value)}
-                onBlur={() => saveField("observacoes", observacoes)}
-                placeholder="Notas, links, contexto pra quem for mexer nessa tarefa…"
-                rows={3}
-                className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
-              />
+          <td colSpan={totalCols} className="px-3 py-4">
+            <div className="max-w-xl flex flex-col gap-4">
+              {eiHref ? (
+                <Link
+                  href={eiHref}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-fysi-deep hover:underline w-fit"
+                >
+                  📐 {eiDocId ? "Ver Estrutura Inicial" : "Criar Estrutura Inicial"} →
+                </Link>
+              ) : null}
+
+              <div>
+                <label className="block text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
+                  Observações da tarefa
+                </label>
+                <textarea
+                  value={observacoes}
+                  disabled={pending}
+                  onChange={(e) => setObservacoes(e.target.value)}
+                  onBlur={() => saveField("observacoes", observacoes)}
+                  placeholder="Notas, links, contexto pra quem for mexer nessa tarefa…"
+                  rows={3}
+                  className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
+                />
+              </div>
+
+              <TaskComments taskId={task.id} clientId={clientId} urlKey={urlKey} />
             </div>
           </td>
         </tr>
@@ -466,16 +576,148 @@ export function TaskRow({
   );
 }
 
+function TaskComments({
+  taskId,
+  clientId,
+  urlKey,
+}: {
+  taskId: string;
+  clientId: string;
+  urlKey?: string;
+}) {
+  const [comments, setComments] = useState<ProjectTaskComment[] | null>(null);
+  const [body, setBody] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let active = true;
+    getProjectTaskCommentsAction(taskId, urlKey).then((data) => {
+      if (active) setComments(data);
+    });
+    return () => {
+      active = false;
+    };
+  }, [taskId, urlKey]);
+
+  function refresh() {
+    getProjectTaskCommentsAction(taskId, urlKey).then(setComments);
+  }
+
+  function submit() {
+    const value = body.trim();
+    if (!value) return;
+    const fd = new FormData();
+    fd.append("taskId", taskId);
+    fd.append("clientId", clientId);
+    fd.append("body", value);
+    if (urlKey) fd.append("key", urlKey);
+    startTransition(async () => {
+      await addProjectTaskCommentAction(fd);
+      setBody("");
+      refresh();
+    });
+  }
+
+  function remove(commentId: string) {
+    const fd = new FormData();
+    fd.append("commentId", commentId);
+    fd.append("clientId", clientId);
+    if (urlKey) fd.append("key", urlKey);
+    startTransition(async () => {
+      await deleteProjectTaskCommentAction(fd);
+      refresh();
+    });
+  }
+
+  return (
+    <div>
+      <label className="block text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
+        Comentários
+      </label>
+      {comments === null ? (
+        <p className="text-xs text-fysi-muted">Carregando…</p>
+      ) : comments.length === 0 ? (
+        <p className="text-xs text-fysi-muted mb-2">Nenhum comentário ainda.</p>
+      ) : (
+        <div className="flex flex-col gap-2 mb-2 max-h-56 overflow-y-auto">
+          {comments.map((c) => (
+            <div
+              key={c.id}
+              className="group/comment bg-white border border-fysi-line rounded-[8px] px-3 py-2"
+            >
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <span className="text-xs font-medium text-fysi-deep">
+                  {c.author}
+                </span>
+                <span className="flex items-center gap-2 shrink-0">
+                  <span className="text-[0.65rem] text-fysi-muted tabular-nums">
+                    {formatCommentDate(c.created_at)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => remove(c.id)}
+                    disabled={pending}
+                    className="text-[0.65rem] text-red-700 opacity-0 group-hover/comment:opacity-100 hover:underline disabled:opacity-50"
+                  >
+                    excluir
+                  </button>
+                </span>
+              </div>
+              <p className="text-xs text-fysi-deep whitespace-pre-wrap">
+                {c.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex items-start gap-2">
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Escrever um comentário…"
+          rows={2}
+          className="flex-1 rounded-[8px] border border-fysi-line bg-white text-xs px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
+        />
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={submit}
+          disabled={pending || !body.trim()}
+        >
+          Comentar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function formatCommentDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
 export function TasksBoard({
   clientId,
   urlKey,
   projectType,
   tasks,
+  eiDocId,
+  eiHref,
 }: {
   clientId: string;
   urlKey?: string;
   projectType: ProjectType | null;
   tasks: ProjectTask[];
+  eiDocId?: string | null;
+  eiHref?: string;
 }) {
   const router = useRouter();
   const [novoTitulo, setNovoTitulo] = useState("");
@@ -497,6 +739,10 @@ export function TasksBoard({
     fechadasSource,
     clientId,
     urlKey
+  );
+  const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
+    "fysi-cols-tasksboard",
+    [220, 150, 56, 56, 120, 130, 80]
   );
 
   function seed() {
@@ -556,16 +802,20 @@ export function TasksBoard({
         </p>
       ) : (
         <div className="overflow-x-auto -mx-6 px-6">
-          <table className="w-full text-sm min-w-[720px]">
+          <table
+            className="text-sm"
+            style={{ width: colTotal, tableLayout: "fixed" }}
+          >
+            <ColGroup widths={colWidths} />
             <thead className="text-left text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted">
               <tr>
-                <th className="px-3 py-2 font-medium">Nome</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Prioridade</th>
-                <th className="px-3 py-2 font-medium">Responsável</th>
-                <th className="px-3 py-2 font-medium">Data inicial</th>
-                <th className="px-3 py-2 font-medium">Data de vencimento</th>
-                <th className="px-3 py-2 font-medium" />
+                <ResizableTh onResizeStart={startResize(0)}>Nome</ResizableTh>
+                <ResizableTh onResizeStart={startResize(1)}>Status</ResizableTh>
+                <ResizableTh onResizeStart={startResize(2)}>Prioridade</ResizableTh>
+                <ResizableTh onResizeStart={startResize(3)}>Responsável</ResizableTh>
+                <ResizableTh onResizeStart={startResize(4)}>Data inicial</ResizableTh>
+                <ResizableTh onResizeStart={startResize(5)}>Data de vencimento</ResizableTh>
+                <ResizableTh />
               </tr>
             </thead>
             <tbody>
@@ -576,6 +826,8 @@ export function TasksBoard({
                   clientId={clientId}
                   urlKey={urlKey}
                   drag={abertas.length > 1 ? dragAbertas(t) : undefined}
+                  eiDocId={eiDocId}
+                  eiHref={eiHref}
                 />
               ))}
               {mostrarFechados
@@ -588,6 +840,8 @@ export function TasksBoard({
                       drag={
                         fechadas.length > 1 ? dragFechadas(t) : undefined
                       }
+                      eiDocId={eiDocId}
+                      eiHref={eiHref}
                     />
                   ))
                 : null}

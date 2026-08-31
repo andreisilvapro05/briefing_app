@@ -1188,6 +1188,12 @@ Qualquer dúvida, é só responder por aqui.`}
             urlKey={urlKey ?? undefined}
             projectType={(client.project_type as ProjectType | null) ?? null}
             tasks={tasks}
+            eiDocId={eiDocId}
+            eiHref={
+              eiDocId
+                ? `/admin/estruturas-iniciais/${eiDocId}${keyParam}`
+                : `/admin/estruturas-iniciais${keyParam}`
+            }
           />
         ) : null}
           </div>

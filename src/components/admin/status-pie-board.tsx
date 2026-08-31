@@ -3,7 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
-import { TaskRow, useTaskDrag } from "./tasks-board";
+import {
+  TaskRow,
+  useTaskDrag,
+  useColumnWidths,
+  ColGroup,
+  ResizableTh,
+} from "./tasks-board";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { DEFAULT_TASK_STATUS, type ProjectTask } from "@/lib/project-tasks";
 
@@ -31,6 +37,8 @@ export interface LaneClient {
   tarefas: LaneClientTask[];
   /** Sem atividade do cliente há 14+ dias — mostrado como aviso ao lado do nome, não escondendo a fase real. */
   parado: boolean;
+  /** Id do documento de Estrutura Inicial do cliente, se existir — vira link no painel de informações da tarefa. */
+  eiDocId: string | null;
 }
 
 export interface LaneGroup {
@@ -354,6 +362,10 @@ function ClientAccordionRow({
 }) {
   const hasTarefas = c.tarefas.length > 0;
   const { order: tarefas, dragProps } = useTaskDrag(c.tarefas, c.id, urlKey);
+  const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
+    "fysi-cols-accordion",
+    [200, 160, 56, 56, 110, 120, 80]
+  );
 
   return (
     <div className="border-t border-fysi-line/70">
@@ -414,16 +426,20 @@ function ClientAccordionRow({
 
       {isOpen && hasTarefas ? (
         <div className="pl-9 pr-5 pb-3 bg-fysi-cream/30 overflow-x-auto">
-          <table className="w-full text-sm min-w-[640px]">
+          <table
+            className="text-sm"
+            style={{ width: colTotal, tableLayout: "fixed" }}
+          >
+            <ColGroup widths={colWidths} />
             <thead className="text-left text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted">
               <tr>
-                <th className="px-3 py-1.5 font-medium">Nome</th>
-                <th className="px-3 py-1.5 font-medium">Status</th>
-                <th className="px-3 py-1.5 font-medium">Prioridade</th>
-                <th className="px-3 py-1.5 font-medium">Responsável</th>
-                <th className="px-3 py-1.5 font-medium">Início</th>
-                <th className="px-3 py-1.5 font-medium">Vencimento</th>
-                <th className="px-3 py-1.5 font-medium" />
+                <ResizableTh onResizeStart={startResize(0)}>Nome</ResizableTh>
+                <ResizableTh onResizeStart={startResize(1)}>Status</ResizableTh>
+                <ResizableTh onResizeStart={startResize(2)}>Prioridade</ResizableTh>
+                <ResizableTh onResizeStart={startResize(3)}>Responsável</ResizableTh>
+                <ResizableTh onResizeStart={startResize(4)}>Início</ResizableTh>
+                <ResizableTh onResizeStart={startResize(5)}>Vencimento</ResizableTh>
+                <ResizableTh />
               </tr>
             </thead>
             <tbody>
@@ -434,6 +450,12 @@ function ClientAccordionRow({
                   clientId={c.id}
                   urlKey={urlKey}
                   drag={tarefas.length > 1 ? dragProps(t) : undefined}
+                  eiDocId={c.eiDocId}
+                  eiHref={
+                    c.eiDocId
+                      ? `/admin/estruturas-iniciais/${c.eiDocId}${keyParam}`
+                      : `/admin/estruturas-iniciais${keyParam}`
+                  }
                 />
               ))}
             </tbody>

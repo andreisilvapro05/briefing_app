@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { createClickUpBriefingTask } from "@/lib/clickup";
 import { htmlMagicLink, sendEmail } from "@/lib/email";
@@ -1077,4 +1078,68 @@ export async function reorderProjectTasksAction(formData: FormData) {
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
   revalidatePath("/admin/tarefas");
+}
+
+export interface ProjectTaskComment {
+  id: string;
+  task_id: string;
+  author: string;
+  body: string;
+  created_at: string;
+}
+
+/** Lê os comentários de uma tarefa — buscado sob demanda ao abrir o painel de informações. */
+export async function getProjectTaskCommentsAction(
+  taskId: string,
+  urlKey?: string | null
+): Promise<ProjectTaskComment[]> {
+  const user = await getAdminUser({ urlKey: urlKey ?? null });
+  if (!user) return [];
+  if (!taskId) return [];
+
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("project_task_comments")
+    .select("id, task_id, author, body, created_at")
+    .eq("task_id", taskId)
+    .order("created_at", { ascending: true });
+
+  return (data as ProjectTaskComment[] | null) ?? [];
+}
+
+/** Adiciona um comentário — autor é o membro logado (Caixa 0), não um campo livre. */
+export async function addProjectTaskCommentAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+
+  const taskId = String(formData.get("taskId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+  const body = String(formData.get("body") ?? "").trim();
+  if (!taskId || !body) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service.from("project_task_comments").insert({
+    task_id: taskId,
+    author: member.name,
+    body,
+  });
+
+  if (clientId) revalidatePath(`/admin/${clientId}`);
+}
+
+/** Remove um comentário. */
+export async function deleteProjectTaskCommentAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const commentId = String(formData.get("commentId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!commentId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service.from("project_task_comments").delete().eq("id", commentId);
+
+  if (clientId) revalidatePath(`/admin/${clientId}`);
 }

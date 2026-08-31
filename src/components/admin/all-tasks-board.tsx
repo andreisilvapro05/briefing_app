@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { TaskRow } from "./tasks-board";
+import { TaskRow, useColumnWidths, ColGroup, ResizableTh } from "./tasks-board";
 import {
   TASK_STATUS_GROUP,
   TEAM_MEMBERS,
@@ -20,9 +20,14 @@ type Task = ProjectTask & { client: ProjectTaskClient };
 export function AllTasksBoard({
   tasks,
   urlKey,
+  keyParam = "",
+  eiDocIdByClient = {},
 }: {
   tasks: Task[];
   urlKey?: string;
+  keyParam?: string;
+  /** client_id -> id do documento de Estrutura Inicial, se existir. */
+  eiDocIdByClient?: Record<string, string>;
 }) {
   const [query, setQuery] = useState("");
   const [responsavel, setResponsavel] = useState("");
@@ -40,6 +45,11 @@ export function AllTasksBoard({
     const semResponsavel = abertasTotal.filter((t) => !t.responsavel).length;
     return { porPessoa, semResponsavel };
   }, [abertasTotal]);
+
+  const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
+    "fysi-cols-alltasks",
+    [180, 220, 150, 56, 56, 120, 130, 80]
+  );
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -139,17 +149,21 @@ export function AllTasksBoard({
         </p>
       ) : (
         <div className="overflow-x-auto -mx-6 px-6">
-          <table className="w-full text-sm min-w-[860px]">
+          <table
+            className="text-sm"
+            style={{ width: colTotal, tableLayout: "fixed" }}
+          >
+            <ColGroup widths={colWidths} />
             <thead className="text-left text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted">
               <tr>
-                <th className="px-3 py-2 font-medium">Cliente</th>
-                <th className="px-3 py-2 font-medium">Nome</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Prioridade</th>
-                <th className="px-3 py-2 font-medium">Responsável</th>
-                <th className="px-3 py-2 font-medium">Data inicial</th>
-                <th className="px-3 py-2 font-medium">Data de vencimento</th>
-                <th className="px-3 py-2 font-medium" />
+                <ResizableTh onResizeStart={startResize(0)}>Cliente</ResizableTh>
+                <ResizableTh onResizeStart={startResize(1)}>Nome</ResizableTh>
+                <ResizableTh onResizeStart={startResize(2)}>Status</ResizableTh>
+                <ResizableTh onResizeStart={startResize(3)}>Prioridade</ResizableTh>
+                <ResizableTh onResizeStart={startResize(4)}>Responsável</ResizableTh>
+                <ResizableTh onResizeStart={startResize(5)}>Data inicial</ResizableTh>
+                <ResizableTh onResizeStart={startResize(6)}>Data de vencimento</ResizableTh>
+                <ResizableTh />
               </tr>
             </thead>
             <tbody>
@@ -160,6 +174,12 @@ export function AllTasksBoard({
                   clientId={t.client_id}
                   urlKey={urlKey}
                   clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
+                  eiDocId={eiDocIdByClient[t.client_id] ?? null}
+                  eiHref={
+                    eiDocIdByClient[t.client_id]
+                      ? `/admin/estruturas-iniciais/${eiDocIdByClient[t.client_id]}${keyParam}`
+                      : `/admin/estruturas-iniciais${keyParam}`
+                  }
                 />
               ))}
               {mostrarFechados
@@ -170,6 +190,12 @@ export function AllTasksBoard({
                       clientId={t.client_id}
                       urlKey={urlKey}
                       clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
+                      eiDocId={eiDocIdByClient[t.client_id] ?? null}
+                      eiHref={
+                        eiDocIdByClient[t.client_id]
+                          ? `/admin/estruturas-iniciais/${eiDocIdByClient[t.client_id]}${keyParam}`
+                          : `/admin/estruturas-iniciais${keyParam}`
+                      }
                     />
                   ))
                 : null}

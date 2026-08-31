@@ -108,6 +108,23 @@ export async function getClientEIDocumentId(clientId: string): Promise<string | 
   return (data as { id: string } | null)?.id ?? null;
 }
 
+/** Versão em lote de getClientEIDocumentId — evita N queries em telas com vários clientes (pizza, tarefas). */
+export async function getEIDocumentIdsForClients(
+  clientIds: string[]
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (clientIds.length === 0) return map;
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ei_documents")
+    .select("id, client_id")
+    .in("client_id", clientIds);
+  for (const row of (data as { id: string; client_id: string | null }[] | null) ?? []) {
+    if (row.client_id) map.set(row.client_id, row.id);
+  }
+  return map;
+}
+
 /** Clientes que ainda não têm documento — pra popular o seletor de criação. */
 export async function listClientsWithoutEIDocument(): Promise<
   { id: string; nome: string | null; empresa: string | null }[]

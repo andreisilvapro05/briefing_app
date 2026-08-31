@@ -8,6 +8,7 @@ import {
   type ClientForLane,
 } from "./workflow-lanes";
 import { getTasksByClient, taskProgress } from "./project-tasks-server";
+import { getEIDocumentIdsForClients } from "./ei-documents-server";
 import type { LaneGroup } from "@/components/admin/status-pie-board";
 
 /**
@@ -48,6 +49,7 @@ export async function getLaneGroups(
       : await Promise.all([clientsQuery, getTasksByClient()]);
 
   const clients = (data as ClientForLane[]) ?? [];
+  const eiDocIds = await getEIDocumentIdsForClients(clients.map((c) => c.id));
 
   const byLane = new Map<string, ClientForLane[]>();
   GENERAL_LANES.forEach((l) => byLane.set(l.id, []));
@@ -75,6 +77,7 @@ export async function getLaneGroups(
         progresso: tasks ? taskProgress(tasks) : null,
         tarefas: (tasks ?? []).slice().sort((a, b) => a.ordem - b.ordem),
         parado: isClientStuck(c),
+        eiDocId: eiDocIds.get(c.id) ?? null,
       };
     }),
   }));
