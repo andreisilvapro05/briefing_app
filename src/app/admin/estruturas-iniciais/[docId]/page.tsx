@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { EIDocumentSidebar } from "@/components/admin/ei-document-sidebar";
 import { EIView } from "@/components/admin/ei-view";
@@ -21,21 +21,34 @@ export default async function EIDocumentPage({
   const { docId } = await params;
   const sp = await searchParams;
   const urlKey = sp.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
-  const [docs, doc, clientsWithoutDoc] = await Promise.all([
+  const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+  const visibleIds = await getVisibleClientIds(member);
+
+  const [docsAll, doc, clientsWithoutDocAll] = await Promise.all([
     listEIDocuments(),
     getEIDocument(docId),
     listClientsWithoutEIDocument(),
   ]);
 
-  if (!doc) redirect(`/admin/estruturas-iniciais${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  if (!doc) redirect(`/admin/estruturas-iniciais${keyParamFirst}`);
+  // "basico" só acessa o Modelo (sem cliente) e os documentos dos clientes
+  // em que tem tarefa atribuída — mesmo por URL direta.
+  if (visibleIds && doc.clientId && !visibleIds.has(doc.clientId)) {
+    redirect(`/admin/estruturas-iniciais${keyParamFirst}`);
+  }
 
-  const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+  const docs = visibleIds
+    ? docsAll.filter((d) => !d.clientId || visibleIds.has(d.clientId))
+    : docsAll;
+  const clientsWithoutDoc = visibleIds
+    ? clientsWithoutDocAll.filter((c) => visibleIds.has(c.id))
+    : clientsWithoutDocAll;
 
   return (
-    <AdminShell active="estruturas-iniciais" keyParam={keyParamFirst} userEmail={user.email}>
+    <AdminShell active="estruturas-iniciais" keyParam={keyParamFirst} userEmail={member.email}>
       {/*
         AdminShell's <main> tem px-4 md:px-6 lg:px-8 py-6 — cancelamos com
         margem negativa igual pra sidebar e painel encostarem nas bordas,

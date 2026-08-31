@@ -71,11 +71,11 @@ export default async function MembrosPage({
           transição.
         </p>
         <p className="text-[0.7rem] text-fysi-muted mt-3 max-w-2xl">
-          O papel <strong>Básico</strong> restringe a Clientes, ficha do
-          cliente, Lista por status, Quadro, Visão Geral, Relatórios e
-          Tarefas — todas filtradas pelos projetos em que a pessoa está
-          marcada (vínculo de tarefas abaixo). Contratos, Cobranças e
-          Estruturas Iniciais ainda não filtram.
+          O papel <strong>Básico</strong> restringe todas as telas do admin
+          (Clientes, ficha do cliente, Lista por status, Quadro, Visão
+          Geral, Relatórios, Tarefas, Contratos, Cobranças e Estruturas
+          Iniciais) aos projetos em que a pessoa está marcada — configure o
+          vínculo de tarefas abaixo.
         </p>
       </header>
 

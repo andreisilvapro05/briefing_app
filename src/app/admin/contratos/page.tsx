@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { TemplateUploader } from "@/components/admin/template-uploader";
@@ -61,27 +61,33 @@ export default async function ContractsPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   // Sempre preserva ?key= se veio na URL (mesmo se cookie também autenticou).
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
+  const visibleIds = await getVisibleClientIds(member);
   const service = createSupabaseServiceRoleClient();
-  let query = service
-    .from("clients")
-    .select(
-      "id, nome, empresa, email, contrato_status, contrato_signed_url, contrato_dados, autentique_document_id, updated_at"
-    )
-    .not("autentique_document_id", "is", null)
-    .order("updated_at", { ascending: false });
 
-  if (params.status) query = query.eq("contrato_status", params.status);
-  const desde = params.periodo ? periodoDesde(params.periodo) : null;
-  if (desde) query = query.gte("updated_at", desde);
+  let contracts: ContractRow[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let query = service
+      .from("clients")
+      .select(
+        "id, nome, empresa, email, contrato_status, contrato_signed_url, contrato_dados, autentique_document_id, updated_at"
+      )
+      .not("autentique_document_id", "is", null)
+      .order("updated_at", { ascending: false });
 
-  const { data } = await query;
-  const contracts: ContractRow[] = (data as ContractRow[]) ?? [];
+    if (visibleIds) query = query.in("id", Array.from(visibleIds));
+    if (params.status) query = query.eq("contrato_status", params.status);
+    const desde = params.periodo ? periodoDesde(params.periodo) : null;
+    if (desde) query = query.gte("updated_at", desde);
+
+    const { data } = await query;
+    contracts = (data as ContractRow[]) ?? [];
+  }
 
   // Metadados do modelo de contrato atual (se já foi subido).
   const { data: tplList } = await service.storage
@@ -89,18 +95,23 @@ export default async function ContractsPage({
     .list();
   const modeloAtual = (tplList ?? []).find((f) => f.name === "modelo.docx");
 
-  // Totais (sem filtro de status) só pra header
-  const { data: allData } = await service
-    .from("clients")
-    .select("contrato_status")
-    .not("autentique_document_id", "is", null);
-  const all = (allData as { contrato_status: string | null }[] | null) ?? [];
+  // Totais (sem filtro de status, mas dentro do que este membro pode ver) só pra header
+  let all: { contrato_status: string | null }[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let allQuery = service
+      .from("clients")
+      .select("contrato_status")
+      .not("autentique_document_id", "is", null);
+    if (visibleIds) allQuery = allQuery.in("id", Array.from(visibleIds));
+    const { data: allData } = await allQuery;
+    all = (allData as { contrato_status: string | null }[] | null) ?? [];
+  }
   const total = all.length;
   const pendentes = all.filter((c) => c.contrato_status === "pendente").length;
   const assinados = all.filter((c) => c.contrato_status === "assinado").length;
 
   return (
-    <AdminShell active="contratos" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell active="contratos" keyParam={keyParam} userEmail={member.email}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">

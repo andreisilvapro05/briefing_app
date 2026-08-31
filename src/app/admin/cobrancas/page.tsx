@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Pill } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ChargeButton } from "@/components/admin/charge-button";
@@ -29,30 +29,44 @@ export default async function CobrancasPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const filtro = params.status ?? "todas";
+  const visibleIds = await getVisibleClientIds(member);
 
   const service = createSupabaseServiceRoleClient();
-  const { data } = await service
-    .from("cobrancas_mensais")
-    .select("*")
-    .order("ativa", { ascending: false })
-    .order("dia_cobranca", { ascending: true });
 
-  const todas = (data ?? []) as CobrancaMensal[];
+  // Cobrança sem client_id é "externa" (fora de projeto) — não entra pra
+  // quem tem visão restrita, já que não dá pra saber se é dela.
+  let todas: CobrancaMensal[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let cobrancasQuery = service
+      .from("cobrancas_mensais")
+      .select("*")
+      .order("ativa", { ascending: false })
+      .order("dia_cobranca", { ascending: true });
+    if (visibleIds) cobrancasQuery = cobrancasQuery.in("client_id", Array.from(visibleIds));
+    const { data } = await cobrancasQuery;
+    todas = (data ?? []) as CobrancaMensal[];
+  }
   const stats = statsCobrancas(todas);
   const refAtual = mesRef(new Date());
 
   // "Cobranças a fazer" reais: clientes com saldo em aberto no valor do
   // projeto (pagamento_total > pagamento_pago). Já existem no sistema (aba
   // Pagamentos do cliente) — aqui a gente centraliza o que falta receber.
-  const { data: clientesPagData } = await service
-    .from("clients")
-    .select("id, nome, empresa, whatsapp, pagamento_total, pagamento_pago, pagamento_observacao")
-    .gt("pagamento_total", 0);
+  let clientesPagData: unknown[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let clientesPagQuery = service
+      .from("clients")
+      .select("id, nome, empresa, whatsapp, pagamento_total, pagamento_pago, pagamento_observacao")
+      .gt("pagamento_total", 0);
+    if (visibleIds) clientesPagQuery = clientesPagQuery.in("id", Array.from(visibleIds));
+    const result = await clientesPagQuery;
+    clientesPagData = result.data ?? [];
+  }
   const projetosPendentes = (
     (clientesPagData as
       | {
@@ -93,7 +107,7 @@ export default async function CobrancasPage({
   else if (filtro === "inativas") lista = todas.filter((c) => !c.ativa);
 
   return (
-    <AdminShell active="cobrancas" keyParam={keyParamFirst} userEmail={user.email}>
+    <AdminShell active="cobrancas" keyParam={keyParamFirst} userEmail={member.email}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
