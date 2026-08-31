@@ -177,7 +177,7 @@ export function TaskRow({
         draggable={false}
         onDragOver={drag?.onDragOver}
         onDrop={drag?.onDrop}
-        className={`border-t border-fysi-line hover:bg-fysi-cream/40 transition-colors ${
+        className={`group border-t border-fysi-line hover:bg-fysi-cream/40 transition-colors ${
           drag?.isDragging ? "opacity-40" : ""
         } ${drag?.isOver ? "bg-fysi-mint/20" : ""}`}
       >
@@ -191,7 +191,7 @@ export function TaskRow({
                 draggable
                 onDragStart={drag.onDragStart}
                 onDragEnd={drag.onDragEnd}
-                className="text-fysi-muted/40 hover:text-fysi-muted cursor-grab active:cursor-grabbing shrink-0 -ml-1"
+                className="text-fysi-muted/0 group-hover:text-fysi-muted hover:!text-fysi-deep cursor-grab active:cursor-grabbing shrink-0 -ml-1 transition-colors"
                 title="Arrastar pra reordenar"
               >
                 <GripIcon />
