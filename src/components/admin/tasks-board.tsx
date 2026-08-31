@@ -8,6 +8,7 @@ import {
   addProjectTaskAction,
   removeProjectTaskAction,
   updateProjectTaskAction,
+  reorderProjectTaskAction,
 } from "@/app/admin/[id]/actions";
 import {
   TASK_STATUS_OPTIONS,
@@ -33,12 +34,15 @@ export function TaskRow({
   clientId,
   urlKey,
   clienteCell,
+  reorder,
 }: {
   task: ProjectTask;
   clientId: string;
   urlKey?: string;
   /** Célula extra no início da linha (link pro cliente) — só a visão consolidada de /admin/tarefas usa. */
   clienteCell?: ReactNode;
+  /** Setas de mover pra cima/baixo — só faz sentido dentro da lista de um único cliente. */
+  reorder?: { canUp: boolean; canDown: boolean };
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -48,6 +52,8 @@ export function TaskRow({
   const [dataVencimento, setDataVencimento] = useState(
     task.data_vencimento ?? ""
   );
+  const [observacoes, setObservacoes] = useState(task.observacoes ?? "");
+  const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function baseFd() {
@@ -75,12 +81,57 @@ export function TaskRow({
     });
   }
 
+  function move(direction: "up" | "down") {
+    const fd = baseFd();
+    fd.append("direction", direction);
+    startTransition(async () => {
+      await reorderProjectTaskAction(fd);
+      router.refresh();
+    });
+  }
+
+  const totalCols = (clienteCell ? 1 : 0) + 7;
+
   return (
+    <>
     <tr className="border-t border-fysi-line">
       {clienteCell ? (
         <td className="px-3 py-2.5 text-sm text-fysi-deep">{clienteCell}</td>
       ) : null}
-      <td className="px-3 py-2.5 text-sm text-fysi-deep">{task.titulo}</td>
+      <td className="px-3 py-2.5 text-sm text-fysi-deep">
+        <div className="flex items-center gap-1.5">
+          {reorder ? (
+            <span className="flex flex-col -ml-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => move("up")}
+                disabled={pending || !reorder.canUp}
+                aria-label="Mover pra cima"
+                className="leading-none text-fysi-muted hover:text-fysi-deep disabled:opacity-20 disabled:hover:text-fysi-muted"
+              >
+                ▲
+              </button>
+              <button
+                type="button"
+                onClick={() => move("down")}
+                disabled={pending || !reorder.canDown}
+                aria-label="Mover pra baixo"
+                className="leading-none text-fysi-muted hover:text-fysi-deep disabled:opacity-20 disabled:hover:text-fysi-muted"
+              >
+                ▼
+              </button>
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-left hover:underline underline-offset-2"
+            title="Ver informações da tarefa"
+          >
+            {task.titulo}
+          </button>
+        </div>
+      </td>
       <td className="px-3 py-2.5">
         <select
           value={status}
@@ -169,6 +220,27 @@ export function TaskRow({
         </button>
       </td>
     </tr>
+    {expanded ? (
+      <tr className="bg-fysi-cream/30 border-t border-fysi-line">
+        <td colSpan={totalCols} className="px-3 py-3">
+          <div className="max-w-xl">
+            <label className="block text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
+              Observações da tarefa
+            </label>
+            <textarea
+              value={observacoes}
+              disabled={pending}
+              onChange={(e) => setObservacoes(e.target.value)}
+              onBlur={() => saveField("observacoes", observacoes)}
+              placeholder="Notas, links, contexto pra quem for mexer nessa tarefa…"
+              rows={3}
+              className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
+            />
+          </div>
+        </td>
+      </tr>
+    ) : null}
+    </>
   );
 }
 
@@ -269,6 +341,10 @@ export function TasksBoard({
                   task={t}
                   clientId={clientId}
                   urlKey={urlKey}
+                  reorder={{
+                    canUp: tasks[0]?.id !== t.id,
+                    canDown: tasks[tasks.length - 1]?.id !== t.id,
+                  }}
                 />
               ))}
               {mostrarFechados
@@ -278,6 +354,10 @@ export function TasksBoard({
                       task={t}
                       clientId={clientId}
                       urlKey={urlKey}
+                      reorder={{
+                        canUp: tasks[0]?.id !== t.id,
+                        canDown: tasks[tasks.length - 1]?.id !== t.id,
+                      }}
                     />
                   ))
                 : null}

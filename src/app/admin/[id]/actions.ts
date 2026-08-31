@@ -1015,6 +1015,10 @@ export async function updateProjectTaskAction(formData: FormData) {
       String(formData.get("dataVencimento") ?? "").trim() || null;
   }
 
+  if (formData.has("observacoes")) {
+    update.observacoes = String(formData.get("observacoes") ?? "").trim() || null;
+  }
+
   if (Object.keys(update).length === 0) return;
 
   const service = createSupabaseServiceRoleClient();
@@ -1026,4 +1030,55 @@ export async function updateProjectTaskAction(formData: FormData) {
   // tarefa pode mudar a lane do cliente (laneForClient usa a tarefa atual).
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
+}
+
+/**
+ * Troca a `ordem` de uma tarefa com a vizinha (acima/abaixo) dentro do mesmo
+ * cliente — reordenação simples por botões (sem drag-and-drop). Pedido do
+ * usuário: "poder mudar a ordem... resfriar e pra cima, no espectro, pra
+ * baixo" (2026-08-31).
+ */
+export async function reorderProjectTaskAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const taskId = String(formData.get("taskId") ?? "");
+  const clientId = String(formData.get("clientId") ?? "");
+  const direction = String(formData.get("direction") ?? "");
+  if (!taskId || !clientId || (direction !== "up" && direction !== "down")) {
+    return;
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: tasks } = await service
+    .from("project_tasks")
+    .select("id, ordem")
+    .eq("client_id", clientId)
+    .order("ordem", { ascending: true });
+  const list = (tasks ?? []) as { id: string; ordem: number }[];
+
+  const index = list.findIndex((t) => t.id === taskId);
+  if (index === -1) return;
+  const swapIndex = direction === "up" ? index - 1 : index + 1;
+  if (swapIndex < 0 || swapIndex >= list.length) return;
+
+  const current = list[index];
+  const swap = list[swapIndex];
+
+  await Promise.all([
+    service
+      .from("project_tasks")
+      .update({ ordem: swap.ordem })
+      .eq("id", current.id),
+    service
+      .from("project_tasks")
+      .update({ ordem: current.ordem })
+      .eq("id", swap.id),
+  ]);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin/lista");
+  revalidatePath("/admin/visao-geral");
+  revalidatePath("/admin/tarefas");
 }

@@ -18,6 +18,7 @@ function normalizeTask(row: Record<string, unknown>): ProjectTask {
     data_inicial: (row.data_inicial as string | null) ?? null,
     data_vencimento: (row.data_vencimento as string | null) ?? null,
     concluida_em: (row.concluida_em as string | null) ?? null,
+    observacoes: (row.observacoes as string | null) ?? null,
     origem: row.origem === "manual" ? "manual" : "template",
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),

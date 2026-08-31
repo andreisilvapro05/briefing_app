@@ -400,6 +400,11 @@ export function StatusPieBoard({
                               task={t}
                               clientId={c.id}
                               urlKey={urlKey}
+                              reorder={{
+                                canUp: c.tarefas[0]?.id !== t.id,
+                                canDown:
+                                  c.tarefas[c.tarefas.length - 1]?.id !== t.id,
+                              }}
                             />
                           ))}
                         </tbody>

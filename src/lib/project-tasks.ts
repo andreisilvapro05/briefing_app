@@ -139,6 +139,7 @@ export interface ProjectTask {
   data_inicial: string | null;
   data_vencimento: string | null;
   concluida_em: string | null;
+  observacoes: string | null;
   origem: "template" | "manual";
   created_at: string;
   updated_at: string;

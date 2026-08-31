@@ -28,6 +28,19 @@ export function AllTasksBoard({
   const [responsavel, setResponsavel] = useState("");
   const [mostrarFechados, setMostrarFechados] = useState(false);
 
+  const abertasTotal = useMemo(
+    () => tasks.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo"),
+    [tasks]
+  );
+  const distribuicao = useMemo(() => {
+    const porPessoa = TEAM_MEMBERS.map((m) => ({
+      member: m,
+      count: abertasTotal.filter((t) => t.responsavel === m.value).length,
+    }));
+    const semResponsavel = abertasTotal.filter((t) => !t.responsavel).length;
+    return { porPessoa, semResponsavel };
+  }, [abertasTotal]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tasks.filter((t) => {
@@ -78,6 +91,42 @@ export function AllTasksBoard({
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-5">
+        {distribuicao.porPessoa.map(({ member, count }) => {
+          const isActive = responsavel === member.value;
+          return (
+            <button
+              key={member.value}
+              type="button"
+              onClick={() =>
+                setResponsavel((cur) => (cur === member.value ? "" : member.value))
+              }
+              className={`flex items-center gap-2 rounded-full border pl-1.5 pr-3 py-1 text-xs font-medium transition ${
+                isActive
+                  ? "border-fysi-deep bg-fysi-deep text-fysi-cream"
+                  : "border-fysi-line bg-white text-fysi-deep hover:border-fysi-deep/40"
+              }`}
+            >
+              <span
+                className={`w-5 h-5 rounded-full grid place-items-center text-[0.6rem] font-bold text-white shrink-0 ${member.cor}`}
+              >
+                {member.iniciais}
+              </span>
+              {member.label}
+              <span className={isActive ? "text-fysi-cream/80" : "text-fysi-muted"}>
+                {count}
+              </span>
+            </button>
+          );
+        })}
+        {distribuicao.semResponsavel > 0 ? (
+          <span className="flex items-center gap-1.5 rounded-full border border-dashed border-fysi-line px-3 py-1 text-xs text-fysi-muted">
+            Sem responsável
+            <span className="font-medium">{distribuicao.semResponsavel}</span>
+          </span>
+        ) : null}
       </div>
 
       {tasks.length === 0 ? (
