@@ -7,8 +7,10 @@ import { getCurrentMember, isAdmin, type MemberRole } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
 import { logServerError } from "@/lib/api-helpers";
+import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 const ROLES: MemberRole[] = ["admin", "avancado", "basico", "desenvolvedor"];
+const TASK_VALUES = TEAM_MEMBERS.map((m) => m.value);
 
 function keyParam(urlKey: string | null) {
   return urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
@@ -30,20 +32,30 @@ export async function inviteMemberAction(formData: FormData) {
     name: z.string().trim().min(1),
     email: z.string().trim().email(),
     role: z.enum(ROLES as [MemberRole, ...MemberRole[]]),
+    taskValue: z.string().optional(),
   });
   const parsed = Body.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
     role: formData.get("role"),
+    taskValue: formData.get("taskValue"),
   });
   if (!parsed.success) return;
 
   const email = parsed.data.email.toLowerCase();
+  const taskValue = TASK_VALUES.includes(parsed.data.taskValue ?? "")
+    ? parsed.data.taskValue
+    : null;
   const service = createSupabaseServiceRoleClient();
 
   const { data: created, error: insertErr } = await service
     .from("team_members")
-    .insert({ name: parsed.data.name, email, role: parsed.data.role })
+    .insert({
+      name: parsed.data.name,
+      email,
+      role: parsed.data.role,
+      task_value: taskValue,
+    })
     .select("id")
     .single();
 
@@ -130,6 +142,29 @@ export async function setMemberRoleAction(formData: FormData) {
 
   const service = createSupabaseServiceRoleClient();
   await service.from("team_members").update({ role }).eq("id", memberId);
+
+  revalidatePath("/admin/membros");
+}
+
+/**
+ * Liga (ou desliga) o membro a um TEAM_MEMBERS (project-tasks.ts) — decide
+ * quais clientes um membro "basico" enxerga (os que têm tarefa atribuída
+ * a esse valor). Vazio = desliga o vínculo.
+ */
+export async function setMemberTaskValueAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  await requireAdminOrRedirect(urlKey);
+
+  const memberId = String(formData.get("memberId") ?? "");
+  const taskValue = String(formData.get("taskValue") ?? "");
+  if (!memberId) return;
+  if (taskValue && !TASK_VALUES.includes(taskValue)) return;
+
+  const service = createSupabaseServiceRoleClient();
+  await service
+    .from("team_members")
+    .update({ task_value: taskValue || null })
+    .eq("id", memberId);
 
   revalidatePath("/admin/membros");
 }

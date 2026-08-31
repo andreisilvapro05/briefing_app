@@ -3,10 +3,12 @@ import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getCurrentMember, isAdmin, type MemberRole } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { TEAM_MEMBERS } from "@/lib/project-tasks";
 import {
   inviteMemberAction,
   resendInviteAction,
   setMemberRoleAction,
+  setMemberTaskValueAction,
   toggleMemberActiveAction,
 } from "./actions";
 
@@ -20,6 +22,7 @@ interface TeamMemberRow {
   active: boolean;
   invited_at: string | null;
   last_login_at: string | null;
+  task_value: string | null;
 }
 
 const ROLE_LABELS: Record<MemberRole, string> = {
@@ -32,7 +35,7 @@ const ROLE_LABELS: Record<MemberRole, string> = {
 const ROLE_HINT: Record<MemberRole, string> = {
   admin: "acesso total, gerencia membros",
   avancado: "acesso completo, não é sócio",
-  basico: "restrito aos projetos em que está marcado (em construção)",
+  basico: "restrito aos projetos em que está marcado (parcial — ver nota abaixo)",
   desenvolvedor: "reservado",
 };
 
@@ -52,7 +55,7 @@ export default async function MembrosPage({
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("team_members")
-    .select("id, email, name, role, active, invited_at, last_login_at")
+    .select("id, email, name, role, active, invited_at, last_login_at, task_value")
     .order("created_at", { ascending: true });
   const members = (data as TeamMemberRow[]) ?? [];
 
@@ -67,6 +70,12 @@ export default async function MembrosPage({
           senha compartilhada continua funcionando em paralelo durante a
           transição.
         </p>
+        <p className="text-[0.7rem] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3 max-w-2xl">
+          ⚠ A restrição do papel <strong>Básico</strong> hoje só vale na tela
+          Clientes e ao abrir um cliente direto. Lista por status, Quadro,
+          Visão Geral, Relatórios e Tarefas ainda mostram tudo pra qualquer
+          papel — cuidado ao dar Básico pra alguém antes disso ser fechado.
+        </p>
       </header>
 
       {/* Convidar novo membro */}
@@ -74,7 +83,7 @@ export default async function MembrosPage({
         <Eyebrow>Convidar</Eyebrow>
         <form
           action={inviteMemberAction}
-          className="grid sm:grid-cols-[1fr_1fr_auto_auto] gap-3 mt-3"
+          className="grid sm:grid-cols-[1fr_1fr_auto_auto_auto] gap-3 mt-3"
         >
           {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
           <input
@@ -102,6 +111,19 @@ export default async function MembrosPage({
               </option>
             ))}
           </select>
+          <select
+            name="taskValue"
+            defaultValue=""
+            title="Liga essa pessoa às tarefas dela em project_tasks — decide o que aparece pro papel Básico"
+            className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+          >
+            <option value="">Sem vínculo de tarefas</option>
+            {TEAM_MEMBERS.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
           <button
             type="submit"
             className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
@@ -109,6 +131,10 @@ export default async function MembrosPage({
             Convidar
           </button>
         </form>
+        <p className="text-[0.7rem] text-fysi-muted mt-2">
+          O vínculo de tarefas é o que decide o que o papel <strong>Básico</strong>{" "}
+          enxerga — clientes com pelo menos uma tarefa atribuída a essa pessoa.
+        </p>
       </section>
 
       {/* Lista de membros */}
@@ -118,6 +144,7 @@ export default async function MembrosPage({
             <tr>
               <th className="px-5 py-3 font-medium">Pessoa</th>
               <th className="px-5 py-3 font-medium">Papel</th>
+              <th className="px-5 py-3 font-medium">Vínculo de tarefas</th>
               <th className="px-5 py-3 font-medium">Status</th>
               <th className="px-5 py-3 font-medium">Último login</th>
               <th className="px-5 py-3 font-medium" />
@@ -126,7 +153,7 @@ export default async function MembrosPage({
           <tbody>
             {members.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-5 py-8 text-center text-fysi-muted">
+                <td colSpan={6} className="px-5 py-8 text-center text-fysi-muted">
                   Nenhum membro cadastrado ainda — convide o primeiro acima.
                 </td>
               </tr>
@@ -156,6 +183,25 @@ export default async function MembrosPage({
                         ))}
                       </select>
                       <span className="text-[0.65rem] text-fysi-muted">{ROLE_HINT[m.role]}</span>
+                    </form>
+                  </td>
+                  <td className="px-5 py-4">
+                    <form action={setMemberTaskValueAction}>
+                      {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                      <input type="hidden" name="memberId" value={m.id} />
+                      <select
+                        name="taskValue"
+                        defaultValue={m.task_value ?? ""}
+                        onChange={(e) => e.currentTarget.form?.requestSubmit()}
+                        className="rounded-full border border-fysi-line bg-white text-xs px-3 py-1 focus:outline-none focus:border-fysi-deep/40"
+                      >
+                        <option value="">Sem vínculo</option>
+                        {TEAM_MEMBERS.map((t) => (
+                          <option key={t.value} value={t.value}>
+                            {t.label}
+                          </option>
+                        ))}
+                      </select>
                     </form>
                   </td>
                   <td className="px-5 py-4">

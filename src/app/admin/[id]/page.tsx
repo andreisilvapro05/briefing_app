@@ -6,7 +6,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Eyebrow } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { buildTimeline } from "@/lib/project-types";
 import { blocosForProject } from "@/lib/briefing-schema";
@@ -93,8 +93,15 @@ export default async function AdminClientPage({
   const tab: ClientTab = validTabs.includes(sp.tab as ClientTab)
     ? (sp.tab as ClientTab)
     : "geral";
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+
+  // "basico" só acessa clientes em que tem tarefa atribuída — mesmo por
+  // URL direta, não só escondido da lista.
+  const visibleIds = await getVisibleClientIds(member);
+  if (visibleIds && !visibleIds.has(id)) {
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   // Sempre que veio com ?key=, preserva nos links/forms (mesmo se cookie
   // também autenticou — cookie pode cair no próximo clique).
@@ -262,7 +269,7 @@ export default async function AdminClientPage({
   };
 
   return (
-    <AdminShell active="clientes" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell active="clientes" keyParam={keyParam} userEmail={member.email}>
         <Link
           href={`/admin${keyParam}`}
           className="text-xs text-fysi-muted hover:text-fysi-deep mb-3 inline-block"

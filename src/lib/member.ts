@@ -32,6 +32,8 @@ export interface Member {
   source: "supabase" | "password-legacy" | "url-key-legacy";
   /** true quando entrou pela senha compartilhada, não por identidade própria. */
   legacy: boolean;
+  /** Liga esse membro a TEAM_MEMBERS (project-tasks.ts) — o valor gravado em project_tasks.responsavel. null se não ligado (ou "basico" sem tarefas suas). */
+  taskValue: string | null;
 }
 
 interface TeamMemberRow {
@@ -41,6 +43,7 @@ interface TeamMemberRow {
   name: string;
   role: MemberRole;
   active: boolean;
+  task_value: string | null;
 }
 
 function legacyMember(source: "password-legacy" | "url-key-legacy"): Member {
@@ -52,6 +55,7 @@ function legacyMember(source: "password-legacy" | "url-key-legacy"): Member {
     role: "admin",
     source,
     legacy: true,
+    taskValue: null,
   };
 }
 
@@ -77,7 +81,7 @@ export async function getCurrentMember(opts?: {
       const service = createSupabaseServiceRoleClient();
       const { data: row } = await service
         .from("team_members")
-        .select("id, auth_user_id, email, name, role, active")
+        .select("id, auth_user_id, email, name, role, active, task_value")
         .eq("auth_user_id", user.id)
         .maybeSingle();
       const member = row as TeamMemberRow | null;
@@ -90,6 +94,7 @@ export async function getCurrentMember(opts?: {
           role: member.role,
           source: "supabase",
           legacy: false,
+          taskValue: member.task_value,
         };
       }
     }
@@ -128,6 +133,26 @@ export function isAdmin(member: Member): boolean {
  */
 export function hasFullAccess(member: Member): boolean {
   return member.role === "admin" || member.role === "avancado" || member.legacy;
+}
+
+/**
+ * IDs de cliente que este membro pode ver. `null` = acesso total (não
+ * filtrar). Pra `basico` sem `taskValue` ligado, retorna um Set vazio —
+ * mais seguro que mostrar tudo por engano quando o vínculo não foi
+ * configurado ainda em /admin/membros.
+ */
+export async function getVisibleClientIds(
+  member: Member
+): Promise<Set<string> | null> {
+  if (hasFullAccess(member)) return null;
+  if (!member.taskValue) return new Set();
+
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("project_tasks")
+    .select("client_id")
+    .eq("responsavel", member.taskValue);
+  return new Set(((data as { client_id: string }[]) ?? []).map((r) => r.client_id));
 }
 
 /**
