@@ -1021,4 +1021,9 @@ export async function updateProjectTaskAction(formData: FormData) {
   await service.from("project_tasks").update(update).eq("id", taskId);
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
+  // Editar direto no accordion da Lista por status/Visão Geral (ver
+  // status-pie-board.tsx) também precisa revalidar essas telas — status de
+  // tarefa pode mudar a lane do cliente (laneForClient usa a tarefa atual).
+  revalidatePath("/admin/lista");
+  revalidatePath("/admin/visao-geral");
 }

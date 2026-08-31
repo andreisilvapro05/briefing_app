@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
@@ -10,6 +10,7 @@ import {
   TASK_STATUS_TONE,
   type TaskStatus,
 } from "@/lib/project-tasks";
+import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
 
 /**
  * Pizza (donut) interativa de projetos por status + lista embaixo.
@@ -22,6 +23,49 @@ export interface LaneClientTask {
   id: string;
   titulo: string;
   status: TaskStatus;
+}
+
+function TaskStatusSelect({
+  task,
+  clientId,
+  urlKey,
+}: {
+  task: LaneClientTask;
+  clientId: string;
+  urlKey?: string;
+}) {
+  const [current, setCurrent] = useState(task.status);
+  const [pending, startTransition] = useTransition();
+
+  function change(next: TaskStatus) {
+    if (next === current) return;
+    setCurrent(next);
+    const fd = new FormData();
+    fd.append("taskId", task.id);
+    fd.append("clientId", clientId);
+    fd.append("status", next);
+    if (urlKey) fd.append("key", urlKey);
+    startTransition(async () => {
+      await updateProjectTaskAction(fd);
+    });
+  }
+
+  return (
+    <select
+      value={current}
+      onChange={(e) => change(e.target.value as TaskStatus)}
+      disabled={pending}
+      aria-label={`Status de ${task.titulo}`}
+      onClick={(e) => e.stopPropagation()}
+      className={`rounded-full border text-[0.68rem] font-medium px-2 py-0.5 shrink-0 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[current]}`}
+    >
+      {TASK_STATUS_OPTIONS.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </select>
+  );
 }
 
 export interface LaneClient {
@@ -396,12 +440,20 @@ export function StatusPieBoard({
                           <span className="text-fysi-deep truncate">
                             {t.titulo}
                           </span>
-                          <span
-                            className={`inline-block rounded-full border text-[0.68rem] font-medium px-2 py-0.5 shrink-0 ${TASK_STATUS_TONE[t.status]}`}
-                          >
-                            {TASK_STATUS_OPTIONS.find((o) => o.value === t.status)
-                              ?.label ?? t.status}
-                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <TaskStatusSelect
+                              task={t}
+                              clientId={c.id}
+                              urlKey={urlKey}
+                            />
+                            <a
+                              href={`/admin/${c.id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
+                              className="text-fysi-deep hover:underline"
+                              title="Abrir na aba Tarefas"
+                            >
+                              Ver →
+                            </a>
+                          </div>
                         </div>
                       ))}
                     </div>
