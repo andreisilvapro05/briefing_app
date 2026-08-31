@@ -375,6 +375,7 @@ export function TaskRow({
   drag,
   eiDocId,
   eiHref,
+  readOnly,
 }: {
   task: ProjectTask;
   clientId: string;
@@ -386,6 +387,8 @@ export function TaskRow({
   /** null = cliente ainda não tem Estrutura Inicial (link leva pro hub em vez do documento). */
   eiDocId?: string | null;
   eiHref?: string;
+  /** Papel "basico" só vê (não edita) tarefa de outra pessoa — server já rejeita, isso só reflete na UI. */
+  readOnly?: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -425,6 +428,7 @@ export function TaskRow({
   }
 
   const totalCols = (clienteCell ? 1 : 0) + 7;
+  const locked = pending || readOnly;
   const fieldClass =
     "rounded-[8px] border border-transparent hover:border-fysi-line focus:border-fysi-deep/40 bg-transparent hover:bg-white focus:bg-white text-xs px-2 py-1 transition-colors focus:outline-none";
 
@@ -445,7 +449,7 @@ export function TaskRow({
         ) : null}
         <td className="px-3 py-2 text-sm text-fysi-deep overflow-hidden">
           <div className="flex items-center gap-1.5 min-w-0">
-            {drag ? (
+            {drag && !readOnly ? (
               <span
                 draggable
                 onDragStart={drag.onDragStart}
@@ -454,6 +458,14 @@ export function TaskRow({
                 title="Arrastar pra reordenar"
               >
                 <GripIcon />
+              </span>
+            ) : null}
+            {readOnly ? (
+              <span
+                className="text-fysi-muted/50 shrink-0"
+                title="Somente leitura — tarefa de outra pessoa"
+              >
+                🔒
               </span>
             ) : null}
             <button
@@ -469,7 +481,7 @@ export function TaskRow({
         <td className="px-3 py-2">
           <select
             value={status}
-            disabled={pending}
+            disabled={locked}
             onChange={(e) => {
               const next = e.target.value as TaskStatus;
               setStatus(next);
@@ -487,7 +499,7 @@ export function TaskRow({
         <td className="px-3 py-2 overflow-hidden">
           <PriorityPicker
             value={prioridade}
-            disabled={pending}
+            disabled={locked}
             onChange={(v) => {
               setPrioridade(v);
               saveField("prioridade", v);
@@ -497,7 +509,7 @@ export function TaskRow({
         <td className="px-3 py-2 overflow-hidden">
           <AssigneePicker
             value={responsavel}
-            disabled={pending}
+            disabled={locked}
             onChange={(v) => {
               setResponsavel(v);
               saveField("responsavel", v);
@@ -508,7 +520,7 @@ export function TaskRow({
           <input
             type="date"
             value={dataInicial}
-            disabled={pending}
+            disabled={locked}
             onChange={(e) => setDataInicial(e.target.value)}
             onBlur={() => saveField("dataInicial", dataInicial)}
             className={`max-w-full ${fieldClass}`}
@@ -518,7 +530,7 @@ export function TaskRow({
           <input
             type="date"
             value={dataVencimento}
-            disabled={pending}
+            disabled={locked}
             onChange={(e) => setDataVencimento(e.target.value)}
             onBlur={() => saveField("dataVencimento", dataVencimento)}
             className={`max-w-full ${fieldClass} ${
@@ -529,14 +541,16 @@ export function TaskRow({
           />
         </td>
         <td className="px-3 py-2 text-right overflow-hidden">
-          <button
-            type="button"
-            onClick={remove}
-            disabled={pending}
-            className="text-xs text-red-700 underline underline-offset-2 disabled:opacity-50"
-          >
-            Remover
-          </button>
+          {readOnly ? null : (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={locked}
+              className="text-xs text-red-700 underline underline-offset-2 disabled:opacity-50"
+            >
+              Remover
+            </button>
+          )}
         </td>
       </tr>
       {expanded ? (
@@ -558,7 +572,7 @@ export function TaskRow({
                 </label>
                 <textarea
                   value={observacoes}
-                  disabled={pending}
+                  disabled={locked}
                   onChange={(e) => setObservacoes(e.target.value)}
                   onBlur={() => saveField("observacoes", observacoes)}
                   placeholder="Notas, links, contexto pra quem for mexer nessa tarefa…"
@@ -704,6 +718,19 @@ function formatCommentDate(iso: string): string {
   }
 }
 
+/**
+ * undefined = sem restrição (admin/avancado/legacy). null = "basico" sem
+ * vínculo de tarefas (nada editável). string = "basico" com vínculo — só
+ * tarefas com esse `responsavel` são editáveis, o resto vira read-only.
+ */
+export type EditRestriction = string | null | undefined;
+
+export function isReadOnlyFor(task: ProjectTask, restrict: EditRestriction): boolean {
+  if (restrict === undefined) return false;
+  if (restrict === null) return true;
+  return task.responsavel !== restrict;
+}
+
 export function TasksBoard({
   clientId,
   urlKey,
@@ -711,6 +738,7 @@ export function TasksBoard({
   tasks,
   eiDocId,
   eiHref,
+  restrictToResponsavel,
 }: {
   clientId: string;
   urlKey?: string;
@@ -718,6 +746,7 @@ export function TasksBoard({
   tasks: ProjectTask[];
   eiDocId?: string | null;
   eiHref?: string;
+  restrictToResponsavel?: EditRestriction;
 }) {
   const router = useRouter();
   const [novoTitulo, setNovoTitulo] = useState("");
@@ -825,9 +854,14 @@ export function TasksBoard({
                   task={t}
                   clientId={clientId}
                   urlKey={urlKey}
-                  drag={abertas.length > 1 ? dragAbertas(t) : undefined}
+                  drag={
+                    abertas.length > 1 && !isReadOnlyFor(t, restrictToResponsavel)
+                      ? dragAbertas(t)
+                      : undefined
+                  }
                   eiDocId={eiDocId}
                   eiHref={eiHref}
+                  readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                 />
               ))}
               {mostrarFechados
@@ -838,10 +872,14 @@ export function TasksBoard({
                       clientId={clientId}
                       urlKey={urlKey}
                       drag={
-                        fechadas.length > 1 ? dragFechadas(t) : undefined
+                        fechadas.length > 1 &&
+                        !isReadOnlyFor(t, restrictToResponsavel)
+                          ? dragFechadas(t)
+                          : undefined
                       }
                       eiDocId={eiDocId}
                       eiHref={eiHref}
+                      readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                     />
                   ))
                 : null}

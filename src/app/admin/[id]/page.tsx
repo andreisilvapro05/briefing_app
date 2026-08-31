@@ -1232,6 +1232,9 @@ Qualquer dúvida, é só responder por aqui.`}
                 ? `/admin/estruturas-iniciais/${eiDocId}${keyParam}`
                 : `/admin/estruturas-iniciais${keyParam}`
             }
+            restrictToResponsavel={
+              member.role === "basico" ? member.taskValue : undefined
+            }
           />
         ) : null}
           </div>

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
-import { getCurrentMember } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { createClickUpBriefingTask } from "@/lib/clickup";
 import { htmlMagicLink, sendEmail } from "@/lib/email";
@@ -948,16 +948,39 @@ export async function addProjectTaskAction(formData: FormData) {
 }
 
 /**
+ * Um membro "basico" (ex: designer) só edita/apaga/comenta tarefas em que
+ * ELE é o responsável — outras tarefas do mesmo projeto (de outra pessoa)
+ * ficam só-leitura pra ele, mesmo que o projeto em si seja visível.
+ * Pedido do usuário (2026-08-31): "quem pode editar vs só ver".
+ * admin/avancado/legacy sempre podem editar.
+ */
+async function canEditTask(
+  member: { role: string; taskValue: string | null },
+  taskId: string
+): Promise<boolean> {
+  if (member.role !== "basico") return true;
+  if (!member.taskValue) return false;
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("project_tasks")
+    .select("responsavel")
+    .eq("id", taskId)
+    .maybeSingle();
+  return (data as { responsavel: string | null } | null)?.responsavel === member.taskValue;
+}
+
+/**
  * Remove uma tarefa.
  */
 export async function removeProjectTaskAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const taskId = String(formData.get("taskId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
   if (!taskId) return;
+  if (!(await canEditTask(member, taskId))) return;
 
   const service = createSupabaseServiceRoleClient();
   await service.from("project_tasks").delete().eq("id", taskId);
@@ -972,12 +995,13 @@ export async function removeProjectTaskAction(formData: FormData) {
  */
 export async function updateProjectTaskAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const taskId = String(formData.get("taskId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
   if (!taskId) return;
+  if (!(await canEditTask(member, taskId))) return;
 
   const update: Record<string, unknown> = {};
 
@@ -1041,8 +1065,8 @@ export async function updateProjectTaskAction(formData: FormData) {
  */
 export async function reorderProjectTasksAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const clientId = String(formData.get("clientId") ?? "");
   const orderedIds = formData
@@ -1054,11 +1078,24 @@ export async function reorderProjectTasksAction(formData: FormData) {
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("project_tasks")
-    .select("id, ordem")
+    .select("id, ordem, responsavel")
     .eq("client_id", clientId)
     .in("id", orderedIds);
-  const rows = (data ?? []) as { id: string; ordem: number }[];
+  const rows = (data ?? []) as {
+    id: string;
+    ordem: number;
+    responsavel: string | null;
+  }[];
   if (rows.length !== orderedIds.length) return;
+  // "basico" só reordena entre tarefas que são todas dele — misturar com
+  // tarefa de outra pessoa no mesmo arrasto é rejeitado inteiro (mais
+  // simples e seguro do que reordenar parcialmente).
+  if (
+    member.role === "basico" &&
+    (!member.taskValue || rows.some((r) => r.responsavel !== member.taskValue))
+  ) {
+    return;
+  }
 
   const slots = rows.map((r) => r.ordem).sort((a, b) => a - b);
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -1088,14 +1125,39 @@ export interface ProjectTaskComment {
   created_at: string;
 }
 
+/**
+ * Confere se o membro pode ver o cliente dono da tarefa — sem isso, dava
+ * pra ler/postar comentário de qualquer tarefa só estando logado, mesmo
+ * fora do escopo de clientes visíveis do papel "basico" (buscava a tarefa
+ * real pelo id em vez de confiar no clientId enviado pelo form).
+ */
+async function canAccessTaskClient(
+  member: Awaited<ReturnType<typeof getCurrentMember>>,
+  taskId: string
+): Promise<string | null> {
+  if (!member) return null;
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("project_tasks")
+    .select("client_id")
+    .eq("id", taskId)
+    .maybeSingle();
+  const clientId = (data as { client_id: string } | null)?.client_id ?? null;
+  if (!clientId) return null;
+
+  const visibleIds = await getVisibleClientIds(member);
+  if (visibleIds && !visibleIds.has(clientId)) return null;
+  return clientId;
+}
+
 /** Lê os comentários de uma tarefa — buscado sob demanda ao abrir o painel de informações. */
 export async function getProjectTaskCommentsAction(
   taskId: string,
   urlKey?: string | null
 ): Promise<ProjectTaskComment[]> {
-  const user = await getAdminUser({ urlKey: urlKey ?? null });
-  if (!user) return [];
-  if (!taskId) return [];
+  const member = await getCurrentMember({ urlKey: urlKey ?? null });
+  if (!member || !taskId) return [];
+  if (!(await canAccessTaskClient(member, taskId))) return [];
 
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
@@ -1114,9 +1176,11 @@ export async function addProjectTaskCommentAction(formData: FormData) {
   if (!member) redirect("/admin/login");
 
   const taskId = String(formData.get("taskId") ?? "");
-  const clientId = String(formData.get("clientId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   if (!taskId || !body) return;
+
+  const clientId = await canAccessTaskClient(member, taskId);
+  if (!clientId) return;
 
   const service = createSupabaseServiceRoleClient();
   await service.from("project_task_comments").insert({
@@ -1125,21 +1189,31 @@ export async function addProjectTaskCommentAction(formData: FormData) {
     body,
   });
 
-  if (clientId) revalidatePath(`/admin/${clientId}`);
+  revalidatePath(`/admin/${clientId}`);
 }
 
 /** Remove um comentário. */
 export async function deleteProjectTaskCommentAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const commentId = String(formData.get("commentId") ?? "");
-  const clientId = String(formData.get("clientId") ?? "");
   if (!commentId) return;
 
   const service = createSupabaseServiceRoleClient();
+  const { data: comment } = await service
+    .from("project_task_comments")
+    .select("task_id")
+    .eq("id", commentId)
+    .maybeSingle();
+  const taskId = (comment as { task_id: string } | null)?.task_id;
+  if (!taskId) return;
+
+  const clientId = await canAccessTaskClient(member, taskId);
+  if (!clientId) return;
+
   await service.from("project_task_comments").delete().eq("id", commentId);
 
-  if (clientId) revalidatePath(`/admin/${clientId}`);
+  revalidatePath(`/admin/${clientId}`);
 }

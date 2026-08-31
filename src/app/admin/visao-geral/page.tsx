@@ -114,6 +114,9 @@ export default async function VisaoGeralPage({
           keyParam={keyParam}
           urlKey={urlKey ?? undefined}
           novoHref={novoHref}
+          restrictToResponsavel={
+            member.role === "basico" ? member.taskValue : undefined
+          }
         />
       </section>
 

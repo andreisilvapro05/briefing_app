@@ -9,6 +9,8 @@ import {
   useColumnWidths,
   ColGroup,
   ResizableTh,
+  isReadOnlyFor,
+  type EditRestriction,
 } from "./tasks-board";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { DEFAULT_TASK_STATUS, type ProjectTask } from "@/lib/project-tasks";
@@ -88,11 +90,13 @@ export function StatusPieBoard({
   keyParam,
   urlKey,
   novoHref,
+  restrictToResponsavel,
 }: {
   groups: LaneGroup[];
   keyParam: string;
   urlKey?: string;
   novoHref: string;
+  restrictToResponsavel?: EditRestriction;
 }) {
   const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
   const [selected, setSelected] = useState<string | null>(null);
@@ -333,6 +337,7 @@ export function StatusPieBoard({
                 onToggle={() => toggleExpanded(c.id)}
                 urlKey={urlKey}
                 keyParam={keyParam}
+                restrictToResponsavel={restrictToResponsavel}
               />
             ))}
           </div>
@@ -353,12 +358,14 @@ function ClientAccordionRow({
   onToggle,
   urlKey,
   keyParam,
+  restrictToResponsavel,
 }: {
   c: LaneClient;
   isOpen: boolean;
   onToggle: () => void;
   urlKey?: string;
   keyParam: string;
+  restrictToResponsavel?: EditRestriction;
 }) {
   const hasTarefas = c.tarefas.length > 0;
   const { order: tarefas, dragProps } = useTaskDrag(c.tarefas, c.id, urlKey);
@@ -449,13 +456,18 @@ function ClientAccordionRow({
                   task={t}
                   clientId={c.id}
                   urlKey={urlKey}
-                  drag={tarefas.length > 1 ? dragProps(t) : undefined}
+                  drag={
+                    tarefas.length > 1 && !isReadOnlyFor(t, restrictToResponsavel)
+                      ? dragProps(t)
+                      : undefined
+                  }
                   eiDocId={c.eiDocId}
                   eiHref={
                     c.eiDocId
                       ? `/admin/estruturas-iniciais/${c.eiDocId}${keyParam}`
                       : `/admin/estruturas-iniciais${keyParam}`
                   }
+                  readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                 />
               ))}
             </tbody>

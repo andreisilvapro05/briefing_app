@@ -48,6 +48,9 @@ export default async function AdminListaPage({
         keyParam={keyParam}
         urlKey={urlKey ?? undefined}
         novoHref={novoHref}
+        restrictToResponsavel={
+          member.role === "basico" ? member.taskValue : undefined
+        }
       />
     </AdminShell>
   );

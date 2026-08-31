@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { TaskRow, useColumnWidths, ColGroup, ResizableTh } from "./tasks-board";
+import {
+  TaskRow,
+  useColumnWidths,
+  ColGroup,
+  ResizableTh,
+  isReadOnlyFor,
+  type EditRestriction,
+} from "./tasks-board";
 import {
   TASK_STATUS_GROUP,
   TEAM_MEMBERS,
@@ -22,12 +29,14 @@ export function AllTasksBoard({
   urlKey,
   keyParam = "",
   eiDocIdByClient = {},
+  restrictToResponsavel,
 }: {
   tasks: Task[];
   urlKey?: string;
   keyParam?: string;
   /** client_id -> id do documento de Estrutura Inicial, se existir. */
   eiDocIdByClient?: Record<string, string>;
+  restrictToResponsavel?: EditRestriction;
 }) {
   const [query, setQuery] = useState("");
   const [responsavel, setResponsavel] = useState("");
@@ -180,6 +189,7 @@ export function AllTasksBoard({
                       ? `/admin/estruturas-iniciais/${eiDocIdByClient[t.client_id]}${keyParam}`
                       : `/admin/estruturas-iniciais${keyParam}`
                   }
+                  readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                 />
               ))}
               {mostrarFechados
@@ -196,6 +206,7 @@ export function AllTasksBoard({
                           ? `/admin/estruturas-iniciais/${eiDocIdByClient[t.client_id]}${keyParam}`
                           : `/admin/estruturas-iniciais${keyParam}`
                       }
+                      readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                     />
                   ))
                 : null}

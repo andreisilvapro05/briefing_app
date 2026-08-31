@@ -46,6 +46,9 @@ export default async function AdminTarefasPage({
         urlKey={urlKey ?? undefined}
         keyParam={keyParamFirst}
         eiDocIdByClient={eiDocIdByClient}
+        restrictToResponsavel={
+          member.role === "basico" ? member.taskValue : undefined
+        }
       />
     </AdminShell>
   );
