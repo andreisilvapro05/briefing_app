@@ -29,17 +29,23 @@ const TONE_HEX: Record<string, string> = {
   rose: "#f43f5e",
 };
 
-export async function getLaneGroups(): Promise<LaneGroup[]> {
+export async function getLaneGroups(
+  visibleIds?: Set<string> | null
+): Promise<LaneGroup[]> {
   const service = createSupabaseServiceRoleClient();
-  const [{ data }, tasksByClient] = await Promise.all([
-    service
-      .from("clients")
-      .select(
-        "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
-      )
-      .order("created_at", { ascending: false }),
-    getTasksByClient(),
-  ]);
+
+  let clientsQuery = service
+    .from("clients")
+    .select(
+      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
+    )
+    .order("created_at", { ascending: false });
+  if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
+
+  const [{ data }, tasksByClient] =
+    visibleIds && visibleIds.size === 0
+      ? [{ data: [] }, await getTasksByClient()]
+      : await Promise.all([clientsQuery, getTasksByClient()]);
 
   const clients = (data as ClientForLane[]) ?? [];
 

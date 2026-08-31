@@ -35,7 +35,7 @@ const ROLE_LABELS: Record<MemberRole, string> = {
 const ROLE_HINT: Record<MemberRole, string> = {
   admin: "acesso total, gerencia membros",
   avancado: "acesso completo, não é sócio",
-  basico: "restrito aos projetos em que está marcado (parcial — ver nota abaixo)",
+  basico: "restrito aos projetos em que está marcado",
   desenvolvedor: "reservado",
 };
 
@@ -70,11 +70,12 @@ export default async function MembrosPage({
           senha compartilhada continua funcionando em paralelo durante a
           transição.
         </p>
-        <p className="text-[0.7rem] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mt-3 max-w-2xl">
-          ⚠ A restrição do papel <strong>Básico</strong> hoje só vale na tela
-          Clientes e ao abrir um cliente direto. Lista por status, Quadro,
-          Visão Geral, Relatórios e Tarefas ainda mostram tudo pra qualquer
-          papel — cuidado ao dar Básico pra alguém antes disso ser fechado.
+        <p className="text-[0.7rem] text-fysi-muted mt-3 max-w-2xl">
+          O papel <strong>Básico</strong> restringe a Clientes, ficha do
+          cliente, Lista por status, Quadro, Visão Geral, Relatórios e
+          Tarefas — todas filtradas pelos projetos em que a pessoa está
+          marcada (vínculo de tarefas abaixo). Contratos, Cobranças e
+          Estruturas Iniciais ainda não filtram.
         </p>
       </header>
 

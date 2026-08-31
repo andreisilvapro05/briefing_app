@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Eyebrow, Pill } from "@/components/ui/pill";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   statsCobrancas,
@@ -28,27 +28,38 @@ export default async function AdminRelatoriosPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+  const visibleIds = await getVisibleClientIds(member);
 
   const service = createSupabaseServiceRoleClient();
-  const { data } = await service
-    .from("clients")
-    .select(
-      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, como_conheceu"
-    )
-    .order("created_at", { ascending: false });
 
-  const clients = (data as ClientWithOrigem[]) ?? [];
+  let clients: ClientWithOrigem[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let clientsQuery = service
+      .from("clients")
+      .select(
+        "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, como_conheceu"
+      )
+      .order("created_at", { ascending: false });
+    if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
+    const { data } = await clientsQuery;
+    clients = (data as ClientWithOrigem[]) ?? [];
+  }
   const stats = computeStats(clients);
 
-  // Cobranças mensais — pra mostrar MRR + receita recorrente no relatório
-  const { data: cobrancasData } = await service
-    .from("cobrancas_mensais")
-    .select("*");
-  const cobrancas = (cobrancasData as CobrancaMensal[]) ?? [];
+  // Cobranças mensais — pra mostrar MRR + receita recorrente no relatório.
+  // Cobrança sem client_id é "externa" (fora de projeto) — não entra pra
+  // quem tem visão restrita, já que não dá pra saber se é dela.
+  let cobrancas: CobrancaMensal[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let cobrancasQuery = service.from("cobrancas_mensais").select("*");
+    if (visibleIds) cobrancasQuery = cobrancasQuery.in("client_id", Array.from(visibleIds));
+    const { data: cobrancasData } = await cobrancasQuery;
+    cobrancas = (cobrancasData as CobrancaMensal[]) ?? [];
+  }
   const cobrancasStats = statsCobrancas(cobrancas);
 
   const entregueLaneId = statusLaneId("completo-entregue");
@@ -75,7 +86,7 @@ export default async function AdminRelatoriosPage({
   const maxOrigem = Math.max(1, ...origemEntries.map(([, n]) => n));
 
   return (
-    <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={user.email}>
+    <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={member.email}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">Relatórios</h1>

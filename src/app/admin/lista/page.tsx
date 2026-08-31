@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getLaneGroups } from "@/lib/lane-groups-server";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
@@ -14,16 +14,17 @@ export default async function AdminListaPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const novoHref = `/admin/novo${keyParam}`;
 
-  const groups = await getLaneGroups();
+  const visibleIds = await getVisibleClientIds(member);
+  const groups = await getLaneGroups(visibleIds);
 
   return (
-    <AdminShell active="lista" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell active="lista" keyParam={keyParam} userEmail={member.email}>
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">

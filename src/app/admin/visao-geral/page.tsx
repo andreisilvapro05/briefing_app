@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Eyebrow } from "@/components/ui/pill";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getLaneGroups } from "@/lib/lane-groups-server";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
@@ -17,9 +17,10 @@ import { MiniStatusPie } from "@/components/admin/mini-status-pie";
  * pendentes da equipe, atalhos e busca. Pedido do usuário (2026-08-31):
  * "isso é essencial".
  *
- * Login ainda é compartilhado (sem usuário individual — Caixa 0 adiada),
- * então "tarefas do usuário da conta" mostra as tarefas pendentes de TODA
- * a equipe, não filtradas por pessoa — não dá pra saber quem está logado.
+ * Filtrada por getVisibleClientIds() (Caixa 0) — um membro "basico" só vê
+ * a pizza/tarefas dos clientes em que está marcado. Ainda mostra tarefas
+ * de TODA a equipe visível (não só as atribuídas à pessoa logada) — falta
+ * granularidade por responsável dentro do próprio escopo visível.
  */
 
 export const dynamic = "force-dynamic";
@@ -33,20 +34,22 @@ export default async function VisaoGeralPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
+  const visibleIds = await getVisibleClientIds(member);
   const [allTasks, laneGroups] = await Promise.all([
     listAllProjectTasks(),
-    getLaneGroups(),
+    getLaneGroups(visibleIds),
   ]);
 
-  // Tarefas pendentes de toda a equipe, mais urgentes primeiro (vencimento
-  // mais próximo/atrasado; sem vencimento vai pro fim).
+  // Tarefas pendentes de toda a equipe visível a este membro, mais urgentes
+  // primeiro (vencimento mais próximo/atrasado; sem vencimento vai pro fim).
   const tarefasPendentes = allTasks
     .filter((t) => !isClosedTaskStatus(t.status))
+    .filter((t) => !visibleIds || visibleIds.has(t.client_id))
     .sort((a, b) => {
       if (!a.data_vencimento && !b.data_vencimento) return 0;
       if (!a.data_vencimento) return 1;
@@ -59,7 +62,7 @@ export default async function VisaoGeralPage({
     .slice(0, TAREFAS_LIMIT);
 
   return (
-    <AdminShell active="visao-geral" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell active="visao-geral" keyParam={keyParam} userEmail={member.email}>
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
           Visão Geral

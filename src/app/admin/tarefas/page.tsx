@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
@@ -13,14 +13,18 @@ export default async function AdminTarefasPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
-  const tasks = await listAllProjectTasks();
+  const visibleIds = await getVisibleClientIds(member);
+  const allTasks = await listAllProjectTasks();
+  const tasks = visibleIds
+    ? allTasks.filter((t) => visibleIds.has(t.client_id))
+    : allTasks;
 
   return (
-    <AdminShell active="tarefas" keyParam={keyParamFirst} userEmail={user.email}>
+    <AdminShell active="tarefas" keyParam={keyParamFirst} userEmail={member.email}>
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">

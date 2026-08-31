@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
@@ -25,24 +25,30 @@ export default async function AdminQuadroPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const tipoFilter = params.tipo ?? "";
 
+  const visibleIds = await getVisibleClientIds(member);
   const service = createSupabaseServiceRoleClient();
-  let query = service
-    .from("clients")
-    .select(
-      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
-    )
-    .order("created_at", { ascending: false });
 
-  if (tipoFilter) query = query.eq("project_type", tipoFilter);
+  let clients: ClientForLane[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let query = service
+      .from("clients")
+      .select(
+        "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
+      )
+      .order("created_at", { ascending: false });
 
-  const { data } = await query;
-  const clients = (data as ClientForLane[]) ?? [];
+    if (visibleIds) query = query.in("id", Array.from(visibleIds));
+    if (tipoFilter) query = query.eq("project_type", tipoFilter);
+
+    const { data } = await query;
+    clients = (data as ClientForLane[]) ?? [];
+  }
 
   // Agrupa por lane
   const byLane = new Map<string, ClientForLane[]>();
@@ -50,7 +56,7 @@ export default async function AdminQuadroPage({
   clients.forEach((c) => byLane.get(laneForClient(c))?.push(c));
 
   return (
-    <AdminShell active="quadro" keyParam={keyParamFirst} userEmail={user.email}>
+    <AdminShell active="quadro" keyParam={keyParamFirst} userEmail={member.email}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">Quadro</h1>
