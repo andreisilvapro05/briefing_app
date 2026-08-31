@@ -51,14 +51,9 @@ export default async function EIDocumentPage({
         <div className="flex-1 overflow-y-auto p-6">
           <EIView
             docId={doc.id}
-            clientName={doc.client?.nome ?? null}
-            empresa={doc.isTemplate ? "Modelo" : (doc.client?.empresa ?? null)}
             urlKey={urlKey}
-            initial={doc.eiData}
+            initialBlocks={doc.blocks}
             atualizadoAt={doc.updatedAt}
-            fallbackDrive={
-              doc.client?.fysiDriveLink || doc.client?.clienteDriveLink || null
-            }
           />
         </div>
       </div>

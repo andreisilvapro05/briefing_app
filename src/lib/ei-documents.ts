@@ -1,10 +1,11 @@
-import type { EIData } from "./ei-template";
+import type { PartialBlock } from "@blocknote/core";
 
 /**
  * Um documento do hub de Estruturas Iniciais: ou é o Modelo
  * (isTemplate = true, clientId = null), ou é a EI de um cliente
  * (clientId setado). Ver docs/superpowers/specs/
- * 2026-08-30-estruturas-iniciais-hub-design.md
+ * 2026-08-30-estruturas-iniciais-hub-design.md e
+ * 2026-08-30-ei-documento-blocos-design.md
  */
 
 export interface EIDocumentClientInfo {
@@ -25,13 +26,13 @@ export interface EIDocumentSummary {
   updatedAt: string;
 }
 
-/** Documento completo — usado no painel do hub e no editor. */
+/** Documento completo — usado no painel do hub e no editor de blocos. */
 export interface EIDocument {
   id: string;
   clientId: string | null;
   isTemplate: boolean;
   nome: string | null;
-  eiData: EIData;
+  blocks: PartialBlock[];
   createdAt: string;
   updatedAt: string;
   client: EIDocumentClientInfo | null;

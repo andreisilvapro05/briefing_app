@@ -13,7 +13,6 @@ import {
   sendDashboardWebhook,
 } from "@/lib/dashboard-webhook";
 import { createClientFolders } from "@/lib/google-drive";
-import type { EIData } from "@/lib/ei-template";
 import type { EntregaDocumento } from "@/lib/entrega";
 import type { Moodboard } from "@/lib/moodboard";
 import {
@@ -475,7 +474,6 @@ export async function createClientAction(formData: FormData) {
       empresa: empresa || "",
       whatsapp,
       project_type: projectType,
-      status: "em-andamento",
       magic_slug: generateMagicSlug({ nome, empresa: empresa || null }),
     })
     .select("id")
@@ -557,7 +555,6 @@ export async function toggleChamadaFeitaAction(formData: FormData) {
 
 /**
  * Toggle do briefing_submitted_at (admin marca/desmarca briefing como concluído).
- * Quando marca: também seta status = "concluido".
  */
 export async function toggleBriefingConcluidoAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
@@ -580,40 +577,6 @@ export async function toggleBriefingConcluidoAction(formData: FormData) {
     .from("clients")
     .update({
       briefing_submitted_at: wasSubmitted ? null : new Date().toISOString(),
-      status: wasSubmitted ? "em-andamento" : "concluido",
-    })
-    .eq("id", clientId);
-
-  revalidatePath(`/admin/${clientId}`);
-}
-
-/**
- * Salva o EI (Estrutura Inicial) do projeto. JSON livre — schema definido
- * em lib/ei-template.ts, validado só superficialmente aqui (campo presente).
- */
-export async function setEIAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-  const clientId = String(formData.get("clientId") ?? "");
-  if (!clientId) return;
-
-  const raw = String(formData.get("eiJson") ?? "").trim();
-  if (!raw) return;
-
-  let parsed: EIData;
-  try {
-    parsed = JSON.parse(raw) as EIData;
-  } catch {
-    return;
-  }
-
-  const service = createSupabaseServiceRoleClient();
-  await service
-    .from("clients")
-    .update({
-      ei_data: parsed,
-      ei_atualizado_at: new Date().toISOString(),
     })
     .eq("id", clientId);
 
@@ -682,7 +645,7 @@ export async function setEntregaAction(formData: FormData) {
 
   if (finalizar) {
     updates.entrega_finalizada_at = new Date().toISOString();
-    updates.status = "concluido";
+    updates.status = "completo-entregue";
   } else if (formData.get("desfazerFinalizacao") === "1") {
     updates.entrega_finalizada_at = null;
   }
@@ -723,7 +686,8 @@ export async function setCopyReviewLinkAction(formData: FormData) {
 }
 
 /**
- * Atualiza o status geral do cliente (em-andamento/concluido/abandonado).
+ * Atualiza o status do projeto principal do cliente — mesma taxonomia de 14
+ * valores usada pelas tarefas internas (TASK_STATUS_OPTIONS).
  */
 export async function setClientStatusAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
@@ -732,14 +696,7 @@ export async function setClientStatusAction(formData: FormData) {
 
   const clientId = String(formData.get("clientId") ?? "");
   const status = String(formData.get("status") ?? "");
-  const allowed = [
-    "nao-iniciado",
-    "em-andamento",
-    "parado",
-    "concluido",
-    "abandonado",
-  ];
-  if (!clientId || !allowed.includes(status)) return;
+  if (!clientId || !TASK_STATUS_VALUES.includes(status as TaskStatus)) return;
 
   const service = createSupabaseServiceRoleClient();
   await service

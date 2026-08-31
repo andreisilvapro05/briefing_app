@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getTemplateDocument } from "@/lib/ei-documents-server";
-import { emptyEI, type EIData } from "@/lib/ei-template";
 
 function keyParam(urlKey: string | null) {
   return urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
@@ -38,11 +37,11 @@ export async function createEIDocumentAction(formData: FormData) {
   }
 
   const template = await getTemplateDocument();
-  const eiData: EIData = template?.eiData ?? emptyEI();
+  const blocks = template?.blocks ?? [];
 
   const { data: created } = await service
     .from("ei_documents")
-    .insert({ client_id: clientId, ei_data: eiData })
+    .insert({ client_id: clientId, ei_data: { blocks } })
     .select("id")
     .single();
 
@@ -55,8 +54,8 @@ export async function createEIDocumentAction(formData: FormData) {
 }
 
 /**
- * Autosave: grava o EIData inteiro de um documento (Modelo ou cliente).
- * Disparado no onBlur de cada campo do EIEditor — ver Task 6.
+ * Autosave: grava os blocos inteiros de um documento (Modelo ou cliente).
+ * Disparado debounced a cada mudança no editor (ver EIBlockEditor).
  */
 export async function updateEIDocumentAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
@@ -69,9 +68,9 @@ export async function updateEIDocumentAction(formData: FormData) {
   const raw = String(formData.get("eiJson") ?? "").trim();
   if (!raw) return;
 
-  let parsed: EIData;
+  let parsed: { blocks: unknown[] };
   try {
-    parsed = JSON.parse(raw) as EIData;
+    parsed = JSON.parse(raw) as { blocks: unknown[] };
   } catch {
     return;
   }

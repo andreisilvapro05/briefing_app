@@ -1,5 +1,5 @@
+import type { PartialBlock } from "@blocknote/core";
 import { createSupabaseServiceRoleClient } from "./supabase/server";
-import { emptyEI, type EIData } from "./ei-template";
 import {
   eiDocumentTitle,
   type EIDocument,
@@ -12,7 +12,7 @@ interface RawRow {
   client_id: string | null;
   nome: string | null;
   is_template: boolean;
-  ei_data: EIData | null;
+  ei_data: { blocks?: unknown[] } | null;
   created_at: string;
   updated_at: string;
   clients: {
@@ -41,10 +41,9 @@ function normalize(row: RawRow): EIDocument {
     clientId: row.client_id,
     isTemplate: row.is_template,
     nome: row.nome,
-    // Deep-default (não `??`): `{}`/objeto parcial no banco (ex.: seed antigo
-    // do Modelo) é truthy, então `??` não substitui — mas ainda falta os
-    // campos exigidos por EIData (secoes, etc), o que derruba todo consumidor.
-    eiData: { ...emptyEI(), ...(row.ei_data ?? {}) },
+    blocks: Array.isArray(row.ei_data?.blocks)
+      ? (row.ei_data.blocks as PartialBlock[])
+      : [],
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     client: clientInfo(row),
