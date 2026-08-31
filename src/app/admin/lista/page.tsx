@@ -6,6 +6,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import {
   GENERAL_LANES,
+  isClientStuck,
   laneForClient,
   type ClientForLane,
 } from "@/lib/workflow-lanes";
@@ -82,6 +83,7 @@ export default async function AdminListaPage({
         pagamento: total > 0 ? `${Math.round((pago / total) * 100)}%` : "—",
         created_at: c.created_at,
         progresso: taskProgress.get(c.id) ?? null,
+        parado: isClientStuck(c),
       };
     }),
   }));

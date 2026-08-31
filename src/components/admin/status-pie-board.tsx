@@ -21,6 +21,8 @@ export interface LaneClient {
   created_at: string;
   /** Progresso das subtarefas internas (fechadas/total) — null se nenhuma tarefa gerada ainda. */
   progresso: { total: number; fechadas: number } | null;
+  /** Sem atividade do cliente há 14+ dias — mostrado como aviso ao lado do nome, não escondendo a fase real. */
+  parado: boolean;
 }
 
 export interface LaneGroup {
@@ -302,8 +304,19 @@ export function StatusPieBoard({
                 key={c.id}
                 className="grid grid-cols-2 md:grid-cols-[1fr_160px_150px_90px_64px] gap-x-3 gap-y-1 px-5 py-3 border-t border-fysi-line/70 items-center text-sm"
               >
-                <span className="font-medium text-fysi-deep truncate col-span-2 md:col-span-1">
-                  {c.empresa || c.nome}
+                <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
+                  <span className="font-medium text-fysi-deep truncate">
+                    {c.empresa || c.nome}
+                  </span>
+                  {c.parado ? (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
+                      title="Sem atividade do cliente há 14+ dias"
+                    >
+                      <span className="h-1 w-1 rounded-full bg-amber-500" />
+                      Parado
+                    </span>
+                  ) : null}
                 </span>
                 <span className="text-fysi-muted truncate">{c.tipo}</span>
                 <span className="truncate flex items-center gap-2">

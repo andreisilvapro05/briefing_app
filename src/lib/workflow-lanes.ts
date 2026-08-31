@@ -101,33 +101,41 @@ export const GENERAL_LANES: Lane[] = [
   { id: "agendar_chamada",   label: "AGENDAR CHAMADA",     tone: "yellow",  description: "Contrato assinado, agendar onboarding" },
   { id: "briefing",          label: "BRIEFING",            tone: "pink",    description: "Cliente preenchendo briefing" },
   ...PRODUCTION_LANES,
-  { id: "parado",            label: "PARADO",              tone: "red",     description: "Funil comercial sem atividade há +14d" },
 ];
+
+const STUCK_DAYS = 14;
+
+/**
+ * Cliente sem atividade (do lado dele) há STUCK_DAYS+ dias — independente
+ * da fase em que está. Não é mais uma lane própria (escondia em que etapa
+ * o projeto realmente travou); é um indicador à parte que a UI mostra ao
+ * lado da fase real (ver [[feedback_principios_editavel_ordenavel_claro]] —
+ * clareza sobre em que etapa está cada projeto).
+ */
+export function isClientStuck(c: ClientForLane, now: number = Date.now()): boolean {
+  const ref = c.last_client_activity_at ?? c.created_at;
+  const days = Math.floor((now - new Date(ref).getTime()) / 86_400_000);
+  return days >= STUCK_DAYS;
+}
 
 /**
  * Mapeia um cliente para sua lane atual com base nos campos disponíveis e,
  * pra fase de produção, no status do próprio projeto (`clients.status`).
- * Determinístico, sem efeitos colaterais.
+ * Determinístico, sem efeitos colaterais. Sempre a fase REAL — inatividade
+ * não empurra o cliente pra uma lane "parado" à parte (ver isClientStuck).
  */
 export function laneForClient(c: ClientForLane): string {
-  // Fluxo comercial — só aqui usa o timer de inatividade (>14d = parado).
-  // Uma vez em produção, o status do projeto já reflete "parado" quando for
-  // o caso (é um dos 14 valores), então não duplica esse heurístico.
-  const ref = c.last_client_activity_at ?? c.created_at;
-  const days = Math.floor((Date.now() - new Date(ref).getTime()) / 86_400_000);
-  const isStuck = days >= 14;
-
   if (!c.contrato_preenchido_at) {
-    return isStuck ? "parado" : "lead";
+    return "lead";
   }
   if (c.contrato_status !== "assinado") {
-    return isStuck ? "parado" : "contrato_aberto";
+    return "contrato_aberto";
   }
   if (!c.chamada_agendada_at) {
-    return isStuck ? "parado" : "agendar_chamada";
+    return "agendar_chamada";
   }
   if (!c.briefing_submitted_at) {
-    return isStuck ? "parado" : "briefing";
+    return "briefing";
   }
 
   // Produção — status do projeto principal. Cai no default se o valor não
@@ -176,7 +184,7 @@ export function computeStats(clients: ClientForLane[]): ClientStats {
     if (c.pagamento_total) receitaTotal += Number(c.pagamento_total);
     if (c.pagamento_pago) receitaPaga += Number(c.pagamento_pago);
 
-    if (lane === "parado") parados.push(c);
+    if (isClientStuck(c)) parados.push(c);
   });
 
   // Últimos 6 meses — count de novos clientes por mês

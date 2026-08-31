@@ -52,9 +52,9 @@ export default async function AdminRelatoriosPage({
   const cobrancasStats = statsCobrancas(cobrancas);
 
   const entregueLaneId = statusLaneId("completo-entregue");
-  const ativos = stats.total - (stats.porLane.get(entregueLaneId)?.length ?? 0) - (stats.porLane.get("parado")?.length ?? 0);
+  const parados = stats.parados.length;
+  const ativos = stats.total - (stats.porLane.get(entregueLaneId)?.length ?? 0) - parados;
   const entregues = stats.porLane.get(entregueLaneId)?.length ?? 0;
-  const parados = stats.porLane.get("parado")?.length ?? 0;
   const conversionRate = stats.total > 0 ? (entregues / stats.total) * 100 : 0;
 
   const maxMes = Math.max(1, ...stats.ultimosMeses.map((m) => m.count));
