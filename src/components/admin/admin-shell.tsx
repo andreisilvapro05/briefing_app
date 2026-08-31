@@ -259,12 +259,14 @@ export function AdminShell({
               <span className="text-[0.78rem] font-medium text-fysi-deep truncate max-w-[180px]">
                 {userEmail ?? "Equipe Fysi"}
               </span>
-              <Link
-                href="/api/auth/admin-logout"
-                className="text-[0.68rem] text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
-              >
-                sair
-              </Link>
+              <form method="post" action="/api/auth/admin-logout">
+                <button
+                  type="submit"
+                  className="text-[0.68rem] text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
+                >
+                  sair
+                </button>
+              </form>
             </span>
             <span className="w-9 h-9 rounded-full bg-fysi-deep text-fysi-mint grid place-items-center text-xs font-bold shrink-0">
               {initials}
