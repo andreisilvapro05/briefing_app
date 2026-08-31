@@ -1033,49 +1033,45 @@ export async function updateProjectTaskAction(formData: FormData) {
 }
 
 /**
- * Troca a `ordem` de uma tarefa com a vizinha (acima/abaixo) dentro do mesmo
- * cliente — reordenação simples por botões (sem drag-and-drop). Pedido do
- * usuário: "poder mudar a ordem... resfriar e pra cima, no espectro, pra
- * baixo" (2026-08-31).
+ * Reordena tarefas por drag-and-drop (igual ClickUp). Recebe a nova ordem de
+ * um subconjunto de tarefas do cliente (pode ser todas, ou só as "abertas")
+ * e realoca a `ordem` de cada uma pro slot correspondente dentro do próprio
+ * subconjunto — preserva a posição relativa de tarefas fora da lista.
  */
-export async function reorderProjectTaskAction(formData: FormData) {
+export async function reorderProjectTasksAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
   const user = await getAdminUser({ urlKey });
   if (!user) redirect("/admin/login");
 
-  const taskId = String(formData.get("taskId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
-  const direction = String(formData.get("direction") ?? "");
-  if (!taskId || !clientId || (direction !== "up" && direction !== "down")) {
-    return;
-  }
+  const orderedIds = formData
+    .getAll("taskId")
+    .map((v) => String(v))
+    .filter(Boolean);
+  if (!clientId || orderedIds.length < 2) return;
 
   const service = createSupabaseServiceRoleClient();
-  const { data: tasks } = await service
+  const { data } = await service
     .from("project_tasks")
     .select("id, ordem")
     .eq("client_id", clientId)
-    .order("ordem", { ascending: true });
-  const list = (tasks ?? []) as { id: string; ordem: number }[];
+    .in("id", orderedIds);
+  const rows = (data ?? []) as { id: string; ordem: number }[];
+  if (rows.length !== orderedIds.length) return;
 
-  const index = list.findIndex((t) => t.id === taskId);
-  if (index === -1) return;
-  const swapIndex = direction === "up" ? index - 1 : index + 1;
-  if (swapIndex < 0 || swapIndex >= list.length) return;
+  const slots = rows.map((r) => r.ordem).sort((a, b) => a - b);
+  const byId = new Map(rows.map((r) => [r.id, r]));
 
-  const current = list[index];
-  const swap = list[swapIndex];
-
-  await Promise.all([
-    service
-      .from("project_tasks")
-      .update({ ordem: swap.ordem })
-      .eq("id", current.id),
-    service
-      .from("project_tasks")
-      .update({ ordem: current.ordem })
-      .eq("id", swap.id),
-  ]);
+  await Promise.all(
+    orderedIds.map((id, i) => {
+      const row = byId.get(id);
+      if (!row || row.ordem === slots[i]) return null;
+      return service
+        .from("project_tasks")
+        .update({ ordem: slots[i] })
+        .eq("id", id);
+    })
+  );
 
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin/lista");

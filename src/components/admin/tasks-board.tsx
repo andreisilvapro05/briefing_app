@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +8,7 @@ import {
   addProjectTaskAction,
   removeProjectTaskAction,
   updateProjectTaskAction,
-  reorderProjectTaskAction,
+  reorderProjectTasksAction,
 } from "@/app/admin/[id]/actions";
 import {
   TASK_STATUS_OPTIONS,
@@ -29,20 +29,105 @@ function isOverdue(dataVencimento: string, status: TaskStatus): boolean {
   return dataVencimento < hoje;
 }
 
+/** Mesmo espírito do TASK_STATUS_TONE, pra prioridade virar um badge colorido em vez de select cru. */
+const TASK_PRIORITY_TONE: Record<string, string> = {
+  "": "bg-white text-fysi-muted border-fysi-line",
+  urgente: "bg-red-50 text-red-700 border-red-200",
+  alta: "bg-orange-50 text-orange-700 border-orange-200",
+  normal: "bg-blue-50 text-blue-700 border-blue-200",
+  baixa: "bg-fysi-cream text-fysi-muted border-fysi-line",
+};
+
+function GripIcon() {
+  return (
+    <svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor">
+      <circle cx="2.5" cy="2.5" r="1.4" />
+      <circle cx="7.5" cy="2.5" r="1.4" />
+      <circle cx="2.5" cy="8" r="1.4" />
+      <circle cx="7.5" cy="8" r="1.4" />
+      <circle cx="2.5" cy="13.5" r="1.4" />
+      <circle cx="7.5" cy="13.5" r="1.4" />
+    </svg>
+  );
+}
+
+interface DragHandlers {
+  onDragStart: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
+  isDragging: boolean;
+  isOver: boolean;
+}
+
+/**
+ * Reordenação por arrastar-e-soltar (igual ClickUp) — mantém uma cópia local
+ * ordenada pra feedback instantâneo e escreve no banco via
+ * reorderProjectTasksAction ao soltar. Um hook por lista (cada accordion de
+ * cliente na pizza tem a sua, independente das outras).
+ */
+export function useTaskDrag(
+  tasks: ProjectTask[],
+  clientId: string,
+  urlKey?: string
+) {
+  const router = useRouter();
+  const [order, setOrder] = useState(tasks);
+  useEffect(() => setOrder(tasks), [tasks]);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overId, setOverId] = useState<string | null>(null);
+
+  function dragProps(t: ProjectTask): DragHandlers {
+    return {
+      onDragStart: () => setDragId(t.id),
+      onDragOver: (e) => {
+        e.preventDefault();
+        if (dragId && overId !== t.id) setOverId(t.id);
+      },
+      onDrop: () => {
+        const from = order.findIndex((x) => x.id === dragId);
+        const to = order.findIndex((x) => x.id === t.id);
+        setDragId(null);
+        setOverId(null);
+        if (from === -1 || to === -1 || from === to) return;
+
+        const next = order.slice();
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        setOrder(next);
+
+        const fd = new FormData();
+        fd.append("clientId", clientId);
+        if (urlKey) fd.append("key", urlKey);
+        next.forEach((x) => fd.append("taskId", x.id));
+        reorderProjectTasksAction(fd).then(() => router.refresh());
+      },
+      onDragEnd: () => {
+        setDragId(null);
+        setOverId(null);
+      },
+      isDragging: dragId === t.id,
+      isOver: overId === t.id && !!dragId && dragId !== t.id,
+    };
+  }
+
+  return { order, dragProps };
+}
+
 export function TaskRow({
   task,
   clientId,
   urlKey,
   clienteCell,
-  reorder,
+  drag,
 }: {
   task: ProjectTask;
   clientId: string;
   urlKey?: string;
   /** Célula extra no início da linha (link pro cliente) — só a visão consolidada de /admin/tarefas usa. */
   clienteCell?: ReactNode;
-  /** Setas de mover pra cima/baixo — só faz sentido dentro da lista de um único cliente. */
-  reorder?: { canUp: boolean; canDown: boolean };
+  /** Handlers de drag-and-drop — só faz sentido dentro da lista de um único cliente (ver useTaskDrag). */
+  drag?: DragHandlers;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -81,165 +166,164 @@ export function TaskRow({
     });
   }
 
-  function move(direction: "up" | "down") {
-    const fd = baseFd();
-    fd.append("direction", direction);
-    startTransition(async () => {
-      await reorderProjectTaskAction(fd);
-      router.refresh();
-    });
-  }
-
   const totalCols = (clienteCell ? 1 : 0) + 7;
+  const currentMember = TEAM_MEMBERS.find((m) => m.value === responsavel);
+  const fieldClass =
+    "rounded-[8px] border border-transparent hover:border-fysi-line focus:border-fysi-deep/40 bg-transparent hover:bg-white focus:bg-white text-xs px-2 py-1 transition-colors focus:outline-none";
 
   return (
     <>
-    <tr className="border-t border-fysi-line">
-      {clienteCell ? (
-        <td className="px-3 py-2.5 text-sm text-fysi-deep">{clienteCell}</td>
-      ) : null}
-      <td className="px-3 py-2.5 text-sm text-fysi-deep">
-        <div className="flex items-center gap-1.5">
-          {reorder ? (
-            <span className="flex flex-col -ml-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => move("up")}
-                disabled={pending || !reorder.canUp}
-                aria-label="Mover pra cima"
-                className="leading-none text-fysi-muted hover:text-fysi-deep disabled:opacity-20 disabled:hover:text-fysi-muted"
+      <tr
+        draggable={false}
+        onDragOver={drag?.onDragOver}
+        onDrop={drag?.onDrop}
+        className={`border-t border-fysi-line hover:bg-fysi-cream/40 transition-colors ${
+          drag?.isDragging ? "opacity-40" : ""
+        } ${drag?.isOver ? "bg-fysi-mint/20" : ""}`}
+      >
+        {clienteCell ? (
+          <td className="px-3 py-2 text-sm text-fysi-deep">{clienteCell}</td>
+        ) : null}
+        <td className="px-3 py-2 text-sm text-fysi-deep">
+          <div className="flex items-center gap-1.5">
+            {drag ? (
+              <span
+                draggable
+                onDragStart={drag.onDragStart}
+                onDragEnd={drag.onDragEnd}
+                className="text-fysi-muted/40 hover:text-fysi-muted cursor-grab active:cursor-grabbing shrink-0 -ml-1"
+                title="Arrastar pra reordenar"
               >
-                ▲
-              </button>
-              <button
-                type="button"
-                onClick={() => move("down")}
-                disabled={pending || !reorder.canDown}
-                aria-label="Mover pra baixo"
-                className="leading-none text-fysi-muted hover:text-fysi-deep disabled:opacity-20 disabled:hover:text-fysi-muted"
-              >
-                ▼
-              </button>
-            </span>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="text-left hover:underline underline-offset-2"
-            title="Ver informações da tarefa"
-          >
-            {task.titulo}
-          </button>
-        </div>
-      </td>
-      <td className="px-3 py-2.5">
-        <select
-          value={status}
-          disabled={pending}
-          onChange={(e) => {
-            const next = e.target.value as TaskStatus;
-            setStatus(next);
-            saveField("status", next);
-          }}
-          className={`rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[status]}`}
-        >
-          {TASK_STATUS_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-3 py-2.5">
-        <select
-          value={prioridade}
-          disabled={pending}
-          onChange={(e) => {
-            setPrioridade(e.target.value);
-            saveField("prioridade", e.target.value);
-          }}
-          className="rounded-[8px] border border-fysi-line bg-white text-xs px-2 py-1"
-        >
-          {TASK_PRIORITY_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-3 py-2.5">
-        <select
-          value={responsavel}
-          disabled={pending}
-          onChange={(e) => {
-            setResponsavel(e.target.value);
-            saveField("responsavel", e.target.value);
-          }}
-          className="rounded-[8px] border border-fysi-line bg-white text-xs px-2 py-1"
-        >
-          <option value="">Sem responsável</option>
-          {TEAM_MEMBERS.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-3 py-2.5">
-        <input
-          type="date"
-          value={dataInicial}
-          disabled={pending}
-          onChange={(e) => setDataInicial(e.target.value)}
-          onBlur={() => saveField("dataInicial", dataInicial)}
-          className="rounded-[8px] border border-fysi-line bg-white text-xs px-2 py-1"
-        />
-      </td>
-      <td className="px-3 py-2.5">
-        <input
-          type="date"
-          value={dataVencimento}
-          disabled={pending}
-          onChange={(e) => setDataVencimento(e.target.value)}
-          onBlur={() => saveField("dataVencimento", dataVencimento)}
-          className={`rounded-[8px] border bg-white text-xs px-2 py-1 ${
-            isOverdue(dataVencimento, status)
-              ? "border-red-300 text-red-700"
-              : "border-fysi-line"
-          }`}
-        />
-      </td>
-      <td className="px-3 py-2.5 text-right">
-        <button
-          type="button"
-          onClick={remove}
-          disabled={pending}
-          className="text-xs text-red-700 underline underline-offset-2 disabled:opacity-50"
-        >
-          Remover
-        </button>
-      </td>
-    </tr>
-    {expanded ? (
-      <tr className="bg-fysi-cream/30 border-t border-fysi-line">
-        <td colSpan={totalCols} className="px-3 py-3">
-          <div className="max-w-xl">
-            <label className="block text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
-              Observações da tarefa
-            </label>
-            <textarea
-              value={observacoes}
-              disabled={pending}
-              onChange={(e) => setObservacoes(e.target.value)}
-              onBlur={() => saveField("observacoes", observacoes)}
-              placeholder="Notas, links, contexto pra quem for mexer nessa tarefa…"
-              rows={3}
-              className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
-            />
+                <GripIcon />
+              </span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="text-left hover:underline underline-offset-2"
+              title="Ver informações da tarefa"
+            >
+              {task.titulo}
+            </button>
           </div>
         </td>
+        <td className="px-3 py-2">
+          <select
+            value={status}
+            disabled={pending}
+            onChange={(e) => {
+              const next = e.target.value as TaskStatus;
+              setStatus(next);
+              saveField("status", next);
+            }}
+            className={`rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[status]}`}
+          >
+            {TASK_STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </td>
+        <td className="px-3 py-2">
+          <select
+            value={prioridade}
+            disabled={pending}
+            onChange={(e) => {
+              setPrioridade(e.target.value);
+              saveField("prioridade", e.target.value);
+            }}
+            className={`rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_PRIORITY_TONE[prioridade] ?? TASK_PRIORITY_TONE[""]}`}
+          >
+            {TASK_PRIORITY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </td>
+        <td className="px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`w-5 h-5 rounded-full grid place-items-center text-[0.55rem] font-bold text-white shrink-0 ${
+                currentMember?.cor ?? "bg-fysi-line"
+              }`}
+            >
+              {currentMember?.iniciais ?? "—"}
+            </span>
+            <select
+              value={responsavel}
+              disabled={pending}
+              onChange={(e) => {
+                setResponsavel(e.target.value);
+                saveField("responsavel", e.target.value);
+              }}
+              className={fieldClass}
+            >
+              <option value="">Sem responsável</option>
+              {TEAM_MEMBERS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </td>
+        <td className="px-3 py-2">
+          <input
+            type="date"
+            value={dataInicial}
+            disabled={pending}
+            onChange={(e) => setDataInicial(e.target.value)}
+            onBlur={() => saveField("dataInicial", dataInicial)}
+            className={fieldClass}
+          />
+        </td>
+        <td className="px-3 py-2">
+          <input
+            type="date"
+            value={dataVencimento}
+            disabled={pending}
+            onChange={(e) => setDataVencimento(e.target.value)}
+            onBlur={() => saveField("dataVencimento", dataVencimento)}
+            className={`${fieldClass} ${
+              isOverdue(dataVencimento, status)
+                ? "!border-red-300 text-red-700"
+                : ""
+            }`}
+          />
+        </td>
+        <td className="px-3 py-2 text-right">
+          <button
+            type="button"
+            onClick={remove}
+            disabled={pending}
+            className="text-xs text-red-700 underline underline-offset-2 disabled:opacity-50"
+          >
+            Remover
+          </button>
+        </td>
       </tr>
-    ) : null}
+      {expanded ? (
+        <tr className="bg-fysi-cream/30 border-t border-fysi-line">
+          <td colSpan={totalCols} className="px-3 py-3">
+            <div className="max-w-xl">
+              <label className="block text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
+                Observações da tarefa
+              </label>
+              <textarea
+                value={observacoes}
+                disabled={pending}
+                onChange={(e) => setObservacoes(e.target.value)}
+                onBlur={() => saveField("observacoes", observacoes)}
+                placeholder="Notas, links, contexto pra quem for mexer nessa tarefa…"
+                rows={3}
+                className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
+              />
+            </div>
+          </td>
+        </tr>
+      ) : null}
     </>
   );
 }
@@ -259,6 +343,23 @@ export function TasksBoard({
   const [novoTitulo, setNovoTitulo] = useState("");
   const [mostrarFechados, setMostrarFechados] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  const abertasSource = tasks.filter(
+    (t) => TASK_STATUS_GROUP[t.status] === "ativo"
+  );
+  const fechadasSource = tasks.filter(
+    (t) => TASK_STATUS_GROUP[t.status] === "fechado"
+  );
+  const { order: abertas, dragProps: dragAbertas } = useTaskDrag(
+    abertasSource,
+    clientId,
+    urlKey
+  );
+  const { order: fechadas, dragProps: dragFechadas } = useTaskDrag(
+    fechadasSource,
+    clientId,
+    urlKey
+  );
 
   function seed() {
     const fd = new FormData();
@@ -284,11 +385,6 @@ export function TasksBoard({
     });
   }
 
-  const abertas = tasks.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo");
-  const fechadas = tasks.filter(
-    (t) => TASK_STATUS_GROUP[t.status] === "fechado"
-  );
-
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] p-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -298,7 +394,7 @@ export function TasksBoard({
           </h3>
           {tasks.length > 0 ? (
             <p className="text-sm text-fysi-muted mt-1">
-              {fechadas.length}/{tasks.length} fechadas
+              {fechadasSource.length}/{tasks.length} fechadas
             </p>
           ) : null}
         </div>
@@ -341,10 +437,7 @@ export function TasksBoard({
                   task={t}
                   clientId={clientId}
                   urlKey={urlKey}
-                  reorder={{
-                    canUp: tasks[0]?.id !== t.id,
-                    canDown: tasks[tasks.length - 1]?.id !== t.id,
-                  }}
+                  drag={abertas.length > 1 ? dragAbertas(t) : undefined}
                 />
               ))}
               {mostrarFechados
@@ -354,16 +447,15 @@ export function TasksBoard({
                       task={t}
                       clientId={clientId}
                       urlKey={urlKey}
-                      reorder={{
-                        canUp: tasks[0]?.id !== t.id,
-                        canDown: tasks[tasks.length - 1]?.id !== t.id,
-                      }}
+                      drag={
+                        fechadas.length > 1 ? dragFechadas(t) : undefined
+                      }
                     />
                   ))
                 : null}
             </tbody>
           </table>
-          {fechadas.length > 0 ? (
+          {fechadasSource.length > 0 ? (
             <button
               type="button"
               onClick={() => setMostrarFechados((v) => !v)}
@@ -371,7 +463,7 @@ export function TasksBoard({
             >
               {mostrarFechados
                 ? "Ocultar fechados"
-                : `Mostrar ${fechadas.length} fechado${fechadas.length === 1 ? "" : "s"}`}
+                : `Mostrar ${fechadasSource.length} fechado${fechadasSource.length === 1 ? "" : "s"}`}
             </button>
           ) : null}
         </div>

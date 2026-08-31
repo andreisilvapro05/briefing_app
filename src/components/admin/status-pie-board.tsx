@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
-import { TaskRow } from "./tasks-board";
+import { TaskRow, useTaskDrag } from "./tasks-board";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { DEFAULT_TASK_STATUS, type ProjectTask } from "@/lib/project-tasks";
 
@@ -317,112 +317,135 @@ export function StatusPieBoard({
               <span className="text-right">Ação</span>
             </div>
 
-            {g.clients.map((c) => {
-              const hasTarefas = c.tarefas.length > 0;
-              const isOpen = expanded.has(c.id);
-              return (
-                <div key={c.id} className="border-t border-fysi-line/70">
-                  <div className="grid grid-cols-2 md:grid-cols-[1fr_160px_150px_90px_64px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
-                    <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
-                      {hasTarefas ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleExpanded(c.id)}
-                          aria-expanded={isOpen}
-                          aria-label={isOpen ? "Fechar subtarefas" : "Abrir subtarefas"}
-                          className="text-fysi-muted hover:text-fysi-deep shrink-0 w-4"
-                        >
-                          {isOpen ? "▾" : "▸"}
-                        </button>
-                      ) : (
-                        <span className="w-4 shrink-0" />
-                      )}
-                      <span className="font-medium text-fysi-deep truncate">
-                        {c.empresa || c.nome}
-                      </span>
-                      {c.parado ? (
-                        <span
-                          className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
-                          title="Sem atividade do cliente há 14+ dias"
-                        >
-                          <span className="h-1 w-1 rounded-full bg-amber-500" />
-                          Parado
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="text-fysi-muted truncate">{c.tipo}</span>
-                    <span className="truncate flex items-center gap-2">
-                      <StatusChanger
-                        clientId={c.id}
-                        status={c.status || DEFAULT_TASK_STATUS}
-                        urlKey={urlKey}
-                      />
-                      {c.progresso && c.progresso.total > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => toggleExpanded(c.id)}
-                          className="text-[0.68rem] text-fysi-muted tabular-nums shrink-0 hover:text-fysi-deep hover:underline"
-                          title="Ver subtarefas"
-                        >
-                          {c.progresso.fechadas}/{c.progresso.total}
-                        </button>
-                      ) : null}
-                    </span>
-                    <span className="text-fysi-deep tabular-nums">
-                      {c.pagamento}
-                    </span>
-                    <a
-                      href={`/admin/${c.id}${keyParam}`}
-                      className="text-right text-fysi-deep font-medium hover:underline shrink-0"
-                    >
-                      Ver →
-                    </a>
-                  </div>
-
-                  {isOpen && hasTarefas ? (
-                    <div className="pl-9 pr-5 pb-3 bg-fysi-cream/30 overflow-x-auto">
-                      <table className="w-full text-sm min-w-[640px]">
-                        <thead className="text-left text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted">
-                          <tr>
-                            <th className="px-3 py-1.5 font-medium">Nome</th>
-                            <th className="px-3 py-1.5 font-medium">Status</th>
-                            <th className="px-3 py-1.5 font-medium">Prioridade</th>
-                            <th className="px-3 py-1.5 font-medium">Responsável</th>
-                            <th className="px-3 py-1.5 font-medium">Início</th>
-                            <th className="px-3 py-1.5 font-medium">Vencimento</th>
-                            <th className="px-3 py-1.5 font-medium" />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {c.tarefas.map((t) => (
-                            <TaskRow
-                              key={t.id}
-                              task={t}
-                              clientId={c.id}
-                              urlKey={urlKey}
-                              reorder={{
-                                canUp: c.tarefas[0]?.id !== t.id,
-                                canDown:
-                                  c.tarefas[c.tarefas.length - 1]?.id !== t.id,
-                              }}
-                            />
-                          ))}
-                        </tbody>
-                      </table>
-                      <a
-                        href={`/admin/${c.id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
-                        className="inline-block mt-2 text-xs text-fysi-deep hover:underline"
-                      >
-                        Abrir na aba Tarefas →
-                      </a>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+            {g.clients.map((c) => (
+              <ClientAccordionRow
+                key={c.id}
+                c={c}
+                isOpen={expanded.has(c.id)}
+                onToggle={() => toggleExpanded(c.id)}
+                urlKey={urlKey}
+                keyParam={keyParam}
+              />
+            ))}
           </div>
         ))}
       </section>
+    </div>
+  );
+}
+
+/**
+ * Uma linha de cliente + accordion de subtarefas. Extraído do map acima pra
+ * poder chamar useTaskDrag (hook) uma vez por cliente, não dentro de um
+ * .map() solto.
+ */
+function ClientAccordionRow({
+  c,
+  isOpen,
+  onToggle,
+  urlKey,
+  keyParam,
+}: {
+  c: LaneClient;
+  isOpen: boolean;
+  onToggle: () => void;
+  urlKey?: string;
+  keyParam: string;
+}) {
+  const hasTarefas = c.tarefas.length > 0;
+  const { order: tarefas, dragProps } = useTaskDrag(c.tarefas, c.id, urlKey);
+
+  return (
+    <div className="border-t border-fysi-line/70">
+      <div className="grid grid-cols-2 md:grid-cols-[1fr_160px_150px_90px_64px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
+        <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
+          {hasTarefas ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-expanded={isOpen}
+              aria-label={isOpen ? "Fechar subtarefas" : "Abrir subtarefas"}
+              className="text-fysi-muted hover:text-fysi-deep shrink-0 w-4"
+            >
+              {isOpen ? "▾" : "▸"}
+            </button>
+          ) : (
+            <span className="w-4 shrink-0" />
+          )}
+          <span className="font-medium text-fysi-deep truncate">
+            {c.empresa || c.nome}
+          </span>
+          {c.parado ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
+              title="Sem atividade do cliente há 14+ dias"
+            >
+              <span className="h-1 w-1 rounded-full bg-amber-500" />
+              Parado
+            </span>
+          ) : null}
+        </span>
+        <span className="text-fysi-muted truncate">{c.tipo}</span>
+        <span className="truncate flex items-center gap-2">
+          <StatusChanger
+            clientId={c.id}
+            status={c.status || DEFAULT_TASK_STATUS}
+            urlKey={urlKey}
+          />
+          {c.progresso && c.progresso.total > 0 ? (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="text-[0.68rem] text-fysi-muted tabular-nums shrink-0 hover:text-fysi-deep hover:underline"
+              title="Ver subtarefas"
+            >
+              {c.progresso.fechadas}/{c.progresso.total}
+            </button>
+          ) : null}
+        </span>
+        <span className="text-fysi-deep tabular-nums">{c.pagamento}</span>
+        <a
+          href={`/admin/${c.id}${keyParam}`}
+          className="text-right text-fysi-deep font-medium hover:underline shrink-0"
+        >
+          Ver →
+        </a>
+      </div>
+
+      {isOpen && hasTarefas ? (
+        <div className="pl-9 pr-5 pb-3 bg-fysi-cream/30 overflow-x-auto">
+          <table className="w-full text-sm min-w-[640px]">
+            <thead className="text-left text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted">
+              <tr>
+                <th className="px-3 py-1.5 font-medium">Nome</th>
+                <th className="px-3 py-1.5 font-medium">Status</th>
+                <th className="px-3 py-1.5 font-medium">Prioridade</th>
+                <th className="px-3 py-1.5 font-medium">Responsável</th>
+                <th className="px-3 py-1.5 font-medium">Início</th>
+                <th className="px-3 py-1.5 font-medium">Vencimento</th>
+                <th className="px-3 py-1.5 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {tarefas.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  clientId={c.id}
+                  urlKey={urlKey}
+                  drag={tarefas.length > 1 ? dragProps(t) : undefined}
+                />
+              ))}
+            </tbody>
+          </table>
+          <a
+            href={`/admin/${c.id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
+            className="inline-block mt-2 text-xs text-fysi-deep hover:underline"
+          >
+            Abrir na aba Tarefas →
+          </a>
+        </div>
+      ) : null}
     </div>
   );
 }
