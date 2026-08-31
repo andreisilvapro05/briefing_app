@@ -162,12 +162,6 @@
 - **Cenário de falha:** Cliente faz upload de dois arquivos chamados 'logo.png' (ex.: um no campo logo e outro em identidade que categorizam para a mesma pasta), ou dois 'foto.jpg' na categoria imagens. Ao clicar em 'Baixar tudo (.zip)', o ZIP contém apenas 1 dos 2 arquivos; o __index.txt lista os 2 como baixados com sucesso, então a perda é silenciosa e o admin entrega material incompleto sem perceber.
 - **Fix sugerido:** Implementar de fato o dedup: prefixar/sufixar nomes repetidos (ex.: contar ocorrências por pasta e anexar `-2`, `-3`, ou prefixar com um hash curto do storage_path) antes de `folder.file(finalName, buf)`.
 
-### M15. Marcar briefing como concluído seta status='concluido' e move cliente para 'Entregue'
-- **Arquivo:** `src/app/admin/[id]/actions.ts:552` · _admin_ · data-flow
-- **Problema:** toggleBriefingConcluidoAction, acionada pelo botão 'Marcar briefing como concluído' na seção 'Fases do projeto', grava `status = 'concluido'` no cliente. Porém 'concluido' é interpretado em todo o resto do sistema como PROJETO ENTREGUE: laneForClient() (workflow-lanes.ts:70) manda status==='concluido' para a lane 'entregue', o relatório conta como 'Entregues' e usa isso na taxa de conversão, e a lista/StatusPill mostra pill 'Concluído'. Conclusão do briefing é uma fase inicial, não a entrega final — os dois conceitos são conflados.
-- **Cenário de falha:** Admin cadastra um cliente novo, ele preenche o briefing, e o admin clica em 'Marcar briefing como concluído'. O cliente imediatamente pula para a coluna 'ENTREGUE' do Quadro e passa a contar como projeto entregue/convertido em /admin/relatorios (inflando a taxa de conversão e o número de Entregues), além de sumir das lanes de produção — mesmo o projeto mal tendo começado.
-- **Fix sugerido:** Separar os conceitos: ao marcar briefing como concluído, gravar apenas briefing_submitted_at (e no máximo status='em-andamento'), sem setar 'concluido'. Reservar status='concluido' para a finalização real da entrega (setEntregaAction já faz isso corretamente).
-
 ### M16. Senha de admin trafega em texto claro na query string (?key=)
 - **Arquivo:** `src/lib/admin.ts:31` · _admin_ · seguranca
 - **Problema:** getAdminUser aceita autenticação via ?key=<valor> comparado diretamente contra env.adminPassword (opts.urlKey === env.adminPassword). Todas as páginas admin (page.tsx, [id], quadro, relatorios, contratos, novo, cobrancas) propagam esse ?key= em todos os links, forms e chamadas de API, então a senha de admin aparece na URL de praticamente toda navegação e request.

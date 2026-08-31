@@ -1,9 +1,5 @@
 import { createSupabaseServiceRoleClient } from "./supabase/server";
-import {
-  currentProductionStatus,
-  type ProjectTask,
-  type TaskStatus,
-} from "./project-tasks";
+import { TASK_STATUS_GROUP, type ProjectTask, type TaskStatus } from "./project-tasks";
 
 /**
  * Leitura server-only das tarefas de um cliente (usa service-role). Separado
@@ -70,27 +66,27 @@ export async function listAllProjectTasks(): Promise<
     }));
 }
 
+export interface TaskProgress {
+  total: number;
+  fechadas: number;
+}
+
 /**
- * Status de produção "atual" de cada cliente que já tem tarefas geradas —
- * usado por `laneForClient` (workflow-lanes.ts) pra categorizar a fase de
- * produção pelos status reais das tarefas, não mais por um heurístico de
- * current_stage_index. Clientes sem nenhuma tarefa não aparecem no Map.
+ * Progresso das subtarefas internas de cada cliente (fechadas/total) —
+ * indicador ao lado do status do projeto principal na Lista por status.
+ * Independente da lane do cliente, que usa `clients.status` direto (os dois
+ * níveis de status, como no ClickUp — ver [[backlog_status_projeto_principal]]).
  */
-export async function getCurrentProductionStatuses(): Promise<
-  Map<string, TaskStatus>
+export async function getTaskProgressByClient(): Promise<
+  Map<string, TaskProgress>
 > {
   const all = await listAllProjectTasks();
-  const byClient = new Map<string, ProjectTask[]>();
+  const result = new Map<string, TaskProgress>();
   for (const t of all) {
-    const arr = byClient.get(t.client_id);
-    if (arr) arr.push(t);
-    else byClient.set(t.client_id, [t]);
-  }
-
-  const result = new Map<string, TaskStatus>();
-  for (const [clientId, tasks] of byClient) {
-    const status = currentProductionStatus(tasks);
-    if (status) result.set(clientId, status);
+    const prog = result.get(t.client_id) ?? { total: 0, fechadas: 0 };
+    prog.total += 1;
+    if (TASK_STATUS_GROUP[t.status] === "fechado") prog.fechadas += 1;
+    result.set(t.client_id, prog);
   }
   return result;
 }

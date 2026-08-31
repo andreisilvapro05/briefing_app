@@ -13,10 +13,9 @@ import {
   GENERAL_LANES,
   LANE_TONE_CLASSES,
   computeStats,
+  statusLaneId,
   type ClientForLane,
 } from "@/lib/workflow-lanes";
-import { getCurrentProductionStatuses } from "@/lib/project-tasks-server";
-
 export const dynamic = "force-dynamic";
 
 /** ClientForLane + o campo que só esta página usa (não faz parte do contrato de lane). */
@@ -43,8 +42,7 @@ export default async function AdminRelatoriosPage({
     .order("created_at", { ascending: false });
 
   const clients = (data as ClientWithOrigem[]) ?? [];
-  const productionStatuses = await getCurrentProductionStatuses();
-  const stats = computeStats(clients, productionStatuses);
+  const stats = computeStats(clients);
 
   // Cobranças mensais — pra mostrar MRR + receita recorrente no relatório
   const { data: cobrancasData } = await service
@@ -53,8 +51,9 @@ export default async function AdminRelatoriosPage({
   const cobrancas = (cobrancasData as CobrancaMensal[]) ?? [];
   const cobrancasStats = statsCobrancas(cobrancas);
 
-  const ativos = stats.total - (stats.porLane.get("entregue")?.length ?? 0) - (stats.porLane.get("parado")?.length ?? 0);
-  const entregues = stats.porLane.get("entregue")?.length ?? 0;
+  const entregueLaneId = statusLaneId("completo-entregue");
+  const ativos = stats.total - (stats.porLane.get(entregueLaneId)?.length ?? 0) - (stats.porLane.get("parado")?.length ?? 0);
+  const entregues = stats.porLane.get(entregueLaneId)?.length ?? 0;
   const parados = stats.porLane.get("parado")?.length ?? 0;
   const conversionRate = stats.total > 0 ? (entregues / stats.total) * 100 : 0;
 

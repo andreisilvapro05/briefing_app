@@ -3,27 +3,19 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setClientStatusAction } from "@/app/admin/[id]/actions";
+import {
+  DEFAULT_TASK_STATUS,
+  TASK_STATUS_OPTIONS,
+  TASK_STATUS_TONE,
+  type TaskStatus,
+} from "@/lib/project-tasks";
 
 /**
- * Altera o status de um cliente direto na listagem do admin (sem abrir).
- * Otimista: reflete a escolha na hora; a action revalida o /admin.
+ * Altera o status do projeto principal direto na listagem do admin (sem
+ * abrir). Mesma taxonomia de 14 valores usada pelas tarefas internas
+ * (project_tasks) — os status reais do ClickUp da equipe. Otimista: reflete
+ * a escolha na hora; a action revalida o /admin.
  */
-
-const OPTIONS = [
-  { value: "nao-iniciado", label: "Não iniciado" },
-  { value: "em-andamento", label: "Em andamento" },
-  { value: "parado", label: "Parado" },
-  { value: "concluido", label: "Concluído" },
-  { value: "abandonado", label: "Abandonado" },
-];
-
-const TONE: Record<string, string> = {
-  concluido: "bg-fysi-mint/40 text-fysi-deep border-fysi-mint/60",
-  "em-andamento": "bg-white text-fysi-deep border-fysi-line",
-  parado: "bg-fysi-yellow/60 text-fysi-deep border-fysi-yellow",
-  abandonado: "bg-red-50 text-red-700 border-red-200",
-  "nao-iniciado": "bg-fysi-cream text-fysi-muted border-fysi-line",
-};
 
 export function StatusChanger({
   clientId,
@@ -60,10 +52,10 @@ export function StatusChanger({
       disabled={pending}
       aria-label="Alterar status"
       className={`rounded-full border text-xs font-medium px-3 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-fysi-deep/30 disabled:opacity-50 ${
-        TONE[current] ?? TONE["nao-iniciado"]
+        TASK_STATUS_TONE[current as TaskStatus] ?? TASK_STATUS_TONE[DEFAULT_TASK_STATUS]
       }`}
     >
-      {OPTIONS.map((o) => (
+      {TASK_STATUS_OPTIONS.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>

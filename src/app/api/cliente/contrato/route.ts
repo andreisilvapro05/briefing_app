@@ -108,7 +108,6 @@ export async function POST(request: NextRequest) {
         whatsapp,
         email: parsed.email,
         empresa: parsed.empresa,
-        status: "em-andamento",
         magic_slug: generateMagicSlug({ nome, empresa: parsed.empresa }),
       };
       let created: { id: string } | null = null;

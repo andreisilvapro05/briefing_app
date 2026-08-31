@@ -14,8 +14,17 @@ import {
   type AdminNotification,
 } from "@/components/admin/admin-notifications-banner";
 import { ShareContratarButton } from "@/components/admin/share-contratar-button";
+import {
+  isActiveTaskStatus,
+  isClosedTaskStatus,
+  TASK_STATUS_VALUES,
+  type TaskStatus,
+} from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
+
+const ACTIVE_STATUSES = TASK_STATUS_VALUES.filter(isActiveTaskStatus);
+const CLOSED_STATUSES = TASK_STATUS_VALUES.filter(isClosedTaskStatus);
 
 interface ClientRow {
   id: string;
@@ -111,7 +120,8 @@ export default async function AdminPage({
     )
     .order("created_at", { ascending: false });
 
-  if (statusFilter) query = query.eq("status", statusFilter);
+  if (statusFilter === "ativo") query = query.in("status", ACTIVE_STATUSES);
+  else if (statusFilter === "fechado") query = query.in("status", CLOSED_STATUSES);
   if (tipoFilter) query = query.eq("project_type", tipoFilter);
   if (q) {
     // Busca por nome, e-mail ou empresa (case-insensitive)
@@ -139,15 +149,11 @@ export default async function AdminPage({
     .select("status", { count: "exact" });
   const totals = (totalsData as { status: string }[] | null) ?? [];
   const totalCount = totals.length;
-  const concluidoCount = totals.filter((c) => c.status === "concluido").length;
-  const emAndamentoCount = totals.filter(
-    (c) => c.status === "em-andamento"
+  const fechadoCount = totals.filter((c) =>
+    isClosedTaskStatus(c.status as TaskStatus)
   ).length;
-  const naoIniciadoCount = totals.filter(
-    (c) => c.status === "nao-iniciado"
-  ).length;
-  const abandonadoCount = totals.filter(
-    (c) => c.status === "abandonado"
+  const ativoCount = totals.filter((c) =>
+    isActiveTaskStatus(c.status as TaskStatus)
   ).length;
 
   // Link de aba de status, preservando busca/tipo/key.
@@ -169,7 +175,7 @@ export default async function AdminPage({
     return Math.floor((now - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
   }
   function isStuck(c: ClientRow): boolean {
-    if (c.status !== "em-andamento") return false;
+    if (!isActiveTaskStatus(c.status as TaskStatus)) return false;
     return daysSince(c.last_client_activity_at ?? c.created_at) >= STUCK_DAYS;
   }
 
@@ -190,10 +196,10 @@ export default async function AdminPage({
               {totalCount} no total
             </Pill>
             <Pill tone="outline" className="px-2.5 py-0.5 text-[0.7rem]">
-              {emAndamentoCount} em andamento
+              {ativoCount} em andamento
             </Pill>
             <Pill tone="mint" className="px-2.5 py-0.5 text-[0.7rem]">
-              {concluidoCount} concluídos
+              {fechadoCount} concluídos
             </Pill>
             <span
               aria-hidden
@@ -213,10 +219,8 @@ export default async function AdminPage({
         <div className="flex flex-wrap gap-2 my-4">
           {[
             { value: "", label: "Todos", count: totalCount },
-            { value: "em-andamento", label: "Em andamento", count: emAndamentoCount },
-            { value: "concluido", label: "Concluídos", count: concluidoCount },
-            { value: "nao-iniciado", label: "Não iniciado", count: naoIniciadoCount },
-            { value: "abandonado", label: "Inativos", count: abandonadoCount },
+            { value: "ativo", label: "Em andamento", count: ativoCount },
+            { value: "fechado", label: "Concluídos", count: fechadoCount },
           ].map((t) => {
             const active = statusFilter === t.value;
             return (

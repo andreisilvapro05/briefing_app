@@ -104,7 +104,6 @@ export async function POST(request: NextRequest) {
           empresa: parsed.cliente.empresa || null,
           whatsapp: parsed.cliente.whatsapp,
           project_type: parsed.cliente.projectType,
-          status: "concluido",
           briefing_submitted_at: new Date().toISOString(),
         })
         .select("id")
@@ -115,7 +114,6 @@ export async function POST(request: NextRequest) {
       await service
         .from("clients")
         .update({
-          status: "concluido",
           briefing_submitted_at: new Date().toISOString(),
           project_type: parsed.cliente.projectType,
         })

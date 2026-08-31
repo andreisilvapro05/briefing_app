@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
-import { TASK_STATUS_OPTIONS, TASK_STATUS_TONE, type TaskStatus } from "@/lib/project-tasks";
+import { DEFAULT_TASK_STATUS } from "@/lib/project-tasks";
 
 /**
  * Pizza (donut) interativa de projetos por status + lista embaixo.
@@ -19,8 +19,8 @@ export interface LaneClient {
   status: string;
   pagamento: string;
   created_at: string;
-  /** Status real da tarefa "atual" (produção) — null se ainda pré-produção ou sem tarefas geradas. */
-  taskStatus: TaskStatus | null;
+  /** Progresso das subtarefas internas (fechadas/total) — null se nenhuma tarefa gerada ainda. */
+  progresso: { total: number; fechadas: number } | null;
 }
 
 export interface LaneGroup {
@@ -306,21 +306,20 @@ export function StatusPieBoard({
                   {c.empresa || c.nome}
                 </span>
                 <span className="text-fysi-muted truncate">{c.tipo}</span>
-                <span className="truncate">
-                  {c.taskStatus ? (
+                <span className="truncate flex items-center gap-2">
+                  <StatusChanger
+                    clientId={c.id}
+                    status={c.status || DEFAULT_TASK_STATUS}
+                    urlKey={urlKey}
+                  />
+                  {c.progresso && c.progresso.total > 0 ? (
                     <span
-                      className={`inline-block rounded-full border text-xs font-medium px-2.5 py-1 ${TASK_STATUS_TONE[c.taskStatus]}`}
-                      title="Status real da tarefa atual — edite em Tarefas"
+                      className="text-[0.68rem] text-fysi-muted tabular-nums shrink-0"
+                      title="Subtarefas concluídas"
                     >
-                      {TASK_STATUS_OPTIONS.find((o) => o.value === c.taskStatus)?.label ?? c.taskStatus}
+                      {c.progresso.fechadas}/{c.progresso.total}
                     </span>
-                  ) : (
-                    <StatusChanger
-                      clientId={c.id}
-                      status={c.status || "nao-iniciado"}
-                      urlKey={urlKey}
-                    />
-                  )}
+                  ) : null}
                 </span>
                 <span className="text-fysi-deep tabular-nums">
                   {c.pagamento}

@@ -155,7 +155,6 @@ export async function POST(request: NextRequest) {
         email: parsed.email ?? "",
         empresa: parsed.empresa ?? "",
         whatsapp: parsed.whatsapp,
-        status: "em-andamento",
         ip_address: ip as never,
         user_agent: ua,
         magic_slug: generateMagicSlug({

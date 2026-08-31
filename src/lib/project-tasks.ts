@@ -66,6 +66,21 @@ export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: "completo-entregue", label: "Completo | Entregue" },
 ];
 
+export const TASK_STATUS_VALUES: TaskStatus[] = TASK_STATUS_OPTIONS.map(
+  (o) => o.value
+);
+
+/** Status default pra cliente/tarefa sem valor definido — mesmo default da coluna `clients.status`. */
+export const DEFAULT_TASK_STATUS: TaskStatus = "a-iniciar";
+
+export function isActiveTaskStatus(status: TaskStatus): boolean {
+  return TASK_STATUS_GROUP[status] === "ativo";
+}
+
+export function isClosedTaskStatus(status: TaskStatus): boolean {
+  return TASK_STATUS_GROUP[status] === "fechado";
+}
+
 export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
   parado: "bg-red-50 text-red-700 border-red-200",
   "nem-comecou-nada": "bg-fysi-cream text-fysi-muted border-fysi-line",
@@ -165,20 +180,3 @@ export const DEFAULT_PROJECT_TASKS: Record<ProjectType, string[]> = {
   ],
   outro: ["Planejamento", "Execução", "Entrega"],
 };
-
-/**
- * Status "atual" de um projeto em produção, derivado das tarefas reais dele
- * — a primeira tarefa (por `ordem`) ainda no grupo "ativo"; se todas
- * estiverem fechadas, a última (deveria ser "completo-entregue"). `null` se
- * não há nenhuma tarefa ainda (projeto pronto pra produção, mas sem
- * checklist gerado). Usado por `laneForClient` (workflow-lanes.ts) pra
- * substituir a categorização antiga por etapa de `current_stage_index`.
- */
-export function currentProductionStatus(
-  tasks: ProjectTask[]
-): TaskStatus | null {
-  if (tasks.length === 0) return null;
-  const sorted = [...tasks].sort((a, b) => a.ordem - b.ordem);
-  const ativa = sorted.find((t) => TASK_STATUS_GROUP[t.status] === "ativo");
-  return (ativa ?? sorted[sorted.length - 1]).status;
-}
