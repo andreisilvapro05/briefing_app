@@ -1,72 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
+import { TaskRow } from "./tasks-board";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
-import {
-  DEFAULT_TASK_STATUS,
-  TASK_STATUS_OPTIONS,
-  TASK_STATUS_TONE,
-  type TaskStatus,
-} from "@/lib/project-tasks";
-import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
+import { DEFAULT_TASK_STATUS, type ProjectTask } from "@/lib/project-tasks";
 
 /**
  * Pizza (donut) interativa de projetos por status + lista embaixo.
  * Clicar numa fatia (ou na legenda) filtra a lista pra aquela etapa. Cada
  * linha de cliente abre/fecha (accordion) mostrando as subtarefas internas
- * — mesmo padrão do ClickUp: dois níveis de status visíveis juntos.
+ * com a mesma linha editável (TaskRow) usada na aba Tarefas do cliente —
+ * status, prioridade, responsável e datas, igual ao ClickUp.
  */
 
-export interface LaneClientTask {
-  id: string;
-  titulo: string;
-  status: TaskStatus;
-}
-
-function TaskStatusSelect({
-  task,
-  clientId,
-  urlKey,
-}: {
-  task: LaneClientTask;
-  clientId: string;
-  urlKey?: string;
-}) {
-  const [current, setCurrent] = useState(task.status);
-  const [pending, startTransition] = useTransition();
-
-  function change(next: TaskStatus) {
-    if (next === current) return;
-    setCurrent(next);
-    const fd = new FormData();
-    fd.append("taskId", task.id);
-    fd.append("clientId", clientId);
-    fd.append("status", next);
-    if (urlKey) fd.append("key", urlKey);
-    startTransition(async () => {
-      await updateProjectTaskAction(fd);
-    });
-  }
-
-  return (
-    <select
-      value={current}
-      onChange={(e) => change(e.target.value as TaskStatus)}
-      disabled={pending}
-      aria-label={`Status de ${task.titulo}`}
-      onClick={(e) => e.stopPropagation()}
-      className={`rounded-full border text-[0.68rem] font-medium px-2 py-0.5 shrink-0 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[current]}`}
-    >
-      {TASK_STATUS_OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
-  );
-}
+export type LaneClientTask = ProjectTask;
 
 export interface LaneClient {
   id: string;
@@ -431,31 +380,36 @@ export function StatusPieBoard({
                   </div>
 
                   {isOpen && hasTarefas ? (
-                    <div className="pl-9 pr-5 pb-3 flex flex-col gap-1.5 bg-fysi-cream/30">
-                      {c.tarefas.map((t) => (
-                        <div
-                          key={t.id}
-                          className="flex items-center justify-between gap-3 text-xs"
-                        >
-                          <span className="text-fysi-deep truncate">
-                            {t.titulo}
-                          </span>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <TaskStatusSelect
+                    <div className="pl-9 pr-5 pb-3 bg-fysi-cream/30 overflow-x-auto">
+                      <table className="w-full text-sm min-w-[640px]">
+                        <thead className="text-left text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted">
+                          <tr>
+                            <th className="px-3 py-1.5 font-medium">Nome</th>
+                            <th className="px-3 py-1.5 font-medium">Status</th>
+                            <th className="px-3 py-1.5 font-medium">Prioridade</th>
+                            <th className="px-3 py-1.5 font-medium">Responsável</th>
+                            <th className="px-3 py-1.5 font-medium">Início</th>
+                            <th className="px-3 py-1.5 font-medium">Vencimento</th>
+                            <th className="px-3 py-1.5 font-medium" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {c.tarefas.map((t) => (
+                            <TaskRow
+                              key={t.id}
                               task={t}
                               clientId={c.id}
                               urlKey={urlKey}
                             />
-                            <a
-                              href={`/admin/${c.id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
-                              className="text-fysi-deep hover:underline"
-                              title="Abrir na aba Tarefas"
-                            >
-                              Ver →
-                            </a>
-                          </div>
-                        </div>
-                      ))}
+                          ))}
+                        </tbody>
+                      </table>
+                      <a
+                        href={`/admin/${c.id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
+                        className="inline-block mt-2 text-xs text-fysi-deep hover:underline"
+                      >
+                        Abrir na aba Tarefas →
+                      </a>
                     </div>
                   ) : null}
                 </div>
