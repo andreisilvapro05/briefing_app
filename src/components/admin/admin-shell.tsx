@@ -20,7 +20,8 @@ export type AdminSection =
   | "conteudo"
   | "contratos"
   | "cobrancas"
-  | "relatorios";
+  | "relatorios"
+  | "projetos-fechados";
 
 interface NavItem {
   id: AdminSection;
@@ -119,6 +120,11 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <rect x="13" y="6" width="3" height="11" />
     </I>
   ),
+  "projetos-fechados": (
+    <I>
+      <path d="M20 6 9 17l-5-5" />
+    </I>
+  ),
 };
 
 function item(
@@ -151,6 +157,7 @@ const AREAS: NavArea[] = [
     items: [
       item("contratos", "Contratos", "/admin/contratos"),
       item("cobrancas", "Cobranças", "/admin/cobrancas"),
+      item("projetos-fechados", "Projetos Fechados", "/admin/projetos-fechados"),
       item("relatorios", "Relatórios", "/admin/relatorios"),
     ],
   },
