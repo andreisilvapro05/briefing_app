@@ -307,7 +307,87 @@ export default async function AdminPage({
           </p>
         ) : null}
 
-        <div className="bg-white border border-fysi-line rounded-[20px] overflow-x-auto">
+        {/* Mobile (< md): cards empilhados — a tabela de 7 colunas não cabe
+            na tela e força scroll horizontal, escondendo a informação. */}
+        <div className="md:hidden bg-white border border-fysi-line rounded-[20px] divide-y divide-fysi-line overflow-hidden">
+          {clients.length === 0 ? (
+            <p className="px-5 py-8 text-center text-fysi-muted text-sm">
+              {q || statusFilter || tipoFilter
+                ? "Nenhum cliente bate com os filtros."
+                : "Ainda nenhum cliente. Compartilhe o link público do briefing."}
+            </p>
+          ) : (
+            clients.map((c) => {
+              const stuck = isStuck(c);
+              const lastActivity = c.last_client_activity_at ?? c.created_at;
+              const briefing = briefingCell(c);
+              const contrato = contratoCell(c);
+              const pagamento = pagamentoCell(c);
+              return (
+                <div key={c.id} className="px-5 py-4 flex flex-col gap-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-col min-w-0">
+                      <Link
+                        href={`/admin/${c.id}${keyParamFirst}`}
+                        className="font-medium text-fysi-deep truncate hover:underline"
+                      >
+                        {c.nome}
+                      </Link>
+                      {c.empresa ? (
+                        <span className="text-xs text-fysi-muted truncate">
+                          {c.empresa}
+                        </span>
+                      ) : null}
+                    </div>
+                    {stuck ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
+                        title={`Sem atividade há ${daysSince(lastActivity)} dias`}
+                      >
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                        Parado
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <MiniPill label={briefing.label} tone={briefing.tone} />
+                    {contrato ? (
+                      <MiniPill label={contrato.label} tone={contrato.tone} />
+                    ) : null}
+                    {pagamento ? (
+                      <MiniPill label={pagamento.label} tone={pagamento.tone} />
+                    ) : null}
+                    <StatusChanger
+                      clientId={c.id}
+                      status={c.status}
+                      urlKey={urlKey ?? undefined}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[0.72rem] text-fysi-muted">
+                      {c.project_type
+                        ? PROJECT_TYPE_LABELS[c.project_type] ?? c.project_type
+                        : "—"}
+                      {" · "}
+                      {relativeTime(lastActivity)}
+                    </span>
+                    <Link
+                      href={`/admin/${c.id}${keyParamFirst}`}
+                      className="text-xs font-medium text-fysi-deep hover:underline shrink-0"
+                    >
+                      Ver briefing →
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop (md+): tabela completa */}
+        <div className="hidden md:block bg-white border border-fysi-line rounded-[20px] overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
               <tr>
