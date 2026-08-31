@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { TemplateUploader } from "@/components/admin/template-uploader";
@@ -63,6 +63,9 @@ export default async function ContractsPage({
   const urlKey = params.key ?? null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  if (!hasFinanceAccess(member)) {
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   // Sempre preserva ?key= se veio na URL (mesmo se cookie também autenticou).
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";

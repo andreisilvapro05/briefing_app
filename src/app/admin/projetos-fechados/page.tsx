@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Eyebrow, Pill } from "@/components/ui/pill";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 
@@ -61,8 +61,11 @@ export default async function ProjetosFechadosPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFinanceAccess(member)) {
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
@@ -81,7 +84,7 @@ export default async function ProjetosFechadosPage({
   const valorPago = pagos.reduce((s, r) => s + Number(r.value || 0), 0);
 
   return (
-    <AdminShell active="projetos-fechados" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell active="projetos-fechados" keyParam={keyParam} userEmail={member.email}>
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">

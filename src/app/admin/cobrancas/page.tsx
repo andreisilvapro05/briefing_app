@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Pill } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ChargeButton } from "@/components/admin/charge-button";
@@ -31,6 +31,9 @@ export default async function CobrancasPage({
   const urlKey = params.key ?? null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  if (!hasFinanceAccess(member)) {
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const filtro = params.status ?? "todas";

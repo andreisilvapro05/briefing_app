@@ -126,6 +126,17 @@ export function isAdmin(member: Member): boolean {
 }
 
 /**
+ * Acesso a Contratos/Cobranças/Projetos Fechados/Relatórios — separado de
+ * `hasFullAccess` porque é sobre QUAL SEÇÃO a pessoa vê, não sobre QUAIS
+ * CLIENTES. Pedido do usuário (2026-08-31): designer (role "basico") não
+ * deve ver dados financeiros de nenhum cliente, nem os que ela mesma
+ * atende — só o operacional (projetos, tarefas, EI, briefing).
+ */
+export function hasFinanceAccess(member: Member): boolean {
+  return member.role !== "basico";
+}
+
+/**
  * Acesso completo (não restrito por projeto) — admin e avancado. `basico`
  * deveria só ver os projetos em que está marcado como responsável, mas
  * nenhuma tela ainda filtra por isso (fica pra quando existir o vínculo

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
@@ -29,7 +29,7 @@ export default async function AdminTarefasPage({
   const eiDocIdByClient = Object.fromEntries(eiDocIds);
 
   return (
-    <AdminShell active="tarefas" keyParam={keyParamFirst} userEmail={member.email}>
+    <AdminShell active="tarefas" keyParam={keyParamFirst} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">

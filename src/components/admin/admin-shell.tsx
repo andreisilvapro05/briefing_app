@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { SearchPalette } from "./search-palette";
 
 /**
  * AdminShell — layout do painel no estilo ClickUp: sidebar de ÁREAS da empresa
@@ -11,6 +12,7 @@ import { cn } from "@/lib/cn";
  */
 
 export type AdminSection =
+  | "meu-trabalho"
   | "visao-geral"
   | "clientes"
   | "lista"
@@ -55,6 +57,12 @@ function I({ children }: { children: ReactNode }) {
 }
 
 const ICONS: Record<AdminSection, ReactNode> = {
+  "meu-trabalho": (
+    <I>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4 3.5-7 8-7s8 3 8 7" />
+    </I>
+  ),
   "visao-geral": (
     <I>
       <rect x="3" y="3" width="7" height="9" rx="1.5" />
@@ -161,6 +169,7 @@ const AREAS: NavArea[] = [
   {
     label: "Projetos",
     items: [
+      item("meu-trabalho", "Meu Trabalho", "/admin/meu-trabalho"),
       item("visao-geral", "Visão Geral", "/admin/visao-geral"),
       item("clientes", "Clientes", "/admin"),
       item("lista", "Lista por status", "/admin/lista"),
@@ -201,15 +210,22 @@ export function AdminShell({
   active,
   keyParam,
   userEmail,
+  hideFinance,
   children,
 }: {
   active: AdminSection;
   keyParam: string;
   userEmail?: string | null;
+  /** Esconde a área Financeiro (Contratos/Cobranças/Projetos Fechados/Relatórios) do menu — role "basico" (ex: designer) não tem acesso a dados financeiros. */
+  hideFinance?: boolean;
   children: ReactNode;
 }) {
   const crumb = LABELS[active];
   const initials = (userEmail ?? "F").slice(0, 2).toUpperCase();
+  const areas = hideFinance
+    ? AREAS.filter((a) => a.label !== "Financeiro")
+    : AREAS;
+  const urlKey = keyParam ? new URLSearchParams(keyParam).get("key") : null;
 
   return (
     <div className="min-h-screen flex bg-fysi-cream text-fysi-deep">
@@ -232,7 +248,7 @@ export function AdminShell({
         </Link>
 
         <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-4">
-          {AREAS.map((area) => (
+          {areas.map((area) => (
             <div key={area.label}>
               <p className="px-2 mb-1 text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold">
                 {area.label}
@@ -284,6 +300,7 @@ export function AdminShell({
             <span className="font-semibold truncate">{crumb?.label ?? ""}</span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
+            <SearchPalette keyParam={keyParam} urlKey={urlKey} />
             <span className="hidden sm:flex flex-col items-end leading-tight">
               <span className="text-[0.78rem] font-medium text-fysi-deep truncate max-w-[180px]">
                 {userEmail ?? "Equipe Fysi"}
@@ -306,7 +323,7 @@ export function AdminShell({
         {/* Nav horizontal no mobile */}
         <nav className="md:hidden border-b border-fysi-line bg-white overflow-x-auto">
           <ul className="flex gap-1 px-3 py-2 w-max">
-            {AREAS.flatMap((a) => a.items).map((it) => {
+            {areas.flatMap((a) => a.items).map((it) => {
               const isActive = it.id === active;
               return (
                 <li key={it.id}>

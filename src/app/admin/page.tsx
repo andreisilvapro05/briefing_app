@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   PROJECT_TYPE_LABELS,
@@ -192,7 +192,7 @@ export default async function AdminPage({
   }
 
   return (
-    <AdminShell active="clientes" keyParam={keyParamFirst} userEmail={member.email}>
+    <AdminShell active="clientes" keyParam={keyParamFirst} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">

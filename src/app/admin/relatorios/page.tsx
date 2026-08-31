@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Eyebrow, Pill } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   statsCobrancas,
@@ -30,6 +30,9 @@ export default async function AdminRelatoriosPage({
   const urlKey = params.key ?? null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  if (!hasFinanceAccess(member)) {
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const visibleIds = await getVisibleClientIds(member);

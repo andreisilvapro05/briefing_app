@@ -138,18 +138,26 @@ const TONE_CLASSES: Record<TabBadge["tone"], { bg: string; text: string }> = {
  * Item ativo com fundo mint + barra mint-vivid de 3px. Preserva ?key=.
  * No mobile vira uma faixa horizontal rolável.
  */
+const FINANCE_TABS: ClientTab[] = ["contrato", "pagamentos"];
+
 export function ClientTabs({
   active,
   clientId,
   keyParam,
   badges = {},
+  hideFinance = false,
 }: {
   active: ClientTab;
   clientId: string;
   keyParam: string;
   badges?: ClientTabBadges;
+  /** Esconde Contrato/Pagamentos — role "basico" (ex: designer) não tem acesso financeiro. */
+  hideFinance?: boolean;
 }) {
   const keySuffix = keyParam.startsWith("?") ? `&${keyParam.slice(1)}` : keyParam;
+  const tabs = hideFinance
+    ? TABS.filter((t) => !FINANCE_TABS.includes(t.id))
+    : TABS;
 
   return (
     <nav
@@ -157,7 +165,7 @@ export function ClientTabs({
       aria-label="Seções do cliente"
     >
       <ul className="flex md:flex-col gap-1 overflow-x-auto md:overflow-visible md:sticky md:top-4 pb-2 md:pb-0">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const isActive = active === t.id;
           const href =
             t.id === "geral"

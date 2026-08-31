@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getLaneGroups } from "@/lib/lane-groups-server";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
@@ -24,7 +24,7 @@ export default async function AdminListaPage({
   const groups = await getLaneGroups(visibleIds);
 
   return (
-    <AdminShell active="lista" keyParam={keyParam} userEmail={member.email}>
+    <AdminShell active="lista" keyParam={keyParam} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">

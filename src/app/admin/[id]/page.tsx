@@ -6,7 +6,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Eyebrow } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { buildTimeline } from "@/lib/project-types";
 import { blocosForProject } from "@/lib/briefing-schema";
@@ -99,6 +99,14 @@ export default async function AdminClientPage({
     : "geral";
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  // Contrato/Pagamentos são financeiros — "basico" (ex: designer) não vê
+  // nem por URL direta, mesmo em projeto em que está marcado.
+  if (
+    (tab === "contrato" || tab === "pagamentos") &&
+    !hasFinanceAccess(member)
+  ) {
+    redirect(`/admin/${id}${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   // "basico" só acessa clientes em que tem tarefa atribuída — mesmo por
   // URL direta, não só escondido da lista.
@@ -280,7 +288,7 @@ export default async function AdminClientPage({
   };
 
   return (
-    <AdminShell active="clientes" keyParam={keyParam} userEmail={member.email}>
+    <AdminShell active="clientes" keyParam={keyParam} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
         <Link
           href={`/admin${keyParam}`}
           className="text-xs text-fysi-muted hover:text-fysi-deep mb-3 inline-block"
@@ -294,6 +302,7 @@ export default async function AdminClientPage({
             clientId={client.id}
             keyParam={keyParam}
             badges={tabBadges}
+            hideFinance={!hasFinanceAccess(member)}
           />
           <div className="flex-1 min-w-0 w-full">
 

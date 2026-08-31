@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Eyebrow } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getLaneGroups } from "@/lib/lane-groups-server";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
@@ -63,7 +63,7 @@ export default async function VisaoGeralPage({
     .slice(0, TAREFAS_LIMIT);
 
   return (
-    <AdminShell active="visao-geral" keyParam={keyParam} userEmail={member.email}>
+    <AdminShell active="visao-geral" keyParam={keyParam} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
       <header className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
           Visão Geral
