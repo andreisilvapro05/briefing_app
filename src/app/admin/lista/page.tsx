@@ -10,7 +10,7 @@ import {
   laneForClient,
   type ClientForLane,
 } from "@/lib/workflow-lanes";
-import { getTaskProgressByClient } from "@/lib/project-tasks-server";
+import { getTasksByClient, taskProgress } from "@/lib/project-tasks-server";
 import { DEFAULT_TASK_STATUS } from "@/lib/project-tasks";
 import {
   StatusPieBoard,
@@ -47,14 +47,14 @@ export default async function AdminListaPage({
   const novoHref = `/admin/novo${keyParam}`;
 
   const service = createSupabaseServiceRoleClient();
-  const [{ data }, taskProgress] = await Promise.all([
+  const [{ data }, tasksByClient] = await Promise.all([
     service
       .from("clients")
       .select(
         "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
       )
       .order("created_at", { ascending: false }),
-    getTaskProgressByClient(),
+    getTasksByClient(),
   ]);
 
   const clients = (data as ClientForLane[]) ?? [];
@@ -82,7 +82,14 @@ export default async function AdminListaPage({
         status: c.status || DEFAULT_TASK_STATUS,
         pagamento: total > 0 ? `${Math.round((pago / total) * 100)}%` : "—",
         created_at: c.created_at,
-        progresso: taskProgress.get(c.id) ?? null,
+        progresso: (() => {
+          const tasks = tasksByClient.get(c.id);
+          return tasks ? taskProgress(tasks) : null;
+        })(),
+        tarefas: (tasksByClient.get(c.id) ?? [])
+          .slice()
+          .sort((a, b) => a.ordem - b.ordem)
+          .map((t) => ({ id: t.id, titulo: t.titulo, status: t.status })),
         parado: isClientStuck(c),
       };
     }),

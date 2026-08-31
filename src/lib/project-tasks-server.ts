@@ -72,21 +72,27 @@ export interface TaskProgress {
 }
 
 /**
- * Progresso das subtarefas internas de cada cliente (fechadas/total) —
- * indicador ao lado do status do projeto principal na Lista por status.
- * Independente da lane do cliente, que usa `clients.status` direto (os dois
- * níveis de status, como no ClickUp — ver [[backlog_status_projeto_principal]]).
+ * Tarefas de cada cliente, agrupadas — pra mostrar como uma lista que
+ * abre/fecha (accordion) ao lado do status do projeto principal na Lista
+ * por status, igual ao padrão do ClickUp (dois níveis: status do projeto +
+ * status de cada subtarefa — ver [[backlog_status_projeto_principal]]).
  */
-export async function getTaskProgressByClient(): Promise<
-  Map<string, TaskProgress>
-> {
+export async function getTasksByClient(): Promise<Map<string, ProjectTask[]>> {
   const all = await listAllProjectTasks();
-  const result = new Map<string, TaskProgress>();
+  const result = new Map<string, ProjectTask[]>();
   for (const t of all) {
-    const prog = result.get(t.client_id) ?? { total: 0, fechadas: 0 };
-    prog.total += 1;
-    if (TASK_STATUS_GROUP[t.status] === "fechado") prog.fechadas += 1;
-    result.set(t.client_id, prog);
+    const arr = result.get(t.client_id);
+    if (arr) arr.push(t);
+    else result.set(t.client_id, [t]);
   }
   return result;
+}
+
+/** Progresso agregado (fechadas/total) — derivado de getTasksByClient(). */
+export function taskProgress(tasks: ProjectTask[]): TaskProgress {
+  return {
+    total: tasks.length,
+    fechadas: tasks.filter((t) => TASK_STATUS_GROUP[t.status] === "fechado")
+      .length,
+  };
 }

@@ -4,12 +4,25 @@ import { useState } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
-import { DEFAULT_TASK_STATUS } from "@/lib/project-tasks";
+import {
+  DEFAULT_TASK_STATUS,
+  TASK_STATUS_OPTIONS,
+  TASK_STATUS_TONE,
+  type TaskStatus,
+} from "@/lib/project-tasks";
 
 /**
  * Pizza (donut) interativa de projetos por status + lista embaixo.
- * Clicar numa fatia (ou na legenda) filtra a lista pra aquela etapa.
+ * Clicar numa fatia (ou na legenda) filtra a lista pra aquela etapa. Cada
+ * linha de cliente abre/fecha (accordion) mostrando as subtarefas internas
+ * — mesmo padrão do ClickUp: dois níveis de status visíveis juntos.
  */
+
+export interface LaneClientTask {
+  id: string;
+  titulo: string;
+  status: TaskStatus;
+}
 
 export interface LaneClient {
   id: string;
@@ -21,6 +34,8 @@ export interface LaneClient {
   created_at: string;
   /** Progresso das subtarefas internas (fechadas/total) — null se nenhuma tarefa gerada ainda. */
   progresso: { total: number; fechadas: number } | null;
+  /** Subtarefas internas do projeto, na ordem — mostradas ao expandir a linha. */
+  tarefas: LaneClientTask[];
   /** Sem atividade do cliente há 14+ dias — mostrado como aviso ao lado do nome, não escondendo a fase real. */
   parado: boolean;
 }
@@ -80,6 +95,16 @@ export function StatusPieBoard({
 }) {
   const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
   const [selected, setSelected] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(clientId: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(clientId)) next.delete(clientId);
+      else next.add(clientId);
+      return next;
+    });
+  }
 
   const periodGroups: LaneGroup[] =
     periodo === "todos"
@@ -299,52 +324,91 @@ export function StatusPieBoard({
               <span className="text-right">Ação</span>
             </div>
 
-            {g.clients.map((c) => (
-              <div
-                key={c.id}
-                className="grid grid-cols-2 md:grid-cols-[1fr_160px_150px_90px_64px] gap-x-3 gap-y-1 px-5 py-3 border-t border-fysi-line/70 items-center text-sm"
-              >
-                <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
-                  <span className="font-medium text-fysi-deep truncate">
-                    {c.empresa || c.nome}
-                  </span>
-                  {c.parado ? (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
-                      title="Sem atividade do cliente há 14+ dias"
-                    >
-                      <span className="h-1 w-1 rounded-full bg-amber-500" />
-                      Parado
+            {g.clients.map((c) => {
+              const hasTarefas = c.tarefas.length > 0;
+              const isOpen = expanded.has(c.id);
+              return (
+                <div key={c.id} className="border-t border-fysi-line/70">
+                  <div className="grid grid-cols-2 md:grid-cols-[1fr_160px_150px_90px_64px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
+                    <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
+                      {hasTarefas ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(c.id)}
+                          aria-expanded={isOpen}
+                          aria-label={isOpen ? "Fechar subtarefas" : "Abrir subtarefas"}
+                          className="text-fysi-muted hover:text-fysi-deep shrink-0 w-4"
+                        >
+                          {isOpen ? "▾" : "▸"}
+                        </button>
+                      ) : (
+                        <span className="w-4 shrink-0" />
+                      )}
+                      <span className="font-medium text-fysi-deep truncate">
+                        {c.empresa || c.nome}
+                      </span>
+                      {c.parado ? (
+                        <span
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
+                          title="Sem atividade do cliente há 14+ dias"
+                        >
+                          <span className="h-1 w-1 rounded-full bg-amber-500" />
+                          Parado
+                        </span>
+                      ) : null}
                     </span>
-                  ) : null}
-                </span>
-                <span className="text-fysi-muted truncate">{c.tipo}</span>
-                <span className="truncate flex items-center gap-2">
-                  <StatusChanger
-                    clientId={c.id}
-                    status={c.status || DEFAULT_TASK_STATUS}
-                    urlKey={urlKey}
-                  />
-                  {c.progresso && c.progresso.total > 0 ? (
-                    <span
-                      className="text-[0.68rem] text-fysi-muted tabular-nums shrink-0"
-                      title="Subtarefas concluídas"
-                    >
-                      {c.progresso.fechadas}/{c.progresso.total}
+                    <span className="text-fysi-muted truncate">{c.tipo}</span>
+                    <span className="truncate flex items-center gap-2">
+                      <StatusChanger
+                        clientId={c.id}
+                        status={c.status || DEFAULT_TASK_STATUS}
+                        urlKey={urlKey}
+                      />
+                      {c.progresso && c.progresso.total > 0 ? (
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(c.id)}
+                          className="text-[0.68rem] text-fysi-muted tabular-nums shrink-0 hover:text-fysi-deep hover:underline"
+                          title="Ver subtarefas"
+                        >
+                          {c.progresso.fechadas}/{c.progresso.total}
+                        </button>
+                      ) : null}
                     </span>
+                    <span className="text-fysi-deep tabular-nums">
+                      {c.pagamento}
+                    </span>
+                    <a
+                      href={`/admin/${c.id}${keyParam}`}
+                      className="text-right text-fysi-deep font-medium hover:underline shrink-0"
+                    >
+                      Ver →
+                    </a>
+                  </div>
+
+                  {isOpen && hasTarefas ? (
+                    <div className="pl-9 pr-5 pb-3 flex flex-col gap-1.5 bg-fysi-cream/30">
+                      {c.tarefas.map((t) => (
+                        <div
+                          key={t.id}
+                          className="flex items-center justify-between gap-3 text-xs"
+                        >
+                          <span className="text-fysi-deep truncate">
+                            {t.titulo}
+                          </span>
+                          <span
+                            className={`inline-block rounded-full border text-[0.68rem] font-medium px-2 py-0.5 shrink-0 ${TASK_STATUS_TONE[t.status]}`}
+                          >
+                            {TASK_STATUS_OPTIONS.find((o) => o.value === t.status)
+                              ?.label ?? t.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   ) : null}
-                </span>
-                <span className="text-fysi-deep tabular-nums">
-                  {c.pagamento}
-                </span>
-                <a
-                  href={`/admin/${c.id}${keyParam}`}
-                  className="text-right text-fysi-deep font-medium hover:underline shrink-0"
-                >
-                  Ver →
-                </a>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         ))}
       </section>
