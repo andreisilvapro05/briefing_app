@@ -51,9 +51,7 @@ export async function getLaneGroups(
 
   const byLane = new Map<string, ClientForLane[]>();
   GENERAL_LANES.forEach((l) => byLane.set(l.id, []));
-  clients.forEach((c) =>
-    byLane.get(laneForClient(c, tasksByClient.has(c.id)))?.push(c)
-  );
+  clients.forEach((c) => byLane.get(laneForClient(c))?.push(c));
 
   return GENERAL_LANES.map((lane) => ({
     id: lane.id,

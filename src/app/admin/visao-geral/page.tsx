@@ -10,7 +10,7 @@ import {
   TASK_STATUS_TONE,
   isClosedTaskStatus,
 } from "@/lib/project-tasks";
-import { MiniStatusPie } from "@/components/admin/mini-status-pie";
+import { StatusPieBoard } from "@/components/admin/status-pie-board";
 
 /**
  * Visão Geral — dashboard pros gestores: pizza selecionável, tarefas
@@ -38,6 +38,7 @@ export default async function VisaoGeralPage({
   if (!member) redirect("/admin/login");
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+  const novoHref = `/admin/novo${keyParam}`;
 
   const visibleIds = await getVisibleClientIds(member);
   const [allTasks, laneGroups] = await Promise.all([
@@ -104,21 +105,15 @@ export default async function VisaoGeralPage({
         <ShortcutCard href={`/admin/briefings${keyParam}`} label="Briefings" />
       </div>
 
-      {/* Pizza selecionável — clica numa fatia, mostra os nomes ali mesmo */}
-      <section className="bg-white border border-fysi-line rounded-[20px] p-5 mb-6">
-        <div className="flex items-baseline justify-between mb-4">
-          <Eyebrow>Projetos por status</Eyebrow>
-          <Link
-            href={`/admin/lista${keyParam}`}
-            className="text-xs text-fysi-deep hover:underline font-medium"
-          >
-            Ver lista completa →
-          </Link>
-        </div>
-        <MiniStatusPie
+      {/* Projetos por status — pizza selecionável + lista com accordion de
+          subtarefas editável, mesmo componente completo da Lista por
+          status (não uma versão resumida). */}
+      <section className="mb-6">
+        <StatusPieBoard
           groups={laneGroups}
           keyParam={keyParam}
-          listaHref="/admin/lista"
+          urlKey={urlKey ?? undefined}
+          novoHref={novoHref}
         />
       </section>
 

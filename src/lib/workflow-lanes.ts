@@ -7,26 +7,20 @@ import {
 } from "./project-tasks";
 
 /**
- * Lanes do quadro Kanban do admin — derivadas a partir de campos que já
- * existem em `clients` (status, contrato_status, briefing_submitted_at,
- * chamada_agendada_at). Sem novas colunas em `clients`.
+ * Lanes do quadro Kanban do admin — uma lane por valor de `clients.status`,
+ * os 14 status reais do ClickUp (Parado, Onboarding, Redação/Copy, ...,
+ * Completo|Entregue). Sem lanes separadas pro funil comercial (Lead/
+ * Aguardando Contrato/Agendar Chamada/Briefing) — decisão explícita do
+ * usuário em 2026-08-31: "os status não devem ser briefing, contrato...
+ * eles devem ser exatamente os mesmos das tarefas", de forma global, em
+ * qualquer lugar que mostre a distribuição por status (pizza, quadro,
+ * relatórios). `clients.status` tem default `a-iniciar`, então todo
+ * cliente sempre cai em alguma lane, mesmo antes de ter contrato/tarefa.
  *
- * Fluxo de vida do cliente, da esquerda pra direita:
- *
- *   1. Lead (sem contrato preenchido)
- *   2. Aguardando contrato (contrato preenchido, contrato_status != assinado)
- *   3. Aguardando chamada (contrato assinado, chamada não agendada)
- *   4. Briefing em progresso (chamada feita, briefing não submetido)
- *   5+. Uma lane por valor de `clients.status` — os 14 status reais do
- *      ClickUp (Parado, Onboarding, Redação/Copy, ..., Completo|Entregue),
- *      o status do próprio projeto principal (editável via StatusChanger).
- *      Substitui o heurístico antigo baseado em current_stage_index e a
- *      derivação intermediária a partir do status das tarefas internas.
- *
- * 2026-08-30/31: decisão explícita do usuário — manter o funil comercial
- * (lanes 1-4) como está; a fase de produção (5+) usa o status do PROJETO
- * PRINCIPAL (clients.status), não o status das tarefas internas
- * (project_tasks) — são dois níveis distintos, como no ClickUp.
+ * Histórico: teve uma fase intermediária com lanes de funil comercial
+ * (2026-08-30/31) que foi revertida nesta mesma sessão depois desse
+ * pedido — ver [[caixa_0_login_individual]]/git log se precisar do
+ * contexto de como era antes.
  */
 
 export interface ClientForLane {
@@ -92,16 +86,10 @@ const PRODUCTION_LANES: Lane[] = TASK_STATUS_OPTIONS.map((opt) => ({
 }));
 
 /**
- * Lanes do KANBAN GERAL — independente de project_type, mostra o fluxo
- * comercial + produção em alto nível.
+ * Lanes do KANBAN GERAL — independente de project_type, uma por status real
+ * (os mesmos 14 valores das tarefas). Ver header do arquivo.
  */
-export const GENERAL_LANES: Lane[] = [
-  { id: "lead",              label: "LEAD",                tone: "slate",   description: "Cliente cadastrado, sem contrato preenchido" },
-  { id: "contrato_aberto",   label: "AGUARDANDO CONTRATO", tone: "indigo",  description: "Dados de contrato enviados, esperando assinatura" },
-  { id: "agendar_chamada",   label: "AGENDAR CHAMADA",     tone: "yellow",  description: "Contrato assinado, agendar onboarding" },
-  { id: "briefing",          label: "BRIEFING",            tone: "pink",    description: "Cliente preenchendo briefing" },
-  ...PRODUCTION_LANES,
-];
+export const GENERAL_LANES: Lane[] = PRODUCTION_LANES;
 
 const STUCK_DAYS = 14;
 
@@ -119,38 +107,15 @@ export function isClientStuck(c: ClientForLane, now: number = Date.now()): boole
 }
 
 /**
- * Mapeia um cliente para sua lane atual. Se o cliente já tem pelo menos uma
- * tarefa de produção gerada (`project_tasks`), a lane vem 100% do status do
- * projeto — os campos de funil comercial (contrato/chamada/briefing) são
- * ignorados. Muitos clientes legados nunca passaram pelo onboarding do app
- * (vieram de fora, direto pra produção) e ficam com esses campos vazios pra
- * sempre; usar esses campos pra quem já tem tarefas geradas classificava
- * quase todo mundo como "lead"/"aguardando contrato" quando na real já
- * estava em produção (confirmado: 30 de 33 clientes com tarefas geradas
- * caíam no funil comercial em 2026-08-31, achado do usuário). Só quem
- * ainda NÃO tem nenhuma tarefa gerada usa o funil comercial de fato.
- * Determinístico, sem efeitos colaterais. Sempre a fase REAL — inatividade
- * não empurra o cliente pra uma lane "parado" à parte (ver isClientStuck).
+ * Mapeia um cliente pra sua lane atual — sempre o status real do projeto
+ * (`clients.status`), os mesmos 14 valores usados nas tarefas, sem exceção
+ * (nem funil comercial, nem checagem de tarefas geradas). Cai no default
+ * se o valor não for um dos 14 reconhecidos (ex: ambiente sem a migration
+ * aplicada) — sem isso o cliente some silenciosamente de todos os quadros
+ * do admin. Determinístico, sem efeitos colaterais. Inatividade não empurra
+ * o cliente pra uma lane "parado" à parte (ver isClientStuck).
  */
-export function laneForClient(c: ClientForLane, hasTasks = false): string {
-  if (!hasTasks) {
-    if (!c.contrato_preenchido_at) {
-      return "lead";
-    }
-    if (c.contrato_status !== "assinado") {
-      return "contrato_aberto";
-    }
-    if (!c.chamada_agendada_at) {
-      return "agendar_chamada";
-    }
-    if (!c.briefing_submitted_at) {
-      return "briefing";
-    }
-  }
-
-  // Produção — status do projeto principal. Cai no default se o valor não
-  // for um dos 14 reconhecidos (ex: ambiente sem a migration aplicada) —
-  // sem isso o cliente some silenciosamente de todos os quadros do admin.
+export function laneForClient(c: ClientForLane): string {
   const status = TASK_STATUS_VALUES.includes(c.status as TaskStatus)
     ? (c.status as TaskStatus)
     : DEFAULT_TASK_STATUS;
@@ -173,10 +138,7 @@ export interface ClientStats {
   ultimosMeses: Array<{ label: string; count: number }>;
 }
 
-export function computeStats(
-  clients: ClientForLane[],
-  clientIdsWithTasks: Set<string> = new Set()
-): ClientStats {
+export function computeStats(clients: ClientForLane[]): ClientStats {
   const porLane = new Map<string, ClientForLane[]>();
   GENERAL_LANES.forEach((l) => porLane.set(l.id, []));
   const porTipo = new Map<string, number>();
@@ -186,7 +148,7 @@ export function computeStats(
   const parados: ClientForLane[] = [];
 
   clients.forEach((c) => {
-    const lane = laneForClient(c, clientIdsWithTasks.has(c.id));
+    const lane = laneForClient(c);
     porLane.get(lane)?.push(c);
 
     const tipo = c.project_type ?? "—";
