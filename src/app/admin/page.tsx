@@ -63,6 +63,62 @@ function MiniPill({ label, tone }: { label: string; tone: PillTone }) {
   );
 }
 
+function PendenciaCard({
+  href,
+  active,
+  label,
+  hint,
+  count,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  hint: string;
+  count: number;
+}) {
+  const hasPendencia = count > 0;
+  return (
+    <Link
+      href={href}
+      className={`flex items-center justify-between rounded-[14px] border px-4 py-3 transition ${
+        active
+          ? "border-fysi-deep bg-fysi-deep text-fysi-cream"
+          : hasPendencia
+            ? "border-amber-200 bg-amber-50 hover:border-amber-300"
+            : "border-fysi-line bg-white hover:border-fysi-deep/30"
+      }`}
+    >
+      <div>
+        <div
+          className={`text-sm font-semibold ${
+            active ? "text-fysi-cream" : "text-fysi-deep"
+          }`}
+        >
+          {label}
+        </div>
+        <div
+          className={`text-[0.72rem] mt-0.5 ${
+            active ? "text-fysi-cream/70" : "text-fysi-muted"
+          }`}
+        >
+          {hint}
+        </div>
+      </div>
+      <div
+        className={`text-2xl font-bold tabular-nums ${
+          active
+            ? "text-fysi-cream"
+            : hasPendencia
+              ? "text-amber-700"
+              : "text-fysi-deep"
+        }`}
+      >
+        {count}
+      </div>
+    </Link>
+  );
+}
+
 function briefingCell(c: ClientRow): { label: string; tone: PillTone } {
   if (c.briefing_submitted_at) return { label: "✓ enviado", tone: "mint" };
   if ((c.current_stage_index ?? 0) > 0)
@@ -90,7 +146,40 @@ interface SearchParams {
   q?: string;
   status?: string;
   tipo?: string;
+  pendencia?: string;
   key?: string;
+}
+
+const STUCK_DAYS = 7;
+
+function daysSince(iso: string | null, now: number): number {
+  if (!iso) return 0;
+  return Math.floor((now - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function isContratoPendente(c: { contrato_status: string | null }): boolean {
+  return c.contrato_status === "pendente";
+}
+
+function isPagamentoPendente(c: {
+  pagamento_total: number | null;
+  pagamento_pago: number | null;
+}): boolean {
+  const total = Number(c.pagamento_total ?? 0);
+  const pago = Number(c.pagamento_pago ?? 0);
+  return total > 0 && pago < total;
+}
+
+function isParado(
+  c: {
+    status: string;
+    last_client_activity_at: string | null;
+    created_at: string;
+  },
+  now: number
+): boolean {
+  if (!isActiveTaskStatus(c.status as TaskStatus)) return false;
+  return daysSince(c.last_client_activity_at ?? c.created_at, now) >= STUCK_DAYS;
 }
 
 export default async function AdminPage({
@@ -106,6 +195,8 @@ export default async function AdminPage({
   const q = (params.q ?? "").trim();
   const statusFilter = params.status ?? "";
   const tipoFilter = params.tipo ?? "";
+  const pendenciaFilter = params.pendencia ?? "";
+  const now = Date.now();
 
   // Sempre que veio com ?key= na URL, preserva nos links internos —
   // mesmo se o cookie tiver autenticado (cookie pode cair no próximo clique).
@@ -131,7 +222,17 @@ export default async function AdminPage({
   }
 
   const { data, error } = await query;
-  const clients: ClientRow[] = (data as ClientRow[]) ?? [];
+  let clients: ClientRow[] = (data as ClientRow[]) ?? [];
+
+  // Filtro de pendência — aplicado em JS (não dá pra comparar duas colunas
+  // entre si, ex: pagamento_pago < pagamento_total, via filtro do PostgREST).
+  if (pendenciaFilter === "contrato") {
+    clients = clients.filter(isContratoPendente);
+  } else if (pendenciaFilter === "pagamento") {
+    clients = clients.filter(isPagamentoPendente);
+  } else if (pendenciaFilter === "parado") {
+    clients = clients.filter((c) => isParado(c, now));
+  }
 
   // Notificações não lidas (banner no topo). Limite 5 mais recentes pra não
   // entupir a tela quando tem fila.
@@ -143,11 +244,14 @@ export default async function AdminPage({
     .limit(5);
   const notifications = (notifData as AdminNotification[]) ?? [];
 
-  // Conta totais (sem filtros) só pra header
+  // Totais e pendências (sem filtro de status/tipo/busca) — alimentam o
+  // header e o resumo de pendências, sempre mostrando o quadro geral.
   const { data: totalsData } = await service
     .from("clients")
-    .select("status", { count: "exact" });
-  const totals = (totalsData as { status: string }[] | null) ?? [];
+    .select(
+      "status, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
+    );
+  const totals = (totalsData as ClientRow[] | null) ?? [];
   const totalCount = totals.length;
   const fechadoCount = totals.filter((c) =>
     isClosedTaskStatus(c.status as TaskStatus)
@@ -155,29 +259,29 @@ export default async function AdminPage({
   const ativoCount = totals.filter((c) =>
     isActiveTaskStatus(c.status as TaskStatus)
   ).length;
+  const contratoPendenteCount = totals.filter(isContratoPendente).length;
+  const pagamentoPendenteCount = totals.filter(isPagamentoPendente).length;
+  const paradoCount = totals.filter((c) => isParado(c, now)).length;
 
-  // Link de aba de status, preservando busca/tipo/key.
-  const statusTabHref = (s: string) => {
+  // Link de filtro, preservando os outros filtros ativos + key.
+  function filterHref(overrides: {
+    status?: string;
+    pendencia?: string;
+  }): string {
     const sp = new URLSearchParams();
-    if (s) sp.set("status", s);
+    const status = overrides.status ?? statusFilter;
+    const pendencia = overrides.pendencia ?? pendenciaFilter;
+    if (status) sp.set("status", status);
+    if (pendencia) sp.set("pendencia", pendencia);
     if (q) sp.set("q", q);
     if (tipoFilter) sp.set("tipo", tipoFilter);
     if (urlKey) sp.set("key", urlKey);
     const qs = sp.toString();
     return `/admin${qs ? `?${qs}` : ""}`;
-  };
-
-  // Indicador de "parado": cliente em-andamento sem atividade há > 7 dias
-  const STUCK_DAYS = 7;
-  const now = Date.now();
-  function daysSince(iso: string | null): number {
-    if (!iso) return 0;
-    return Math.floor((now - new Date(iso).getTime()) / (1000 * 60 * 60 * 24));
   }
-  function isStuck(c: ClientRow): boolean {
-    if (!isActiveTaskStatus(c.status as TaskStatus)) return false;
-    return daysSince(c.last_client_activity_at ?? c.created_at) >= STUCK_DAYS;
-  }
+  const statusTabHref = (s: string) => filterHref({ status: s });
+  const pendenciaHref = (p: string) =>
+    filterHref({ pendencia: pendenciaFilter === p ? "" : p });
 
   return (
     <AdminShell active="clientes" keyParam={keyParamFirst} userEmail={user.email}>
@@ -214,6 +318,32 @@ export default async function AdminPage({
             </Link>
           </div>
         </header>
+
+        {/* Resumo de pendências — visão de gestão de relance, antes de abrir
+            qualquer cliente. Cada card filtra a lista abaixo ao clicar. */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <PendenciaCard
+            href={pendenciaHref("contrato")}
+            active={pendenciaFilter === "contrato"}
+            label="Contrato pendente"
+            hint="enviado, aguardando assinatura"
+            count={contratoPendenteCount}
+          />
+          <PendenciaCard
+            href={pendenciaHref("pagamento")}
+            active={pendenciaFilter === "pagamento"}
+            label="Pagamento pendente"
+            hint="valor em aberto"
+            count={pagamentoPendenteCount}
+          />
+          <PendenciaCard
+            href={pendenciaHref("parado")}
+            active={pendenciaFilter === "parado"}
+            label="Parados"
+            hint={`sem atividade há ${STUCK_DAYS}+ dias`}
+            count={paradoCount}
+          />
+        </div>
 
         {/* Abas de status — separa os clientes por situação */}
         <div className="flex flex-wrap gap-2 my-4">
@@ -267,8 +397,9 @@ export default async function AdminPage({
             className="rounded-[10px] border border-fysi-line bg-fysi-cream/40 px-3 py-2 text-sm text-fysi-deep placeholder:text-fysi-muted focus:outline-none focus:border-fysi-deep/40"
           />
 
-          {/* Status vem das abas acima; preserva ao buscar/filtrar por tipo. */}
+          {/* Status/pendência vêm das abas/cards acima; preserva ao buscar/filtrar por tipo. */}
           <input type="hidden" name="status" value={statusFilter} />
+          <input type="hidden" name="pendencia" value={pendenciaFilter} />
 
           <select
             name="tipo"
@@ -290,7 +421,7 @@ export default async function AdminPage({
             >
               Filtrar
             </button>
-            {(q || statusFilter || tipoFilter) && (
+            {(q || statusFilter || tipoFilter || pendenciaFilter) && (
               <Link
                 href="/admin"
                 className="rounded-full border border-fysi-line text-sm text-fysi-muted px-3 py-2 hover:text-fysi-deep hover:border-fysi-deep/30"
@@ -328,14 +459,14 @@ export default async function AdminPage({
                     colSpan={8}
                     className="px-5 py-8 text-center text-fysi-muted"
                   >
-                    {q || statusFilter || tipoFilter
+                    {q || statusFilter || tipoFilter || pendenciaFilter
                       ? "Nenhum cliente bate com os filtros."
                       : "Ainda nenhum cliente. Compartilhe o link público do briefing."}
                   </td>
                 </tr>
               ) : (
                 clients.map((c) => {
-                  const stuck = isStuck(c);
+                  const stuck = isParado(c, now);
                   const lastActivity = c.last_client_activity_at ?? c.created_at;
                   const briefing = briefingCell(c);
                   const contrato = contratoCell(c);
@@ -363,7 +494,7 @@ export default async function AdminPage({
                           {stuck ? (
                             <span
                               className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
-                              title={`Sem atividade há ${daysSince(lastActivity)} dias`}
+                              title={`Sem atividade há ${daysSince(lastActivity, now)} dias`}
                             >
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                               Parado
