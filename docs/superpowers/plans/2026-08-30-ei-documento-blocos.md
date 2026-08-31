@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-30-ei-documento-blocos-design.md`
 
+**Status (2026-08-30): Tasks 1–6 implementadas e commitadas** (`208ff25` deps, `a5dabbf` editor + limpeza). Task 7 (verificação visual ao vivo) segue bloqueada pela mesma limitação da rodada de status desta sessão — este checkout não tem `.env` real, só `.env.example`, então não dá pra logar no admin local. `tsc --noEmit` e `npm run build` passam limpos. Também removida `setEIAction` (órfã, escrevia na coluna legada `clients.ei_data`) durante a Task 4 — não estava no plano original, descoberta ao varrer os imports de `ei-template.ts`.
+
 ## Global Constraints
 
 - Não criar migration de schema — `ei_documents.ei_data` já é `jsonb not null default '{}'::jsonb`.
@@ -172,55 +174,9 @@ git commit -m "feat: EIBlockEditor — editor de blocos BlockNote pra EI (ainda 
 
 ### Task 3: Tema Fysi pro editor (Notion/ClickUp na cara, cores da marca)
 
-**Files:**
-- Modify: `src/components/admin/ei-block-editor.tsx`
+**CORREÇÃO (2026-08-30, durante a implementação):** `@blocknote/shadcn` NÃO aceita uma prop `theme` — isso é específico do shell `@blocknote/mantine` (confirmado lendo `node_modules/@blocknote/shadcn/types/src/BlockNoteView.d.ts`: a assinatura só aceita `shadCNComponents`, nada de `theme`). O shell shadcn tema via variáveis CSS (`--bn-colors-editor-text`, `--bn-colors-editor-background`, etc. — lista completa em `node_modules/@blocknote/shadcn/dist/style.css`), que na prática combina melhor com este projeto (já usa `--fysi-*` como variáveis CSS em `globals.css`). Implementado direto na Task 2 como um objeto `FYSI_BN_VARS` aplicado via `style={...}` no wrapper do editor, em vez de task separada. Ver `src/components/admin/ei-block-editor.tsx` como implementado.
 
-**Interfaces:**
-- Consumes: `EIBlockEditor` de Task 2.
-- Produces: mesmo componente, agora com `theme` aplicado — nenhuma mudança de interface pública.
-
-- [ ] **Step 1: Adicionar o tema custom, usando as cores Fysi**
-
-```tsx
-// no topo de src/components/admin/ei-block-editor.tsx, junto aos outros imports:
-import type { Theme } from "@blocknote/shadcn";
-```
-
-```tsx
-// antes da definição do componente EIBlockEditor:
-const fysiTheme: Theme = {
-  colors: {
-    editor: { text: "#042B30", background: "#ffffff" },
-    menu: { text: "#042B30", background: "#ffffff" },
-    tooltip: { text: "#F7F6F4", background: "#042B30" },
-    hovered: { text: "#042B30", background: "#F7F6F4" },
-    selected: { text: "#042B30", background: "#BFEDE0" },
-    disabled: { text: "#6B7472", background: "#F7F6F4" },
-    shadow: "#E5E5E0",
-    border: "#E5E5E0",
-    sideMenu: "#6B7472",
-  },
-  borderRadius: 10,
-  fontFamily: "inherit",
-};
-```
-
-```tsx
-// troca a linha final do JSX:
-      <BlockNoteView editor={editor} theme={fysiTheme} />
-```
-
-- [ ] **Step 2: Rodar typecheck**
-
-Run: `npx tsc --noEmit`
-Expected: sem erros. Se `Theme` não for exportado de `@blocknote/shadcn` (só de `@blocknote/core` ou `@blocknote/react` nessa versão instalada), ajustar o import de acordo com o que o typecheck apontar — os três pacotes reexportam tipos entre si e a mensagem de erro do TS aponta o caminho certo.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add src/components/admin/ei-block-editor.tsx
-git commit -m "style: tema Fysi (cores da marca) no editor de blocos da EI"
-```
+- [x] Tema aplicado — feito dentro da Task 2, não como task separada.
 
 ---
 
