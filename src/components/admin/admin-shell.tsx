@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
  */
 
 export type AdminSection =
+  | "visao-geral"
   | "clientes"
   | "lista"
   | "briefings"
@@ -53,6 +54,14 @@ function I({ children }: { children: ReactNode }) {
 }
 
 const ICONS: Record<AdminSection, ReactNode> = {
+  "visao-geral": (
+    <I>
+      <rect x="3" y="3" width="7" height="9" rx="1.5" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" />
+    </I>
+  ),
   clientes: (
     <I>
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -144,6 +153,7 @@ const AREAS: NavArea[] = [
   {
     label: "Projetos",
     items: [
+      item("visao-geral", "Visão Geral", "/admin/visao-geral"),
       item("clientes", "Clientes", "/admin"),
       item("lista", "Lista por status", "/admin/lista"),
       item("briefings", "Briefings", "/admin/briefings"),
