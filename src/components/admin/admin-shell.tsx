@@ -205,7 +205,7 @@ export function AdminShell({
         <nav className="flex-1 overflow-y-auto px-2.5 py-3 flex flex-col gap-4">
           {AREAS.map((area) => (
             <div key={area.label}>
-              <p className="px-2 mb-1 text-[0.62rem] uppercase tracking-[0.14em] text-fysi-muted font-semibold">
+              <p className="px-2 mb-1 text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold">
                 {area.label}
               </p>
               <ul className="flex flex-col gap-0.5">
