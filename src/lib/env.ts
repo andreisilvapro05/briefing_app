@@ -103,6 +103,10 @@ export function getServerEnv() {
     // Sem URL → webhook fica desativado silenciosamente.
     dashboardWebhookUrl: process.env.DASHBOARD_WEBHOOK_URL ?? "",
     dashboardWebhookSecret: process.env.DASHBOARD_WEBHOOK_SECRET ?? "",
+    // Webhook inbound do CRM (sistema separado, também na Vercel) — recebe
+    // negócios fechados em public.closed_projects. Mesma validação
+    // HMAC-SHA256 do webhook do dashboard financeiro (X-Fysi-Signature).
+    crmWebhookSecret: process.env.CRM_WEBHOOK_SECRET ?? "",
     // Google Drive (Service Account) — quando preenchido, briefing_app cria
     // pasta automaticamente pra cada cliente novo e espelha anexos por
     // categoria (Logo, Identidade, Imagens, Depoimentos, Briefing).
