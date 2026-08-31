@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { clearAdminSessionCookie } from "@/lib/admin-session";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
  * Limpa o cookie de sessão admin. Só em POST.
@@ -14,6 +15,14 @@ import { clearAdminSessionCookie } from "@/lib/admin-session";
  */
 async function logout(request: NextRequest) {
   await clearAdminSessionCookie();
+  // Cobre também o modo por pessoa (Caixa 0) — encerra a sessão Supabase se
+  // houver uma, sem quebrar quem só usava o cookie legado.
+  try {
+    const supabase = await createSupabaseServerClient();
+    await supabase.auth.signOut();
+  } catch {
+    // Supabase não configurado ou sem sessão — segue só com o cookie legado.
+  }
   // 303 força GET no redirect — evita re-submit. Deriva do request.url em
   // vez de NEXT_PUBLIC_APP_URL (que apontava pro domínio *.vercel.app cru,
   // não pro domínio customizado — causava um redirect cross-origin que

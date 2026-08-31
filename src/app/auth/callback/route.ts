@@ -46,6 +46,18 @@ export async function GET(request: NextRequest) {
       })
       .eq("email", user.email)
       .is("auth_user_id", null);
+
+    // Idem pra membro da equipe (Caixa 0 — login por pessoa): liga na
+    // primeira vez e marca o último login a cada volta.
+    await service
+      .from("team_members")
+      .update({ auth_user_id: user.id, last_login_at: new Date().toISOString() })
+      .eq("email", user.email.toLowerCase())
+      .is("auth_user_id", null);
+    await service
+      .from("team_members")
+      .update({ last_login_at: new Date().toISOString() })
+      .eq("auth_user_id", user.id);
   }
 
   return NextResponse.redirect(`${origin}${next}`);

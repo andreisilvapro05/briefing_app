@@ -1,61 +1,7 @@
-import { createSupabaseServerClient } from "./supabase/server";
-import { getServerEnv } from "./env";
-import { hasValidAdminSession } from "./admin-session";
-
 /**
- * Identifica se a request é de um admin autenticado.
- * Retorna `null` se não for admin.
- *
- * Aceita 2 formas de autenticação (em ordem de preferência):
- * 1. Cookie `fysi-admin` (sessão por senha — mais comum hoje)
- * 2. Sessão Supabase Auth com e-mail na allowlist `ADMIN_EMAILS` (legado)
+ * Mantido como wrapper fino de compatibilidade — a lógica real agora vive
+ * em `./member.ts` (Caixa 0: login por pessoa). `getAdminUser()` continua
+ * com o shape antigo `{ email, source }` pros ~20 call-sites existentes
+ * migrarem gradualmente pra `getCurrentMember()`/`requireMember()`.
  */
-export async function getAdminUser(opts?: {
-  urlKey?: string | null;
-}): Promise<{
-  email: string;
-  source: "password" | "supabase" | "url-key";
-} | null> {
-  // Caminho 1: cookie de sessão admin (login por senha).
-  if (await hasValidAdminSession()) {
-    return { email: "admin@fysilab", source: "password" };
-  }
-
-  // Caminho 2: chave passada como query param (?key=...). Útil quando
-  // o browser do user tem problema com cookie HttpOnly. Bookmarkable.
-  if (opts?.urlKey) {
-    let env: ReturnType<typeof getServerEnv>;
-    try {
-      env = getServerEnv();
-    } catch {
-      return null;
-    }
-    if (env.adminPassword && opts.urlKey === env.adminPassword) {
-      return { email: "admin@fysilab", source: "url-key" };
-    }
-  }
-
-  // Caminho 3: Supabase Auth + allowlist (compatibilidade com magic link).
-  let env: ReturnType<typeof getServerEnv>;
-  try {
-    env = getServerEnv();
-  } catch {
-    return null;
-  }
-
-  let supabase;
-  try {
-    supabase = await createSupabaseServerClient();
-  } catch {
-    return null;
-  }
-
-  const { data } = await supabase.auth.getUser();
-  const user = data.user;
-  if (!user || !user.email) return null;
-
-  const email = user.email.toLowerCase();
-  if (!env.adminEmails.includes(email)) return null;
-
-  return { email, source: "supabase" };
-}
+export { getAdminUserCompat as getAdminUser } from "./member";
