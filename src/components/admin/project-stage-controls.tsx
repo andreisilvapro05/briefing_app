@@ -165,7 +165,7 @@ export function ProjectStageControls({
                     }`}
                   >
                     <span className="flex items-center justify-between gap-1">
-                      <span className="text-[0.62rem] uppercase tracking-[0.12em] font-semibold opacity-70">
+                      <span className="text-[0.7rem] uppercase tracking-[0.12em] font-semibold opacity-70">
                         Etapa {String(idx + 1).padStart(2, "0")}
                       </span>
                       {isDone ? (
@@ -258,7 +258,7 @@ export function ProjectStageControls({
             Salvar
           </button>
         </div>
-        <p className="text-[0.65rem] text-fysi-muted">
+        <p className="text-[0.72rem] text-fysi-muted">
           Aparece pro cliente na etapa “Criação da copy” da timeline.
         </p>
       </div>

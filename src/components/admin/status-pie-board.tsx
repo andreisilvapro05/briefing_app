@@ -289,7 +289,7 @@ export function StatusPieBoard({
               </Link>
             </div>
 
-            <div className="hidden md:grid grid-cols-[1fr_160px_150px_90px_64px] gap-3 px-5 py-2 bg-fysi-cream/40 text-[0.62rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+            <div className="hidden md:grid grid-cols-[1fr_160px_150px_90px_64px] gap-3 px-5 py-2 bg-fysi-cream/40 text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
               <span>Cliente</span>
               <span>Tipo</span>
               <span>Status</span>

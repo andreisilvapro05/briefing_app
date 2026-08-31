@@ -163,7 +163,7 @@ export default async function CobrancasPage({
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-[0.62rem] uppercase tracking-[0.1em] text-fysi-muted">
+                  <tr className="text-left text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted">
                     <th className="py-2 pr-3 font-medium">Cliente</th>
                     <th className="py-2 px-3 font-medium text-right">Total</th>
                     <th className="py-2 px-3 font-medium text-right">Pago</th>
@@ -394,7 +394,7 @@ function Kpi({
   }[tone];
   return (
     <div className={`rounded-[14px] border p-4 ${t}`}>
-      <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+      <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
         {label}
       </div>
       <div className="text-2xl font-bold text-fysi-deep mt-1 tabular-nums">
@@ -490,7 +490,7 @@ function CobrancaCard({
           <div className="text-xl font-bold text-fysi-deep tabular-nums">
             {formatBRL(Number(cobranca.valor_mensal))}
           </div>
-          <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted">
+          <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted">
             {cobranca.tipo === "pontual"
               ? formatDate(cobranca.data_vencimento)
               : `todo dia ${cobranca.dia_cobranca}`}

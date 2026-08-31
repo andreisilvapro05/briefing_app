@@ -274,7 +274,7 @@ function CardEditor({
   return (
     <div className="rounded-[14px] border border-fysi-line bg-fysi-cream/20 p-3 flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[0.65rem] uppercase tracking-[0.08em] text-fysi-muted font-medium">
+        <span className="text-[0.72rem] uppercase tracking-[0.08em] text-fysi-muted font-medium">
           {tipoIcon(item.tipo)} {tipoLabel(item.tipo)}
         </span>
         <span

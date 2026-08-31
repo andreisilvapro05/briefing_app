@@ -149,7 +149,7 @@ export default async function AdminQuadroPage({
                       </span>
                     </div>
                     {lane.description ? (
-                      <p className="text-[0.65rem] text-fysi-muted mt-0.5 leading-snug">
+                      <p className="text-[0.72rem] text-fysi-muted mt-0.5 leading-snug">
                         {lane.description}
                       </p>
                     ) : null}
@@ -216,14 +216,14 @@ function ClientCard({
             sem tipo
           </span>
         )}
-        <span className="text-[0.65rem] text-fysi-muted shrink-0">
+        <span className="text-[0.72rem] text-fysi-muted shrink-0">
           {days === 0 ? "hoje" : `${days}d`}
         </span>
       </div>
 
       {total > 0 ? (
         <div className="mt-1.5">
-          <div className="flex items-center justify-between text-[0.65rem]">
+          <div className="flex items-center justify-between text-[0.72rem]">
             <span className="text-fysi-muted">Pago</span>
             <span className="text-fysi-deep font-medium tabular-nums">
               {formatBRL(pago)} / {formatBRL(total)}

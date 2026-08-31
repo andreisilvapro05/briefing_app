@@ -125,7 +125,7 @@ export default async function AdminRelatoriosPage({
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
-                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   MRR
                 </div>
                 <div className="text-2xl font-bold text-fysi-deep mt-1 tabular-nums">
@@ -136,7 +136,7 @@ export default async function AdminRelatoriosPage({
                 </div>
               </div>
               <div>
-                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   Recebido este mês
                 </div>
                 <div className="text-2xl font-bold text-fysi-deep mt-1 tabular-nums">
@@ -147,7 +147,7 @@ export default async function AdminRelatoriosPage({
                 </div>
               </div>
               <div>
-                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   A receber
                 </div>
                 <div
@@ -160,7 +160,7 @@ export default async function AdminRelatoriosPage({
                 </div>
               </div>
               <div>
-                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   Em atraso
                 </div>
                 <div
@@ -219,7 +219,7 @@ export default async function AdminRelatoriosPage({
             </div>
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div>
-                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   Total contratado
                 </div>
                 <div className="text-xl font-bold text-fysi-deep mt-1 tabular-nums">
@@ -227,7 +227,7 @@ export default async function AdminRelatoriosPage({
                 </div>
               </div>
               <div>
-                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   Recebido
                 </div>
                 <div className="text-xl font-bold text-fysi-deep mt-1 tabular-nums">
@@ -235,7 +235,7 @@ export default async function AdminRelatoriosPage({
                 </div>
               </div>
               <div>
-                <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   Pendente
                 </div>
                 <div
@@ -279,14 +279,14 @@ export default async function AdminRelatoriosPage({
                 const h = (m.count / maxMes) * 100;
                 return (
                   <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1.5">
-                    <div className="text-[0.65rem] font-medium text-fysi-deep tabular-nums">
+                    <div className="text-[0.72rem] font-medium text-fysi-deep tabular-nums">
                       {m.count}
                     </div>
                     <div
                       className="w-full bg-fysi-deep rounded-t-md transition-[height]"
                       style={{ height: `${Math.max(2, h)}%` }}
                     />
-                    <div className="text-[0.65rem] text-fysi-muted uppercase tracking-[0.06em]">
+                    <div className="text-[0.72rem] text-fysi-muted uppercase tracking-[0.06em]">
                       {m.label}
                     </div>
                   </div>
@@ -499,7 +499,7 @@ function Kpi({
   }[tone];
   return (
     <div className={`rounded-[14px] border p-4 ${toneClasses}`}>
-      <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+      <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
         {label}
       </div>
       <div className="text-2xl font-bold text-fysi-deep mt-1 tabular-nums">
@@ -592,7 +592,7 @@ function PieChart({
           <div className="text-2xl font-bold text-fysi-deep tabular-nums">
             {total}
           </div>
-          <div className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+          <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
             projetos
           </div>
         </div>

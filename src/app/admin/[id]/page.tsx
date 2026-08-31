@@ -317,7 +317,7 @@ export default async function AdminClientPage({
                 </select>
                 <button
                   type="submit"
-                  className="text-[0.65rem] text-fysi-deep hover:underline text-left"
+                  className="text-[0.72rem] text-fysi-deep hover:underline text-left"
                 >
                   ↳ salvar tipo
                 </button>
@@ -393,7 +393,7 @@ export default async function AdminClientPage({
               </div>
             </div>
             <div className="flex flex-col items-start sm:items-end gap-1">
-              <span className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+              <span className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
                 Status
               </span>
               <StatusChanger
@@ -454,7 +454,7 @@ export default async function AdminClientPage({
           <div className="mt-3 grid sm:grid-cols-2 gap-3">
             {painelLink ? (
               <div className="bg-fysi-cream/50 border border-fysi-line rounded-[12px] p-3">
-                <p className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
+                <p className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
                   ✏️ Link do briefing
                 </p>
                 <div className="flex items-center gap-2">
@@ -471,7 +471,7 @@ export default async function AdminClientPage({
                     label="Copiar"
                   />
                 </div>
-                <p className="text-[0.68rem] text-fysi-muted mt-1.5">
+                <p className="text-[0.74rem] text-fysi-muted mt-1.5">
                   Cliente cai direto no briefing dele.
                 </p>
               </div>
@@ -479,7 +479,7 @@ export default async function AdminClientPage({
 
             {client.fysi_drive_link || client.cliente_drive_link ? (
               <div className="bg-fysi-cream/50 border border-fysi-line rounded-[12px] p-3">
-                <p className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
+                <p className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
                   📁 Drive
                 </p>
                 <div className="flex flex-col gap-1">
@@ -840,7 +840,7 @@ Qualquer dúvida, é só responder por aqui.`}
                 <>
                   <div className="grid sm:grid-cols-3 gap-4 mb-3">
                     <div>
-                      <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                      <span className="block text-[0.72rem] uppercase tracking-[0.12em] text-fysi-muted">
                         Total
                       </span>
                       <span className="text-fysi-deep font-medium">
@@ -848,7 +848,7 @@ Qualquer dúvida, é só responder por aqui.`}
                       </span>
                     </div>
                     <div>
-                      <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                      <span className="block text-[0.72rem] uppercase tracking-[0.12em] text-fysi-muted">
                         Pago
                       </span>
                       <span className="text-fysi-deep font-medium">
@@ -856,7 +856,7 @@ Qualquer dúvida, é só responder por aqui.`}
                       </span>
                     </div>
                     <div>
-                      <span className="block text-[0.65rem] uppercase tracking-[0.12em] text-fysi-muted">
+                      <span className="block text-[0.72rem] uppercase tracking-[0.12em] text-fysi-muted">
                         Pendente
                       </span>
                       <span
@@ -935,7 +935,7 @@ Qualquer dúvida, é só responder por aqui.`}
                     Salvar pagamento
                   </Button>
                   {client.pagamento_atualizado_at ? (
-                    <span className="text-[0.65rem] text-fysi-muted">
+                    <span className="text-[0.72rem] text-fysi-muted">
                       Atualizado em {formatDate(client.pagamento_atualizado_at)}
                     </span>
                   ) : null}
@@ -976,7 +976,7 @@ Qualquer dúvida, é só responder por aqui.`}
                   Salvar
                 </Button>
               </div>
-              <p className="text-[0.65rem] text-fysi-muted">
+              <p className="text-[0.72rem] text-fysi-muted">
                 Pasta criada no Drive da Fysi pra esse cliente. O cliente
                 também vê esse link no painel dele.
                 {client.google_drive_folders ? (
@@ -1020,7 +1020,7 @@ Qualquer dúvida, é só responder por aqui.`}
                   Salvar
                 </Button>
               </div>
-              <p className="text-[0.65rem] text-fysi-muted">
+              <p className="text-[0.72rem] text-fysi-muted">
                 Pasta Drive que o cliente já tem com logos, fotos, etc.
               </p>
               {client.cliente_drive_link ? (

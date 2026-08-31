@@ -198,7 +198,7 @@ export function AdminShell({
             <span className="text-sm font-semibold tracking-tight truncate">
               Fysi Workspace
             </span>
-            <span className="text-[0.65rem] text-fysi-muted">Painel interno</span>
+            <span className="text-[0.72rem] text-fysi-muted">Painel interno</span>
           </span>
         </Link>
 
@@ -262,7 +262,7 @@ export function AdminShell({
               <form method="post" action="/api/auth/admin-logout">
                 <button
                   type="submit"
-                  className="text-[0.68rem] text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
+                  className="text-[0.74rem] text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
                 >
                   sair
                 </button>

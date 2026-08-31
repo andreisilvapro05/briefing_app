@@ -760,7 +760,7 @@ function CardModal({
             </button>
           </div>
 
-          <p className="text-[0.68rem] text-fysi-muted/80">
+          <p className="text-[0.74rem] text-fysi-muted/80">
             Em breve: etiquetas, datas, checklist e comentários.
           </p>
         </div>

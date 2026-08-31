@@ -188,7 +188,7 @@ export function ClientTabs({
                 {badge ? (
                   <span
                     className={cn(
-                      "ml-auto inline-flex items-center text-[0.62rem] font-semibold rounded-full px-2 py-0.5 leading-none",
+                      "ml-auto inline-flex items-center text-[0.7rem] font-semibold rounded-full px-2 py-0.5 leading-none",
                       TONE_CLASSES[badge.tone].bg,
                       TONE_CLASSES[badge.tone].text
                     )}

@@ -47,7 +47,7 @@ function MiniPill({ label, tone }: { label: string; tone: PillTone }) {
   };
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.68rem] font-semibold ${cls[tone]}`}
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.74rem] font-semibold ${cls[tone]}`}
     >
       {label}
     </span>
@@ -402,7 +402,7 @@ export default async function AdminPage({
                       <td className="px-5 py-4 text-xs text-fysi-muted">
                         <div className="flex flex-col">
                           <span>{relativeTime(lastActivity)}</span>
-                          <span className="text-[0.65rem] opacity-70">
+                          <span className="text-[0.72rem] opacity-70">
                             criado {formatDate(c.created_at)}
                           </span>
                         </div>

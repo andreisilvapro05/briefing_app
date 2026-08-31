@@ -875,7 +875,7 @@ export function ContractCard(props: ContractCardProps) {
             {showTemplates ? (
               <div className="flex flex-col gap-3 mt-1">
                 <div>
-                  <p className="text-[0.65rem] uppercase tracking-[0.1em] font-semibold text-fysi-muted mb-1.5">
+                  <p className="text-[0.72rem] uppercase tracking-[0.1em] font-semibold text-fysi-muted mb-1.5">
                     Pacotes padrão
                   </p>
                   <div className="grid sm:grid-cols-2 gap-1.5">
@@ -889,7 +889,7 @@ export function ContractCard(props: ContractCardProps) {
                         <div className="text-xs font-medium text-fysi-deep">
                           {t.label}
                         </div>
-                        <div className="text-[0.65rem] text-fysi-muted truncate mt-0.5">
+                        <div className="text-[0.72rem] text-fysi-muted truncate mt-0.5">
                           {t.valor_parcelamento}
                         </div>
                       </button>
@@ -898,7 +898,7 @@ export function ContractCard(props: ContractCardProps) {
                 </div>
 
                 <div className="border-t border-fysi-line pt-2">
-                  <p className="text-[0.65rem] uppercase tracking-[0.1em] font-semibold text-fysi-muted mb-1.5">
+                  <p className="text-[0.72rem] uppercase tracking-[0.1em] font-semibold text-fysi-muted mb-1.5">
                     Duplicar de outro cliente
                     {clientTemplates.length > 0
                       ? ` (${clientTemplates.length})`
@@ -922,7 +922,7 @@ export function ContractCard(props: ContractCardProps) {
                           <div className="text-xs font-medium text-fysi-deep truncate">
                             {c.label}
                           </div>
-                          <div className="text-[0.65rem] text-fysi-muted truncate mt-0.5">
+                          <div className="text-[0.72rem] text-fysi-muted truncate mt-0.5">
                             {c.pacote_nome || "—"}
                           </div>
                         </button>
@@ -931,7 +931,7 @@ export function ContractCard(props: ContractCardProps) {
                   )}
                 </div>
 
-                <p className="text-[0.65rem] text-fysi-muted leading-relaxed">
+                <p className="text-[0.72rem] text-fysi-muted leading-relaxed">
                   Click no template preenche os campos abaixo. O nome e o
                   email do destinatário continuam vindo do cadastro do cliente.
                   Link de parcelamento NÃO é copiado — gera um novo no Asaas.

@@ -12,7 +12,7 @@ function Campo({ label, value }: { label: string; value?: string | null }) {
   if (!value || !value.trim()) return null;
   return (
     <div className="py-2.5 border-t border-fysi-line first:border-t-0">
-      <div className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+      <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
         {label}
       </div>
       <div className="text-sm text-fysi-deep whitespace-pre-wrap mt-1 leading-relaxed">
@@ -67,7 +67,7 @@ export function EIDocument({
   return (
     <article className="bg-white border border-fysi-line rounded-[20px] p-6 sm:p-8 max-w-3xl">
       <header className="mb-5">
-        <div className="text-[0.66rem] uppercase tracking-[0.14em] text-fysi-muted font-semibold">
+        <div className="text-[0.72rem] uppercase tracking-[0.14em] text-fysi-muted font-semibold">
           Estrutura Inicial · documento de produção
         </div>
         <h2 className="text-2xl font-semibold text-fysi-deep tracking-tight mt-1">
@@ -94,7 +94,7 @@ export function EIDocument({
         >
           <span className="text-lg">📁</span>
           <span className="min-w-0">
-            <span className="block text-[0.66rem] uppercase tracking-[0.1em] text-fysi-deep/70 font-semibold">
+            <span className="block text-[0.72rem] uppercase tracking-[0.1em] text-fysi-deep/70 font-semibold">
               Pasta no Drive
             </span>
             <span className="block text-sm text-fysi-deep font-medium truncate">
@@ -136,7 +136,7 @@ export function EIDocument({
                 key={i}
                 className="rounded-[12px] border border-fysi-line bg-fysi-cream/40 p-4"
               >
-                <div className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+                <div className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
                   {s.nome}
                 </div>
                 {s.obs ? (

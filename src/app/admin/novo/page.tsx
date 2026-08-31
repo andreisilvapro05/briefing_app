@@ -80,7 +80,7 @@ export default async function NovoClientePage({
               <option value="seo">SEO</option>
               <option value="outro">Outro serviço</option>
             </select>
-            <p className="text-[0.65rem] text-fysi-muted mt-1">
+            <p className="text-[0.72rem] text-fysi-muted mt-1">
               Define a timeline. Pode definir/mudar depois no painel do cliente.
             </p>
           </div>
@@ -128,7 +128,7 @@ function FieldGroup({
         placeholder={placeholder}
         className="w-full rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
       />
-      {hint ? <p className="text-[0.65rem] text-fysi-muted mt-1">{hint}</p> : null}
+      {hint ? <p className="text-[0.72rem] text-fysi-muted mt-1">{hint}</p> : null}
     </div>
   );
 }

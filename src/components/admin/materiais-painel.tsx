@@ -72,7 +72,7 @@ export function MateriaisPainel({
                 <span className="text-[0.7rem] uppercase tracking-[0.08em] font-semibold text-fysi-deep">
                   {cat.emoji} {cat.label}
                 </span>
-                <span className="text-[0.65rem] text-fysi-muted">
+                <span className="text-[0.72rem] text-fysi-muted">
                   · {items.length}
                 </span>
               </div>
@@ -120,13 +120,13 @@ function ImageCard({ file }: { file: BriefingFile }) {
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2 text-center">
           <span className="text-2xl">📎</span>
-          <span className="text-[0.65rem] text-fysi-muted truncate w-full">
+          <span className="text-[0.72rem] text-fysi-muted truncate w-full">
             {file.file_name}
           </span>
         </div>
       )}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition px-2 py-1">
-        <p className="text-[0.65rem] text-white truncate">{file.file_name}</p>
+        <p className="text-[0.72rem] text-white truncate">{file.file_name}</p>
       </div>
     </a>
   );
@@ -144,7 +144,7 @@ function FileRow({ file }: { file: BriefingFile }) {
         >
           {file.file_name}
         </a>
-        <span className="text-[0.65rem] text-fysi-muted">
+        <span className="text-[0.72rem] text-fysi-muted">
           {fieldLabel(file.field_id ?? "")} · {file.mime_type ?? "—"}
         </span>
       </div>
