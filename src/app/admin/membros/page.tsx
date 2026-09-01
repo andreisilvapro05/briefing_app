@@ -3,6 +3,7 @@ import { Eyebrow, Pill } from "@/components/ui/pill";
 import { getCurrentMember, isAdmin, type MemberRole } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AutoSubmitSelect } from "@/components/admin/auto-submit-select";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 import {
   inviteMemberAction,
@@ -171,10 +172,9 @@ export default async function MembrosPage({
                     <form action={setMemberRoleAction} className="inline-flex flex-col gap-0.5">
                       {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                       <input type="hidden" name="memberId" value={m.id} />
-                      <select
+                      <AutoSubmitSelect
                         name="role"
                         defaultValue={m.role}
-                        onChange={(e) => e.currentTarget.form?.requestSubmit()}
                         className="rounded-full border border-fysi-line bg-white text-xs px-3 py-1 focus:outline-none focus:border-fysi-deep/40"
                       >
                         {(Object.keys(ROLE_LABELS) as MemberRole[]).map((r) => (
@@ -182,7 +182,7 @@ export default async function MembrosPage({
                             {ROLE_LABELS[r]}
                           </option>
                         ))}
-                      </select>
+                      </AutoSubmitSelect>
                       <span className="text-xs text-fysi-muted">{ROLE_HINT[m.role]}</span>
                     </form>
                   </td>
@@ -190,10 +190,9 @@ export default async function MembrosPage({
                     <form action={setMemberTaskValueAction}>
                       {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                       <input type="hidden" name="memberId" value={m.id} />
-                      <select
+                      <AutoSubmitSelect
                         name="taskValue"
                         defaultValue={m.task_value ?? ""}
-                        onChange={(e) => e.currentTarget.form?.requestSubmit()}
                         className="rounded-full border border-fysi-line bg-white text-xs px-3 py-1 focus:outline-none focus:border-fysi-deep/40"
                       >
                         <option value="">Sem vínculo</option>
@@ -202,7 +201,7 @@ export default async function MembrosPage({
                             {t.label}
                           </option>
                         ))}
-                      </select>
+                      </AutoSubmitSelect>
                     </form>
                   </td>
                   <td className="px-5 py-4">
