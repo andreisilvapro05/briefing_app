@@ -352,11 +352,14 @@ export async function setDriveLinksAction(formData: FormData) {
   const fysiRaw = String(formData.get("fysiDriveLink") ?? "").trim();
   const clienteRaw = String(formData.get("clienteDriveLink") ?? "").trim();
 
-  // Sanitização leve: precisa começar com http(s):// ou ser vazio.
+  // Sanitização leve: vazio limpa; se veio sem protocolo (ex: colou
+  // "drive.google.com/…"), prefixa https:// em vez de descartar em silêncio
+  // (antes o link sumia e a UI dizia "salvo" — mesma classe de bug já
+  // corrigida no copy_review_link).
   function clean(v: string): string | null {
     if (!v) return null;
-    if (!/^https?:\/\//i.test(v)) return null;
-    return v.slice(0, 1000);
+    const withProto = /^https?:\/\//i.test(v) ? v : `https://${v}`;
+    return withProto.slice(0, 1000);
   }
 
   const update: Record<string, string | null> = {};
@@ -567,9 +570,11 @@ export async function createClientAction(formData: FormData) {
     .single();
 
   if (insertErr || !created) {
-    // Não há um caminho de erro elegante pra server action — re-tenta levando
-    // pra /admin/novo com query (frontend pode mostrar mensagem genérica).
-    redirect(`/admin/novo${keySuffix}`);
+    // Volta pro form com ?erro= pra a tela explicar o que houve — antes
+    // voltava mudo e o admin via o form em branco sem saber por quê.
+    logServerError("createClient.insert", insertErr);
+    const sep = keySuffix ? "&" : "?";
+    redirect(`/admin/novo${keySuffix}${sep}erro=criar`);
   }
 
   // Cria pasta no Google Drive (no-op se envs não configuradas).

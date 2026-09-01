@@ -201,7 +201,7 @@ export default async function ContractsPage({
           </p>
         ) : null}
 
-        <div className="bg-white border border-fysi-line rounded-[20px] overflow-hidden">
+        <div className="bg-white border border-fysi-line rounded-[20px] overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
               <tr>

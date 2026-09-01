@@ -10,6 +10,7 @@ import {
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AutoSubmitSelect } from "@/components/admin/auto-submit-select";
+import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 import {
   inviteMemberAction,
@@ -118,12 +119,9 @@ export default async function MembrosPage({
               </option>
             ))}
           </select>
-          <button
-            type="submit"
-            className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
-          >
+          <SubmitButton size="sm" pendingLabel="Convidando…">
             Convidar
-          </button>
+          </SubmitButton>
         </form>
         <p className="text-[0.7rem] text-fysi-muted mt-2">
           O vínculo de tarefas é o que decide o que o papel <strong>Básico</strong>{" "}
@@ -132,7 +130,7 @@ export default async function MembrosPage({
       </section>
 
       {/* Lista de membros */}
-      <div className="bg-white border border-fysi-line rounded-[20px] overflow-hidden">
+      <div className="bg-white border border-fysi-line rounded-[20px] overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
             <tr>
@@ -214,24 +212,25 @@ export default async function MembrosPage({
                         <form action={resendInviteAction}>
                           {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                           <input type="hidden" name="memberId" value={m.id} />
-                          <button
-                            type="submit"
-                            className="text-xs font-medium text-fysi-deep hover:underline"
-                          >
+                          <SubmitTextButton pendingLabel="Reenviando…">
                             Reenviar convite
-                          </button>
+                          </SubmitTextButton>
                         </form>
                       ) : null}
                       <form action={toggleMemberActiveAction}>
                         {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                         <input type="hidden" name="memberId" value={m.id} />
                         <input type="hidden" name="active" value={m.active ? "1" : "0"} />
-                        <button
-                          type="submit"
-                          className="text-xs font-medium text-red-700 hover:underline"
+                        <SubmitTextButton
+                          danger
+                          confirm={
+                            m.active
+                              ? `Desativar ${m.name}? A pessoa perde o acesso ao painel.`
+                              : undefined
+                          }
                         >
                           {m.active ? "Desativar" : "Reativar"}
-                        </button>
+                        </SubmitTextButton>
                       </form>
                     </div>
                   </td>

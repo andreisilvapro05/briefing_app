@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { StepIndicator } from "@/components/ui/step-indicator";
 import { Eyebrow } from "@/components/ui/pill";
 import { cn } from "@/lib/cn";
-import type { SaveStatus } from "@/lib/briefing-store";
+import { useGlobalSaveStatus, type SaveStatus } from "@/lib/briefing-store";
 
 interface BlocoShellProps {
   steps: { id: string; label: string }[];
@@ -39,6 +39,12 @@ export function BlocoShell({
   const router = useRouter();
   const currentIdx = steps.findIndex((s) => s.id === currentStepId);
   const completedIds = steps.slice(0, currentIdx).map((s) => s.id);
+  // Reflete o autosave real de qualquer campo (o `saveStatus` via prop nunca
+  // era passado pelos blocos — ficava sempre "idle"). O sinal global vence
+  // quando não está ocioso; senão usa o que veio por prop.
+  const globalStatus = useGlobalSaveStatus();
+  const effectiveStatus: SaveStatus =
+    globalStatus !== "idle" ? globalStatus : saveStatus;
 
   return (
     <Shell tone="cream" sectionLabel={`0${numero} · ${titulo}`}>
@@ -54,7 +60,7 @@ export function BlocoShell({
         <header className="flex flex-col gap-3 mb-8">
           <div className="flex items-center justify-between">
             <Eyebrow>Bloco {String(numero).padStart(2, "0")}</Eyebrow>
-            <SaveStatusPill status={saveStatus} />
+            <SaveStatusPill status={effectiveStatus} />
           </div>
           <h1 className="fysi-display text-3xl md:text-4xl">{titulo}</h1>
           <p className="text-fysi-muted text-base leading-relaxed max-w-2xl">

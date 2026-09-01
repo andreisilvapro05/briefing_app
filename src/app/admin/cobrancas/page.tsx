@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { Pill } from "@/components/ui/pill";
-import { Button } from "@/components/ui/button";
 import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ChargeButton } from "@/components/admin/charge-button";
+import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
 import {
   formatBRL,
   mesRef,
@@ -238,9 +238,9 @@ export default async function CobrancasPage({
                       required
                       className="w-32 rounded-[8px] border border-fysi-line bg-white px-2.5 py-1.5 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
                     />
-                    <Button type="submit" size="sm" variant="secondary">
+                    <SubmitButton size="sm" variant="secondary" pendingLabel="…">
                       Definir
-                    </Button>
+                    </SubmitButton>
                   </form>
                 </div>
               ))}
@@ -429,9 +429,9 @@ export default async function CobrancasPage({
               />
             </FieldLabel>
             <div className="sm:col-span-2 pt-2">
-              <Button type="submit" size="sm">
+              <SubmitButton size="sm" pendingLabel="Adicionando…">
                 Adicionar
-              </Button>
+              </SubmitButton>
             </div>
           </form>
         </details>
@@ -628,9 +628,9 @@ function CobrancaCard({
               {urlKey ? (
                 <input type="hidden" name="key" value={urlKey} />
               ) : null}
-              <Button type="submit" size="sm">
+              <SubmitButton size="sm" pendingLabel="…">
                 ✓ Marcar pago hoje
-              </Button>
+              </SubmitButton>
             </form>
             <ChargeButton
               nome={cobranca.nome}
@@ -671,9 +671,9 @@ function CobrancaCard({
               <option value="boleto">Boleto</option>
               <option value="outro">Outro</option>
             </select>
-            <Button type="submit" size="sm" variant="secondary">
+            <SubmitButton size="sm" variant="secondary" pendingLabel="…">
               Registrar
-            </Button>
+            </SubmitButton>
           </form>
         </details>
 
@@ -762,9 +762,9 @@ function CobrancaCard({
               />
               <span>Ativa</span>
             </label>
-            <Button type="submit" size="sm" variant="secondary">
+            <SubmitButton size="sm" variant="secondary">
               Salvar
-            </Button>
+            </SubmitButton>
           </form>
           <form
             action={deleteCobrancaAction}
@@ -777,12 +777,13 @@ function CobrancaCard({
             <p className="text-[0.7rem] text-red-800 mb-2">
               Apagar permanente (incluindo histórico).
             </p>
-            <button
-              type="submit"
-              className="text-xs text-red-700 hover:text-red-900 underline"
+            <SubmitTextButton
+              danger
+              confirm="Apagar esta cobrança e TODO o histórico de pagamentos? Não dá pra desfazer."
+              pendingLabel="Apagando…"
             >
               Apagar cobrança
-            </button>
+            </SubmitTextButton>
           </form>
         </details>
       </div>

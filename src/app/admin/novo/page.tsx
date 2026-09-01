@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { Button } from "@/components/ui/button";
 import { getAdminUser } from "@/lib/admin";
+import { SubmitButton } from "@/components/admin/submit-button";
 import { createClientAction } from "../[id]/actions";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function NovoClientePage({
   searchParams,
 }: {
-  searchParams: Promise<{ key?: string }>;
+  searchParams: Promise<{ key?: string; erro?: string }>;
 }) {
   const sp = await searchParams;
   const urlKey = sp.key ?? null;
@@ -32,6 +32,13 @@ export default async function NovoClientePage({
             existente em vez de criar duplicado.
           </p>
         </header>
+
+        {sp.erro ? (
+          <p className="mb-4 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            Não consegui criar o cliente. Confere os dados e tenta de novo —
+            se persistir, pode ser WhatsApp/e-mail já em uso.
+          </p>
+        ) : null}
 
         <form
           action={createClientAction}
@@ -86,9 +93,9 @@ export default async function NovoClientePage({
           </div>
 
           <div className="flex items-center gap-3 pt-2 border-t border-fysi-line mt-2">
-            <Button type="submit" size="md">
+            <SubmitButton size="md" pendingLabel="Criando…">
               Criar cliente
-            </Button>
+            </SubmitButton>
             <Link
               href={`/admin${keyParam}`}
               className="text-sm text-fysi-muted hover:text-fysi-deep"

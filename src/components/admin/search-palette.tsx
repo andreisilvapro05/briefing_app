@@ -101,6 +101,9 @@ export function SearchPalette({
           onClick={() => setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Busca"
             className="bg-white rounded-[16px] shadow-2xl w-full max-w-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >

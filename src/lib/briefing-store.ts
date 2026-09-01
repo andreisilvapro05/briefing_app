@@ -73,6 +73,34 @@ export async function pullResponsesFromServer(clientId: string): Promise<void> {
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+// ── Sinal GLOBAL de autosave ─────────────────────────────────────────────
+// Cada campo do briefing tem seu próprio status, mas o usuário só precisa de
+// UM indicador ("Salvando…/Salvo/Erro") no topo. Em vez de threadar o status
+// de cada campo de cada bloco até o pill (invasivo, ~10 arquivos), os campos
+// transmitem seu último status aqui e o pill do bloco-shell escuta. Fixa o
+// bug reportado: o pill mostrava sempre "idle".
+let globalSaveStatus: SaveStatus = "idle";
+const saveListeners = new Set<(s: SaveStatus) => void>();
+
+function broadcastSave(status: SaveStatus) {
+  globalSaveStatus = status;
+  saveListeners.forEach((fn) => fn(status));
+}
+
+/** Hook pro indicador de salvamento (topo do briefing) — reflete o último
+ * status de autosave de qualquer campo. */
+export function useGlobalSaveStatus(): SaveStatus {
+  const [status, setStatus] = useState<SaveStatus>(globalSaveStatus);
+  useEffect(() => {
+    saveListeners.add(setStatus);
+    setStatus(globalSaveStatus);
+    return () => {
+      saveListeners.delete(setStatus);
+    };
+  }, []);
+  return status;
+}
+
 /**
  * Hook de campo com autosave debounced.
  * Em modo demo grava em localStorage; quando Supabase Auth estiver ativo,
@@ -87,8 +115,14 @@ export function useBriefingField<T>(
   const [value, setValue] = useState<T>(() =>
     getResponse(fullKey, defaultValue)
   );
-  const [status, setStatus] = useState<SaveStatus>("idle");
+  const [status, setStatusLocal] = useState<SaveStatus>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Atualiza o status local do campo E o sinal global (pro pill do topo).
+  const setStatus = useCallback((s: SaveStatus) => {
+    setStatusLocal(s);
+    broadcastSave(s);
+  }, []);
 
   const persist = useCallback(
     (next: T) => {
@@ -98,23 +132,27 @@ export function useBriefingField<T>(
 
       // Envio remoto identificado pelo clientId (o cliente já tem em
       // localStorage, vindo de /api/auth/start ou /api/auth/login). Sem
-      // clientId só dá pra guardar local — modo demo.
+      // clientId só dá pra guardar local — modo demo, aí "salvo" é honesto.
       const clientId = loadCliente()?.id;
-      if (clientId) {
-        void fetch("/api/briefing/save", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ clientId, blocoId, fieldId, value: next }),
-        })
-          // 4xx/5xx não é fatal — o localStorage já guardou a resposta.
-          .then(() => setStatus("saved"))
-          .catch(() => setStatus("saved")); // offline/demo: localStorage já salvou
+      if (!clientId) {
+        setStatus("saved");
+        return;
       }
 
-      // localStorage já garantiu a persistência local.
-      setStatus("saved");
+      // Com clientId, "salvo" só depois que o SERVIDOR confirmou. Antes, um
+      // 4xx/5xx OU falha de rede era reportado como "salvo" — o cliente
+      // achava que sincronizou entre aparelhos quando não sincronizou
+      // (perda silenciosa ao trocar de dispositivo). Agora vira "erro"; o
+      // localStorage segue guardando a resposta local como rede de segurança.
+      void fetch("/api/briefing/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, blocoId, fieldId, value: next }),
+      })
+        .then((res) => setStatus(res.ok ? "saved" : "error"))
+        .catch(() => setStatus("error"));
     },
-    [blocoId, fieldId, fullKey]
+    [blocoId, fieldId, fullKey, setStatus]
   );
 
   const update = useCallback(
@@ -124,7 +162,7 @@ export function useBriefingField<T>(
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => persist(next), 600);
     },
-    [persist]
+    [persist, setStatus]
   );
 
   // Limpa timer ao desmontar

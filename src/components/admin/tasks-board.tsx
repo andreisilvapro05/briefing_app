@@ -344,6 +344,7 @@ export function useTaskDrag(
         setOverId(null);
         if (from === -1 || to === -1 || from === to) return;
 
+        const previous = order;
         const next = order.slice();
         const [moved] = next.splice(from, 1);
         next.splice(to, 0, moved);
@@ -353,7 +354,11 @@ export function useTaskDrag(
         fd.append("clientId", clientId);
         if (urlKey) fd.append("key", urlKey);
         next.forEach((x) => fd.append("taskId", x.id));
-        reorderProjectTasksAction(fd).then(() => router.refresh());
+        // Se o servidor recusar (ex: "basico" tentando reordenar tarefa que
+        // não é dele), reverte a ordem otimista em vez de deixar a UI mentir.
+        reorderProjectTasksAction(fd)
+          .then(() => router.refresh())
+          .catch(() => setOrder(previous));
       },
       onDragEnd: () => {
         setDragId(null);
@@ -420,6 +425,7 @@ export function TaskRow({
   }
 
   function remove() {
+    if (!window.confirm("Remover esta tarefa? Não dá pra desfazer.")) return;
     const fd = baseFd();
     startTransition(async () => {
       await removeProjectTaskAction(fd);
@@ -648,6 +654,7 @@ function TaskComments({
   }
 
   function remove(commentId: string) {
+    if (!window.confirm("Excluir este comentário?")) return;
     const fd = new FormData();
     fd.append("commentId", commentId);
     fd.append("clientId", clientId);
@@ -927,6 +934,12 @@ export function TasksBoard({
           type="text"
           value={novoTitulo}
           onChange={(e) => setNovoTitulo(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
           placeholder="Nova tarefa…"
           className="flex-1 rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-1.5"
         />

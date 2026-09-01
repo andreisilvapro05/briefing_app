@@ -5,7 +5,6 @@ import type { ReactNode } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Eyebrow } from "@/components/ui/pill";
-import { Button } from "@/components/ui/button";
 import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { buildTimeline } from "@/lib/project-types";
@@ -39,6 +38,7 @@ import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
+import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
 import { StatusChanger } from "@/components/admin/status-changer";
 import { getServerEnv } from "@/lib/env";
 import {
@@ -343,12 +343,12 @@ export default async function AdminClientPage({
                   <option value="seo">SEO</option>
                   <option value="outro">Outro</option>
                 </select>
-                <button
-                  type="submit"
-                  className="text-[0.72rem] text-fysi-deep hover:underline text-left"
+                <SubmitTextButton
+                  className="text-[0.72rem] text-fysi-deep hover:underline text-left disabled:opacity-50"
+                  pendingLabel="↳ salvando…"
                 >
                   ↳ salvar tipo
-                </button>
+                </SubmitTextButton>
               </form>
             </div>
 
@@ -368,9 +368,9 @@ export default async function AdminClientPage({
                   {urlKey ? (
                     <input type="hidden" name="key" value={urlKey} />
                   ) : null}
-                  <Button type="submit" size="sm" variant="secondary">
+                  <SubmitButton size="sm" variant="secondary" pendingLabel="Enviando…">
                     Reenviar link
-                  </Button>
+                  </SubmitButton>
                 </form>
               ) : null}
               {!client.clickup_task_id ? (
@@ -379,9 +379,9 @@ export default async function AdminClientPage({
                   {urlKey ? (
                     <input type="hidden" name="key" value={urlKey} />
                   ) : null}
-                  <Button type="submit" size="sm" variant="primary">
+                  <SubmitButton size="sm" variant="primary" pendingLabel="Enviando…">
                     Enviar ao ClickUp
-                  </Button>
+                  </SubmitButton>
                 </form>
               ) : null}
             </div>
@@ -676,9 +676,9 @@ Qualquer dúvida, é só responder por aqui.`}
             />
 
             <div className="sm:col-span-2 pt-2">
-              <Button type="submit" size="sm" variant="secondary">
+              <SubmitButton size="sm" variant="secondary">
                 Salvar dados do cliente
-              </Button>
+              </SubmitButton>
             </div>
           </form>
         </section>
@@ -711,12 +711,12 @@ Qualquer dúvida, é só responder por aqui.`}
                   {urlKey ? (
                     <input type="hidden" name="key" value={urlKey} />
                   ) : null}
-                  <button
-                    type="submit"
-                    className="inline-flex items-center gap-2 mt-4 rounded-full bg-fysi-mint border border-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2"
+                  <SubmitTextButton
+                    className="inline-flex items-center gap-2 mt-4 rounded-full bg-fysi-mint border border-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 disabled:opacity-50"
+                    pendingLabel="Criando…"
                   >
                     Criar a partir do Modelo
-                  </button>
+                  </SubmitTextButton>
                 </form>
               </>
             )}
@@ -960,9 +960,9 @@ Qualquer dúvida, é só responder por aqui.`}
                   />
                 </div>
                 <div className="sm:col-span-2 flex items-center gap-2">
-                  <Button type="submit" size="sm" variant="secondary">
+                  <SubmitButton size="sm" variant="secondary">
                     Salvar pagamento
-                  </Button>
+                  </SubmitButton>
                   {client.pagamento_atualizado_at ? (
                     <span className="text-[0.72rem] text-fysi-muted">
                       Atualizado em {formatDate(client.pagamento_atualizado_at)}
@@ -1001,9 +1001,9 @@ Qualquer dúvida, é só responder por aqui.`}
                   placeholder="https://drive.google.com/drive/folders/..."
                   className="flex-1 rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
                 />
-                <Button type="submit" size="sm" variant="secondary">
+                <SubmitButton size="sm" variant="secondary">
                   Salvar
-                </Button>
+                </SubmitButton>
               </div>
               <p className="text-[0.72rem] text-fysi-muted">
                 Pasta criada no Drive da Fysi pra esse cliente. O cliente
@@ -1029,9 +1029,9 @@ Qualquer dúvida, é só responder por aqui.`}
               <form action={createDriveFoldersAction} className="flex flex-col gap-1.5 -mt-2">
                 <input type="hidden" name="clientId" value={client.id} />
                 {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-                <Button type="submit" size="sm" variant="secondary">
+                <SubmitButton size="sm" variant="secondary" pendingLabel="Criando pasta…">
                   📁 Criar pasta automaticamente no Drive
-                </Button>
+                </SubmitButton>
                 <p className="text-[0.72rem] text-fysi-muted">
                   Cria a estrutura de pastas na pasta da Fysi no Drive e
                   preenche o link acima sozinho.
@@ -1058,9 +1058,9 @@ Qualquer dúvida, é só responder por aqui.`}
                   placeholder="https://drive.google.com/drive/folders/..."
                   className="flex-1 rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
                 />
-                <Button type="submit" size="sm" variant="secondary">
+                <SubmitButton size="sm" variant="secondary">
                   Salvar
-                </Button>
+                </SubmitButton>
               </div>
               <p className="text-[0.72rem] text-fysi-muted">
                 Pasta Drive que o cliente já tem com logos, fotos, etc.
