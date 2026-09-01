@@ -52,8 +52,17 @@ export function NotificationsBell({
     function onClickOutside(e: MouseEvent) {
       if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
     }
-    if (open) document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    if (open) {
+      document.addEventListener("mousedown", onClickOutside);
+      document.addEventListener("keydown", onEsc);
+    }
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onEsc);
+    };
   }, [open]);
 
   function go(href: string) {
@@ -88,7 +97,9 @@ export function NotificationsBell({
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="relative flex h-9 w-9 items-center justify-center rounded-full border border-fysi-line bg-white text-fysi-muted hover:border-fysi-deep/30 hover:text-fysi-deep transition"
-        aria-label="Notificações"
+        aria-label={count > 0 ? `Notificações (${count} não lidas)` : "Notificações"}
+        aria-haspopup="true"
+        aria-expanded={open}
       >
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
