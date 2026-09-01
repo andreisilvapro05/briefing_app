@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { SearchPalette } from "./search-palette";
+import { NotificationsBell } from "./notifications-bell";
 
 /**
  * AdminShell — layout do painel no estilo ClickUp: sidebar de ÁREAS da empresa
@@ -300,7 +301,7 @@ export function AdminShell({
       <div className="flex-1 min-w-0 flex flex-col min-h-screen">
         {/* Topbar com usuário */}
         <header className="h-14 shrink-0 border-b border-fysi-line bg-white/90 backdrop-blur flex items-center justify-between gap-3 px-4 md:px-6 sticky top-0 z-20">
-          <div className="flex items-center gap-2 min-w-0 text-sm">
+          <div className="flex items-center gap-2 min-w-0 text-sm shrink-0">
             <span className="md:hidden font-semibold">fysilab</span>
             <span className="hidden md:inline text-fysi-muted">
               {crumb?.area ?? "Painel"}
@@ -308,8 +309,11 @@ export function AdminShell({
             <span className="hidden md:inline text-fysi-muted/50">/</span>
             <span className="font-semibold truncate">{crumb?.label ?? ""}</span>
           </div>
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex-1 flex justify-center px-2 min-w-0">
             <SearchPalette keyParam={keyParam} urlKey={urlKey} />
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <NotificationsBell keyParam={keyParam} urlKey={urlKey} />
             <span className="hidden sm:flex flex-col items-end leading-tight">
               <span className="text-[0.78rem] font-medium text-fysi-deep truncate max-w-[180px]">
                 {userEmail ?? "Equipe Fysi"}

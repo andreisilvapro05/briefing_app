@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await service
       .from("clients")
       .select(
-        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at, fysi_drive_link, copy_review_link, contrato_status, contrato_signed_url, pagamento_total, pagamento_pago, pagamento_observacao, pagamento_atualizado_at, entrega_documento, entrega_finalizada_at"
+        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at, fysi_drive_link, copy_review_link, contrato_status, contrato_signed_url, contrato_link_assinatura, pagamento_total, pagamento_pago, pagamento_observacao, pagamento_atualizado_at, entrega_documento, entrega_finalizada_at"
       )
       .eq("id", parsed.clientId)
       .maybeSingle();
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
       copyReviewLink: data.copy_review_link ?? null,
       contratoStatus: data.contrato_status ?? null,
       contratoSignedUrl: data.contrato_signed_url ?? null,
+      contratoLinkAssinatura: data.contrato_link_assinatura ?? null,
       pagamentoTotal:
         data.pagamento_total != null ? Number(data.pagamento_total) : null,
       pagamentoPago:

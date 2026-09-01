@@ -36,6 +36,9 @@ export default function DashboardPage() {
   const [contratoSignedUrl, setContratoSignedUrl] = useState<string | null>(
     null
   );
+  const [contratoLinkAssinatura, setContratoLinkAssinatura] = useState<
+    string | null
+  >(null);
   const [pagamentoTotal, setPagamentoTotal] = useState<number | null>(null);
   const [pagamentoPago, setPagamentoPago] = useState<number>(0);
   const [pagamentoObservacao, setPagamentoObservacao] = useState<
@@ -109,6 +112,8 @@ export default function DashboardPage() {
           if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
           if (data?.contratoSignedUrl)
             setContratoSignedUrl(data.contratoSignedUrl);
+          if (data?.contratoLinkAssinatura)
+            setContratoLinkAssinatura(data.contratoLinkAssinatura);
           if (typeof data?.pagamentoTotal === "number")
             setPagamentoTotal(data.pagamentoTotal);
           if (typeof data?.pagamentoPago === "number")
@@ -140,6 +145,8 @@ export default function DashboardPage() {
         if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
         if (data?.contratoSignedUrl)
           setContratoSignedUrl(data.contratoSignedUrl);
+        if (data?.contratoLinkAssinatura)
+          setContratoLinkAssinatura(data.contratoLinkAssinatura);
         if (typeof data?.pagamentoTotal === "number")
           setPagamentoTotal(data.pagamentoTotal);
         if (typeof data?.pagamentoPago === "number")
@@ -189,6 +196,7 @@ export default function DashboardPage() {
           setCopyReviewLink(data.copyReviewLink ?? null);
           setContratoStatus(data.contratoStatus ?? null);
           setContratoSignedUrl(data.contratoSignedUrl ?? null);
+          setContratoLinkAssinatura(data.contratoLinkAssinatura ?? null);
           if (typeof data.pagamentoTotal === "number") {
             setPagamentoTotal(data.pagamentoTotal);
           }
@@ -313,6 +321,16 @@ export default function DashboardPage() {
                     assinatura pelas duas partes, o PDF assinado fica
                     disponível pra download aqui.
                   </p>
+                  {contratoLinkAssinatura ? (
+                    <a
+                      href={contratoLinkAssinatura}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 mt-3 hover:brightness-95 transition"
+                    >
+                      ✍ Assinar contrato agora →
+                    </a>
+                  ) : null}
                 </div>
                 <div className="bg-white rounded-[16px] p-5">
                   <h3 className="font-medium text-fysi-deep mb-2">
@@ -517,6 +535,16 @@ export default function DashboardPage() {
                   assinatura pelas duas partes, o PDF assinado fica disponível
                   pra download aqui.
                 </p>
+                {contratoLinkAssinatura ? (
+                  <a
+                    href={contratoLinkAssinatura}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 mt-3 hover:brightness-95 transition"
+                  >
+                    ✍ Assinar contrato agora →
+                  </a>
+                ) : null}
               </div>
               <div className="bg-white rounded-[16px] p-5">
                 <h3 className="font-medium text-fysi-deep mb-2">

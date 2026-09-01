@@ -1,9 +1,10 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest, after } from "next/server";
 import { z } from "zod";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
 import { errorResponse, isProduction, logServerError } from "@/lib/api-helpers";
 import { generateMagicSlug } from "@/lib/slug";
+import { createAdminNotification } from "@/lib/notifications";
 
 /**
  * Cria/atualiza um registro de cliente e dispara o magic link de retomada.
@@ -169,6 +170,21 @@ export async function POST(request: NextRequest) {
       return errorResponse("create-failed", 500, error);
     }
     clientId = data.id;
+
+    // Avisa o admin: projeto novo começando (gatilho pra postar nos Stories).
+    // after() garante que a notificação é criada mesmo após a resposta ir.
+    // PRIVACIDADE: banner só mostra primeiro nome/empresa, não o nome completo.
+    const finalClientId = clientId;
+    const primeiroNome = parsed.nome.trim().split(/\s+/)[0] || "Cliente";
+    const titulo = parsed.empresa?.trim() || primeiroNome;
+    after(async () => {
+      await createAdminNotification({
+        clientId: finalClientId,
+        kind: "projeto.novo",
+        title: `Novo projeto: ${titulo}`,
+        message: "Tap pra ver os dados",
+      });
+    });
   }
 
   // Magic link só dispara se temos email (Tela 1 não pede mais email).

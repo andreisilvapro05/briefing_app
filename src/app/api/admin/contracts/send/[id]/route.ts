@@ -186,12 +186,19 @@ export async function POST(
     return errorResponse("autentique-failed", 502, err);
   }
 
+  // Link individual de assinatura do signatário CLIENTE (não o da Fysi) —
+  // pra poder mandar manualmente (WhatsApp/e-mail) e mostrar no painel dele.
+  const clientSignLink = result.signers.find(
+    (s) => s.email.trim().toLowerCase() === signerEmail.toLowerCase()
+  )?.signLink;
+
   // Persiste. Se o admin digitou um nome/email diferente do cadastro, salva
   // pra ficar refletido no painel também (próxima geração não precisa digitar).
   const updatePayload: Record<string, unknown> = {
     autentique_document_id: result.id,
     contrato_status: "pendente",
     contrato_dados: vars,
+    contrato_link_assinatura: clientSignLink ?? null,
   };
   if (body.recipientEmail && body.recipientEmail.trim() !== client.email) {
     updatePayload.email = body.recipientEmail.trim();
@@ -214,5 +221,6 @@ export async function POST(
     autentiqueDocumentId: result.id,
     name: result.name,
     originalUrl: result.originalUrl,
+    signLink: clientSignLink ?? null,
   });
 }

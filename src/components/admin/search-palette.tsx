@@ -80,14 +80,17 @@ export function SearchPalette({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 rounded-full border border-fysi-line bg-fysi-cream/40 px-3 py-1.5 text-xs text-fysi-muted hover:border-fysi-deep/30 hover:text-fysi-deep transition"
+        className="flex items-center gap-2.5 w-full max-w-md rounded-full border border-fysi-line bg-fysi-cream/40 px-4 py-2.5 text-sm text-fysi-muted hover:border-fysi-deep/30 hover:text-fysi-deep hover:bg-fysi-cream/70 transition"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
           <circle cx="11" cy="11" r="7" />
           <path d="m21 21-4.35-4.35" />
         </svg>
-        <span className="hidden sm:inline">Buscar…</span>
-        <kbd className="hidden sm:inline text-[0.62rem] border border-fysi-line rounded px-1 py-0.5 bg-white">
+        <span className="hidden sm:inline flex-1 text-left truncate">
+          Buscar cliente, tarefa ou documento…
+        </span>
+        <span className="sm:hidden flex-1 text-left">Buscar…</span>
+        <kbd className="hidden sm:inline text-[0.68rem] border border-fysi-line rounded px-1.5 py-0.5 bg-white shrink-0">
           ⌘K
         </kbd>
       </button>

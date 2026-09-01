@@ -7,6 +7,7 @@ import {
   dismissAllNotificationsAction,
   dismissNotificationAction,
 } from "@/app/admin/actions";
+import { NOTIFICATION_KIND_META } from "@/lib/notification-meta";
 
 export interface AdminNotification {
   id: string;
@@ -17,37 +18,7 @@ export interface AdminNotification {
   created_at: string;
 }
 
-// Cada tipo carrega um ícone + a cor do dot sinalizador + o tom do círculo
-// que envolve o emoji (dá presença ao aviso sem virar cartaz gritante).
-const KIND_META: Record<
-  string,
-  { emoji: string; label: string; dot: string; ring: string }
-> = {
-  "contrato.preenchido": {
-    emoji: "🚀",
-    label: "Elevou o nível",
-    dot: "bg-fysi-yellow",
-    ring: "bg-fysi-yellow/25",
-  },
-  "briefing.concluido": {
-    emoji: "✅",
-    label: "Briefing concluído",
-    dot: "bg-fysi-mint-vivid",
-    ring: "bg-fysi-mint/40",
-  },
-  "pagamento.recebido": {
-    emoji: "💰",
-    label: "Pagamento recebido",
-    dot: "bg-fysi-mint-vivid",
-    ring: "bg-fysi-mint/40",
-  },
-  outro: {
-    emoji: "🔔",
-    label: "Aviso",
-    dot: "bg-fysi-line-strong",
-    ring: "bg-fysi-cream",
-  },
-};
+const KIND_META = NOTIFICATION_KIND_META;
 
 /**
  * Banner de avisos pra admin — mostra notificações não lidas no topo de

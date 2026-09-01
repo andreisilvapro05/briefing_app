@@ -25,6 +25,13 @@ export interface CreateDocumentResult {
   name: string;
   originalUrl?: string;
   signedUrl?: string;
+  signers: {
+    email: string;
+    name?: string;
+    // Link individual de assinatura (curto, do Autentique) — só existe
+    // quando o signer foi criado com "name" preenchido.
+    signLink?: string;
+  }[];
 }
 
 export interface DocumentStatus {
@@ -39,6 +46,7 @@ export interface DocumentStatus {
     name?: string;
     signedAt?: string;
     rejectedAt?: string;
+    signLink?: string;
   }[];
 }
 
@@ -80,6 +88,12 @@ export async function createDocument(opts: {
         id
         name
         files { original signed }
+        signatures {
+          public_id
+          name
+          email
+          link { short_link }
+        }
       }
     }
   `;
@@ -129,11 +143,20 @@ export async function createDocument(opts: {
     throw new Error("Autentique createDocument: resposta sem id");
   }
 
+  const signers = (doc.signatures ?? []).map(
+    (s: { name?: string; email: string; link?: { short_link?: string } }) => ({
+      email: s.email,
+      name: s.name,
+      signLink: s.link?.short_link,
+    })
+  );
+
   return {
     id: doc.id,
     name: doc.name,
     originalUrl: doc.files?.original,
     signedUrl: doc.files?.signed,
+    signers,
   };
 }
 
@@ -152,6 +175,7 @@ export async function getDocument(documentId: string): Promise<DocumentStatus> {
         signatures {
           name
           email
+          link { short_link }
           signed { created_at }
           rejected { created_at }
         }
@@ -188,11 +212,13 @@ export async function getDocument(documentId: string): Promise<DocumentStatus> {
     (s: {
       name?: string;
       email: string;
+      link?: { short_link?: string };
       signed?: { created_at?: string };
       rejected?: { created_at?: string };
     }) => ({
       email: s.email,
       name: s.name,
+      signLink: s.link?.short_link,
       signedAt: s.signed?.created_at,
       rejectedAt: s.rejected?.created_at,
     })

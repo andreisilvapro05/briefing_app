@@ -29,7 +29,7 @@ export async function POST(
   const service = createSupabaseServiceRoleClient();
   const { data: client } = await service
     .from("clients")
-    .select("autentique_document_id, contrato_status")
+    .select("autentique_document_id, contrato_status, email")
     .eq("id", id)
     .maybeSingle();
   if (!client?.autentique_document_id) {
@@ -59,11 +59,20 @@ export async function POST(
       ? "assinado"
       : "pendente";
 
+  // Link de assinatura do signatário CLIENTE (pra reenviar manualmente e
+  // mostrar no painel dele) — casa pelo e-mail cadastrado.
+  const clientEmail = (client.email ?? "").trim().toLowerCase();
+  const clientSignLink = clientEmail
+    ? status.signers.find((s) => s.email.trim().toLowerCase() === clientEmail)
+        ?.signLink
+    : undefined;
+
   const { error: updErr } = await service
     .from("clients")
     .update({
       contrato_status: newStatus,
       contrato_signed_url: status.signedUrl ?? null,
+      ...(clientSignLink ? { contrato_link_assinatura: clientSignLink } : {}),
     })
     .eq("id", id);
   if (updErr) {

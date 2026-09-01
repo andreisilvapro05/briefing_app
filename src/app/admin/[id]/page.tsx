@@ -836,6 +836,7 @@ Qualquer dúvida, é só responder por aqui.`}
             autentiqueDocumentId={client.autentique_document_id ?? null}
             contratoStatus={client.contrato_status ?? null}
             contratoSignedUrl={client.contrato_signed_url ?? null}
+            contratoLinkAssinatura={client.contrato_link_assinatura ?? null}
             contratoDados={
               (client.contrato_dados as Record<string, unknown> | null) ?? null
             }

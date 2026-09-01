@@ -31,6 +31,7 @@ interface ContractCardProps {
   autentiqueDocumentId: string | null;
   contratoStatus: string | null;
   contratoSignedUrl: string | null;
+  contratoLinkAssinatura: string | null;
   contratoDados: Record<string, unknown> | null;
   urlKey?: string;
 }
@@ -134,8 +135,21 @@ export function ContractCard(props: ContractCardProps) {
       name?: string;
       signedAt?: string;
       rejectedAt?: string;
+      signLink?: string;
     }>
   >([]);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  async function copySignLink() {
+    if (!props.contratoLinkAssinatura) return;
+    try {
+      await navigator.clipboard.writeText(props.contratoLinkAssinatura);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      setError("Não consegui copiar. Selecione o link e copie manualmente.");
+    }
+  }
   // Permite re-abrir o form de proposta mesmo quando já existe um contrato
   // (ex: pra ajustar valores e enviar uma nova versão).
   const [forceEditMode, setForceEditMode] = useState(false);
@@ -526,6 +540,82 @@ export function ContractCard(props: ContractCardProps) {
             </a>
           </div>
 
+          {signers.length > 0 ? (
+            <div className="rounded-[14px] border border-fysi-line bg-white p-4 flex flex-col gap-3">
+              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                Signatários
+              </span>
+              <ul className="flex flex-col gap-2.5">
+                {signers.map((s, i) => (
+                  <li
+                    key={s.email || i}
+                    className="flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-fysi-deep truncate">
+                        {s.name || s.email}
+                      </div>
+                      {s.name && s.email ? (
+                        <div className="text-xs text-fysi-muted truncate">
+                          {s.email}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="shrink-0">
+                      {s.rejectedAt ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-600 px-2.5 py-1 text-xs font-medium">
+                          ✕ recusou
+                          {formatSignerDate(s.rejectedAt)
+                            ? ` em ${formatSignerDate(s.rejectedAt)}`
+                            : ""}
+                        </span>
+                      ) : s.signedAt ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-fysi-mint text-fysi-deep px-2.5 py-1 text-xs font-medium">
+                          ✓ assinou
+                          {formatSignerDate(s.signedAt)
+                            ? ` em ${formatSignerDate(s.signedAt)}`
+                            : ""}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-fysi-deep/[0.05] text-fysi-muted px-2.5 py-1 text-xs font-medium">
+                          pendente
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {props.contratoLinkAssinatura && props.contratoStatus !== "assinado" ? (
+            <div className="rounded-[14px] border border-fysi-mint-vivid/40 bg-fysi-mint/20 p-4 flex flex-col gap-2">
+              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
+                Link de assinatura (cliente)
+              </span>
+              <p className="text-xs text-fysi-deep/80 leading-relaxed">
+                Envie esse link direto pro cliente (WhatsApp, e-mail) se ele
+                não achar o convite do Autentique.
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <code className="flex-1 min-w-0 truncate text-xs bg-white border border-fysi-line rounded-[8px] px-2.5 py-1.5">
+                  {props.contratoLinkAssinatura}
+                </code>
+                <Button type="button" size="sm" onClick={copySignLink}>
+                  {linkCopied ? "Copiado ✓" : "Copiar"}
+                </Button>
+                <a
+                  href={props.contratoLinkAssinatura}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-medium text-fysi-deep underline underline-offset-2 hover:text-fysi-green whitespace-nowrap"
+                >
+                  Abrir →
+                </a>
+              </div>
+            </div>
+          ) : null}
+
           {props.contratoDados ? (
             <div className="bg-fysi-cream/40 rounded-[12px] p-3 text-sm flex flex-col gap-3">
               <div className="grid sm:grid-cols-3 gap-3">
@@ -660,54 +750,6 @@ export function ContractCard(props: ContractCardProps) {
                 // eslint-disable-next-line react/no-danger
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
-            </div>
-          ) : null}
-
-          {signers.length > 0 ? (
-            <div className="rounded-[14px] border border-fysi-line bg-white p-4 flex flex-col gap-3">
-              <span className="text-fysi-muted text-xs uppercase tracking-[0.1em] block">
-                Signatários
-              </span>
-              <ul className="flex flex-col gap-2.5">
-                {signers.map((s, i) => (
-                  <li
-                    key={s.email || i}
-                    className="flex items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-fysi-deep truncate">
-                        {s.name || s.email}
-                      </div>
-                      {s.name && s.email ? (
-                        <div className="text-xs text-fysi-muted truncate">
-                          {s.email}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="shrink-0">
-                      {s.rejectedAt ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-600 px-2.5 py-1 text-xs font-medium">
-                          ✕ recusou
-                          {formatSignerDate(s.rejectedAt)
-                            ? ` em ${formatSignerDate(s.rejectedAt)}`
-                            : ""}
-                        </span>
-                      ) : s.signedAt ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-fysi-mint text-fysi-deep px-2.5 py-1 text-xs font-medium">
-                          ✓ assinou
-                          {formatSignerDate(s.signedAt)
-                            ? ` em ${formatSignerDate(s.signedAt)}`
-                            : ""}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-fysi-deep/[0.05] text-fysi-muted px-2.5 py-1 text-xs font-medium">
-                          pendente
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
             </div>
           ) : null}
 

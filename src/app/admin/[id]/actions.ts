@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { getAdminUser } from "@/lib/admin";
 import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -14,6 +15,7 @@ import {
   sendDashboardWebhook,
 } from "@/lib/dashboard-webhook";
 import { createClientFolders } from "@/lib/google-drive";
+import { createAdminNotification } from "@/lib/notifications";
 import type { EntregaDocumento } from "@/lib/entrega";
 import type { Moodboard } from "@/lib/moodboard";
 import {
@@ -525,6 +527,19 @@ export async function createClientAction(formData: FormData) {
       cliente: buildClientePayload(fresh),
     });
   }
+
+  // Avisa o admin: projeto novo (gatilho pra postar nos Stories). after()
+  // garante que roda mesmo após o redirect() (que lança internamente).
+  const finalClientId = created!.id;
+  const titulo = empresa || nome;
+  after(async () => {
+    await createAdminNotification({
+      clientId: finalClientId,
+      kind: "projeto.novo",
+      title: `Novo projeto: ${titulo}`,
+      message: "Tap pra ver os dados",
+    });
+  });
 
   revalidatePath("/admin");
   redirect(`/admin/${created!.id}${keySuffix}`);

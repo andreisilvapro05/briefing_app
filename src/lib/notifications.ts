@@ -12,6 +12,7 @@ export type NotificationKind =
   | "contrato.preenchido"
   | "briefing.concluido"
   | "pagamento.recebido"
+  | "projeto.novo"
   | "outro";
 
 interface CreateInput {

@@ -44,6 +44,42 @@ export async function dismissAllNotificationsAction(formData: FormData) {
   revalidatePath("/admin");
 }
 
+export interface AdminNotificationRow {
+  id: string;
+  client_id: string | null;
+  kind: string;
+  title: string;
+  message: string | null;
+  created_at: string;
+}
+
+/**
+ * Notificações não lidas pro sino do topbar (visível em toda página admin,
+ * não só em Clientes) — escopado por getVisibleClientIds, igual busca
+ * global, pra "basico" não ver aviso de cliente fora do escopo dele.
+ */
+export async function getUnreadAdminNotificationsAction(
+  urlKey: string | null
+): Promise<AdminNotificationRow[]> {
+  const member = await getCurrentMember({ urlKey });
+  if (!member) return [];
+
+  const visibleIds = await getVisibleClientIds(member);
+  if (visibleIds && visibleIds.size === 0) return [];
+
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("admin_notifications")
+    .select("id, client_id, kind, title, message, created_at")
+    .is("read_at", null)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const rows = (data as AdminNotificationRow[]) ?? [];
+  if (!visibleIds) return rows;
+  return rows.filter((n) => !n.client_id || visibleIds.has(n.client_id));
+}
+
 export interface GlobalSearchResults {
   clientes: { id: string; nome: string; empresa: string | null }[];
   tarefas: {
