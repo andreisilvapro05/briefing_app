@@ -221,9 +221,10 @@ export function StatusPieBoard({
                     className="cursor-pointer transition-opacity"
                     onClick={() => toggle(s.g.id)}
                   >
-                    <title>
-                      {s.g.label}: {s.g.clients.length}
-                    </title>
+                    {/* String única (não `{a}: {b}`) — texto multi-filho num
+                        <title> de SVG não é serializado no SSR (vem vazio) e
+                        diverge do cliente → erro de hidratação #418. */}
+                    <title>{`${s.g.label}: ${s.g.clients.length}`}</title>
                   </path>
                 ))
               )}
