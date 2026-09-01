@@ -150,7 +150,7 @@ export function NotificationsBell({
                           </span>
                         </span>
                         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                          <span className="text-[0.68rem] font-semibold uppercase tracking-[0.08em] text-fysi-muted">
+                          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-fysi-muted">
                             {meta.label}
                           </span>
                           <span className="truncate text-sm font-semibold text-fysi-deep">

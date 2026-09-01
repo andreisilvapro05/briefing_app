@@ -183,7 +183,7 @@ export default async function MembrosPage({
                           </option>
                         ))}
                       </select>
-                      <span className="text-[0.65rem] text-fysi-muted">{ROLE_HINT[m.role]}</span>
+                      <span className="text-xs text-fysi-muted">{ROLE_HINT[m.role]}</span>
                     </form>
                   </td>
                   <td className="px-5 py-4">

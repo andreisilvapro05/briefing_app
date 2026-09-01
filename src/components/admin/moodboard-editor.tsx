@@ -356,7 +356,7 @@ function CardEditor({
       {/* Comentários */}
       {item.comentarios.length > 0 ? (
         <div className="flex flex-col gap-1 border-t border-fysi-line pt-2">
-          <p className="text-[0.6rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+          <p className="text-xs uppercase tracking-[0.1em] text-fysi-muted font-medium">
             Comentários ({item.comentarios.length})
           </p>
           {item.comentarios.slice(-3).map((c) => (

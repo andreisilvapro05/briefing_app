@@ -207,11 +207,11 @@ function ClientCard({
 
       <div className="flex items-center justify-between gap-2 mt-2">
         {tipo ? (
-          <span className="text-[0.6rem] uppercase tracking-[0.06em] text-fysi-muted truncate">
+          <span className="text-xs uppercase tracking-[0.06em] text-fysi-muted truncate">
             {tipo}
           </span>
         ) : (
-          <span className="text-[0.6rem] uppercase tracking-[0.06em] text-fysi-muted/60">
+          <span className="text-xs uppercase tracking-[0.06em] text-fysi-muted/60">
             sem tipo
           </span>
         )}

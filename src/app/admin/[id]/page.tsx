@@ -323,7 +323,7 @@ export default async function AdminClientPage({
           <aside className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-3 text-sm">
             <div className="grid grid-cols-2 gap-2">
               <form action={setProjectTypeAction} className="flex flex-col gap-1">
-                <label className="text-[0.6rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                <label className="text-xs uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   Tipo
                 </label>
                 <input type="hidden" name="clientId" value={client.id} />

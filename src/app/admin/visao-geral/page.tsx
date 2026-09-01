@@ -142,7 +142,7 @@ export default async function VisaoGeralPage({
                     </span>
                   ) : null}
                   <span
-                    className={`inline-block rounded-full border text-[0.68rem] font-medium px-2 py-0.5 ${TASK_STATUS_TONE[t.status]}`}
+                    className={`inline-block rounded-full border text-xs font-medium px-2 py-0.5 ${TASK_STATUS_TONE[t.status]}`}
                   >
                     {TASK_STATUS_OPTIONS.find((o) => o.value === t.status)
                       ?.label ?? t.status}

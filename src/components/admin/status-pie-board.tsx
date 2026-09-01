@@ -396,7 +396,7 @@ function ClientAccordionRow({
           </span>
           {c.parado ? (
             <span
-              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
+              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-xs uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
               title="Sem atividade do cliente há 14+ dias"
             >
               <span className="h-1 w-1 rounded-full bg-amber-500" />
@@ -415,7 +415,7 @@ function ClientAccordionRow({
             <button
               type="button"
               onClick={onToggle}
-              className="text-[0.68rem] text-fysi-muted tabular-nums shrink-0 hover:text-fysi-deep hover:underline"
+              className="text-xs text-fysi-muted tabular-nums shrink-0 hover:text-fysi-deep hover:underline"
               title="Ver subtarefas"
             >
               {c.progresso.fechadas}/{c.progresso.total}
@@ -438,7 +438,7 @@ function ClientAccordionRow({
             style={{ width: colTotal, tableLayout: "fixed" }}
           >
             <ColGroup widths={colWidths} />
-            <thead className="text-left text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted">
+            <thead className="text-left text-xs uppercase tracking-[0.1em] text-fysi-muted">
               <tr>
                 <ResizableTh onResizeStart={startResize(0)}>Nome</ResizableTh>
                 <ResizableTh onResizeStart={startResize(1)}>Status</ResizableTh>

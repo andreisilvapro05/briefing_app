@@ -567,7 +567,7 @@ export function TaskRow({
               ) : null}
 
               <div>
-                <label className="block text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
+                <label className="block text-xs uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
                   Observações da tarefa
                 </label>
                 <textarea
@@ -645,7 +645,7 @@ function TaskComments({
 
   return (
     <div>
-      <label className="block text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
+      <label className="block text-xs uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
         Comentários
       </label>
       {comments === null ? (
@@ -664,14 +664,14 @@ function TaskComments({
                   {c.author}
                 </span>
                 <span className="flex items-center gap-2 shrink-0">
-                  <span className="text-[0.65rem] text-fysi-muted tabular-nums">
+                  <span className="text-xs text-fysi-muted tabular-nums">
                     {formatCommentDate(c.created_at)}
                   </span>
                   <button
                     type="button"
                     onClick={() => remove(c.id)}
                     disabled={pending}
-                    className="text-[0.65rem] text-red-700 opacity-0 group-hover/comment:opacity-100 hover:underline disabled:opacity-50"
+                    className="text-xs text-red-700 opacity-0 group-hover/comment:opacity-100 hover:underline disabled:opacity-50"
                   >
                     excluir
                   </button>

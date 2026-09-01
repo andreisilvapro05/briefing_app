@@ -99,7 +99,7 @@ function TaskRow({ task, keyParam }: { task: Task; keyParam: string }) {
         title={statusLabel}
       />
       <span className="min-w-0 flex-1">
-        <span className="block text-[0.68rem] text-fysi-muted truncate">
+        <span className="block text-xs text-fysi-muted truncate">
           {task.client.empresa || task.client.nome}
         </span>
         <span className="block text-sm text-fysi-deep font-medium truncate group-hover:underline underline-offset-2">

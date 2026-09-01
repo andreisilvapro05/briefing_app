@@ -90,7 +90,7 @@ export function SearchPalette({
           Buscar cliente, tarefa ou documento…
         </span>
         <span className="sm:hidden flex-1 text-left">Buscar…</span>
-        <kbd className="hidden sm:inline text-[0.68rem] border border-fysi-line rounded px-1.5 py-0.5 bg-white shrink-0">
+        <kbd className="hidden sm:inline text-xs border border-fysi-line rounded px-1.5 py-0.5 bg-white shrink-0">
           ⌘K
         </kbd>
       </button>
@@ -117,7 +117,7 @@ export function SearchPalette({
                 placeholder="Buscar cliente, tarefa ou documento…"
                 className="flex-1 text-sm text-fysi-deep placeholder:text-fysi-muted focus:outline-none"
               />
-              <kbd className="text-[0.62rem] text-fysi-muted border border-fysi-line rounded px-1 py-0.5">
+              <kbd className="text-xs text-fysi-muted border border-fysi-line rounded px-1 py-0.5">
                 Esc
               </kbd>
             </div>
@@ -191,7 +191,7 @@ export function SearchPalette({
 function ResultGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-1">
-      <p className="px-4 py-1 text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+      <p className="px-4 py-1 text-xs uppercase tracking-[0.1em] text-fysi-muted font-semibold">
         {label}
       </p>
       {children}

@@ -353,7 +353,7 @@ export default async function AdminPage({
                     </div>
                     {stuck ? (
                       <span
-                        className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
+                        className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
                         title={`Sem atividade há ${daysSince(lastActivity)} dias`}
                       >
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -454,7 +454,7 @@ export default async function AdminPage({
                           </div>
                           {stuck ? (
                             <span
-                              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[0.6rem] uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
+                              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
                               title={`Sem atividade há ${daysSince(lastActivity)} dias`}
                             >
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />

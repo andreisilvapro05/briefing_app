@@ -67,7 +67,7 @@ export function EIDocumentSidebar({
         ) : null}
         {creating ? (
           <div className="flex flex-col gap-1.5 rounded-[10px] border border-fysi-line bg-fysi-cream/30 p-2">
-            <p className="text-[0.65rem] uppercase tracking-[0.08em] text-fysi-muted px-1">
+            <p className="text-xs uppercase tracking-[0.08em] text-fysi-muted px-1">
               Selecione o cliente
             </p>
             {clientsWithoutDoc.map((c) => (
