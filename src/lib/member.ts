@@ -23,6 +23,20 @@ import { hasValidAdminSession } from "./admin-session";
  */
 export type MemberRole = "admin" | "avancado" | "basico" | "desenvolvedor";
 
+export const ROLE_LABELS: Record<MemberRole, string> = {
+  admin: "Admin (sócio)",
+  avancado: "Avançado",
+  basico: "Básico",
+  desenvolvedor: "Desenvolvedor",
+};
+
+export const ROLE_HINT: Record<MemberRole, string> = {
+  admin: "acesso total, gerencia membros",
+  avancado: "acesso completo, não é sócio",
+  basico: "restrito aos projetos em que está marcado",
+  desenvolvedor: "reservado",
+};
+
 export interface Member {
   id: string;
   authUserId: string | null;

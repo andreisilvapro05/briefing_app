@@ -26,6 +26,7 @@ export type AdminSection =
   | "marketing-metas"
   | "marketing-planejamento"
   | "processos"
+  | "meu-perfil"
   | "conteudo"
   | "contratos"
   | "cobrancas"
@@ -181,6 +182,12 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <path d="m21 21-4.35-4.35" />
     </I>
   ),
+  "meu-perfil": (
+    <I>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c0-4 3.5-7 8-7s8 3 8 7" />
+    </I>
+  ),
 };
 
 function item(
@@ -231,6 +238,7 @@ const AREAS: NavArea[] = [
   {
     label: "Equipe",
     items: [
+      item("meu-perfil", "Meu Perfil", "/admin/perfil"),
       item("membros", "Membros", "/admin/membros"),
       item("processos", "Processos & Tutoriais", "/admin/processos"),
     ],
@@ -344,9 +352,12 @@ export function AdminShell({
           <div className="flex items-center gap-3 shrink-0">
             <NotificationsBell keyParam={keyParam} urlKey={urlKey} />
             <span className="hidden sm:flex flex-col items-end leading-tight">
-              <span className="text-[0.78rem] font-medium text-fysi-deep truncate max-w-[180px]">
+              <Link
+                href={`/admin/perfil${keyParam}`}
+                className="text-[0.78rem] font-medium text-fysi-deep truncate max-w-[180px] hover:underline"
+              >
                 {userEmail ?? "Equipe Fysi"}
-              </span>
+              </Link>
               <form method="post" action="/api/auth/admin-logout">
                 <button
                   type="submit"

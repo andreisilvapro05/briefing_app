@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import { Eyebrow, Pill } from "@/components/ui/pill";
-import { getCurrentMember, isAdmin, type MemberRole } from "@/lib/member";
+import {
+  getCurrentMember,
+  isAdmin,
+  ROLE_LABELS,
+  ROLE_HINT,
+  type MemberRole,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AutoSubmitSelect } from "@/components/admin/auto-submit-select";
@@ -25,20 +31,6 @@ interface TeamMemberRow {
   last_login_at: string | null;
   task_value: string | null;
 }
-
-const ROLE_LABELS: Record<MemberRole, string> = {
-  admin: "Admin (sócio)",
-  avancado: "Avançado",
-  basico: "Básico",
-  desenvolvedor: "Desenvolvedor",
-};
-
-const ROLE_HINT: Record<MemberRole, string> = {
-  admin: "acesso total, gerencia membros",
-  avancado: "acesso completo, não é sócio",
-  basico: "restrito aos projetos em que está marcado",
-  desenvolvedor: "reservado",
-};
 
 export default async function MembrosPage({
   searchParams,
