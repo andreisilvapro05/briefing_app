@@ -11,10 +11,10 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AutoSubmitSelect } from "@/components/admin/auto-submit-select";
 import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
+import { MemberAccessLinkButton } from "@/components/admin/member-access-link-button";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 import {
   inviteMemberAction,
-  resendInviteAction,
   setMemberRoleAction,
   setMemberTaskValueAction,
   toggleMemberActiveAction,
@@ -72,6 +72,19 @@ export default async function MembrosPage({
           vínculo de tarefas abaixo.
         </p>
       </header>
+
+      <div className="mb-6 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3">
+        <p className="text-sm text-amber-900 font-medium mb-1">
+          ⚠ O envio de e-mail está em modo de teste
+        </p>
+        <p className="text-xs text-amber-800 leading-relaxed">
+          O Resend só entrega e-mail pra conta dona (fysilabdigital@gmail.com)
+          até um domínio ser verificado em resend.com/domains. Enquanto isso,
+          use o botão <strong>&quot;🔗 Gerar link de acesso&quot;</strong> em
+          cada membro pra mandar o link direto por WhatsApp — funciona em
+          qualquer aparelho, sem depender do e-mail.
+        </p>
+      </div>
 
       {/* Convidar novo membro */}
       <section className="bg-white border border-fysi-line rounded-[20px] p-5 mb-6">
@@ -209,13 +222,7 @@ export default async function MembrosPage({
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-3">
                       {!m.last_login_at ? (
-                        <form action={resendInviteAction}>
-                          {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-                          <input type="hidden" name="memberId" value={m.id} />
-                          <SubmitTextButton pendingLabel="Reenviando…">
-                            Reenviar convite
-                          </SubmitTextButton>
-                        </form>
+                        <MemberAccessLinkButton memberId={m.id} urlKey={urlKey} />
                       ) : null}
                       <form action={toggleMemberActiveAction}>
                         {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}

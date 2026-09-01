@@ -23,6 +23,65 @@ async function requireAdminOrRedirect(urlKey: string | null) {
   return member;
 }
 
+/**
+ * Gera um LINK de acesso direto pro membro (sem depender do e-mail) — o
+ * admin copia e manda por WhatsApp. Usa admin.generateLink (não envia
+ * e-mail) + a rota /auth/confirm (verifyOtp, sem PKCE, funciona em
+ * qualquer aparelho). Contorna o problema do Resend em modo de teste que
+ * não entrega e-mail pra ninguém além da dona da conta.
+ */
+export async function generateMemberAccessLinkAction(
+  memberId: string,
+  urlKey: string | null
+): Promise<{ link: string } | { error: string }> {
+  const admin = await getCurrentMember({ urlKey });
+  if (!admin) return { error: "unauthenticated" };
+  if (!isAdmin(admin)) return { error: "forbidden" };
+
+  let env: ReturnType<typeof getServerEnv>;
+  try {
+    env = getServerEnv();
+  } catch {
+    return { error: "server-not-configured" };
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: member } = await service
+    .from("team_members")
+    .select("email")
+    .eq("id", memberId)
+    .maybeSingle();
+  const email = (member as { email: string } | null)?.email?.toLowerCase();
+  if (!email) return { error: "member-not-found" };
+
+  // Garante que o usuário de auth existe (generateLink magiclink precisa
+  // dele). Se já existe, o erro é ignorado.
+  try {
+    await service.auth.admin.createUser({ email, email_confirm: true });
+  } catch {
+    // já existe — segue
+  }
+
+  try {
+    const { data, error } = await service.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+    if (error || !data?.properties?.hashed_token) {
+      logServerError("membros.access-link", error);
+      return { error: "generate-failed" };
+    }
+    const { hashed_token, verification_type } = data.properties;
+    const link = `${env.appUrl}/auth/confirm?token_hash=${encodeURIComponent(
+      hashed_token
+    )}&type=${encodeURIComponent(verification_type)}&next=${encodeURIComponent("/admin")}`;
+    return { link };
+  } catch (err) {
+    logServerError("membros.access-link.throw", err);
+    return { error: "generate-failed" };
+  }
+}
+
 /** Cadastra um novo membro e dispara o magic link de primeiro acesso. */
 export async function inviteMemberAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
