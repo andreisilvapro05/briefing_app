@@ -75,28 +75,36 @@ export async function getCurrentMember(opts?: {
     supabase = null;
   }
   if (supabase) {
-    const { data } = await supabase.auth.getUser();
-    const user = data.user;
-    if (user?.email) {
-      const service = createSupabaseServiceRoleClient();
-      const { data: row } = await service
-        .from("team_members")
-        .select("id, auth_user_id, email, name, role, active, task_value")
-        .eq("auth_user_id", user.id)
-        .maybeSingle();
-      const member = row as TeamMemberRow | null;
-      if (member?.active) {
-        return {
-          id: member.id,
-          authUserId: member.auth_user_id,
-          email: member.email,
-          name: member.name,
-          role: member.role,
-          source: "supabase",
-          legacy: false,
-          taskValue: member.task_value,
-        };
+    // Uma falha de rede aqui (auth.getUser ou a query em team_members) não
+    // pode derrubar a página inteira — cai pros caminhos legados abaixo em
+    // vez de propagar a exceção pra quem chamou (getCurrentMember roda em
+    // TODA página do admin).
+    try {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
+      if (user?.email) {
+        const service = createSupabaseServiceRoleClient();
+        const { data: row } = await service
+          .from("team_members")
+          .select("id, auth_user_id, email, name, role, active, task_value")
+          .eq("auth_user_id", user.id)
+          .maybeSingle();
+        const member = row as TeamMemberRow | null;
+        if (member?.active) {
+          return {
+            id: member.id,
+            authUserId: member.auth_user_id,
+            email: member.email,
+            name: member.name,
+            role: member.role,
+            source: "supabase",
+            legacy: false,
+            taskValue: member.task_value,
+          };
+        }
       }
+    } catch {
+      // segue pros caminhos legados abaixo
     }
   }
 
