@@ -3,19 +3,29 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTransition } from "react";
-import { createEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
 import type { EIDocumentSummary } from "@/lib/ei-documents";
 
+/**
+ * Sidebar do hub de documentos (EI ou Briefing — mesma tabela ei_documents,
+ * kind diferente). Genérico via props (basePath/createAction/createLabel)
+ * desde 2026-09-01, quando ganhou o hub de Briefing além do de EI.
+ */
 export function EIDocumentSidebar({
   docs,
   activeId,
   urlKey,
   clientsWithoutDoc,
+  basePath = "/admin/estruturas-iniciais",
+  createAction,
+  createLabel = "+ Nova Estrutura Inicial",
 }: {
   docs: EIDocumentSummary[];
   activeId: string;
   urlKey: string | null;
   clientsWithoutDoc: { id: string; nome: string | null; empresa: string | null }[];
+  basePath?: string;
+  createAction: (formData: FormData) => void | Promise<void>;
+  createLabel?: string;
 }) {
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
@@ -32,7 +42,7 @@ export function EIDocumentSidebar({
     fd.append("clientId", clientId);
     if (urlKey) fd.append("key", urlKey);
     startTransition(async () => {
-      await createEIDocumentAction(fd);
+      await createAction(fd);
     });
   }
 
@@ -52,11 +62,14 @@ export function EIDocumentSidebar({
             onClick={() => setCreating((v) => !v)}
             className="text-sm font-medium text-fysi-deep hover:text-fysi-green text-left"
           >
-            + Nova Estrutura Inicial
+            {creating ? "Cancelar" : createLabel}
           </button>
         ) : null}
         {creating ? (
           <div className="flex flex-col gap-1.5 rounded-[10px] border border-fysi-line bg-fysi-cream/30 p-2">
+            <p className="text-[0.65rem] uppercase tracking-[0.08em] text-fysi-muted px-1">
+              Selecione o cliente
+            </p>
             {clientsWithoutDoc.map((c) => (
               <button
                 key={c.id}
@@ -76,7 +89,7 @@ export function EIDocumentSidebar({
         {filtered.map((doc) => (
           <Link
             key={doc.id}
-            href={`/admin/estruturas-iniciais/${doc.id}${kp}`}
+            href={`${basePath}/${doc.id}${kp}`}
             className={`flex items-center gap-2 px-3 py-2 text-sm truncate ${
               doc.id === activeId
                 ? "bg-fysi-mint/40 text-fysi-deep font-medium"
