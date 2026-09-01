@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import {
   dismissAllNotificationsAction,
   dismissNotificationAction,
@@ -23,7 +22,6 @@ export function NotificationsBell({
   keyParam: string;
   urlKey?: string | null;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<AdminNotificationRow[]>(
     []
@@ -60,7 +58,7 @@ export function NotificationsBell({
 
   function go(href: string) {
     setOpen(false);
-    router.push(href);
+    window.open(href, "_blank", "noopener,noreferrer");
   }
 
   function dismiss(id: string) {

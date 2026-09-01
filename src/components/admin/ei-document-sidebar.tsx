@@ -18,6 +18,7 @@ export function EIDocumentSidebar({
   basePath = "/admin/estruturas-iniciais",
   createAction,
   createLabel = "+ Nova Estrutura Inicial",
+  subTabs,
 }: {
   docs: EIDocumentSummary[];
   activeId: string;
@@ -26,6 +27,10 @@ export function EIDocumentSidebar({
   basePath?: string;
   createAction: (formData: FormData) => void | Promise<void>;
   createLabel?: string;
+  // Sub-abas no topo da sidebar (ex: Respostas / Documentos, no hub de
+  // Briefing) — pedido do usuário 2026-09-01 pra "Documentos de Briefing"
+  // ficar junto de "Briefings", não solto como área própria.
+  subTabs?: { label: string; href: string; active: boolean }[];
 }) {
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
@@ -48,6 +53,23 @@ export function EIDocumentSidebar({
 
   return (
     <aside className="w-[280px] shrink-0 border-r border-fysi-line bg-white flex flex-col h-full">
+      {subTabs ? (
+        <div className="flex gap-1 p-2 border-b border-fysi-line">
+          {subTabs.map((t) => (
+            <Link
+              key={t.href}
+              href={t.href}
+              className={`flex-1 text-center rounded-[8px] px-2 py-1.5 text-xs font-medium transition ${
+                t.active
+                  ? "bg-fysi-deep text-fysi-cream"
+                  : "text-fysi-muted hover:bg-fysi-cream/60"
+              }`}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
       <div className="p-3 border-b border-fysi-line flex flex-col gap-2">
         <input
           type="text"

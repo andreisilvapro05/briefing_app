@@ -184,10 +184,10 @@ const AREAS: NavArea[] = [
       item("clientes", "Clientes", "/admin"),
       item("lista", "Lista por status", "/admin/lista"),
       item("briefings", "Briefings", "/admin/briefings"),
+      item("briefing-documentos", "Documentos de Briefing", "/admin/briefing-documentos"),
       item("quadro", "Quadro", "/admin/quadro"),
       item("tarefas", "Tarefas", "/admin/tarefas"),
       item("estruturas-iniciais", "Estruturas Iniciais", "/admin/estruturas-iniciais"),
-      item("briefing-documentos", "Documentos de Briefing", "/admin/briefing-documentos"),
     ],
   },
   {

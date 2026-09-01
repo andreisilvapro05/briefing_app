@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { Eyebrow } from "@/components/ui/pill";
 import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -75,13 +76,22 @@ export default async function VisaoGeralPage({
 
       {/* Atalhos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <ShortcutCard href={`/admin${keyParam}`} label="Clientes" />
-        <ShortcutCard href={`/admin/contratos${keyParam}`} label="Contratos" />
+        <ShortcutCard href={`/admin${keyParam}`} label="Clientes" icon={<ClientesIcon />} />
+        <ShortcutCard
+          href={`/admin/contratos${keyParam}`}
+          label="Contratos"
+          icon={<ContratosIcon />}
+        />
         <ShortcutCard
           href={`/admin/estruturas-iniciais${keyParam}`}
           label="Estruturas Iniciais"
+          icon={<EstruturasIcon />}
         />
-        <ShortcutCard href={`/admin/briefings${keyParam}`} label="Briefings" />
+        <ShortcutCard
+          href={`/admin/briefings${keyParam}`}
+          label="Briefings"
+          icon={<BriefingsIcon />}
+        />
       </div>
 
       {/* Projetos por status — pizza selecionável + lista com accordion de
@@ -157,14 +167,93 @@ export default async function VisaoGeralPage({
   );
 }
 
-function ShortcutCard({ href, label }: { href: string; label: string }) {
+function ShortcutCard({
+  href,
+  label,
+  icon,
+}: {
+  href: string;
+  label: string;
+  icon: ReactNode;
+}) {
   return (
     <Link
       href={href}
-      className="bg-white border border-fysi-line rounded-[14px] px-4 py-3 text-sm font-medium text-fysi-deep hover:border-fysi-deep/40 hover:bg-fysi-cream/40 transition text-center"
+      className="group relative flex items-center gap-2.5 bg-white border border-fysi-line rounded-[14px] px-4 py-3.5 text-sm font-medium text-fysi-deep hover:border-fysi-deep/40 hover:bg-fysi-cream/40 transition"
     >
-      {label}
+      <span className="shrink-0 text-fysi-muted group-hover:text-fysi-deep transition">
+        {icon}
+      </span>
+      <span className="truncate">{label}</span>
+      <svg
+        width="13"
+        height="13"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="absolute top-2.5 right-2.5 text-fysi-muted/50 group-hover:text-fysi-deep transition"
+        aria-hidden
+      >
+        <path d="M7 17 17 7" />
+        <path d="M8 7h9v9" />
+      </svg>
     </Link>
+  );
+}
+
+const ICON_PROPS = {
+  width: "17",
+  height: "17",
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "1.7",
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  "aria-hidden": true,
+};
+
+function ClientesIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function ContratosIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+      <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z" />
+      <path d="M9 15h6" />
+    </svg>
+  );
+}
+
+function EstruturasIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M12 2 2 7l10 5 10-5-10-5Z" />
+      <path d="M2 17l10 5 10-5" />
+      <path d="M2 12l10 5 10-5" />
+    </svg>
+  );
+}
+
+function BriefingsIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+      <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z" />
+      <path d="M9 9h1M9 13h6M9 17h6" />
+    </svg>
   );
 }
 

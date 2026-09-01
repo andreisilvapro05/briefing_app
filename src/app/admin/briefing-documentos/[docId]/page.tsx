@@ -70,6 +70,10 @@ export default async function BriefingDocumentPage({
           basePath="/admin/briefing-documentos"
           createAction={createBriefingDocumentAction}
           createLabel="+ Novo documento de Briefing"
+          subTabs={[
+            { label: "Respostas", href: `/admin/briefings${keyParamFirst}`, active: false },
+            { label: "Documentos", href: `/admin/briefing-documentos${keyParamFirst}`, active: true },
+          ]}
         />
         <div className="flex-1 overflow-y-auto p-6">
           <EIView

@@ -6,6 +6,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { TemplateUploader } from "@/components/admin/template-uploader";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
+import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ interface ContractRow {
   contrato_signed_url: string | null;
   contrato_dados: Record<string, unknown> | null;
   autentique_document_id: string;
+  project_type: string | null;
   updated_at: string;
 }
 
@@ -25,6 +27,7 @@ interface SearchParams {
   key?: string;
   status?: string;
   periodo?: string;
+  tipo?: string;
 }
 
 const PERIODO_LABELS: Record<string, string> = {
@@ -78,13 +81,14 @@ export default async function ContractsPage({
     let query = service
       .from("clients")
       .select(
-        "id, nome, empresa, email, contrato_status, contrato_signed_url, contrato_dados, autentique_document_id, updated_at"
+        "id, nome, empresa, email, contrato_status, contrato_signed_url, contrato_dados, autentique_document_id, project_type, updated_at"
       )
       .not("autentique_document_id", "is", null)
       .order("updated_at", { ascending: false });
 
     if (visibleIds) query = query.in("id", Array.from(visibleIds));
     if (params.status) query = query.eq("contrato_status", params.status);
+    if (params.tipo) query = query.eq("project_type", params.tipo);
     const desde = params.periodo ? periodoDesde(params.periodo) : null;
     if (desde) query = query.gte("updated_at", desde);
 
@@ -139,56 +143,56 @@ export default async function ContractsPage({
           }
         />
 
-        <form
-          method="get"
-          className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 flex flex-wrap items-end gap-3"
-        >
-          {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-fysi-muted uppercase tracking-[0.1em]">
-              Status
-            </label>
-            <select
-              name="status"
-              defaultValue={params.status ?? ""}
-              className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep"
-            >
-              <option value="">Todos</option>
-              <option value="pendente">Pendente</option>
-              <option value="assinado">Assinado</option>
-              <option value="rejeitado">Rejeitado</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-fysi-muted uppercase tracking-[0.1em]">
-              Período (atualizado)
-            </label>
-            <select
-              name="periodo"
-              defaultValue={params.periodo ?? ""}
-              className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep"
-            >
-              <option value="">Todo o período</option>
-              <option value="semana">Esta semana</option>
-              <option value="mes">Este mês</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
-          >
-            Filtrar
-          </button>
-          {params.status || params.periodo ? (
+        <div className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 flex flex-col gap-3">
+          <FilterPillRow
+            label="Status"
+            urlKey={urlKey}
+            paramName="status"
+            current={params.status ?? ""}
+            otherParams={{ periodo: params.periodo, tipo: params.tipo }}
+            options={[
+              { value: "", label: "Todos" },
+              { value: "pendente", label: "Pendente" },
+              { value: "assinado", label: "Assinado" },
+              { value: "rejeitado", label: "Rejeitado" },
+              { value: "cancelado", label: "Cancelado" },
+            ]}
+          />
+          <FilterPillRow
+            label="Tipo"
+            urlKey={urlKey}
+            paramName="tipo"
+            current={params.tipo ?? ""}
+            otherParams={{ status: params.status, periodo: params.periodo }}
+            options={[
+              { value: "", label: "Todos" },
+              ...Object.entries(PROJECT_TYPE_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              })),
+            ]}
+          />
+          <FilterPillRow
+            label="Período (atualizado)"
+            urlKey={urlKey}
+            paramName="periodo"
+            current={params.periodo ?? ""}
+            otherParams={{ status: params.status, tipo: params.tipo }}
+            options={[
+              { value: "", label: "Todo o período" },
+              { value: "semana", label: "Esta semana" },
+              { value: "mes", label: "Este mês" },
+            ]}
+          />
+          {params.status || params.periodo || params.tipo ? (
             <Link
               href={`/admin/contratos${keyParam}`}
-              className="rounded-full border border-fysi-line text-sm text-fysi-muted px-3 py-2 hover:text-fysi-deep hover:border-fysi-deep/30"
+              className="self-start text-xs text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
             >
-              Limpar
+              Limpar filtros
             </Link>
           ) : null}
-        </form>
+        </div>
 
         {params.periodo ? (
           <p className="text-xs text-fysi-muted mb-3">
@@ -305,6 +309,63 @@ export default async function ContractsPage({
           </table>
         </div>
     </AdminShell>
+  );
+}
+
+/**
+ * Linha de filtro em pill — clica e já aplica (sem botão "Filtrar" separado).
+ * Preserva os OUTROS filtros ativos + ?key= ao trocar de opção.
+ */
+function FilterPillRow({
+  label,
+  urlKey,
+  paramName,
+  current,
+  otherParams,
+  options,
+}: {
+  label: string;
+  urlKey: string | null;
+  paramName: string;
+  current: string;
+  otherParams: Record<string, string | undefined>;
+  options: { value: string; label: string }[];
+}) {
+  function href(value: string) {
+    const sp = new URLSearchParams();
+    for (const [k, v] of Object.entries(otherParams)) {
+      if (v) sp.set(k, v);
+    }
+    if (value) sp.set(paramName, value);
+    if (urlKey) sp.set("key", urlKey);
+    const qs = sp.toString();
+    return `/admin/contratos${qs ? `?${qs}` : ""}`;
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs text-fysi-muted uppercase tracking-[0.1em] w-full sm:w-auto sm:min-w-[9rem]">
+        {label}
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((opt) => {
+          const active = current === opt.value;
+          return (
+            <Link
+              key={opt.value || "todos"}
+              href={href(opt.value)}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                active
+                  ? "bg-fysi-deep text-fysi-cream border-fysi-deep"
+                  : "bg-white text-fysi-deep border-fysi-line hover:border-fysi-deep/40"
+              }`}
+            >
+              {opt.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

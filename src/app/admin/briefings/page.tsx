@@ -73,6 +73,19 @@ export default async function BriefingsPage({
               </div>
             </header>
 
+            {/* Sub-abas: Respostas (esta página) / Documentos (hub de blocos) */}
+            <div className="flex gap-1.5 mb-6 w-fit rounded-full border border-fysi-line bg-white p-1">
+              <Pill tone="deep" className="rounded-full px-3.5 py-1.5">
+                Respostas
+              </Pill>
+              <Link
+                href={`/admin/briefing-documentos${keyParam}`}
+                className="rounded-full px-3.5 py-1.5 text-sm font-medium text-fysi-muted hover:bg-fysi-cream transition"
+              >
+                Documentos
+              </Link>
+            </div>
+
             {/* Criar novo */}
             <form
               action={createBriefingTemplateAction}
