@@ -16,26 +16,14 @@ import { updateEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions"
  * "Editar". Tema Fysi aplicado via variáveis CSS do BlockNote (--bn-*),
  * não a prop `theme` (essa é só do shell @blocknote/mantine — o shell
  * shadcn usado aqui não a aceita).
+ *
+ * As variáveis --bn-* ficam em `:root` (globals.css), NÃO como style
+ * inline num wrapper aqui — os menus flutuantes do BlockNote (cores,
+ * formatação, slash-command) renderizam via portal direto em
+ * document.body, fora da árvore desse wrapper, e não herdavam a
+ * variável de um ancestral que não é ancestral real deles (o menu de
+ * cores quebrava visualmente por causa disso).
  */
-
-const FYSI_BN_VARS = {
-  "--bn-colors-editor-text": "#042B30",
-  "--bn-colors-editor-background": "#ffffff",
-  "--bn-colors-menu-text": "#042B30",
-  "--bn-colors-menu-background": "#ffffff",
-  "--bn-colors-tooltip-text": "#F7F6F4",
-  "--bn-colors-tooltip-background": "#042B30",
-  "--bn-colors-hovered-text": "#042B30",
-  "--bn-colors-hovered-background": "#F7F6F4",
-  "--bn-colors-selected-text": "#042B30",
-  "--bn-colors-selected-background": "#BFEDE0",
-  "--bn-colors-disabled-text": "#6B7472",
-  "--bn-colors-disabled-background": "#F7F6F4",
-  "--bn-colors-shadow": "#E5E5E0",
-  "--bn-colors-border": "#E5E5E0",
-  "--bn-colors-side-menu": "#6B7472",
-  "--bn-border-radius": "10px",
-} as React.CSSProperties;
 
 export interface EIBlockEditorProps {
   docId: string;
@@ -104,10 +92,7 @@ export function EIBlockEditor({
   }, [editor]);
 
   return (
-    <div
-      className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6"
-      style={FYSI_BN_VARS}
-    >
+    <div className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
       <div className="flex items-baseline justify-between mb-4 gap-3">
         <p className="text-xs text-fysi-muted">
           {savedAt ? (

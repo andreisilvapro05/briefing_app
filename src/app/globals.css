@@ -29,6 +29,30 @@
 
   /* Tipografia */
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* Tema Fysi do editor de blocos (BlockNote — EI/Briefing). Tem que ficar
+     em :root, não num wrapper com style inline: os menus flutuantes do
+     BlockNote (formatação, cores, slash-command) são renderizados via
+     portal direto em document.body, fora da árvore do wrapper — variável
+     CSS num ancestral que não é ancestral real do portal não cascateia,
+     e sem ela o menu de cores cai pro CSS default e quebra visualmente
+     (texto gigante vazando). Ver EIBlockEditor. */
+  --bn-colors-editor-text: #042B30;
+  --bn-colors-editor-background: #ffffff;
+  --bn-colors-menu-text: #042B30;
+  --bn-colors-menu-background: #ffffff;
+  --bn-colors-tooltip-text: #F7F6F4;
+  --bn-colors-tooltip-background: #042B30;
+  --bn-colors-hovered-text: #042B30;
+  --bn-colors-hovered-background: #F7F6F4;
+  --bn-colors-selected-text: #042B30;
+  --bn-colors-selected-background: #BFEDE0;
+  --bn-colors-disabled-text: #6B7472;
+  --bn-colors-disabled-background: #F7F6F4;
+  --bn-colors-shadow: #E5E5E0;
+  --bn-colors-border: #E5E5E0;
+  --bn-colors-side-menu: #6B7472;
+  --bn-border-radius: 10px;
 }
 
 /* ============================================================
