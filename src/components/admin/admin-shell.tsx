@@ -23,6 +23,8 @@ export type AdminSection =
   | "tarefas"
   | "estruturas-iniciais"
   | "briefing-documentos"
+  | "marketing-metas"
+  | "marketing-planejamento"
   | "conteudo"
   | "contratos"
   | "cobrancas"
@@ -129,6 +131,18 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
     </I>
   ),
+  "marketing-metas": (
+    <I>
+      <path d="M3 3v18h18" />
+      <path d="m19 9-5 5-4-4-3 3" />
+    </I>
+  ),
+  "marketing-planejamento": (
+    <I>
+      <rect x="3" y="4" width="18" height="17" rx="2" />
+      <path d="M3 9h18M8 2v4M16 2v4" />
+    </I>
+  ),
   contratos: (
     <I>
       <path d="M14 3v4a1 1 0 0 0 1 1h4" />
@@ -200,8 +214,12 @@ const AREAS: NavArea[] = [
     ],
   },
   {
-    label: "Marketing",
-    items: [item("conteudo", "Conteúdo", "/admin/conteudo")],
+    label: "Marketing e Comercial",
+    items: [
+      item("marketing-metas", "Metas & Indicadores", "/admin/marketing/metas"),
+      item("marketing-planejamento", "Planejamento", "/admin/marketing/planejamento"),
+      item("conteudo", "Conteúdo", "/admin/conteudo"),
+    ],
   },
   {
     label: "Equipe",
