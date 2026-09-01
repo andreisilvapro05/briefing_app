@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { SearchPalette } from "./search-palette";
 import { NotificationsBell } from "./notifications-bell";
+import { ProfileAvatar } from "./profile-avatar";
 
 /**
  * AdminShell — layout do painel no estilo ClickUp: sidebar de ÁREAS da empresa
@@ -327,9 +328,7 @@ export function AdminShell({
                 </button>
               </form>
             </span>
-            <span className="w-9 h-9 rounded-full bg-fysi-deep text-fysi-mint grid place-items-center text-xs font-bold shrink-0">
-              {initials}
-            </span>
+            <ProfileAvatar urlKey={urlKey} fallbackInitials={initials} />
           </div>
         </header>
 

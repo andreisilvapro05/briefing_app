@@ -34,6 +34,8 @@ export interface Member {
   legacy: boolean;
   /** Liga esse membro a TEAM_MEMBERS (project-tasks.ts) — o valor gravado em project_tasks.responsavel. null se não ligado (ou "basico" sem tarefas suas). */
   taskValue: string | null;
+  /** URL da foto de perfil (Supabase Storage). null = sem foto (mostra iniciais) ou sessão legada. */
+  fotoUrl: string | null;
 }
 
 interface TeamMemberRow {
@@ -44,6 +46,7 @@ interface TeamMemberRow {
   role: MemberRole;
   active: boolean;
   task_value: string | null;
+  foto_url: string | null;
 }
 
 function legacyMember(source: "password-legacy" | "url-key-legacy"): Member {
@@ -56,6 +59,7 @@ function legacyMember(source: "password-legacy" | "url-key-legacy"): Member {
     source,
     legacy: true,
     taskValue: null,
+    fotoUrl: null,
   };
 }
 
@@ -86,7 +90,9 @@ export async function getCurrentMember(opts?: {
         const service = createSupabaseServiceRoleClient();
         const { data: row } = await service
           .from("team_members")
-          .select("id, auth_user_id, email, name, role, active, task_value")
+          .select(
+            "id, auth_user_id, email, name, role, active, task_value, foto_url"
+          )
           .eq("auth_user_id", user.id)
           .maybeSingle();
         const member = row as TeamMemberRow | null;
@@ -100,6 +106,7 @@ export async function getCurrentMember(opts?: {
             source: "supabase",
             legacy: false,
             taskValue: member.task_value,
+            fotoUrl: member.foto_url,
           };
         }
       }

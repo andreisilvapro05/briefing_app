@@ -73,27 +73,6 @@ export default async function VisaoGeralPage({
         </p>
       </header>
 
-      {/* Busca */}
-      <form
-        method="get"
-        action={`/admin${keyParam}`}
-        className="bg-white border border-fysi-line rounded-[16px] p-3 mb-6 flex gap-2"
-      >
-        {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-        <input
-          type="search"
-          name="q"
-          placeholder="Buscar cliente por nome, e-mail ou empresa…"
-          className="flex-1 rounded-[10px] border border-fysi-line bg-fysi-cream/40 px-3 py-2 text-sm text-fysi-deep placeholder:text-fysi-muted focus:outline-none focus:border-fysi-deep/40"
-        />
-        <button
-          type="submit"
-          className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90 shrink-0"
-        >
-          Buscar
-        </button>
-      </form>
-
       {/* Atalhos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <ShortcutCard href={`/admin${keyParam}`} label="Clientes" />

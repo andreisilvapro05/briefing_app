@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { getServerEnv } from "@/lib/env";
+import { logServerError } from "@/lib/api-helpers";
 
 /**
  * Marca uma notificação como lida (dispensar do banner do /admin).
@@ -187,4 +189,94 @@ export async function globalSearchAction(
     }));
 
   return { clientes, tarefas, documentos };
+}
+
+export interface OwnProfile {
+  name: string;
+  email: string;
+  fotoUrl: string | null;
+  initials: string;
+  // Só quem entrou com identidade própria (Supabase Auth / Caixa 0) pode
+  // trocar a própria foto — sessão de senha compartilhada não tem "dono".
+  canEditPhoto: boolean;
+}
+
+/**
+ * Perfil da pessoa logada, pro avatar do topbar (foto real quando tem,
+ * iniciais quando não tem). Busca no cliente (ProfileAvatar) igual o sino
+ * de notificações, pra não precisar tocar nos ~18 call-sites do AdminShell.
+ */
+export async function getOwnProfileAction(
+  urlKey: string | null
+): Promise<OwnProfile | null> {
+  const member = await getCurrentMember({ urlKey });
+  if (!member) return null;
+  return {
+    name: member.name,
+    email: member.email,
+    fotoUrl: member.fotoUrl,
+    initials: (member.name || member.email || "F").slice(0, 2).toUpperCase(),
+    canEditPhoto: member.source === "supabase",
+  };
+}
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Troca a foto de perfil da PRÓPRIA pessoa logada (nunca de outro membro —
+ * a linha atualizada é sempre `member.id` resolvido pela sessão, nunca um
+ * id vindo do form). Upload igual ao padrão de /api/admin/conteudo/upload,
+ * como Server Action pra não precisar de rota HTTP separada.
+ */
+export async function updateOwnPhotoAction(
+  formData: FormData
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) return { ok: false, error: "unauthenticated" };
+  if (member.source !== "supabase") {
+    return { ok: false, error: "sessao-sem-identidade-propria" };
+  }
+
+  const file = formData.get("file");
+  if (!(file instanceof File)) return { ok: false, error: "no-file" };
+  if (!file.type.startsWith("image/")) return { ok: false, error: "not-image" };
+  if (file.size > MAX_PHOTO_BYTES) return { ok: false, error: "too-large" };
+
+  let env: ReturnType<typeof getServerEnv>;
+  try {
+    env = getServerEnv();
+  } catch {
+    return { ok: false, error: "storage-not-configured" };
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const ext = (file.name.split(".").pop() || "jpg").replace(/[^a-zA-Z0-9]/g, "");
+  const objectPath = `membros/${member.id}-${Date.now()}.${ext}`;
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const { error } = await service.storage
+    .from(env.storageBucket)
+    .upload(objectPath, bytes, {
+      contentType: file.type || "image/*",
+      upsert: false,
+    });
+  if (error) {
+    logServerError("membros.foto.upload", error);
+    return { ok: false, error: "upload-failed" };
+  }
+
+  const { data } = service.storage.from(env.storageBucket).getPublicUrl(objectPath);
+
+  const { error: updErr } = await service
+    .from("team_members")
+    .update({ foto_url: data.publicUrl })
+    .eq("id", member.id);
+  if (updErr) {
+    logServerError("membros.foto.persist", updErr);
+    return { ok: false, error: "save-failed" };
+  }
+
+  revalidatePath("/admin/membros");
+  return { ok: true, url: data.publicUrl };
 }
