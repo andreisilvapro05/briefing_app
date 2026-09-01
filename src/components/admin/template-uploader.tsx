@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/pill";
 
@@ -15,6 +16,7 @@ export function TemplateUploader({
   urlKey?: string;
   currentTemplateUpdatedAt?: string;
 }) {
+  const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<
     "idle" | "uploading" | "success" | "error"
@@ -49,6 +51,8 @@ export function TemplateUploader({
       setStatus("success");
       setMsg("Modelo atualizado com sucesso.");
       if (fileRef.current) fileRef.current.value = "";
+      // Atualiza a data/estado do modelo na tela sem F5.
+      router.refresh();
     } catch (err) {
       setStatus("error");
       setMsg(err instanceof Error ? err.message : "Erro inesperado");
@@ -69,12 +73,26 @@ export function TemplateUploader({
           </span>
         )}
       </div>
-      <p className="text-sm text-fysi-muted mt-2 mb-4">
-        Suba o <code className="font-mono text-xs">.docx</code> com as tags{" "}
+      <p className="text-sm text-fysi-muted mt-2 mb-3">
+        Pra <strong>editar</strong> o modelo: baixe o{" "}
+        <code className="font-mono text-xs">.docx</code> atual, edite no Word
+        (ou Google Docs) mantendo as tags{" "}
         <code className="font-mono text-xs">{`{{nome_cliente}}`}</code>,{" "}
         <code className="font-mono text-xs">{`{{valor_parcelamento}}`}</code>{" "}
-        etc. Substitui o modelo atual (não dá pra desfazer).
+        etc., e suba de volta. A substituição não dá pra desfazer.
       </p>
+
+      {currentTemplateUpdatedAt ? (
+        <a
+          href={`/api/admin/contracts/template/download${
+            urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""
+          }`}
+          className="inline-flex items-center gap-1.5 mb-4 rounded-full border border-fysi-line bg-white text-sm font-medium text-fysi-deep px-4 py-2 hover:border-fysi-deep/40 hover:bg-fysi-cream/40 transition"
+        >
+          ⬇ Baixar modelo atual (.docx)
+        </a>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3">
         <input
           ref={fileRef}
