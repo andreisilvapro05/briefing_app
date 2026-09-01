@@ -180,7 +180,9 @@ export function EntregaEditor({
     clientName: clientName ?? undefined,
     empresa: empresa ?? undefined,
     entregueEm: finalizadaAt
-      ? new Date(finalizadaAt).toLocaleDateString("pt-BR")
+      ? new Date(finalizadaAt).toLocaleDateString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+        })
       : null,
   });
 
@@ -215,7 +217,10 @@ export function EntregaEditor({
             Acessos, tutoriais, backups e garantia.{" "}
             {finalizadaAt ? (
               <Pill tone="mint">
-                ✓ Entregue em {new Date(finalizadaAt).toLocaleDateString("pt-BR")}
+                ✓ Entregue em{" "}
+                {new Date(finalizadaAt).toLocaleDateString("pt-BR", {
+                  timeZone: "America/Sao_Paulo",
+                })}
               </Pill>
             ) : (
               <span>· {completude.preenchidos}/{completude.total} seções preenchidas ({completude.pct}%)</span>
@@ -227,7 +232,10 @@ export function EntregaEditor({
             </p>
           ) : savedAt ? (
             <p className="text-xs text-emerald-700 mt-1">
-              ✓ Salvo às {new Date(savedAt).toLocaleTimeString("pt-BR")}
+              ✓ Salvo às{" "}
+              {new Date(savedAt).toLocaleTimeString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+              })}
             </p>
           ) : null}
         </div>

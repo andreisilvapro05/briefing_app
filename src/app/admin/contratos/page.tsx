@@ -371,7 +371,7 @@ function FilterPillRow({
 
 function formatDate(iso: string) {
   try {
-    return new Date(iso).toLocaleDateString("pt-BR", {
+    return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo",
       day: "2-digit",
       month: "short",
       year: "numeric",

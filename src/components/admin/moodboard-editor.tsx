@@ -150,7 +150,10 @@ export function MoodboardEditor({
             </p>
           ) : savedAt ? (
             <p className="text-xs text-emerald-700 mt-1">
-              ✓ Salvo em {new Date(savedAt).toLocaleTimeString("pt-BR")}
+              ✓ Salvo em{" "}
+              {new Date(savedAt).toLocaleTimeString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+              })}
             </p>
           ) : null}
         </div>

@@ -96,7 +96,12 @@ export function EIBlockEditor({
       <div className="flex items-baseline justify-between mb-4 gap-3">
         <p className="text-xs text-fysi-muted">
           {savedAt ? (
-            <span>Salvo em {new Date(savedAt).toLocaleString("pt-BR")}</span>
+            <span>
+              Salvo em{" "}
+              {new Date(savedAt).toLocaleString("pt-BR", {
+                timeZone: "America/Sao_Paulo",
+              })}
+            </span>
           ) : (
             <span className="text-amber-700">Nunca salvo</span>
           )}

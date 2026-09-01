@@ -78,7 +78,9 @@ export function EntregaViewer({
         clientName,
         empresa,
         entregueEm: finalizadaAt
-          ? new Date(finalizadaAt).toLocaleDateString("pt-BR")
+          ? new Date(finalizadaAt).toLocaleDateString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+            })
           : null,
       }
     );
@@ -162,6 +164,7 @@ export function EntregaViewer({
             day: "2-digit",
             month: "long",
             year: "numeric",
+            timeZone: "America/Sao_Paulo",
           })}
         </p>
       ) : null}
@@ -399,7 +402,7 @@ export function EntregaViewer({
             <div className="flex items-center justify-between gap-3 print:hidden">
               <p className="text-[0.7rem] text-fysi-muted">
                 {savedAt
-                  ? `Salvo em ${new Date(savedAt).toLocaleString("pt-BR")}`
+                  ? `Salvo em ${new Date(savedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`
                   : "Ainda não salvo"}
               </p>
               <button

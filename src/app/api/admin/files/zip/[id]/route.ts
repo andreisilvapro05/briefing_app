@@ -73,7 +73,7 @@ export async function GET(
   const indexLines = [
     `Cliente: ${clientRow.nome ?? ""}`,
     `Empresa: ${clientRow.empresa ?? "—"}`,
-    `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
+    `Gerado em: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`,
     `Total de arquivos: ${files.length}`,
     "",
     "── Conteúdo ──",

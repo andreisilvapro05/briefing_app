@@ -169,7 +169,7 @@ export function computeStats(clients: ClientForLane[]): ClientStats {
   for (let i = 5; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString("pt-BR", { month: "short" });
+    const label = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short" });
     meses.push({ label, count: 0, key });
   }
   clients.forEach((c) => {

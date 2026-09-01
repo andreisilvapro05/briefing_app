@@ -211,7 +211,7 @@ export default async function MembrosPage({
                   </td>
                   <td className="px-5 py-4 text-xs text-fysi-muted">
                     {m.last_login_at
-                      ? new Date(m.last_login_at).toLocaleDateString("pt-BR")
+                      ? new Date(m.last_login_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })
                       : m.invited_at
                         ? "Convidado, ainda não entrou"
                         : "—"}

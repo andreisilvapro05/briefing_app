@@ -609,13 +609,13 @@ function CobrancaCard({
       {pagoEsteMes ? (
         <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1.5">
           ✓ Recebido em{" "}
-          {new Date(pagoEsteMes.pagoEm).toLocaleDateString("pt-BR")} ·{" "}
+          {new Date(pagoEsteMes.pagoEm).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} ·{" "}
           {formatBRL(pagoEsteMes.valorPago)} · {pagoEsteMes.forma}
         </div>
       ) : ultimo ? (
         <p className="text-[0.7rem] text-fysi-muted">
           Último pagamento: {ultimo.mesReferencia} (
-          {new Date(ultimo.pagoEm).toLocaleDateString("pt-BR")}) ·{" "}
+          {new Date(ultimo.pagoEm).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}) ·{" "}
           {formatBRL(ultimo.valorPago)}
         </p>
       ) : null}
@@ -698,7 +698,7 @@ function CobrancaCard({
                   </span>
                   <span className="text-fysi-muted">{h.forma}</span>
                   <span className="text-fysi-muted">
-                    {new Date(h.pagoEm).toLocaleDateString("pt-BR")}
+                    {new Date(h.pagoEm).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                   </span>
                 </div>
               ))
@@ -793,7 +793,7 @@ function CobrancaCard({
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
   try {
-    return new Date(iso).toLocaleDateString("pt-BR", {
+    return new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo",
       day: "2-digit",
       month: "short",
       year: "numeric",

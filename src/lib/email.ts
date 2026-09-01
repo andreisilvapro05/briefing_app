@@ -143,7 +143,7 @@ export function htmlBriefingNotificacaoTime({
     ${blocosHtml}
 
     <p style="margin-top:32px; padding-top:24px; border-top:1px solid #E5E5E0; font-size:12px; color:#6B7472;">
-      Notificação automática · Fysi Briefing · ${new Date().toLocaleString("pt-BR")}
+      Notificação automática · Fysi Briefing · ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
     </p>
   </div>
 </div>
@@ -201,7 +201,7 @@ export function htmlContratoPreenchidoTime({
     <a href="${adminLink}" style="display:inline-block; margin-top:24px; background:#042B30; color:#F7F6F4; padding:14px 28px; border-radius:9999px; text-decoration:none; font-weight:500; font-size:14px;">Abrir painel do cliente →</a>
 
     <p style="margin-top:32px; padding-top:24px; border-top:1px solid #E5E5E0; font-size:12px; color:#6B7472;">
-      Notificação automática · Fysi Briefing · ${new Date().toLocaleString("pt-BR")}
+      Notificação automática · Fysi Briefing · ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
     </p>
   </div>
 </div>

@@ -25,7 +25,7 @@ interface GoalRow {
 function formatMes(mes: string): string {
   const [y, m] = mes.split("-").map(Number);
   if (!y || !m) return mes;
-  return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", {
+  return new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo",
     month: "long",
     year: "numeric",
   });
