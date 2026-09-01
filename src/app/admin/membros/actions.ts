@@ -73,20 +73,28 @@ export async function inviteMemberAction(formData: FormData) {
     return;
   }
 
-  const { error: otpErr } = await service.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${env.appUrl}/auth/callback?next=${encodeURIComponent("/admin")}`,
-      shouldCreateUser: true,
-    },
-  });
-  if (otpErr) {
-    logServerError("membros.invite.otp", otpErr);
-  } else if (created) {
-    await service
-      .from("team_members")
-      .update({ invited_at: new Date().toISOString() })
-      .eq("id", (created as { id: string }).id);
+  // signInWithOtp chama a API de auth (que por sua vez dispara e-mail via
+  // Resend/SMTP) — uma falha de rede aí não pode derrubar a action inteira
+  // (o membro já foi criado; sem isso o admin cai na tela de erro genérica
+  // do Next mesmo com o cadastro tendo funcionado).
+  try {
+    const { error: otpErr } = await service.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${env.appUrl}/auth/callback?next=${encodeURIComponent("/admin")}`,
+        shouldCreateUser: true,
+      },
+    });
+    if (otpErr) {
+      logServerError("membros.invite.otp", otpErr);
+    } else if (created) {
+      await service
+        .from("team_members")
+        .update({ invited_at: new Date().toISOString() })
+        .eq("id", (created as { id: string }).id);
+    }
+  } catch (err) {
+    logServerError("membros.invite.otp.throw", err);
   }
 
   revalidatePath("/admin/membros");
@@ -116,17 +124,25 @@ export async function resendInviteAction(formData: FormData) {
     return;
   }
 
-  await service.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${env.appUrl}/auth/callback?next=${encodeURIComponent("/admin")}`,
-      shouldCreateUser: true,
-    },
-  });
-  await service
-    .from("team_members")
-    .update({ invited_at: new Date().toISOString() })
-    .eq("id", memberId);
+  try {
+    const { error: otpErr } = await service.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${env.appUrl}/auth/callback?next=${encodeURIComponent("/admin")}`,
+        shouldCreateUser: true,
+      },
+    });
+    if (otpErr) {
+      logServerError("membros.resend.otp", otpErr);
+    } else {
+      await service
+        .from("team_members")
+        .update({ invited_at: new Date().toISOString() })
+        .eq("id", memberId);
+    }
+  } catch (err) {
+    logServerError("membros.resend.otp.throw", err);
+  }
 
   revalidatePath("/admin/membros");
 }
