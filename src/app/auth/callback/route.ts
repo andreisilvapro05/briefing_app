@@ -13,7 +13,9 @@ import {
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const nextRaw = searchParams.get("next") ?? "/dashboard";
+  // Só caminho relativo interno — nunca redirecionar pra fora do app.
+  const next = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/dashboard";
 
   if (!code) {
     return NextResponse.redirect(`${origin}/auth/erro`);

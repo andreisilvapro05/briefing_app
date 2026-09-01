@@ -16,7 +16,9 @@ export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const tokenHash = searchParams.get("token_hash");
   const type = (searchParams.get("type") ?? "magiclink") as EmailOtpType;
-  const next = searchParams.get("next") ?? "/admin";
+  const nextRaw = searchParams.get("next") ?? "/admin";
+  // Só caminho relativo interno — nunca redirecionar pra fora do app.
+  const next = nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : "/admin";
 
   if (!tokenHash) {
     return NextResponse.redirect(`${origin}/auth/erro?reason=missing-token`);

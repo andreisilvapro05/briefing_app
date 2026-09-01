@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentMember, isAdmin, type MemberRole } from "@/lib/member";
@@ -45,6 +46,14 @@ export async function generateMemberAccessLinkAction(
     return { error: "server-not-configured" };
   }
 
+  // Origem do link = o domínio em que o admin está navegando (via headers do
+  // request), não o env.appUrl — que na Vercel aponta pro domínio *.vercel.app
+  // e faria a pessoa logar no domínio errado (cookie não vale no oficial).
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const appOrigin = host ? `${proto}://${host}` : env.appUrl;
+
   const service = createSupabaseServiceRoleClient();
   const { data: member } = await service
     .from("team_members")
@@ -72,7 +81,7 @@ export async function generateMemberAccessLinkAction(
       return { error: "generate-failed" };
     }
     const { hashed_token, verification_type } = data.properties;
-    const link = `${env.appUrl}/auth/confirm?token_hash=${encodeURIComponent(
+    const link = `${appOrigin}/auth/confirm?token_hash=${encodeURIComponent(
       hashed_token
     )}&type=${encodeURIComponent(verification_type)}&next=${encodeURIComponent("/admin")}`;
     return { link };
