@@ -16,6 +16,7 @@ import {
 } from "@/lib/dashboard-webhook";
 import { createClientFolders } from "@/lib/google-drive";
 import { createAdminNotification } from "@/lib/notifications";
+import { logServerError } from "@/lib/api-helpers";
 import type { EntregaDocumento } from "@/lib/entrega";
 import type { Moodboard } from "@/lib/moodboard";
 import {
@@ -331,6 +332,48 @@ export async function setDriveLinksAction(formData: FormData) {
 
   const service = createSupabaseServiceRoleClient();
   await service.from("clients").update(update).eq("id", clientId);
+
+  revalidatePath(`/admin/${clientId}`);
+}
+
+/**
+ * Cria a pasta do cliente no Drive da Fysi sob demanda (idempotente — se já
+ * existe uma pasta com esse nome, reaproveita em vez de duplicar). Pra
+ * clientes que não passaram pelo "novo cliente" do admin (ex: vieram do
+ * onboarding público, que não cria pasta automaticamente).
+ */
+export async function createDriveFoldersAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const user = await getAdminUser({ urlKey });
+  if (!user) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: client } = await service
+    .from("clients")
+    .select("nome, empresa")
+    .eq("id", clientId)
+    .maybeSingle();
+  if (!client) return;
+
+  const nome = (client.empresa as string | null) || (client.nome as string | null) || "Cliente";
+
+  try {
+    const folders = await createClientFolders(nome, clientId);
+    if (folders) {
+      await service
+        .from("clients")
+        .update({
+          fysi_drive_link: folders.rootUrl,
+          google_drive_folders: folders,
+        })
+        .eq("id", clientId);
+    }
+  } catch (err) {
+    logServerError("drive.create-folders", err);
+  }
 
   revalidatePath(`/admin/${clientId}`);
 }

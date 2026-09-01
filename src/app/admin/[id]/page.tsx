@@ -43,6 +43,7 @@ import { StatusChanger } from "@/components/admin/status-changer";
 import { getServerEnv } from "@/lib/env";
 import {
   resendClientLinkAction,
+  createDriveFoldersAction,
   sendToClickupAction,
   setClientContractDataAction,
   setDriveLinksAction,
@@ -1024,6 +1025,19 @@ Qualquer dúvida, é só responder por aqui.`}
                 </a>
               ) : null}
             </form>
+            {!client.google_drive_folders ? (
+              <form action={createDriveFoldersAction} className="flex flex-col gap-1.5 -mt-2">
+                <input type="hidden" name="clientId" value={client.id} />
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                <Button type="submit" size="sm" variant="secondary">
+                  📁 Criar pasta automaticamente no Drive
+                </Button>
+                <p className="text-[0.72rem] text-fysi-muted">
+                  Cria a estrutura de pastas na pasta da Fysi no Drive e
+                  preenche o link acima sozinho.
+                </p>
+              </form>
+            ) : null}
 
             <form
               action={setDriveLinksAction}

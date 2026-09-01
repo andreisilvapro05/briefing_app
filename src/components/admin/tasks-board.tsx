@@ -579,6 +579,21 @@ export function TaskRow({
                   rows={3}
                   className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
                 />
+                {extractUrls(observacoes).length > 0 ? (
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
+                    {extractUrls(observacoes).map((url, i) => (
+                      <a
+                        key={`${url}-${i}`}
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-fysi-deep underline underline-offset-2 hover:text-fysi-green truncate max-w-xs"
+                      >
+                        🔗 {url}
+                      </a>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               <TaskComments taskId={task.id} clientId={clientId} urlKey={urlKey} />
@@ -716,6 +731,13 @@ function formatCommentDate(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+// Textarea não renderiza link — extrai URLs do texto pra mostrar como
+// chips clicáveis abaixo do campo (pedido do usuário: "link de site clicável").
+const URL_REGEX = /https?:\/\/[^\s<>"']+/g;
+function extractUrls(text: string): string[] {
+  return text.match(URL_REGEX) ?? [];
 }
 
 /**

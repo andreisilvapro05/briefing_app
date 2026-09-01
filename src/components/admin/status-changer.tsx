@@ -46,20 +46,36 @@ export function StatusChanger({
   }
 
   return (
-    <select
-      value={current}
-      onChange={(e) => change(e.target.value)}
-      disabled={pending}
-      aria-label="Alterar status"
-      className={`rounded-full border text-xs font-medium px-3 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-fysi-deep/30 disabled:opacity-50 ${
-        TASK_STATUS_TONE[current as TaskStatus] ?? TASK_STATUS_TONE[DEFAULT_TASK_STATUS]
-      }`}
-    >
-      {TASK_STATUS_OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <span className="relative inline-flex">
+      <select
+        value={current}
+        onChange={(e) => change(e.target.value)}
+        disabled={pending}
+        aria-label="Alterar status"
+        className={`appearance-none rounded-full border text-xs font-medium pl-3 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-fysi-deep/30 disabled:opacity-50 ${
+          TASK_STATUS_TONE[current as TaskStatus] ?? TASK_STATUS_TONE[DEFAULT_TASK_STATUS]
+        }`}
+      >
+        {TASK_STATUS_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <svg
+        width="11"
+        height="11"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 opacity-60"
+        aria-hidden
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </span>
   );
 }
