@@ -40,13 +40,17 @@ export async function resendClientLinkAction(formData: FormData) {
   const env = getServerEnv();
   const service = createSupabaseServiceRoleClient();
 
-  await service.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${env.appUrl}/auth/callback`,
-      shouldCreateUser: false,
-    },
-  });
+  try {
+    await service.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${env.appUrl}/auth/callback`,
+        shouldCreateUser: false,
+      },
+    });
+  } catch {
+    // Best-effort — não derruba a tela se a API de auth falhar aqui.
+  }
 
   // Também enviamos um e-mail "humano" via Resend (Supabase já manda o magic-link
   // automático; este é um aviso complementar).
