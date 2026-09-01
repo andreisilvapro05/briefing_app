@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Eyebrow } from "@/components/ui/pill";
+import { SubmitTextButton } from "@/components/admin/submit-button";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -72,12 +73,13 @@ export default async function BriefingTemplatePage({
                 <input type="hidden" name="key" value={urlKey} />
               ) : null}
               <input type="hidden" name="id" value={template!.id} />
-              <button
-                type="submit"
-                className="text-xs text-red-700 hover:underline"
+              <SubmitTextButton
+                danger
+                confirm="Excluir este briefing? As perguntas dele somem pra todo mundo."
+                pendingLabel="Excluindo…"
               >
                 Excluir este briefing
-              </button>
+              </SubmitTextButton>
             </form>
     </AdminShell>
   );

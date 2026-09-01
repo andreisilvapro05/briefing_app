@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/admin/submit-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
@@ -137,9 +137,9 @@ export default async function MarketingPlanejamentoPage({
         <div className="flex-1 min-w-0">
           <Textarea label="Descrição (opcional)" name="descricao" rows={1} />
         </div>
-        <Button type="submit" size="md">
+        <SubmitButton size="md" pendingLabel="Adicionando…">
           + Adicionar
-        </Button>
+        </SubmitButton>
       </form>
 
       {itens.length === 0 ? (

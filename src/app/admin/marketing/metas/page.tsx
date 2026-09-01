@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Eyebrow } from "@/components/ui/pill";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/admin/submit-button";
 import { Input } from "@/components/ui/input";
 import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -121,9 +121,9 @@ export default async function MarketingMetasPage({
         <Input label="Nova meta" name="titulo" required placeholder="Ex: Novos clientes fechados" />
         <Input label="Alvo" name="meta" required type="text" inputMode="decimal" placeholder="10" className="w-24" />
         <Input label="Unidade" name="unidade" placeholder="clientes, R$, %..." className="w-32" />
-        <Button type="submit" size="md">
+        <SubmitButton size="md" pendingLabel="Adicionando…">
           + Adicionar
-        </Button>
+        </SubmitButton>
       </form>
 
       {goals.length === 0 ? (

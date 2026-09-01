@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
+import { SubmitTextButton } from "@/components/admin/submit-button";
 import { getAdminUser } from "@/lib/admin";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -105,12 +106,12 @@ export default async function BriefingsPage({
                   className="border border-fysi-line rounded-[10px] px-3 py-2 bg-white text-sm text-fysi-deep"
                 />
               </div>
-              <button
-                type="submit"
-                className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-5 py-2.5 hover:bg-fysi-deep/90 whitespace-nowrap"
+              <SubmitTextButton
+                className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-5 py-2.5 hover:bg-fysi-deep/90 whitespace-nowrap disabled:opacity-50"
+                pendingLabel="Criando…"
               >
                 Criar briefing
-              </button>
+              </SubmitTextButton>
             </form>
 
             {/* Lista */}

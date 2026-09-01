@@ -188,6 +188,9 @@ function ProcessDocModal({
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={doc.titulo}
         className="bg-white rounded-[20px] shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
