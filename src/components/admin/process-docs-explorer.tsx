@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ProcessDocRow } from "@/app/admin/processos/page";
-
-const DESCRICAO_PREVIEW_LEN = 220;
 
 export function ProcessDocsExplorer({ docs }: { docs: ProcessDocRow[] }) {
   const [audiencia, setAudiencia] = useState<"equipe" | "cliente">("equipe");
   const [query, setQuery] = useState("");
   const [categoria, setCategoria] = useState<string | null>(null);
+  const [openDoc, setOpenDoc] = useState<ProcessDocRow | null>(null);
 
   const equipeCount = docs.filter((d) => d.audiencia === "equipe").length;
   const clienteCount = docs.filter((d) => d.audiencia === "cliente").length;
@@ -115,62 +114,124 @@ export function ProcessDocsExplorer({ docs }: { docs: ProcessDocRow[] }) {
           Nada encontrado.
         </p>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-3">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map((d) => (
-            <ProcessDocCard key={d.id} doc={d} />
+            <ProcessDocCard key={d.id} doc={d} onOpen={() => setOpenDoc(d)} />
           ))}
         </div>
       )}
+
+      {openDoc ? (
+        <ProcessDocModal doc={openDoc} onClose={() => setOpenDoc(null)} />
+      ) : null}
     </div>
   );
 }
 
-function ProcessDocCard({ doc }: { doc: ProcessDocRow }) {
-  const [expanded, setExpanded] = useState(false);
-  const hasLongDescricao = (doc.descricao?.length ?? 0) > DESCRICAO_PREVIEW_LEN;
-  const descricaoShown =
-    !doc.descricao || (!expanded && hasLongDescricao)
-      ? doc.descricao?.slice(0, DESCRICAO_PREVIEW_LEN)
-      : doc.descricao;
-
+/** Card compacto, estilo ClickUp — clica em qualquer lugar pra abrir o detalhe. */
+function ProcessDocCard({
+  doc,
+  onOpen,
+}: {
+  doc: ProcessDocRow;
+  onOpen: () => void;
+}) {
   return (
-    <div className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-2">
+    <button
+      type="button"
+      onClick={onOpen}
+      className="text-left bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-2 hover:border-fysi-deep/40 hover:shadow-sm transition"
+    >
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-medium text-fysi-deep leading-snug">
           {doc.titulo}
         </h3>
-        <span className="shrink-0 rounded-full bg-fysi-cream/70 text-fysi-muted text-[0.68rem] font-medium capitalize px-2 py-0.5">
+        <span className="shrink-0 rounded-full bg-fysi-cream/70 text-fysi-muted text-xs font-medium capitalize px-2 py-0.5">
           {doc.categoria}
         </span>
       </div>
 
-      {descricaoShown ? (
-        <p className="text-xs text-fysi-muted leading-relaxed whitespace-pre-wrap">
-          {descricaoShown}
-          {!expanded && hasLongDescricao ? "…" : ""}
+      {doc.descricao ? (
+        <p className="text-xs text-fysi-muted leading-relaxed line-clamp-2">
+          {doc.descricao}
         </p>
       ) : null}
 
-      <div className="flex items-center gap-3 mt-1">
-        {hasLongDescricao ? (
+      {doc.link ? (
+        <span className="text-xs font-medium text-fysi-muted mt-1">
+          🔗 tem link
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+/** Detalhe em card sobreposto (estilo ClickUp) — abre ao clicar num item. */
+function ProcessDocModal({
+  doc,
+  onClose,
+}: {
+  doc: ProcessDocRow;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/30 flex items-start justify-center pt-[8vh] px-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-[20px] shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 px-6 py-5 border-b border-fysi-line">
+          <div className="min-w-0">
+            <span className="inline-block rounded-full bg-fysi-cream/70 text-fysi-muted text-xs font-medium capitalize px-2.5 py-0.5 mb-2">
+              {doc.categoria}
+            </span>
+            <h2 className="text-lg font-semibold text-fysi-deep leading-snug">
+              {doc.titulo}
+            </h2>
+          </div>
           <button
             type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="text-xs font-medium text-fysi-deep hover:underline"
+            onClick={onClose}
+            className="shrink-0 w-8 h-8 grid place-items-center rounded-full text-fysi-muted hover:bg-fysi-cream hover:text-fysi-deep transition"
+            aria-label="Fechar"
           >
-            {expanded ? "Ver menos" : "Ver mais"}
+            ✕
           </button>
-        ) : null}
-        {doc.link ? (
-          <a
-            href={doc.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-medium text-fysi-deep underline underline-offset-2 hover:text-fysi-green"
-          >
-            🔗 Abrir link →
-          </a>
-        ) : null}
+        </div>
+
+        <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">
+          {doc.descricao ? (
+            <p className="text-sm text-fysi-deep leading-relaxed whitespace-pre-wrap">
+              {doc.descricao}
+            </p>
+          ) : !doc.link ? (
+            <p className="text-sm text-fysi-muted italic">
+              Sem conteúdo registrado pra esse item ainda.
+            </p>
+          ) : null}
+
+          {doc.link ? (
+            <a
+              href={doc.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 self-start rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 hover:brightness-95 transition"
+            >
+              🔗 Abrir link →
+            </a>
+          ) : null}
+        </div>
       </div>
     </div>
   );
