@@ -2,7 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getAdminUser } from "@/lib/admin";
+import {
+  getCurrentMember,
+  getVisibleClientIds,
+  hasFullAccess,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getTemplateDocument } from "@/lib/ei-documents-server";
 
@@ -18,11 +22,15 @@ function keyParam(urlKey: string | null) {
  */
 export async function createBriefingDocumentAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  if (!hasFullAccess(member)) {
+    const visible = await getVisibleClientIds(member);
+    if (visible && !visible.has(clientId)) redirect(`/admin/briefing-documentos${keyParam(urlKey)}`);
+  }
 
   const service = createSupabaseServiceRoleClient();
 

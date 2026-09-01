@@ -2,7 +2,11 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getAdminUser } from "@/lib/admin";
+import {
+  getCurrentMember,
+  getVisibleClientIds,
+  hasFullAccess,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getTemplateDocument } from "@/lib/ei-documents-server";
 
@@ -17,11 +21,15 @@ function keyParam(urlKey: string | null) {
  */
 export async function createEIDocumentAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  if (!hasFullAccess(member)) {
+    const visible = await getVisibleClientIds(member);
+    if (visible && !visible.has(clientId)) redirect(`/admin/estruturas-iniciais${keyParam(urlKey)}`);
+  }
 
   const service = createSupabaseServiceRoleClient();
 
@@ -60,8 +68,8 @@ export async function createEIDocumentAction(formData: FormData) {
  */
 export async function updateEIDocumentAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const docId = String(formData.get("docId") ?? "");
   if (!docId) return;
@@ -77,6 +85,22 @@ export async function updateEIDocumentAction(formData: FormData) {
   }
 
   const service = createSupabaseServiceRoleClient();
+
+  if (!hasFullAccess(member)) {
+    // Resolve o client_id REAL do documento (não confia em nada vindo do
+    // form) — doc sem cliente é o Modelo, só admin/avancado edita esse.
+    const { data: doc } = await service
+      .from("ei_documents")
+      .select("client_id")
+      .eq("id", docId)
+      .maybeSingle();
+    const docClientId = (doc as { client_id: string | null } | null)
+      ?.client_id;
+    if (!docClientId) return;
+    const visible = await getVisibleClientIds(member);
+    if (visible && !visible.has(docClientId)) return;
+  }
+
   await service
     .from("ei_documents")
     .update({ ei_data: parsed, updated_at: new Date().toISOString() })

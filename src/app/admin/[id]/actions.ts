@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { getAdminUser } from "@/lib/admin";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import {
+  getCurrentMember,
+  getVisibleClientIds,
+  hasFinanceAccess,
+  hasFullAccess,
+  type Member,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { createClickUpBriefingTask } from "@/lib/clickup";
 import { htmlMagicLink, sendEmail } from "@/lib/email";
@@ -29,6 +35,51 @@ import {
   type TaskStatus,
 } from "@/lib/project-tasks";
 import type { ProjectType } from "@/lib/types";
+
+function keyParamOf(formData: FormData): string | null {
+  return String(formData.get("key") ?? "") || null;
+}
+
+/**
+ * Ação operacional (projeto/tarefas/moodboard/drive/etc — não financeira):
+ * "basico" só pode mexer em clientes que está marcado (mesma regra que já
+ * restringe leitura via getVisibleClientIds, agora também nas escritas).
+ * admin/avancado/legacy passam direto. Pedido do usuário 2026-09-01:
+ * "designer só a parte de projetos".
+ */
+async function requireClientAccess(
+  formData: FormData,
+  clientId: string
+): Promise<Member> {
+  const urlKey = keyParamOf(formData);
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) {
+    const visible = await getVisibleClientIds(member);
+    if (visible && !visible.has(clientId)) {
+      redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+    }
+  }
+  return member;
+}
+
+/**
+ * Ação financeira/contrato/dados sensíveis (pagamento, CPF, endereço) — além
+ * do escopo por cliente, exige hasFinanceAccess. "basico" nunca passa,
+ * mesmo pro próprio cliente. Pedido do usuário: "bloqueia a parte do valor
+ * do pagamento cliente, contrato... dados sensíveis".
+ */
+async function requireClientFinanceAccess(
+  formData: FormData,
+  clientId: string
+): Promise<Member> {
+  const member = await requireClientAccess(formData, clientId);
+  if (!hasFinanceAccess(member)) {
+    const urlKey = keyParamOf(formData);
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
+  return member;
+}
 
 /**
  * Reenviar magic link para o cliente (acionado pelo admin).
@@ -77,12 +128,9 @@ export async function resendClientLinkAction(formData: FormData) {
  * Útil quando o auto-envio na conclusão falhou ou ainda não rodou.
  */
 export async function sendToClickupAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
   const [{ data: client }, { data: responses }] = await Promise.all([
@@ -131,15 +179,12 @@ export async function sendToClickupAction(formData: FormData) {
  * Avança ou retrocede o stage do projeto. Aceita 'next', 'prev' ou número absoluto.
  */
 export async function setStageAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+  await requireClientAccess(formData, clientId);
+
   const direction = String(formData.get("direction") ?? "");
   const targetStr = String(formData.get("target") ?? "");
-
-  if (!clientId) return;
 
   const service = createSupabaseServiceRoleClient();
   const { data: client } = await service
@@ -186,10 +231,6 @@ export async function setStageAction(formData: FormData) {
  * mostrar a timeline correta.
  */
 export async function setProjectTypeAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   const projectType = String(formData.get("projectType") ?? "");
   const allowed = [
@@ -200,6 +241,7 @@ export async function setProjectTypeAction(formData: FormData) {
     "outro",
   ];
   if (!clientId || !allowed.includes(projectType)) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
 
@@ -242,12 +284,9 @@ export async function setProjectTypeAction(formData: FormData) {
  * (assim o dashboard do cliente mostra a Etapa 01 como pronta).
  */
 export async function setClientContractDataAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientFinanceAccess(formData, clientId);
 
   function val(key: string): string {
     return String(formData.get(key) ?? "").trim();
@@ -306,12 +345,9 @@ export async function setClientContractDataAction(formData: FormData) {
  * Aceita string vazia pra limpar; valida URL simples.
  */
 export async function setDriveLinksAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   const fysiRaw = String(formData.get("fysiDriveLink") ?? "").trim();
   const clienteRaw = String(formData.get("clienteDriveLink") ?? "").trim();
@@ -343,12 +379,9 @@ export async function setDriveLinksAction(formData: FormData) {
  * onboarding público, que não cria pasta automaticamente).
  */
 export async function createDriveFoldersAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
   const { data: client } = await service
@@ -383,12 +416,9 @@ export async function createDriveFoldersAction(formData: FormData) {
  * Valores aceitam string com vírgula ou ponto — normalizamos pra ponto antes.
  */
 export async function setPaymentAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientFinanceAccess(formData, clientId);
 
   function parseMoney(raw: string): number | null {
     const cleaned = raw.trim().replace(/\./g, "").replace(",", ".");
@@ -450,9 +480,15 @@ export async function setPaymentAction(formData: FormData) {
  * Redireciona pra /admin depois — então invocado a partir de /admin/[id].
  */
 export async function deleteClientAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const urlKey = keyParamOf(formData);
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  // Destrutivo — "basico" nunca apaga cliente, nem os que estão marcados
+  // pra ele (diferente das ações operacionais, que só restringem por
+  // visibilidade). Exige acesso total mesmo.
+  if (!hasFullAccess(member)) {
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
@@ -592,11 +628,9 @@ export async function createClientAction(formData: FormData) {
  * Toggle do chamada_agendada_at (admin marca/desmarca chamada como feita).
  */
 export async function toggleChamadaFeitaAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
@@ -621,11 +655,9 @@ export async function toggleChamadaFeitaAction(formData: FormData) {
  * Toggle do briefing_submitted_at (admin marca/desmarca briefing como concluído).
  */
 export async function toggleBriefingConcluidoAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
@@ -652,11 +684,9 @@ export async function toggleBriefingConcluidoAction(formData: FormData) {
  * alinhamento de mood antes do design.
  */
 export async function setMoodboardAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   const raw = String(formData.get("moodboardJson") ?? "").trim();
   if (!raw) return;
@@ -686,11 +716,9 @@ export async function setMoodboardAction(formData: FormData) {
  * entrega_finalizada_at — gatilho que mostra o doc no painel do cliente.
  */
 export async function setEntregaAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   const raw = String(formData.get("entregaJson") ?? "").trim();
   const finalizar = formData.get("finalizar") === "1";
@@ -727,11 +755,9 @@ export async function setEntregaAction(formData: FormData) {
  * "Criação da copy" da timeline).
  */
 export async function setCopyReviewLinkAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   let link = String(formData.get("copyReviewLink") ?? "").trim();
   // Se veio sem protocolo (ex: "docs.google.com/..."), prefixa https:// —
@@ -754,13 +780,10 @@ export async function setCopyReviewLinkAction(formData: FormData) {
  * valores usada pelas tarefas internas (TASK_STATUS_OPTIONS).
  */
 export async function setClientStatusAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   const status = String(formData.get("status") ?? "");
   if (!clientId || !TASK_STATUS_VALUES.includes(status as TaskStatus)) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
   await service
@@ -797,13 +820,10 @@ function parseCustomQuestionFields(formData: FormData) {
  * aparecer como bloco extra no briefing daquele cliente.
  */
 export async function addCustomQuestionAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   const { label, hint, tipo, opcoes } = parseCustomQuestionFields(formData);
   if (!clientId || !label) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
   // (maior ordem) + 1 — count subestimaria se houver buracos de deletes.
@@ -834,14 +854,15 @@ export async function addCustomQuestionAction(formData: FormData) {
  * Perguntas específicas do cliente — edita uma pergunta existente.
  */
 export async function updateCustomQuestionAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const questionId = String(formData.get("questionId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
   const { label, hint, tipo, opcoes } = parseCustomQuestionFields(formData);
   if (!questionId || !label) return;
+  if (clientId) await requireClientAccess(formData, clientId);
+  else {
+    const urlKey = keyParamOf(formData);
+    if (!(await getCurrentMember({ urlKey }))) redirect("/admin/login");
+  }
 
   const service = createSupabaseServiceRoleClient();
   await service
@@ -857,12 +878,13 @@ export async function updateCustomQuestionAction(formData: FormData) {
  * (ordem = índice) pra manter a sequência limpa.
  */
 export async function moveCustomQuestionAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const questionId = String(formData.get("questionId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
+  if (clientId) await requireClientAccess(formData, clientId);
+  else {
+    const urlKey = keyParamOf(formData);
+    if (!(await getCurrentMember({ urlKey }))) redirect("/admin/login");
+  }
   const direction = String(formData.get("direction") ?? "");
   if (
     !questionId ||
@@ -907,13 +929,14 @@ export async function moveCustomQuestionAction(formData: FormData) {
  * Perguntas específicas do cliente — remove uma pergunta.
  */
 export async function deleteCustomQuestionAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const questionId = String(formData.get("questionId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
   if (!questionId) return;
+  if (clientId) await requireClientAccess(formData, clientId);
+  else {
+    const urlKey = keyParamOf(formData);
+    if (!(await getCurrentMember({ urlKey }))) redirect("/admin/login");
+  }
 
   const service = createSupabaseServiceRoleClient();
   await service
@@ -943,12 +966,9 @@ const SEED_STATUS_OVERRIDES: Partial<Record<string, TaskStatus>> = {
  * se o admin clicar duas vezes ou o tipo mudar depois).
  */
 export async function seedProjectTasksAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
 
@@ -988,13 +1008,10 @@ export async function seedProjectTasksAction(formData: FormData) {
  * Adiciona uma tarefa ad-hoc (fora do template) ao final da lista do cliente.
  */
 export async function addProjectTaskAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
-
   const clientId = String(formData.get("clientId") ?? "");
   const titulo = String(formData.get("titulo") ?? "").trim();
   if (!clientId || !titulo) return;
+  await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
   const { data: maxRow } = await service
