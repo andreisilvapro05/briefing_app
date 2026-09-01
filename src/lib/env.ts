@@ -107,6 +107,11 @@ export function getServerEnv() {
     // negócios fechados em public.closed_projects. Mesma validação
     // HMAC-SHA256 do webhook do dashboard financeiro (X-Fysi-Signature).
     crmWebhookSecret: process.env.CRM_WEBHOOK_SECRET ?? "",
+    // Segredo pra RE-assinar e encaminhar eventos pro app-financeiro (conta
+    // Vercel separada) — precisa bater com FYSI_WEBHOOK_SECRET lá. Antes
+    // vinha hardcoded no código (exposto no repo público); rotacionar o
+    // valor real nos dois lados e setar aqui via env.
+    fysiReceiverSecret: process.env.FYSI_RECEIVER_SECRET ?? "",
     // Google Drive (Service Account) — quando preenchido, briefing_app cria
     // pasta automaticamente pra cada cliente novo e espelha anexos por
     // categoria (Logo, Identidade, Imagens, Depoimentos, Briefing).

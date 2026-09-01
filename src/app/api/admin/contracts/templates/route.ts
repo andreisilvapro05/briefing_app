@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse } from "@/lib/api-helpers";
 
@@ -15,8 +15,9 @@ import { errorResponse } from "@/lib/api-helpers";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const admin = await getAdminUser({ urlKey: url.searchParams.get("key") });
+  const admin = await getCurrentMember({ urlKey: url.searchParams.get("key") });
   if (!admin) return errorResponse("unauthenticated", 401);
+  if (!hasFinanceAccess(admin)) return errorResponse("forbidden", 403);
 
   const service = createSupabaseServiceRoleClient();
   const { data, error } = await service

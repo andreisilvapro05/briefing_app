@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     return errorResponse("file-too-large", 413);
   }
 
-  if (file.type && !isMimeAllowed(file.type)) {
+  if (!isMimeAllowed(file.type)) {
     return errorResponse("unsupported-mime", 415);
   }
 

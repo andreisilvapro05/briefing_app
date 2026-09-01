@@ -2,13 +2,26 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import {
   mesRef,
   type PagamentoHistorico,
 } from "@/lib/cobrancas-mensais";
 import { sendDashboardWebhook } from "@/lib/dashboard-webhook";
+
+/**
+ * Cobranças são dado financeiro — "basico" (designer) não pode nem ver nem
+ * mexer, mesma regra de hasFinanceAccess já aplicada nas PÁGINAS de
+ * Financeiro. Antes essas actions só checavam "está logado", não o papel —
+ * um "basico" não via a tela, mas a Server Action continuava alcançável.
+ */
+async function requireFinanceAccess(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFinanceAccess(member)) redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+}
 
 function parseMoney(raw: string): number | null {
   const cleaned = raw.trim().replace(/\./g, "").replace(",", ".");
@@ -22,9 +35,7 @@ function parseMoney(raw: string): number | null {
  * Cria uma nova cobrança (mensal ou pontual).
  */
 export async function addCobrancaAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  await requireFinanceAccess(formData);
 
   const tipo = String(formData.get("tipo") ?? "mensal") as "mensal" | "pontual";
   const nome = String(formData.get("nome") ?? "").trim();
@@ -67,9 +78,7 @@ export async function addCobrancaAction(formData: FormData) {
  * Atualiza dados básicos da cobrança (valor, dia, descrição, status).
  */
 export async function updateCobrancaAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  await requireFinanceAccess(formData);
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;
@@ -106,9 +115,7 @@ export async function updateCobrancaAction(formData: FormData) {
  * Apaga a cobrança permanente (toda história junto).
  */
 export async function deleteCobrancaAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  await requireFinanceAccess(formData);
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;
@@ -123,9 +130,7 @@ export async function deleteCobrancaAction(formData: FormData) {
  * Registra um pagamento — adiciona entry no histórico jsonb.
  */
 export async function registrarPagamentoAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  await requireFinanceAccess(formData);
 
   const id = String(formData.get("id") ?? "");
   const mes = String(formData.get("mes_referencia") ?? "").trim();
@@ -220,9 +225,7 @@ async function sendCobrancaPagaWebhook(
  * Remove uma entry do histórico (correção de erro).
  */
 export async function removerPagamentoAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  await requireFinanceAccess(formData);
 
   const cobrancaId = String(formData.get("cobranca_id") ?? "");
   const pagamentoId = String(formData.get("pagamento_id") ?? "");
@@ -252,9 +255,7 @@ export async function removerPagamentoAction(formData: FormData) {
  * Usa o valor_mensal padrão da cobrança.
  */
 export async function marcarPagoEsteMesAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  await requireFinanceAccess(formData);
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;

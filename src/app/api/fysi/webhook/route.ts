@@ -28,11 +28,6 @@ const KNOWN_EVENTS: ReadonlyArray<DashboardEvent> = [
 const RECEIVER_URL =
   "https://app-financeiro-lovat.vercel.app/api/webhooks/fysi";
 
-// Segredo do receiver — bate com FYSI_WEBHOOK_SECRET no app-financeiro.
-// Hardcoded porque o app-financeiro está em conta Vercel separada.
-const RECEIVER_SECRET =
-  "eaf930b83fdf89d566ca06f0d4117fdfc1dd3730f3d92a48aca780e4785cda97";
-
 function verifySignature(
   rawBody: string,
   signature: string,
@@ -61,6 +56,15 @@ export async function POST(request: NextRequest) {
 
   if (!env.dashboardWebhookSecret) {
     return errorResponse("secret-missing", 500);
+  }
+  if (!env.fysiReceiverSecret) {
+    // Sem o segredo do app-financeiro configurado, não dá pra encaminhar com
+    // segurança — falha fechado em vez de mandar sem assinatura válida.
+    logServerError(
+      "fysi-webhook:receiver-secret-missing",
+      new Error("FYSI_RECEIVER_SECRET não configurado")
+    );
+    return errorResponse("receiver-secret-missing", 500);
   }
 
   // Body precisa ser raw pra validar o HMAC com os bytes exatos que o sender
@@ -99,7 +103,7 @@ export async function POST(request: NextRequest) {
   );
 
   // Encaminha pro app-financeiro re-assinando com o segredo de lá.
-  const outgoingSig = createHmac("sha256", RECEIVER_SECRET)
+  const outgoingSig = createHmac("sha256", env.fysiReceiverSecret)
     .update(rawBody)
     .digest("hex");
 

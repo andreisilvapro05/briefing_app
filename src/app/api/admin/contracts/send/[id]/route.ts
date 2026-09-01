@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 import { getServerEnv } from "@/lib/env";
@@ -61,10 +61,11 @@ export async function POST(
 ) {
   const { id } = await ctx.params;
   const url = new URL(request.url);
-  const admin = await getAdminUser({
+  const admin = await getCurrentMember({
     urlKey: url.searchParams.get("key"),
   });
   if (!admin) return errorResponse("unauthenticated", 401);
+  if (!hasFinanceAccess(admin)) return errorResponse("forbidden", 403);
 
   let body: z.infer<typeof Body>;
   try {

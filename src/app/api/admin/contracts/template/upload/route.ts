@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 
@@ -18,8 +18,9 @@ const DOCX_MIME =
 export async function POST(request: NextRequest) {
   const url = new URL(request.url);
   const urlKey = url.searchParams.get("key");
-  const admin = await getAdminUser({ urlKey });
+  const admin = await getCurrentMember({ urlKey });
   if (!admin) return errorResponse("unauthenticated", 401);
+  if (!hasFinanceAccess(admin)) return errorResponse("forbidden", 403);
 
   let formData: FormData;
   try {
