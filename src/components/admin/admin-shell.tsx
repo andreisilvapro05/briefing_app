@@ -25,6 +25,7 @@ export type AdminSection =
   | "briefing-documentos"
   | "marketing-metas"
   | "marketing-planejamento"
+  | "processos"
   | "conteudo"
   | "contratos"
   | "cobrancas"
@@ -174,6 +175,12 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <path d="M19 8v6M22 11h-6" />
     </I>
   ),
+  processos: (
+    <I>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.35-4.35" />
+    </I>
+  ),
 };
 
 function item(
@@ -223,7 +230,10 @@ const AREAS: NavArea[] = [
   },
   {
     label: "Equipe",
-    items: [item("membros", "Membros", "/admin/membros")],
+    items: [
+      item("membros", "Membros", "/admin/membros"),
+      item("processos", "Processos & Tutoriais", "/admin/processos"),
+    ],
   },
 ];
 
