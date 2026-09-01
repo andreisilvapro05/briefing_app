@@ -56,8 +56,15 @@ const R_IN = 56;
 const CX = 100;
 const CY = 100;
 
+// Arredonda pra 3 casas — Math.cos/sin podem diferir no último bit entre o
+// V8 do servidor (Node) e o do navegador, gerando um `d` de SVG textualmente
+// diferente e disparando erro de hidratação (#418) só nesta tela. Fixar a
+// precisão faz a string ser idêntica dos dois lados.
 function point(r: number, a: number): [number, number] {
-  return [CX + r * Math.cos(a), CY + r * Math.sin(a)];
+  return [
+    Math.round((CX + r * Math.cos(a)) * 1000) / 1000,
+    Math.round((CY + r * Math.sin(a)) * 1000) / 1000,
+  ];
 }
 
 function annularPath(a0: number, a1: number): string {
