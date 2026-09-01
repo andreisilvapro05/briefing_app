@@ -149,37 +149,59 @@ export interface ProjectTask {
  * Templates por tipo de projeto. Confirmados via exemplos reais (Katlyn Adv =
  * landing-com-copy, César = landing-sem-copy); site-completo/seo/outro são
  * extrapolação — ajustável aqui sem migration. Ver spec §9 (addendum).
+ *
+ * Envio Contrato/Pagamento abrem todo projeto (etapa comercial antes da
+ * produção). Ajustes vira 3 levas (v1/v2/v3 no Figma) seguidas de Criação
+ * Assets/BGs — pedido do usuário em 2026-09-01, com base no fluxo real de
+ * produção da agência.
  */
 export const DEFAULT_PROJECT_TASKS: Record<ProjectType, string[]> = {
   "landing-com-copy": [
+    "Envio Contrato",
+    "Pagamento",
     "Copy LP",
     "Informações Iniciais",
     "Design",
-    "Ajustes",
+    "Ajustes v1",
+    "Ajustes v2",
+    "Ajustes v3",
+    "Criação Assets/BGs",
     "Implementação",
     "DEP + Otimização",
   ],
   "landing-sem-copy": [
+    "Envio Contrato",
+    "Pagamento",
     "Informações Iniciais",
     "Design",
-    "Ajustes",
+    "Ajustes v1",
+    "Ajustes v2",
+    "Ajustes v3",
+    "Criação Assets/BGs",
     "Implementação",
     "DEP + Otimização",
   ],
   "site-completo": [
+    "Envio Contrato",
+    "Pagamento",
     "Copy do site",
     "Informações Iniciais",
     "Design (múltiplas páginas)",
-    "Ajustes",
+    "Ajustes v1",
+    "Ajustes v2",
+    "Ajustes v3",
+    "Criação Assets/BGs",
     "Implementação",
     "DEP + Otimização",
   ],
   seo: [
+    "Envio Contrato",
+    "Pagamento",
     "Auditoria SEO",
     "Estratégia e plano de ação",
     "Otimização on-page",
     "Conteúdo e link building",
     "Relatório e monitoramento",
   ],
-  outro: ["Planejamento", "Execução", "Entrega"],
+  outro: ["Envio Contrato", "Pagamento", "Planejamento", "Execução", "Entrega"],
 };
