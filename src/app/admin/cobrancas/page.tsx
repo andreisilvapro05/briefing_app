@@ -19,6 +19,7 @@ import {
   registrarPagamentoAction,
   updateCobrancaAction,
 } from "./actions";
+import { setPaymentAction } from "../[id]/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,35 @@ export default async function CobrancasPage({
     0
   );
 
+  // Contratos gerados mas sem valor de cobrança configurado ainda — "dialoga"
+  // com o valor do contrato (contrato_dados.valor_parcelamento) pra não
+  // precisar abrir a ficha do cliente só pra ver quanto cobrar.
+  let contratosSemValorData: unknown[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let q = service
+      .from("clients")
+      .select("id, nome, empresa, contrato_dados")
+      .not("autentique_document_id", "is", null)
+      .or("pagamento_total.is.null,pagamento_total.eq.0");
+    if (visibleIds) q = q.in("id", Array.from(visibleIds));
+    const result = await q;
+    contratosSemValorData = result.data ?? [];
+  }
+  const contratosSemValor = (
+    (contratosSemValorData as
+      | {
+          id: string;
+          nome: string;
+          empresa: string | null;
+          contrato_dados: Record<string, unknown> | null;
+        }[]
+      | null) ?? []
+  ).map((c) => ({
+    ...c,
+    pacoteNome: (c.contrato_dados?.["pacote_nome"] as string) ?? null,
+    valorContrato: (c.contrato_dados?.["valor_parcelamento"] as string) ?? null,
+  }));
+
   let lista = todas;
   if (filtro === "ativas") lista = todas.filter((c) => c.ativa);
   else if (filtro === "atrasados")
@@ -156,6 +186,67 @@ export default async function CobrancasPage({
             tone={stats.atrasados.length > 0 ? "amber" : "mint"}
           />
         </div>
+
+        {/* Contratos gerados mas sem valor de cobrança configurado — "dialoga"
+            com o valor que já está no contrato, e permite adicionar direto
+            daqui (pedido do usuário 2026-09-01). */}
+        {contratosSemValor.length > 0 ? (
+          <section className="bg-white border border-fysi-line rounded-[16px] p-5 mb-6">
+            <div className="mb-3">
+              <h2 className="text-lg font-semibold tracking-tight text-fysi-deep">
+                Contratos sem valor de cobrança
+              </h2>
+              <p className="text-xs text-fysi-muted mt-0.5">
+                Contrato já gerado, mas ainda sem &quot;quanto cobrar&quot;
+                configurado aqui em Cobranças.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5">
+              {contratosSemValor.map((c) => (
+                <div
+                  key={c.id}
+                  className="rounded-[12px] border border-fysi-line p-3 flex flex-wrap items-center gap-3"
+                >
+                  <div className="flex-1 min-w-[12rem]">
+                    <div className="font-medium text-sm text-fysi-deep">
+                      {c.empresa || c.nome}
+                    </div>
+                    {c.valorContrato ? (
+                      <div className="text-xs text-fysi-muted mt-0.5">
+                        Contrato: {c.pacoteNome ? `${c.pacoteNome} — ` : ""}
+                        {c.valorContrato}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-fysi-muted mt-0.5">
+                        Sem dados de proposta salvos no contrato.
+                      </div>
+                    )}
+                  </div>
+                  <form
+                    action={setPaymentAction}
+                    className="flex items-center gap-2 shrink-0"
+                  >
+                    {urlKey ? (
+                      <input type="hidden" name="key" value={urlKey} />
+                    ) : null}
+                    <input type="hidden" name="clientId" value={c.id} />
+                    <input
+                      type="text"
+                      name="pagamentoTotal"
+                      placeholder="Valor a cobrar"
+                      inputMode="decimal"
+                      required
+                      className="w-32 rounded-[8px] border border-fysi-line bg-white px-2.5 py-1.5 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                    />
+                    <Button type="submit" size="sm" variant="secondary">
+                      Definir
+                    </Button>
+                  </form>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* A receber — projetos (saldos em aberto do valor do projeto) */}
         <section className="bg-white border border-fysi-line rounded-[16px] p-5 mb-6">
