@@ -20,6 +20,7 @@ import type { LaneGroup } from "@/components/admin/status-pie-board";
 const TONE_HEX: Record<string, string> = {
   slate: "#94a3b8",
   indigo: "#6366f1",
+  cyan: "#06b6d4",
   yellow: "#eab308",
   pink: "#ec4899",
   violet: "#8b5cf6",

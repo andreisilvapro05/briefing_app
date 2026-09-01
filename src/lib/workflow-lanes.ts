@@ -43,7 +43,7 @@ export interface ClientForLane {
 export interface Lane {
   id: string;
   label: string;
-  tone: "slate" | "indigo" | "yellow" | "pink" | "violet" | "amber" | "red" | "orange" | "emerald" | "rose";
+  tone: "slate" | "indigo" | "cyan" | "yellow" | "pink" | "violet" | "amber" | "red" | "orange" | "emerald" | "rose";
   description?: string;
 }
 
@@ -66,6 +66,7 @@ const STATUS_TONE: Record<TaskStatus, Lane["tone"]> = {
   "nem-comecou-nada": "slate",
   "a-iniciar": "slate",
   onboarding: "indigo",
+  "envio-informacoes": "cyan",
   "redacao-copy": "pink",
   "design-pagina": "violet",
   "validacao-design-copy": "red",
@@ -199,6 +200,7 @@ export function computeStats(clients: ClientForLane[]): ClientStats {
 export const LANE_TONE_CLASSES: Record<Lane["tone"], { bg: string; border: string; text: string; dot: string }> = {
   slate:   { bg: "bg-fysi-cream/40",  border: "border-fysi-line",         text: "text-fysi-deep/70", dot: "bg-fysi-muted"       },
   indigo:  { bg: "bg-indigo-50",      border: "border-indigo-200",        text: "text-indigo-700",   dot: "bg-indigo-500"       },
+  cyan:    { bg: "bg-cyan-50",        border: "border-cyan-200",          text: "text-cyan-700",     dot: "bg-cyan-500"         },
   yellow:  { bg: "bg-fysi-yellow/20", border: "border-fysi-yellow",       text: "text-fysi-deep",    dot: "bg-fysi-yellow"      },
   pink:    { bg: "bg-pink-50",        border: "border-pink-200",          text: "text-pink-700",     dot: "bg-pink-500"         },
   violet:  { bg: "bg-violet-50",      border: "border-violet-200",        text: "text-violet-700",   dot: "bg-violet-500"       },

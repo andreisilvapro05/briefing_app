@@ -18,6 +18,7 @@ import type { EntregaDocumento } from "@/lib/entrega";
 import type { Moodboard } from "@/lib/moodboard";
 import {
   DEFAULT_PROJECT_TASKS,
+  DEFAULT_TASK_STATUS,
   TASK_STATUS_OPTIONS,
   TASK_STATUS_GROUP,
   TASK_PRIORITY_OPTIONS,
@@ -871,6 +872,13 @@ const TASK_PRIORITY_VALUES = TASK_PRIORITY_OPTIONS.map((o) => o.value).filter(
 );
 const TEAM_MEMBER_VALUES = TEAM_MEMBERS.map((m) => m.value);
 
+/** Status inicial não-default por título do template — ver DEFAULT_PROJECT_TASKS. */
+const SEED_STATUS_OVERRIDES: Partial<Record<string, TaskStatus>> = {
+  "Envio Contrato": "onboarding",
+  Pagamento: "onboarding",
+  "Informações Iniciais": "envio-informacoes",
+};
+
 /**
  * Gera as tarefas do template a partir do project_type do cliente.
  * Idempotente: não faz nada se já houver alguma tarefa (evita duplicar
@@ -911,6 +919,7 @@ export async function seedProjectTasksAction(formData: FormData) {
       titulo,
       ordem: i,
       origem: "template" as const,
+      status: SEED_STATUS_OVERRIDES[titulo] ?? DEFAULT_TASK_STATUS,
     }))
   );
 

@@ -19,6 +19,7 @@ export type TaskStatus =
   | "nem-comecou-nada"
   | "a-iniciar"
   | "onboarding"
+  | "envio-informacoes"
   | "redacao-copy"
   | "design-pagina"
   | "validacao-design-copy"
@@ -37,6 +38,7 @@ export const TASK_STATUS_GROUP: Record<TaskStatus, TaskStatusGroup> = {
   "nem-comecou-nada": "ativo",
   "a-iniciar": "ativo",
   onboarding: "ativo",
+  "envio-informacoes": "ativo",
   "redacao-copy": "ativo",
   "design-pagina": "ativo",
   "validacao-design-copy": "ativo",
@@ -54,6 +56,7 @@ export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: "nem-comecou-nada", label: "Nem começou nada" },
   { value: "a-iniciar", label: "A iniciar" },
   { value: "onboarding", label: "Onboarding" },
+  { value: "envio-informacoes", label: "Envio de informações" },
   { value: "redacao-copy", label: "Redação/Copy" },
   { value: "design-pagina", label: "Design da página" },
   { value: "validacao-design-copy", label: "Validação Design+Copy" },
@@ -86,6 +89,7 @@ export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
   "nem-comecou-nada": "bg-fysi-cream text-fysi-muted border-fysi-line",
   "a-iniciar": "bg-white text-fysi-deep border-fysi-line",
   onboarding: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  "envio-informacoes": "bg-cyan-50 text-cyan-700 border-cyan-200",
   "redacao-copy": "bg-pink-50 text-pink-700 border-pink-200",
   "design-pagina": "bg-violet-50 text-violet-700 border-violet-200",
   "validacao-design-copy": "bg-red-50 text-red-700 border-red-200",
