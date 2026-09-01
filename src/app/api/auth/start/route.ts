@@ -206,11 +206,21 @@ export async function POST(request: NextRequest) {
   });
 
   if (authErr) {
+    // Fail-soft: o cliente JÁ foi criado/atualizado acima — o magic link é
+    // conveniência de login, não o núcleo do start. Devolver 500 aqui fazia
+    // o front descartar o clientId (briefing ficava só no localStorage) e
+    // hoje o envio falha sempre (Resend em modo de teste, erro 550).
     logServerError("auth.start.otp", authErr);
-    return errorResponse("otp-failed", 500, authErr);
+    return NextResponse.json({
+      clientId,
+      ok: true,
+      isExisting,
+      projectType,
+      emailSent: false,
+    });
   }
 
-  return NextResponse.json({ clientId, ok: true, isExisting, projectType });
+  return NextResponse.json({ clientId, ok: true, isExisting, projectType, emailSent: true });
 }
 
 async function verifyTurnstile(secret: string, token: string): Promise<boolean> {

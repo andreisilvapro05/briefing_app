@@ -71,8 +71,12 @@ function EmailLoginForm() {
         body: JSON.stringify({ email }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Falha ao enviar o link.");
+        // O envio de e-mail pode estar indisponível (ex.: remetente ainda
+        // não verificado no provedor). Mensagem humana + caminho alternativo,
+        // nunca o JSON cru do servidor.
+        throw new Error(
+          "Não conseguimos enviar o e-mail agora. Peça a um admin um link de acesso direto (tela Membros) — ele funciona na hora, sem e-mail."
+        );
       }
       setStatus("sent");
     } catch (err) {
