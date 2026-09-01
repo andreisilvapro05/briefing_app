@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ProcessDocRow } from "@/app/admin/processos/page";
+import { useFocusTrap } from "./use-focus-trap";
 
 export function ProcessDocsExplorer({ docs }: { docs: ProcessDocRow[] }) {
   const [audiencia, setAudiencia] = useState<"equipe" | "cliente">("equipe");
@@ -174,6 +175,7 @@ function ProcessDocModal({
   doc: ProcessDocRow;
   onClose: () => void;
 }) {
+  const trapRef = useFocusTrap<HTMLDivElement>(true);
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -188,6 +190,7 @@ function ProcessDocModal({
       onClick={onClose}
     >
       <div
+        ref={trapRef}
         role="dialog"
         aria-modal="true"
         aria-label={doc.titulo}

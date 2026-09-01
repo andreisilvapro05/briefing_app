@@ -7,6 +7,7 @@ import {
   type GlobalSearchResults,
 } from "@/app/admin/actions";
 import { TASK_STATUS_OPTIONS } from "@/lib/project-tasks";
+import { useFocusTrap } from "./use-focus-trap";
 
 const EMPTY: GlobalSearchResults = { clientes: [], tarefas: [], documentos: [] };
 
@@ -28,6 +29,7 @@ export function SearchPalette({
   const [results, setResults] = useState<GlobalSearchResults>(EMPTY);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const trapRef = useFocusTrap<HTMLDivElement>(open);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -101,6 +103,7 @@ export function SearchPalette({
           onClick={() => setOpen(false)}
         >
           <div
+            ref={trapRef}
             role="dialog"
             aria-modal="true"
             aria-label="Busca"
