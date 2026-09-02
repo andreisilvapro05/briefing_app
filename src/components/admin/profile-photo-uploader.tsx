@@ -72,7 +72,12 @@ export function ProfilePhotoUploader({
         )}
       </div>
       <div className="flex flex-col gap-2">
-        {canEdit ? (
+        {profile === null ? (
+          // Ainda carregando o perfil — não mostrar a mensagem de "sessão
+          // compartilhada" antes de saber quem é (dava um flash confuso pra
+          // quem TEM conta própria).
+          <p className="text-xs text-fysi-muted">Carregando…</p>
+        ) : canEdit ? (
           <>
             <Button
               type="button"
@@ -96,8 +101,7 @@ export function ProfilePhotoUploader({
         ) : (
           <p className="text-xs text-fysi-muted max-w-xs">
             Sessão de senha compartilhada não tem foto própria — entre com
-            seu e-mail (magic link) pra ter seu próprio login e poder trocar
-            a foto.
+            seu login individual (e-mail + senha) pra poder trocar a foto.
           </p>
         )}
       </div>
