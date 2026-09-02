@@ -9,6 +9,7 @@ import {
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ProfilePhotoUploader } from "@/components/admin/profile-photo-uploader";
+import { ProfileNameEditor } from "@/components/admin/profile-name-editor";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
@@ -62,9 +63,13 @@ export default async function MeuPerfilPage({
             <span className="text-xs text-fysi-muted uppercase tracking-[0.1em] block mb-1">
               Nome
             </span>
-            <span className="text-sm text-fysi-deep font-medium">
-              {member.legacy ? "Equipe Fysi (sessão compartilhada)" : member.name}
-            </span>
+            <ProfileNameEditor
+              initialName={
+                member.legacy ? "Equipe Fysi (sessão compartilhada)" : member.name
+              }
+              urlKey={urlKey}
+              canEdit={member.source === "supabase"}
+            />
           </div>
           <div>
             <span className="text-xs text-fysi-muted uppercase tracking-[0.1em] block mb-1">

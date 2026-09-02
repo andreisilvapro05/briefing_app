@@ -73,7 +73,7 @@ export default async function MeuTrabalhoPage({
           </p>
         </section>
       ) : (
-        <MyWorkBoard tasks={myTasks} keyParam={keyParam} />
+        <MyWorkBoard tasks={myTasks} keyParam={keyParam} urlKey={urlKey} />
       )}
     </AdminShell>
   );

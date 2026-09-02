@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { SearchPalette } from "./search-palette";
 import { NotificationsBell } from "./notifications-bell";
 import { ProfileAvatar } from "./profile-avatar";
+import { ProfileNameLink } from "./profile-name-link";
 
 /**
  * AdminShell — layout do painel no estilo ClickUp: sidebar de ÁREAS da empresa
@@ -352,12 +353,11 @@ export function AdminShell({
           <div className="flex items-center gap-3 shrink-0">
             <NotificationsBell keyParam={keyParam} urlKey={urlKey} />
             <span className="hidden sm:flex flex-col items-end leading-tight">
-              <Link
-                href={`/admin/perfil${keyParam}`}
-                className="text-[0.78rem] font-medium text-fysi-deep truncate max-w-[180px] hover:underline"
-              >
-                {userEmail ?? "Equipe Fysi"}
-              </Link>
+              <ProfileNameLink
+                urlKey={urlKey}
+                keyParam={keyParam}
+                fallback={userEmail ?? null}
+              />
               <form method="post" action="/api/auth/admin-logout">
                 <button
                   type="submit"

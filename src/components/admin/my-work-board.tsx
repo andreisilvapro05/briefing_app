@@ -1,13 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   TASK_STATUS_OPTIONS,
   TASK_STATUS_GROUP,
+  TASK_PRIORITY_OPTIONS,
+  TEAM_MEMBERS,
   type ProjectTask,
+  type TaskStatus,
 } from "@/lib/project-tasks";
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
+import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
+import { useFocusTrap } from "./use-focus-trap";
 
 type Task = ProjectTask & { client: ProjectTaskClient };
 
@@ -16,6 +21,7 @@ const STATUS_DOT: Record<string, string> = {
   "nem-comecou-nada": "#94a3b8",
   "a-iniciar": "#94a3b8",
   onboarding: "#6366f1",
+  "envio-informacoes": "#06b6d4",
   "redacao-copy": "#ec4899",
   "design-pagina": "#8b5cf6",
   "validacao-design-copy": "#ef4444",
@@ -80,25 +86,119 @@ function formatDate(iso: string): string {
   }
 }
 
-function TaskRow({ task, keyParam }: { task: Task; keyParam: string }) {
+function statusLabelOf(status: string): string {
+  return TASK_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+}
+
+/**
+ * Bolinha de status clicável — abre um menu com todos os status (como no
+ * ClickUp). A troca salva na hora via updateProjectTaskAction.
+ */
+function StatusDotPicker({
+  task,
+  onPick,
+}: {
+  task: Task;
+  onPick: (status: TaskStatus) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDocDown(e: MouseEvent) {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onEsc(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDocDown);
+    document.addEventListener("keydown", onEsc);
+    return () => {
+      document.removeEventListener("mousedown", onDocDown);
+      document.removeEventListener("keydown", onEsc);
+    };
+  }, [open]);
+
+  return (
+    <span ref={ref} className="relative shrink-0 inline-flex">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        title={`Status: ${statusLabelOf(task.status)} — clique pra trocar`}
+        aria-label={`Trocar status (atual: ${statusLabelOf(task.status)})`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        className="w-4 h-4 rounded-full border-2 grid place-items-center hover:scale-125 transition-transform"
+        style={{ borderColor: STATUS_DOT[task.status] ?? "#94a3b8" }}
+      />
+      {open ? (
+        <div
+          className="absolute z-30 top-5 left-0 w-56 bg-white border border-fysi-line rounded-[12px] shadow-xl py-1 max-h-64 overflow-y-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {TASK_STATUS_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                if (o.value !== task.status) onPick(o.value);
+              }}
+              className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-xs text-left hover:bg-fysi-cream transition ${
+                o.value === task.status
+                  ? "font-semibold text-fysi-deep"
+                  : "text-fysi-muted"
+              }`}
+            >
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ background: STATUS_DOT[o.value] ?? "#94a3b8" }}
+              />
+              {o.label}
+              {o.value === task.status ? (
+                <span className="ml-auto text-fysi-deep">✓</span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </span>
+  );
+}
+
+function TaskRow({
+  task,
+  onOpen,
+  onSave,
+}: {
+  task: Task;
+  onOpen: () => void;
+  onSave: (field: string, value: string) => void;
+}) {
   const hoje = todayStr();
   const atrasada =
     !!task.data_vencimento &&
     task.data_vencimento < hoje &&
     TASK_STATUS_GROUP[task.status] === "ativo";
-  const statusLabel =
-    TASK_STATUS_OPTIONS.find((o) => o.value === task.status)?.label ?? task.status;
 
   return (
-    <Link
-      href={`/admin/${task.client_id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
-      className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] hover:bg-fysi-cream/50 transition group"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] hover:bg-fysi-cream/50 transition group cursor-pointer focus-visible:outline-2 focus-visible:outline-fysi-deep/40"
     >
-      <span
-        className="w-3 h-3 rounded-full border-2 shrink-0"
-        style={{ borderColor: STATUS_DOT[task.status] ?? "#94a3b8" }}
-        title={statusLabel}
-      />
+      <StatusDotPicker task={task} onPick={(s) => onSave("status", s)} />
       <span className="min-w-0 flex-1">
         <span className="block text-xs text-fysi-muted truncate">
           {task.client.empresa || task.client.nome}
@@ -119,20 +219,199 @@ function TaskRow({ task, keyParam }: { task: Task; keyParam: string }) {
           </span>
         ) : null}
       </span>
-    </Link>
+    </div>
+  );
+}
+
+/**
+ * Card da tarefa (estilo ClickUp) — abre ao clicar na linha. Status,
+ * prioridade, responsável e datas editáveis na hora; observações e link
+ * pro projeto completo.
+ */
+function TaskCardModal({
+  task,
+  keyParam,
+  saving,
+  onClose,
+  onSave,
+}: {
+  task: Task;
+  keyParam: string;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (field: string, value: string) => void;
+}) {
+  const trapRef = useFocusTrap<HTMLDivElement>(true);
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const selectClass =
+    "w-full rounded-[10px] border border-fysi-line bg-white px-2.5 py-1.5 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40";
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/30 flex items-start justify-center pt-[8vh] px-4"
+      onClick={onClose}
+    >
+      <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={task.titulo}
+        className="bg-white rounded-[20px] shadow-2xl w-full max-w-xl max-h-[82vh] overflow-hidden flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 px-6 py-5 border-b border-fysi-line">
+          <div className="min-w-0">
+            <p className="text-xs text-fysi-muted mb-1 truncate">
+              {task.client.empresa || task.client.nome}
+            </p>
+            <h2 className="text-lg font-semibold text-fysi-deep leading-snug">
+              {task.titulo}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {saving ? (
+              <span className="text-xs text-fysi-muted">Salvando…</span>
+            ) : null}
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-8 h-8 grid place-items-center rounded-full text-fysi-muted hover:bg-fysi-cream hover:text-fysi-deep transition"
+              aria-label="Fechar"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">
+          <div className="grid sm:grid-cols-2 gap-4">
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+                Status
+              </span>
+              <span className="relative inline-flex items-center">
+                <span
+                  className="absolute left-2.5 w-2.5 h-2.5 rounded-full pointer-events-none"
+                  style={{ background: STATUS_DOT[task.status] ?? "#94a3b8" }}
+                />
+                <select
+                  value={task.status}
+                  onChange={(e) => onSave("status", e.target.value)}
+                  className={`${selectClass} pl-7`}
+                >
+                  {TASK_STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+                Prioridade
+              </span>
+              <select
+                value={task.prioridade ?? ""}
+                onChange={(e) => onSave("prioridade", e.target.value)}
+                className={selectClass}
+              >
+                {TASK_PRIORITY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+                Responsável
+              </span>
+              <select
+                value={task.responsavel ?? ""}
+                onChange={(e) => onSave("responsavel", e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Sem responsável</option>
+                {TEAM_MEMBERS.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+                  Início
+                </span>
+                <input
+                  type="date"
+                  defaultValue={task.data_inicial ?? ""}
+                  onBlur={(e) => onSave("dataInicial", e.target.value)}
+                  className={selectClass}
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+                  Vencimento
+                </span>
+                <input
+                  type="date"
+                  defaultValue={task.data_vencimento ?? ""}
+                  onBlur={(e) => onSave("dataVencimento", e.target.value)}
+                  className={selectClass}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
+              Observações
+            </p>
+            {task.observacoes ? (
+              <p className="text-sm text-fysi-deep leading-relaxed whitespace-pre-wrap">
+                {task.observacoes}
+              </p>
+            ) : (
+              <p className="text-sm text-fysi-muted italic">Sem observações.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-fysi-line bg-fysi-cream/30">
+          <Link
+            href={`/admin/${task.client_id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
+            className="text-sm font-medium text-fysi-deep hover:underline"
+          >
+            Abrir no projeto (subtarefas, comentários) →
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 
 function GroupSection({
   grupo,
   tasks,
-  keyParam,
   defaultOpen,
+  onOpenTask,
+  onSave,
 }: {
   grupo: Grupo;
   tasks: Task[];
-  keyParam: string;
   defaultOpen: boolean;
+  onOpenTask: (id: string) => void;
+  onSave: (task: Task, field: string, value: string) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   if (tasks.length === 0) return null;
@@ -153,7 +432,12 @@ function GroupSection({
       {open ? (
         <div className="pb-1">
           {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} keyParam={keyParam} />
+            <TaskRow
+              key={t.id}
+              task={t}
+              onOpen={() => onOpenTask(t.id)}
+              onSave={(field, value) => onSave(t, field, value)}
+            />
           ))}
         </div>
       ) : null}
@@ -163,17 +447,71 @@ function GroupSection({
 
 type TabId = "pendente" | "feito" | "delegado";
 
-export function MyWorkBoard({ tasks, keyParam }: { tasks: Task[]; keyParam: string }) {
+export function MyWorkBoard({
+  tasks,
+  keyParam,
+  urlKey,
+}: {
+  tasks: Task[];
+  keyParam: string;
+  urlKey: string | null;
+}) {
   const [tab, setTab] = useState<TabId>("pendente");
+  const [patches, setPatches] = useState<Record<string, Partial<Task>>>({});
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+  const [saving, startTransition] = useTransition();
   const hoje = todayStr();
 
+  const merged = useMemo(
+    () => tasks.map((t) => ({ ...t, ...patches[t.id] })),
+    [tasks, patches]
+  );
+
+  const openTask = useMemo(
+    () => merged.find((t) => t.id === openTaskId) ?? null,
+    [merged, openTaskId]
+  );
+
+  function saveField(task: Task, field: string, value: string) {
+    const FIELD_TO_COLUMN: Record<string, keyof Task> = {
+      status: "status",
+      prioridade: "prioridade",
+      responsavel: "responsavel",
+      dataInicial: "data_inicial",
+      dataVencimento: "data_vencimento",
+    };
+    const column = FIELD_TO_COLUMN[field];
+    if (!column) return;
+    const previous = task[column];
+    // Otimista: aplica já; reverte se o servidor falhar.
+    setPatches((p) => ({
+      ...p,
+      [task.id]: { ...p[task.id], [column]: value || null },
+    }));
+    const fd = new FormData();
+    fd.append("taskId", task.id);
+    fd.append("clientId", task.client_id);
+    fd.append(field, value);
+    if (urlKey) fd.append("key", urlKey);
+    startTransition(async () => {
+      try {
+        await updateProjectTaskAction(fd);
+      } catch {
+        setPatches((p) => ({
+          ...p,
+          [task.id]: { ...p[task.id], [column]: previous },
+        }));
+      }
+    });
+  }
+
   const pendentes = useMemo(
-    () => tasks.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo"),
-    [tasks]
+    () => merged.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo"),
+    [merged]
   );
   const feitos = useMemo(
-    () => tasks.filter((t) => TASK_STATUS_GROUP[t.status] === "fechado"),
-    [tasks]
+    () => merged.filter((t) => TASK_STATUS_GROUP[t.status] === "fechado"),
+    [merged]
   );
 
   const grupos = useMemo(() => {
@@ -190,7 +528,12 @@ export function MyWorkBoard({ tasks, keyParam }: { tasks: Task[]; keyParam: stri
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] overflow-hidden">
       <div className="px-5 pt-4">
-        <p className="text-sm font-semibold text-fysi-deep mb-3">Meu trabalho</p>
+        <div className="flex items-baseline justify-between mb-3">
+          <p className="text-sm font-semibold text-fysi-deep">Meu trabalho</p>
+          {saving ? (
+            <span className="text-xs text-fysi-muted">Salvando…</span>
+          ) : null}
+        </div>
         <div className="flex gap-1 border-b border-fysi-line -mb-px">
           {(
             [
@@ -227,8 +570,9 @@ export function MyWorkBoard({ tasks, keyParam }: { tasks: Task[]; keyParam: stri
                 key={g}
                 grupo={g}
                 tasks={grupos[g]}
-                keyParam={keyParam}
                 defaultOpen={g === "hoje" || g === "atraso"}
+                onOpenTask={setOpenTaskId}
+                onSave={saveField}
               />
             ))}
           </div>
@@ -243,7 +587,12 @@ export function MyWorkBoard({ tasks, keyParam }: { tasks: Task[]; keyParam: stri
         ) : (
           <div className="pb-1">
             {feitos.map((t) => (
-              <TaskRow key={t.id} task={t} keyParam={keyParam} />
+              <TaskRow
+                key={t.id}
+                task={t}
+                onOpen={() => setOpenTaskId(t.id)}
+                onSave={(field, value) => saveField(t, field, value)}
+              />
             ))}
           </div>
         )
@@ -259,7 +608,16 @@ export function MyWorkBoard({ tasks, keyParam }: { tasks: Task[]; keyParam: stri
           .
         </p>
       ) : null}
+
+      {openTask ? (
+        <TaskCardModal
+          task={openTask}
+          keyParam={keyParam}
+          saving={saving}
+          onClose={() => setOpenTaskId(null)}
+          onSave={(field, value) => saveField(openTask, field, value)}
+        />
+      ) : null}
     </section>
   );
 }
-

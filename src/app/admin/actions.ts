@@ -280,3 +280,38 @@ export async function updateOwnPhotoAction(
   revalidatePath("/admin/membros");
   return { ok: true, url: data.publicUrl };
 }
+
+/**
+ * Troca o nome de exibição da PRÓPRIA pessoa logada — mesma regra da foto:
+ * só quem tem identidade própria (Caixa 0), e sempre a linha `member.id`
+ * da sessão, nunca um id vindo do form.
+ */
+export async function updateOwnNameAction(
+  formData: FormData
+): Promise<{ ok: true; name: string } | { ok: false; error: string }> {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) return { ok: false, error: "unauthenticated" };
+  if (member.source !== "supabase") {
+    return { ok: false, error: "sessao-sem-identidade-propria" };
+  }
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (name.length < 2 || name.length > 80) {
+    return { ok: false, error: "invalid-name" };
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const { error } = await service
+    .from("team_members")
+    .update({ name })
+    .eq("id", member.id);
+  if (error) {
+    logServerError("membros.nome.persist", error);
+    return { ok: false, error: "save-failed" };
+  }
+
+  revalidatePath("/admin/perfil");
+  revalidatePath("/admin/membros");
+  return { ok: true, name };
+}
