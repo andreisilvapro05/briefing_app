@@ -10,6 +10,7 @@ import {
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ProfilePhotoUploader } from "@/components/admin/profile-photo-uploader";
 import { ProfileNameEditor } from "@/components/admin/profile-name-editor";
+import { PasswordChanger } from "@/components/admin/password-changer";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
@@ -113,6 +114,14 @@ export default async function MeuPerfilPage({
           </Link>
           .
         </p>
+      </section>
+
+      <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mt-6">
+        <Eyebrow className="mb-3 block">Senha</Eyebrow>
+        <PasswordChanger
+          urlKey={urlKey}
+          canChange={member.source === "supabase"}
+        />
       </section>
     </AdminShell>
   );

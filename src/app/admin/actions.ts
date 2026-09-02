@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
-import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import {
+  createSupabaseServerClient,
+  createSupabaseServiceRoleClient,
+} from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
 import { logServerError } from "@/lib/api-helpers";
 
@@ -314,4 +317,47 @@ export async function updateOwnNameAction(
   revalidatePath("/admin/perfil");
   revalidatePath("/admin/membros");
   return { ok: true, name };
+}
+
+/**
+ * Troca a PRÓPRIA senha. Confere a senha atual antes (signInWithPassword)
+ * pra que uma sessão esquecida aberta não vire troca de senha por
+ * terceiro, e só então atualiza. Só pra login individual — sessão de senha
+ * compartilhada não tem senha própria pra trocar.
+ */
+export async function updateOwnPasswordAction(
+  formData: FormData
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) return { ok: false, error: "unauthenticated" };
+  if (member.source !== "supabase") {
+    return { ok: false, error: "sessao-sem-identidade-propria" };
+  }
+
+  const atual = String(formData.get("atual") ?? "");
+  const nova = String(formData.get("nova") ?? "");
+  if (nova.length < 8) return { ok: false, error: "senha-curta" };
+  if (nova === atual) return { ok: false, error: "senha-igual" };
+
+  let supabase;
+  try {
+    supabase = await createSupabaseServerClient();
+  } catch {
+    return { ok: false, error: "server-not-configured" };
+  }
+
+  const { error: signInErr } = await supabase.auth.signInWithPassword({
+    email: member.email,
+    password: atual,
+  });
+  if (signInErr) return { ok: false, error: "senha-atual-incorreta" };
+
+  const { error: updErr } = await supabase.auth.updateUser({ password: nova });
+  if (updErr) {
+    logServerError("perfil.senha.update", updErr);
+    return { ok: false, error: "save-failed" };
+  }
+
+  return { ok: true };
 }
