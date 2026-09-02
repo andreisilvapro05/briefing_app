@@ -25,6 +25,80 @@ async function requireAdminOrRedirect(urlKey: string | null) {
 }
 
 /**
+ * Define (ou troca) a SENHA individual de um membro — o admin gera aqui,
+ * copia e manda pra pessoa junto com o e-mail dela. Senha forte gerada no
+ * servidor, mostrada UMA vez. Não depende de e-mail chegar (Resend em modo
+ * de teste). A pessoa entra em /admin/login com e-mail + essa senha.
+ */
+export async function setMemberPasswordAction(
+  memberId: string,
+  urlKey: string | null
+): Promise<{ password: string } | { error: string }> {
+  const admin = await getCurrentMember({ urlKey });
+  if (!admin) return { error: "unauthenticated" };
+  if (!isAdmin(admin)) return { error: "forbidden" };
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: member } = await service
+    .from("team_members")
+    .select("email")
+    .eq("id", memberId)
+    .maybeSingle();
+  const email = (member as { email: string } | null)?.email?.toLowerCase();
+  if (!email) return { error: "member-not-found" };
+
+  const { randomBytes } = await import("node:crypto");
+  const password = randomBytes(12)
+    .toString("base64")
+    .replace(/[+/=]/g, "")
+    .slice(0, 16);
+
+  try {
+    // Cria o usuário de auth já com a senha; se já existe, atualiza a senha.
+    const { data: created, error: createErr } =
+      await service.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+
+    let userId = created?.user?.id ?? null;
+
+    if (createErr || !userId) {
+      // Usuário já existe — descobre o id via generateLink (não envia
+      // e-mail) e troca a senha.
+      const { data: linkData, error: linkErr } =
+        await service.auth.admin.generateLink({ type: "magiclink", email });
+      userId = linkData?.user?.id ?? null;
+      if (linkErr || !userId) {
+        logServerError("membros.senha.lookup", linkErr ?? createErr);
+        return { error: "user-lookup-failed" };
+      }
+      const { error: updErr } = await service.auth.admin.updateUserById(userId, {
+        password,
+      });
+      if (updErr) {
+        logServerError("membros.senha.update", updErr);
+        return { error: "password-set-failed" };
+      }
+    }
+
+    // Liga o auth_user_id já (senão só ligaria no primeiro login).
+    await service
+      .from("team_members")
+      .update({ auth_user_id: userId })
+      .eq("id", memberId)
+      .is("auth_user_id", null);
+
+    revalidatePath("/admin/membros");
+    return { password };
+  } catch (err) {
+    logServerError("membros.senha.throw", err);
+    return { error: "password-set-failed" };
+  }
+}
+
+/**
  * Gera um LINK de acesso direto pro membro (sem depender do e-mail) — o
  * admin copia e manda por WhatsApp. Usa admin.generateLink (não envia
  * e-mail) + a rota /auth/confirm (verifyOtp, sem PKCE, funciona em

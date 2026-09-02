@@ -7,6 +7,7 @@ import {
   updateOwnPhotoAction,
   type OwnProfile,
 } from "@/app/admin/actions";
+import { downscaleImage } from "@/lib/downscale-image";
 
 /**
  * Versão grande do upload de foto, pra página "Meu Perfil".
@@ -40,17 +41,24 @@ export function ProfilePhotoUploader({
     e.target.value = "";
     if (!file) return;
     setError(null);
-    const fd = new FormData();
-    fd.append("file", file);
-    if (urlKey) fd.append("key", urlKey);
     startTransition(async () => {
-      const res = await updateOwnPhotoAction(fd);
-      if (!res.ok) {
-        setError(humanUploadError(res.error));
-        return;
+      try {
+        // Comprime no navegador — sem isso, foto de celular (>1MB) estoura
+        // o limite de body da Server Action e derruba a página inteira.
+        const compact = await downscaleImage(file);
+        const fd = new FormData();
+        fd.append("file", compact);
+        if (urlKey) fd.append("key", urlKey);
+        const res = await updateOwnPhotoAction(fd);
+        if (!res.ok) {
+          setError(humanUploadError(res.error));
+          return;
+        }
+        setProfile((p) => (p ? { ...p, fotoUrl: res.url } : p));
+        router.refresh();
+      } catch {
+        setError("Não consegui enviar a foto. Tenta de novo (ou uma imagem menor).");
       }
-      setProfile((p) => (p ? { ...p, fotoUrl: res.url } : p));
-      router.refresh();
     });
   }
 
@@ -102,7 +110,8 @@ export function ProfilePhotoUploader({
               onChange={onFileChange}
             />
             <p className="text-xs text-fysi-muted">
-              JPG ou PNG, até 5MB. Dá pra clicar na foto também.
+              Qualquer foto serve — ela é reduzida automaticamente. Dá pra
+              clicar na foto também.
             </p>
             {error ? <p className="text-xs text-red-600">{error}</p> : null}
           </>

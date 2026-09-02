@@ -12,6 +12,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AutoSubmitSelect } from "@/components/admin/auto-submit-select";
 import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
 import { MemberAccessLinkButton } from "@/components/admin/member-access-link-button";
+import { MemberPasswordButton } from "@/components/admin/member-password-button";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 import {
   inviteMemberAction,
@@ -221,6 +222,11 @@ export default async function MembrosPage({
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-3">
+                      <MemberPasswordButton
+                        memberId={m.id}
+                        memberName={m.name}
+                        urlKey={urlKey}
+                      />
                       {!m.last_login_at ? (
                         <MemberAccessLinkButton memberId={m.id} urlKey={urlKey} />
                       ) : null}
