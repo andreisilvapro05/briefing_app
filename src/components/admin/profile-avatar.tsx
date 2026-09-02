@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   getOwnProfileAction,
@@ -12,9 +12,12 @@ import {
  * Avatar do topbar — foto de perfil real quando a pessoa tem (upload
  * próprio), iniciais como fallback. Busca no cliente (como o sino de
  * notificações) pra não precisar tocar nos ~18 call-sites do AdminShell.
- * Só quem entrou com identidade própria (Caixa 0 / Supabase Auth) pode
- * trocar — sessão de senha compartilhada não tem "dono" pra foto.
+ *
+ * O seletor de arquivo abre via <label htmlFor> nativo (input sr-only) —
+ * o padrão inputRef.click() era bloqueado em alguns navegadores (Safari).
  */
+const INPUT_ID = "topbar-foto-input";
+
 export function ProfileAvatar({
   urlKey,
   fallbackInitials,
@@ -26,16 +29,10 @@ export function ProfileAvatar({
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [uploading, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void getOwnProfileAction(urlKey ?? null).then(setProfile);
   }, [urlKey]);
-
-  function pickFile() {
-    if (!profile?.canEditPhoto || uploading) return;
-    inputRef.current?.click();
-  }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -59,37 +56,44 @@ export function ProfileAvatar({
   const initials = profile?.initials ?? fallbackInitials;
   const canEdit = profile?.canEditPhoto ?? false;
 
+  const face = profile?.fotoUrl ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={profile.fotoUrl} alt="" className="w-full h-full object-cover" />
+  ) : (
+    initials
+  );
+
   return (
     <div className="relative shrink-0">
-      <button
-        type="button"
-        onClick={pickFile}
-        disabled={!canEdit || uploading}
-        title={canEdit ? "Trocar foto de perfil" : undefined}
-        className={`w-9 h-9 rounded-full overflow-hidden grid place-items-center text-xs font-bold shrink-0 ${
-          profile?.fotoUrl ? "" : "bg-fysi-deep text-fysi-mint"
-        } ${canEdit ? "cursor-pointer hover:brightness-95" : "cursor-default"}`}
-      >
-        {profile?.fotoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={profile.fotoUrl}
-            alt=""
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          initials
-        )}
-      </button>
       {canEdit ? (
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={onFileChange}
-        />
-      ) : null}
+        <>
+          <label
+            htmlFor={INPUT_ID}
+            title="Trocar foto de perfil"
+            className={`w-9 h-9 rounded-full overflow-hidden grid place-items-center text-xs font-bold shrink-0 cursor-pointer hover:brightness-95 ${
+              profile?.fotoUrl ? "" : "bg-fysi-deep text-fysi-mint"
+            } ${uploading ? "opacity-60 pointer-events-none" : ""}`}
+          >
+            {face}
+          </label>
+          <input
+            id={INPUT_ID}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            disabled={uploading}
+            onChange={onFileChange}
+          />
+        </>
+      ) : (
+        <span
+          className={`w-9 h-9 rounded-full overflow-hidden grid place-items-center text-xs font-bold shrink-0 ${
+            profile?.fotoUrl ? "" : "bg-fysi-deep text-fysi-mint"
+          }`}
+        >
+          {face}
+        </span>
+      )}
       {error ? (
         <p className="absolute right-0 top-11 z-50 w-48 rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-xs text-red-600 shadow-lg">
           {error}

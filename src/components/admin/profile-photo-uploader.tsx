@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import {
   getOwnProfileAction,
   updateOwnPhotoAction,
@@ -10,9 +9,16 @@ import {
 } from "@/app/admin/actions";
 
 /**
- * Versão grande do upload de foto, pra página "Meu Perfil" — o avatar do
- * topbar (36px) é discreto demais pra ser a única forma de trocar a foto.
+ * Versão grande do upload de foto, pra página "Meu Perfil".
+ *
+ * O seletor de arquivo abre via <label htmlFor> NATIVO (input sr-only), não
+ * via inputRef.click() — o padrão programático era bloqueado em alguns
+ * navegadores (Safari) e a Karine reportou "não abre para upload da foto".
+ * Com label nativo, clicar no botão OU no próprio avatar abre o seletor em
+ * qualquer navegador, sem JavaScript no meio.
  */
+const INPUT_ID = "perfil-foto-input";
+
 export function ProfilePhotoUploader({
   urlKey,
   fallbackInitials,
@@ -24,16 +30,10 @@ export function ProfilePhotoUploader({
   const [profile, setProfile] = useState<OwnProfile | null>(null);
   const [uploading, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     void getOwnProfileAction(urlKey ?? null).then(setProfile);
   }, [urlKey]);
-
-  function pickFile() {
-    if (!profile?.canEditPhoto || uploading) return;
-    inputRef.current?.click();
-  }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -59,7 +59,14 @@ export function ProfilePhotoUploader({
 
   return (
     <div className="flex items-center gap-5">
-      <div className="w-24 h-24 rounded-full overflow-hidden grid place-items-center text-2xl font-bold shrink-0 bg-fysi-deep text-fysi-mint">
+      {/* O próprio avatar também abre o seletor quando pode editar */}
+      <label
+        htmlFor={canEdit ? INPUT_ID : undefined}
+        title={canEdit ? "Trocar foto de perfil" : undefined}
+        className={`w-24 h-24 rounded-full overflow-hidden grid place-items-center text-2xl font-bold shrink-0 bg-fysi-deep text-fysi-mint ${
+          canEdit ? "cursor-pointer hover:brightness-95 transition" : ""
+        }`}
+      >
         {profile?.fotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -70,32 +77,33 @@ export function ProfilePhotoUploader({
         ) : (
           initials
         )}
-      </div>
+      </label>
       <div className="flex flex-col gap-2">
         {profile === null ? (
-          // Ainda carregando o perfil — não mostrar a mensagem de "sessão
-          // compartilhada" antes de saber quem é (dava um flash confuso pra
-          // quem TEM conta própria).
           <p className="text-xs text-fysi-muted">Carregando…</p>
         ) : canEdit ? (
           <>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={pickFile}
-              disabled={uploading}
+            <label
+              htmlFor={INPUT_ID}
+              className={`inline-flex w-fit items-center gap-1.5 rounded-full border border-fysi-line bg-white text-sm font-medium text-fysi-deep px-4 py-2 transition ${
+                uploading
+                  ? "opacity-50 pointer-events-none"
+                  : "cursor-pointer hover:border-fysi-deep/40 hover:bg-fysi-cream/40"
+              }`}
             >
               {uploading ? "Enviando…" : "📷 Trocar foto"}
-            </Button>
+            </label>
             <input
-              ref={inputRef}
+              id={INPUT_ID}
               type="file"
               accept="image/*"
-              className="hidden"
+              className="sr-only"
+              disabled={uploading}
               onChange={onFileChange}
             />
-            <p className="text-xs text-fysi-muted">JPG ou PNG, até 5MB.</p>
+            <p className="text-xs text-fysi-muted">
+              JPG ou PNG, até 5MB. Dá pra clicar na foto também.
+            </p>
             {error ? <p className="text-xs text-red-600">{error}</p> : null}
           </>
         ) : (
