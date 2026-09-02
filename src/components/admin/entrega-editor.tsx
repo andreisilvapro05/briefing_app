@@ -327,7 +327,9 @@ export function EntregaEditor({
                   <div className="flex justify-end">
                     <button
                       type="button"
-                      onClick={() => removeAcesso(i)}
+                      onClick={() => {
+                        if (window.confirm("Remover este acesso? A senha/credencial guardada aqui será apagada.")) removeAcesso(i);
+                      }}
                       disabled={data.acessos.length <= 1}
                       className="text-xs text-red-600 hover:text-red-800 disabled:opacity-30"
                       aria-label="Remover acesso"
@@ -379,7 +381,9 @@ export function EntregaEditor({
                   <div className="flex justify-end">
                     <button
                       type="button"
-                      onClick={() => removeTutorial(i)}
+                      onClick={() => {
+                        if (window.confirm("Remover este tutorial?")) removeTutorial(i);
+                      }}
                       className="text-xs text-red-600 hover:text-red-800"
                       aria-label="Remover tutorial"
                     >
@@ -434,7 +438,9 @@ export function EntregaEditor({
                   <div className="flex justify-end">
                     <button
                       type="button"
-                      onClick={() => removeBackup(i)}
+                      onClick={() => {
+                        if (window.confirm("Remover este backup?")) removeBackup(i);
+                      }}
                       className="text-xs text-red-600 hover:text-red-800"
                       aria-label="Remover backup"
                     >
@@ -646,7 +652,9 @@ function ChecklistBlock({
             />
             <button
               type="button"
-              onClick={() => onRemove(i)}
+              onClick={() => {
+                if (window.confirm("Remover este item?")) onRemove(i);
+              }}
               className="text-xs text-red-600 hover:text-red-800 disabled:opacity-30"
               disabled={items.length <= 1}
               aria-label="Remover"

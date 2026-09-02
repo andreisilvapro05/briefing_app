@@ -248,7 +248,9 @@ export function CustomQuestionsEditor({
                     </button>
                     <button
                       type="button"
-                      onClick={() => remove(q.id)}
+                      onClick={() => {
+                        if (window.confirm("Remover esta pergunta deste cliente?")) remove(q.id);
+                      }}
                       disabled={pending}
                       className="text-red-700 underline underline-offset-2 disabled:opacity-50"
                     >

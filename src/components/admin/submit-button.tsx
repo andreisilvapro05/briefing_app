@@ -10,7 +10,7 @@ import { Button, type ButtonProps } from "@/components/ui/button";
  * revalidam e ficam na página; as que dão redirect navegam antes e só não
  * mostram — sem problema).
  */
-function useJustFinished(pending: boolean): boolean {
+export function useJustFinished(pending: boolean): boolean {
   const [justFinished, setJustFinished] = useState(false);
   const wasPending = useRef(false);
   useEffect(() => {

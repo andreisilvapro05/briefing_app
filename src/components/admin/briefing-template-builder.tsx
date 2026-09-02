@@ -333,7 +333,9 @@ export function BriefingTemplateBuilder({
                       </button>
                       <button
                         type="button"
-                        onClick={() => remove(q.id)}
+                        onClick={() => {
+                          if (window.confirm("Remover esta pergunta do MODELO? Ela some para todos os clientes que usam este template.")) remove(q.id);
+                        }}
                         className="text-red-700 underline underline-offset-2"
                       >
                         Remover

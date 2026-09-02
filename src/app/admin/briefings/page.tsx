@@ -185,6 +185,15 @@ export default async function BriefingsPage({
                   {q
                     ? `Nenhum cliente encontrado para "${q}". Tente outro nome, empresa ou e-mail.`
                     : "Nenhum cliente cadastrado ainda."}
+                  {!q ? (
+                    <>
+                      {" "}
+                      <Link href={`/admin/novo${keyParam}`} className="text-fysi-deep underline">
+                        Cadastrar o primeiro
+                      </Link>
+                      .
+                    </>
+                  ) : null}
                 </div>
               ) : (
                 <ul className="flex flex-col gap-3">

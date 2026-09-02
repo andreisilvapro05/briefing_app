@@ -470,10 +470,11 @@ export default async function AdminClientPage({
             </div>
           ) : (
             <div className="mt-3 bg-amber-50 border border-amber-200 rounded-[12px] p-4">
-              <p className="text-xs text-amber-800">
-                ⚠️ Link sem senha ainda não disponível — rode a migration
-                de <code className="font-mono">magic_slug</code> no Supabase
-                pra ativar.
+              <p className="text-xs text-amber-800 leading-relaxed">
+                ⚠️ O link direto deste cliente ainda não foi gerado. Recarregue
+                a página — ele é criado automaticamente. Se continuar assim,
+                o cliente pode entrar normalmente pelo código de acesso em{" "}
+                <span className="font-mono">/entrar</span>.
               </p>
             </div>
           )}

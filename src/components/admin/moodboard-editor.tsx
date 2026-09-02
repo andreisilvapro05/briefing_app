@@ -419,7 +419,9 @@ function CardEditor({
         </div>
         <button
           type="button"
-          onClick={onRemove}
+          onClick={() => {
+            if (window.confirm("Remover este card do moodboard?")) onRemove();
+          }}
           className="text-xs text-red-600 hover:text-red-800"
           aria-label="Remover card"
         >

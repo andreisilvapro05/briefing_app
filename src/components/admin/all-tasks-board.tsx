@@ -150,7 +150,8 @@ export function AllTasksBoard({
 
       {tasks.length === 0 ? (
         <p className="text-sm text-fysi-muted">
-          Nenhuma tarefa cadastrada ainda em nenhum projeto.
+          Nenhuma tarefa cadastrada ainda. As tarefas nascem na ficha do
+          cliente, na aba Tarefas — ou de um Modelo de projeto.
         </p>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-fysi-muted">

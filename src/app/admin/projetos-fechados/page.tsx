@@ -125,7 +125,8 @@ export default async function ProjetosFechadosPage({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-5 py-8 text-center text-fysi-muted">
-                  Nenhum projeto fechado ainda.
+                  Nenhum projeto fechado ainda. Esta lista é alimentada
+                  automaticamente pelo CRM quando um projeto é fechado por lá.
                 </td>
               </tr>
             ) : (

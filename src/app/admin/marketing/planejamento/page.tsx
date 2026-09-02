@@ -175,7 +175,7 @@ export default async function MarketingPlanejamentoPage({
                 <form action={deletePlanoItemAction} className="shrink-0">
                   {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                   <input type="hidden" name="id" value={item.id} />
-                  <DeleteButton />
+                  <DeleteButton what={`o item "${item.titulo}"`} />
                 </form>
               </li>
             ))}

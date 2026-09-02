@@ -146,7 +146,7 @@ export default async function MarketingMetasPage({
                   <form action={deleteGoalAction}>
                     {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                     <input type="hidden" name="id" value={g.id} />
-                    <DeleteButton />
+                    <DeleteButton what={`a meta "${g.titulo}"`} />
                   </form>
                 </div>
 

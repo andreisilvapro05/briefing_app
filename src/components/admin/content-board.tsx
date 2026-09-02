@@ -716,7 +716,9 @@ function CardModal({
                     </a>
                     <button
                       type="button"
-                      onClick={() => removeImage(url)}
+                      onClick={() => {
+                        if (window.confirm("Remover esta imagem do cartão?")) removeImage(url);
+                      }}
                       className="absolute top-1 right-1 w-6 h-6 grid place-items-center rounded-full bg-white/90 text-fysi-deep text-xs shadow hover:bg-white"
                       title="Remover imagem"
                     >
@@ -753,7 +755,9 @@ function CardModal({
             </label>
             <button
               type="button"
-              onClick={() => onDelete(card.id)}
+              onClick={() => {
+                if (window.confirm("Excluir este cartão? Não dá pra desfazer.")) onDelete(card.id);
+              }}
               className="text-sm text-red-700 hover:underline"
             >
               Excluir cartão
@@ -761,7 +765,8 @@ function CardModal({
           </div>
 
           <p className="text-[0.74rem] text-fysi-muted/80">
-            Em breve: etiquetas, datas, checklist e comentários.
+            Pra prazo, responsável e comentários, use o quadro de Tarefas do
+            projeto — este aqui é o planejamento de conteúdo.
           </p>
         </div>
 

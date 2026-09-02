@@ -49,6 +49,7 @@ export default function IdentificacaoPage() {
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [honeypot, setHoneypot] = useState("");
   const [turnstileToken, setTurnstileToken] = useState<string>("");
   const [existing, setExisting] = useState<Cliente | null>(null);
@@ -90,6 +91,7 @@ export default function IdentificacaoPage() {
       return;
     }
     setSubmitting(true);
+    setSubmitError(null);
     saveCliente({ nome: values.nome, whatsapp: values.whatsapp });
 
     const elapsedMs = mountedAt.current
@@ -110,7 +112,22 @@ export default function IdentificacaoPage() {
       }),
     })
       .then(async (res) => {
-        if (!res.ok) return;
+        if (!res.ok) {
+          // NÃO seguir em frente sem clientId: o briefing ficaria só neste
+          // navegador e a equipe nunca receberia (falha silenciosa que já
+          // existiu aqui). Mostra o erro e deixa a pessoa tentar de novo.
+          const code = await res
+            .json()
+            .then((d: { error?: string }) => d.error)
+            .catch(() => undefined);
+          throw new Error(
+            code === "captcha-required" || code === "captcha-failed"
+              ? "Não consegui validar a verificação de segurança. Atualize a página e tente de novo."
+              : code === "captcha-not-configured"
+                ? "Cadastro indisponível no momento. Fale com a equipe Fysi pelo WhatsApp."
+                : "Não consegui iniciar seu briefing agora. Tente de novo em instantes."
+          );
+        }
         const data = (await res.json()) as {
           clientId?: string;
           isExisting?: boolean;
@@ -124,12 +141,15 @@ export default function IdentificacaoPage() {
           setProjectType(data.projectType);
           nextRoute = "/dashboard";
         }
-      })
-      .catch(() => {
-        // Modo demo / offline — segue só com localStorage
-      })
-      .finally(() => {
         router.push(nextRoute);
+      })
+      .catch((err: unknown) => {
+        setSubmitting(false);
+        setSubmitError(
+          err instanceof Error
+            ? err.message
+            : "Não consegui iniciar seu briefing agora. Tente de novo."
+        );
       });
   }
 
@@ -274,6 +294,12 @@ export default function IdentificacaoPage() {
               onToken={setTurnstileToken}
               onExpire={() => setTurnstileToken("")}
             />
+          ) : null}
+
+          {submitError ? (
+            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-[12px] px-4 py-3">
+              {submitError}
+            </p>
           ) : null}
 
           <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 border-t border-fysi-line">

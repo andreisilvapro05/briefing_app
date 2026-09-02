@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
 import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -17,6 +18,7 @@ import {
   deleteCobrancaAction,
   marcarPagoEsteMesAction,
   registrarPagamentoAction,
+  removerPagamentoAction,
   updateCobrancaAction,
 } from "./actions";
 import { setPaymentAction } from "../[id]/actions";
@@ -466,7 +468,11 @@ export default async function CobrancasPage({
         {/* Lista */}
         {lista.length === 0 ? (
           <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-8 text-center text-fysi-muted text-sm">
-            Nenhuma cobrança nesse filtro.
+            Nenhuma cobrança nesse filtro.{" "}
+            <Link href={`/admin/cobrancas${keyParamFirst}`} className="text-fysi-deep underline">
+              Ver todas
+            </Link>
+            .
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -700,6 +706,20 @@ function CobrancaCard({
                   <span className="text-fysi-muted">
                     {new Date(h.pagoEm).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                   </span>
+                  <form action={removerPagamentoAction} className="ml-auto">
+                    {urlKey ? (
+                      <input type="hidden" name="key" value={urlKey} />
+                    ) : null}
+                    <input type="hidden" name="cobranca_id" value={cobranca.id} />
+                    <input type="hidden" name="pagamento_id" value={h.id} />
+                    <SubmitTextButton
+                      danger
+                      pendingLabel="Removendo…"
+                      confirm={`Remover o pagamento de ${formatBRL(h.valorPago)} (${h.mesReferencia}) do histórico?`}
+                    >
+                      remover
+                    </SubmitTextButton>
+                  </form>
                 </div>
               ))
             )}
