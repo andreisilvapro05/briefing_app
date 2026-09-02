@@ -18,8 +18,8 @@ import { hasValidAdminSession } from "./admin-session";
 /**
  * admin: sócio, acesso total. avancado: acesso completo sem ser sócio (ex:
  * atendimento). basico: acesso restrito aos projetos em que a pessoa está
- * marcada — enforcement dessa restrição ainda não implementado no código,
- * só o papel já existe (ver hasFullAccess). desenvolvedor: reservado.
+ * marcada — o enforcement é feito por getVisibleClientIds(), aplicado em
+ * todas as listas do admin. desenvolvedor: reservado.
  */
 export type MemberRole = "admin" | "avancado" | "basico" | "desenvolvedor";
 
