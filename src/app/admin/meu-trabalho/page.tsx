@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess, hasFullAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
 import { MyWorkBoard } from "@/components/admin/my-work-board";
@@ -42,6 +42,14 @@ export default async function MeuTrabalhoPage({
 
   const allTasks = member.taskValue ? await listAllProjectTasks() : [];
   const myTasks = allTasks.filter((t) => t.responsavel === member.taskValue);
+  // "Delegado": tarefas ATIVAS de outras pessoas — o que saiu da minha mão e
+  // ainda está rodando. Só pra quem tem visão da equipe (admin/avançado);
+  // "básico" não enxerga o trabalho dos outros.
+  const delegadas = hasFullAccess(member)
+    ? allTasks.filter(
+        (t) => t.responsavel && t.responsavel !== member.taskValue
+      )
+    : [];
 
   return (
     <AdminShell
@@ -76,7 +84,12 @@ export default async function MeuTrabalhoPage({
           </p>
         </section>
       ) : (
-        <MyWorkBoard tasks={myTasks} keyParam={keyParam} urlKey={urlKey} />
+        <MyWorkBoard
+          tasks={myTasks}
+          delegadas={delegadas}
+          keyParam={keyParam}
+          urlKey={urlKey}
+        />
       )}
     </AdminShell>
   );

@@ -445,14 +445,67 @@ function GroupSection({
   );
 }
 
+/** Bloco de uma pessoa na aba "Delegado" — mostra quantas estão atrasadas. */
+function PessoaSection({
+  label,
+  tarefas,
+  atrasadas,
+  onOpenTask,
+  onSave,
+}: {
+  label: string;
+  tarefas: Task[];
+  atrasadas: number;
+  onOpenTask: (id: string) => void;
+  onSave: (task: Task, field: string, value: string) => void;
+}) {
+  const [open, setOpen] = useState(true);
+
+  return (
+    <div className="border-t border-fysi-line first:border-t-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 w-full px-3 py-2.5 text-left hover:bg-fysi-cream/40 transition"
+      >
+        <span className={`text-fysi-muted transition-transform ${open ? "rotate-90" : ""}`}>
+          ▸
+        </span>
+        <span className="text-sm font-semibold text-fysi-deep">{label}</span>
+        <span className="text-xs text-fysi-muted">{tarefas.length}</span>
+        {atrasadas > 0 ? (
+          <span className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+            {atrasadas} em atraso
+          </span>
+        ) : null}
+      </button>
+      {open ? (
+        <div className="pb-1">
+          {tarefas.map((t) => (
+            <TaskRow
+              key={t.id}
+              task={t}
+              onOpen={() => onOpenTask(t.id)}
+              onSave={(field, value) => onSave(t, field, value)}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 type TabId = "pendente" | "feito" | "delegado";
 
 export function MyWorkBoard({
   tasks,
+  delegadas = [],
   keyParam,
   urlKey,
 }: {
   tasks: Task[];
+  /** Tarefas de OUTRAS pessoas — alimentam a aba "Delegado". Vazio pro papel básico. */
+  delegadas?: Task[];
   keyParam: string;
   urlKey: string | null;
 }) {
@@ -467,10 +520,13 @@ export function MyWorkBoard({
     [tasks, patches]
   );
 
-  const openTask = useMemo(
-    () => merged.find((t) => t.id === openTaskId) ?? null,
-    [merged, openTaskId]
-  );
+  const openTask = useMemo(() => {
+    if (!openTaskId) return null;
+    const found =
+      merged.find((t) => t.id === openTaskId) ??
+      delegadas.find((t) => t.id === openTaskId);
+    return found ? { ...found, ...patches[found.id] } : null;
+  }, [merged, delegadas, patches, openTaskId]);
 
   function saveField(task: Task, field: string, value: string) {
     const FIELD_TO_COLUMN: Record<string, keyof Task> = {
@@ -524,6 +580,39 @@ export function MyWorkBoard({
     for (const t of pendentes) map[grupoDe(t, hoje)].push(t);
     return map;
   }, [pendentes, hoje]);
+
+  // Aba "Delegado" — só tarefas ativas, agrupadas por pessoa, quem tem mais
+  // atrasadas primeiro (é o que precisa de cobrança).
+  const delegadasAtivas = useMemo(
+    () =>
+      delegadas
+        .map((t) => ({ ...t, ...patches[t.id] }))
+        .filter((t) => TASK_STATUS_GROUP[t.status] === "ativo"),
+    [delegadas, patches]
+  );
+
+  const porPessoa = useMemo(() => {
+    const map = new Map<string, Task[]>();
+    for (const t of delegadasAtivas) {
+      const k = t.responsavel ?? "";
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(t);
+    }
+    return Array.from(map.entries())
+      .map(([pessoa, tarefas]) => ({
+        pessoa,
+        label: TEAM_MEMBERS.find((m) => m.value === pessoa)?.label ?? pessoa,
+        tarefas: tarefas.sort((a, b) =>
+          (a.data_vencimento ?? "9999").localeCompare(b.data_vencimento ?? "9999")
+        ),
+      }))
+      .sort((a, b) => {
+        const atraso = (x: typeof a) =>
+          x.tarefas.filter((t) => t.data_vencimento && t.data_vencimento < hoje)
+            .length;
+        return atraso(b) - atraso(a) || b.tarefas.length - a.tarefas.length;
+      });
+  }, [delegadasAtivas, hoje]);
 
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-hidden">
@@ -599,14 +688,33 @@ export function MyWorkBoard({
       ) : null}
 
       {tab === "delegado" ? (
-        <p className="text-sm text-fysi-muted text-center py-10 px-6">
-          Delegação de tarefas ainda não é rastreada neste painel — dá pra
-          ver quem é responsável por cada tarefa em{" "}
-          <Link href={`/admin/tarefas${keyParam}`} className="text-fysi-deep underline">
-            Tarefas
-          </Link>
-          .
-        </p>
+        delegadasAtivas.length === 0 ? (
+          <p className="text-sm text-fysi-muted text-center py-10 px-6">
+            Nenhuma tarefa ativa com outra pessoa da equipe.{" "}
+            <Link href={`/admin/tarefas${keyParam}`} className="text-fysi-deep underline">
+              Ver todas as tarefas
+            </Link>
+            .
+          </p>
+        ) : (
+          <div>
+            {porPessoa.map(({ pessoa, label, tarefas }) => {
+              const atrasadas = tarefas.filter(
+                (t) => t.data_vencimento && t.data_vencimento < hoje
+              ).length;
+              return (
+                <PessoaSection
+                  key={pessoa}
+                  label={label}
+                  tarefas={tarefas}
+                  atrasadas={atrasadas}
+                  onOpenTask={setOpenTaskId}
+                  onSave={saveField}
+                />
+              );
+            })}
+          </div>
+        )
       ) : null}
 
       {openTask ? (
