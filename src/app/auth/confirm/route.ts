@@ -41,8 +41,17 @@ export async function GET(request: NextRequest) {
   const { data: userData } = await supabase.auth.getUser();
   const user = userData.user;
   if (user?.email) {
-    // Mesma ligação de auth_user_id do /auth/callback.
+    // Mesma ligação de auth_user_id do /auth/callback — membro E cliente,
+    // pra rota servir os dois tipos de link de acesso.
     const service = createSupabaseServiceRoleClient();
+    await service
+      .from("clients")
+      .update({
+        auth_user_id: user.id,
+        email_verified_at: new Date().toISOString(),
+      })
+      .eq("email", user.email)
+      .is("auth_user_id", null);
     await service
       .from("team_members")
       .update({ auth_user_id: user.id, last_login_at: new Date().toISOString() })

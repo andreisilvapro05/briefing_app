@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Eyebrow } from "@/components/ui/pill";
 
 export default function AdminLoginPage() {
-  const [mode, setMode] = useState<"email" | "senha">("email");
+  const [mode, setMode] = useState<"conta" | "email" | "senha">("conta");
 
   return (
     <Shell tone="deep" sectionLabel="Admin · Acesso">
@@ -17,39 +17,150 @@ export default function AdminLoginPage() {
           Acesso da equipe Fysi.
         </h1>
 
-        {mode === "email" ? <EmailLoginForm /> : <SenhaLoginForm />}
+        {mode === "conta" ? (
+          <ContaLoginForm />
+        ) : mode === "email" ? (
+          <EmailLoginForm />
+        ) : (
+          <SenhaLoginForm />
+        )}
 
         <p className="text-fysi-mint/50 text-xs mt-6 leading-relaxed">
-          {mode === "email" ? (
+          {mode === "conta" ? (
             <>
-              Ainda não recebeu convite por e-mail?{" "}
-              <button
-                type="button"
-                onClick={() => setMode("senha")}
-                className="underline hover:text-fysi-mint/80"
-              >
-                Acessar com a senha compartilhada
-              </button>
-              .
-            </>
-          ) : (
-            <>
+              Sem senha ainda?{" "}
               <button
                 type="button"
                 onClick={() => setMode("email")}
                 className="underline hover:text-fysi-mint/80"
               >
-                Entrar com seu e-mail
+                Receber link por e-mail
               </button>{" "}
-              em vez da senha compartilhada. Esqueceu a senha? Pergunte na
-              equipe — está no gerenciador de senhas interno, ou em{" "}
-              <code className="font-mono">ADMIN_PASSWORD</code> no painel
+              · ou{" "}
+              <button
+                type="button"
+                onClick={() => setMode("senha")}
+                className="underline hover:text-fysi-mint/80"
+              >
+                senha compartilhada
+              </button>{" "}
+              (legado).
+            </>
+          ) : mode === "email" ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setMode("conta")}
+                className="underline hover:text-fysi-mint/80"
+              >
+                Entrar com e-mail e senha
+              </button>{" "}
+              · ou{" "}
+              <button
+                type="button"
+                onClick={() => setMode("senha")}
+                className="underline hover:text-fysi-mint/80"
+              >
+                senha compartilhada
+              </button>{" "}
+              (legado).
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setMode("conta")}
+                className="underline hover:text-fysi-mint/80"
+              >
+                Entrar com sua conta individual
+              </button>{" "}
+              em vez da senha compartilhada. Esqueceu a senha compartilhada?
+              Pergunte na equipe — está no gerenciador de senhas interno, ou
+              em <code className="font-mono">ADMIN_PASSWORD</code> no painel
               Vercel.
             </>
           )}
         </p>
       </ContentFrame>
     </Shell>
+  );
+}
+
+function ContaLoginForm() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setStatus("loading");
+    setError(null);
+    try {
+      const res = await fetch("/api/auth/member-password-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!res.ok) {
+        setStatus("error");
+        setError(
+          res.status === 401
+            ? "E-mail ou senha incorretos."
+            : "Não foi possível entrar agora. Tente de novo em instantes."
+        );
+        return;
+      }
+      window.location.href = "/admin";
+    } catch {
+      setStatus("error");
+      setError("Erro de conexão. Tente novamente.");
+    }
+  }
+
+  return (
+    <>
+      <p className="text-fysi-mint/80 leading-relaxed mb-8">
+        Entre com seu e-mail e sua senha individual.
+      </p>
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white/5 border border-white/10 rounded-[20px] p-6 flex flex-col gap-5"
+      >
+        <Input
+          label="Seu e-mail"
+          name="email"
+          type="email"
+          required
+          autoComplete="email"
+          autoFocus
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="voce@fysilab.com.br"
+        />
+        <Input
+          label="Sua senha"
+          name="password"
+          type="password"
+          required
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          error={error ?? undefined}
+          placeholder="••••••••"
+        />
+        <Button
+          type="submit"
+          variant="accent"
+          disabled={
+            status === "loading" || email.length === 0 || password.length === 0
+          }
+          fullWidth
+        >
+          {status === "loading" ? "Entrando…" : "Entrar"}
+        </Button>
+      </form>
+    </>
   );
 }
 
