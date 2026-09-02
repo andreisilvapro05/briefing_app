@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentMember, hasFullAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { logServerError } from "@/lib/api-helpers";
 
 /**
  * Metas e planejamento de marketing incluem alvos de faturamento — dado
@@ -30,12 +31,13 @@ export async function createGoalAction(formData: FormData) {
   const unidade = String(formData.get("unidade") ?? "").trim() || null;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("marketing_goals").insert({
+  const { error: insErr } = await service.from("marketing_goals").insert({
     titulo,
     meta: Number.isFinite(meta) ? meta : 0,
     unidade,
     mes_referencia: mes,
   });
+  if (insErr) logServerError("marketing.meta.insert", insErr);
 
   revalidatePath("/admin/marketing/metas");
 }
@@ -48,10 +50,11 @@ export async function updateGoalAtualAction(formData: FormData) {
   const atual = Number(String(formData.get("atual") ?? "0").replace(",", "."));
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: updErr } = await service
     .from("marketing_goals")
     .update({ atual: Number.isFinite(atual) ? atual : 0, updated_at: new Date().toISOString() })
     .eq("id", id);
+  if (updErr) logServerError("marketing.meta.update", updErr);
 
   revalidatePath("/admin/marketing/metas");
 }
@@ -63,7 +66,11 @@ export async function deleteGoalAction(formData: FormData) {
   if (!id) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("marketing_goals").delete().eq("id", id);
+  const { error: delErr } = await service
+    .from("marketing_goals")
+    .delete()
+    .eq("id", id);
+  if (delErr) logServerError("marketing.meta.delete", delErr);
 
   revalidatePath("/admin/marketing/metas");
 }
@@ -78,11 +85,12 @@ export async function createPlanoItemAction(formData: FormData) {
   const descricao = String(formData.get("descricao") ?? "").trim() || null;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("marketing_plano_itens").insert({
+  const { error: insItemErr } = await service.from("marketing_plano_itens").insert({
     titulo,
     descricao,
     mes_referencia: mes,
   });
+  if (insItemErr) logServerError("marketing.plano.insert", insItemErr);
 
   revalidatePath("/admin/marketing/planejamento");
 }
@@ -95,10 +103,11 @@ export async function setPlanoItemStatusAction(formData: FormData) {
   if (!id || !["planejado", "em-andamento", "feito"].includes(status)) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: stErr } = await service
     .from("marketing_plano_itens")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", id);
+  if (stErr) logServerError("marketing.plano.status", stErr);
 
   revalidatePath("/admin/marketing/planejamento");
 }
@@ -110,7 +119,11 @@ export async function deletePlanoItemAction(formData: FormData) {
   if (!id) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("marketing_plano_itens").delete().eq("id", id);
+  const { error: delItemErr } = await service
+    .from("marketing_plano_itens")
+    .delete()
+    .eq("id", id);
+  if (delItemErr) logServerError("marketing.plano.delete", delItemErr);
 
   revalidatePath("/admin/marketing/planejamento");
 }

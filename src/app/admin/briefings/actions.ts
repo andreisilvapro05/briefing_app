@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { logServerError } from "@/lib/api-helpers";
 import type { CustomQuestionTipo } from "@/lib/custom-questions";
 import type { TemplateQuestion } from "@/lib/briefing-templates";
 import { getBriefingTemplate } from "@/lib/briefing-templates-server";
@@ -96,10 +97,11 @@ export async function saveBriefingTemplateAction(formData: FormData) {
   const perguntas = parsePerguntas(String(formData.get("perguntas") ?? "[]"));
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: updErr } = await service
     .from("briefing_templates")
     .update({ nome, perguntas, updated_at: new Date().toISOString() })
     .eq("id", id);
+  if (updErr) logServerError("briefings.template.update", updErr);
 
   revalidatePath("/admin/briefings");
   revalidatePath(`/admin/briefings/${id}`);
@@ -118,7 +120,11 @@ export async function deleteBriefingTemplateAction(formData: FormData) {
   if (!id) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("briefing_templates").delete().eq("id", id);
+  const { error: delErr } = await service
+    .from("briefing_templates")
+    .delete()
+    .eq("id", id);
+  if (delErr) logServerError("briefings.template.delete", delErr);
 
   revalidatePath("/admin/briefings");
   redirect(`/admin/briefings${keySuffix(urlKey)}`);
@@ -171,7 +177,10 @@ export async function applyTemplateToClientAction(formData: FormData) {
     ordem: offset + i,
   }));
 
-  await service.from("client_custom_questions").insert(rows);
+  const { error: insErr } = await service
+    .from("client_custom_questions")
+    .insert(rows);
+  if (insErr) logServerError("briefings.aplicar-template", insErr);
 
   revalidatePath(`/admin/${clientId}`);
   redirect(`/admin/${clientId}${keySuffix(urlKey)}#briefing`);
