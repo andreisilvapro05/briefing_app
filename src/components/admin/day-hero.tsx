@@ -49,9 +49,12 @@ function spNow(now: Date) {
   }).formatToParts(now);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   const hora = Number(get("hour"));
+  const weekday = get("weekday");
   return {
     hm: `${get("hour")}:${get("minute")}`,
-    dataLonga: `${get("weekday")}, ${get("day")} de ${get("month")}`,
+    // Só a primeira letra maiúscula ("Quarta-feira, 2 de setembro") — a
+    // classe `capitalize` do Tailwind capitalizava TODA palavra ("2 De…").
+    dataLonga: `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)}, ${get("day")} de ${get("month")}`,
     hora,
   };
 }
@@ -99,7 +102,7 @@ export function DayHero({ nome }: { nome: string }) {
           <p className="text-[3rem] leading-none font-semibold tracking-tight text-fysi-deep tabular-nums min-h-[3rem]">
             {sp?.hm ?? ""}
           </p>
-          <p className="text-sm text-fysi-deep/70 mt-1.5 capitalize min-h-[1.25rem]">
+          <p className="text-sm text-fysi-deep/70 mt-1.5 min-h-[1.25rem]">
             {sp?.dataLonga ?? ""}
           </p>
         </div>
