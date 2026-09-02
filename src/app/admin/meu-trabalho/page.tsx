@@ -4,6 +4,7 @@ import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
 import { MyWorkBoard } from "@/components/admin/my-work-board";
+import { DayHero } from "@/components/admin/day-hero";
 
 export const dynamic = "force-dynamic";
 
@@ -49,14 +50,16 @@ export default async function MeuTrabalhoPage({
       userEmail={member.email}
       hideFinance={!hasFinanceAccess(member)}
     >
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+      <header className="mb-5">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           {greeting()}{nome ? `, ${nome}` : ""}
         </h1>
       </header>
 
+      <DayHero nome={nome} />
+
       {!member.taskValue ? (
-        <section className="bg-white border border-fysi-line rounded-[20px] p-8 text-center">
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">
           <p className="text-fysi-deep font-medium mb-1">
             Sua conta ainda não está ligada a um responsável de tarefas
           </p>

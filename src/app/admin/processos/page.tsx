@@ -51,7 +51,7 @@ export default async function ProcessosPage({
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Processos &amp; Tutoriais
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">

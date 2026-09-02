@@ -121,7 +121,7 @@ export default async function ContractsPage({
     <AdminShell active="contratos" keyParam={keyParam} userEmail={member.email}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+            <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
               Contratos
             </h1>
             <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -143,7 +143,7 @@ export default async function ContractsPage({
           }
         />
 
-        <div className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 flex flex-col gap-3">
+        <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 mb-6 flex flex-col gap-3">
           <FilterPillRow
             label="Status"
             urlKey={urlKey}
@@ -200,7 +200,7 @@ export default async function ContractsPage({
           </p>
         ) : null}
 
-        <div className="bg-white border border-fysi-line rounded-[20px] overflow-x-auto">
+        <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
               <tr>

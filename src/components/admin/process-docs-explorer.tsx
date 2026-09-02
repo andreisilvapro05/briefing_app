@@ -111,7 +111,7 @@ export function ProcessDocsExplorer({ docs }: { docs: ProcessDocRow[] }) {
       </p>
 
       {filtered.length === 0 ? (
-        <p className="text-sm text-fysi-muted bg-white border border-fysi-line rounded-[16px] p-8 text-center">
+        <p className="text-sm text-fysi-muted bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-8 text-center">
           Nada encontrado.
         </p>
       ) : (
@@ -141,7 +141,7 @@ function ProcessDocCard({
     <button
       type="button"
       onClick={onOpen}
-      className="text-left bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-2 hover:border-fysi-deep/40 hover:shadow-sm transition"
+      className="text-left bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col gap-2 hover:border-fysi-deep/40 hover:shadow-sm transition"
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-medium text-fysi-deep leading-snug">

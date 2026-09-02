@@ -22,7 +22,7 @@ export default async function ConteudoPage({
   return (
     <AdminShell active="conteudo" keyParam={keyParam} userEmail={user.email}>
       <header className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Conteúdo
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">

@@ -75,7 +75,7 @@ export default async function MarketingMetasPage({
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Metas &amp; Indicadores
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -114,7 +114,7 @@ export default async function MarketingMetasPage({
 
       <form
         action={createGoalAction}
-        className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 grid sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-end"
+        className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 mb-6 grid sm:grid-cols-[1fr_auto_auto_auto] gap-3 items-end"
       >
         {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
         <input type="hidden" name="mesReferencia" value={mes} />
@@ -127,7 +127,7 @@ export default async function MarketingMetasPage({
       </form>
 
       {goals.length === 0 ? (
-        <p className="text-sm text-fysi-muted bg-white border border-fysi-line rounded-[16px] p-8 text-center">
+        <p className="text-sm text-fysi-muted bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-8 text-center">
           Nenhuma meta cadastrada pra {formatMes(mes)} ainda.
         </p>
       ) : (
@@ -137,7 +137,7 @@ export default async function MarketingMetasPage({
             return (
               <div
                 key={g.id}
-                className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-3"
+                className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col gap-3"
               >
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-sm font-medium text-fysi-deep leading-snug">

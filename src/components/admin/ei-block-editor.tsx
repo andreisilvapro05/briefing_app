@@ -92,7 +92,7 @@ export function EIBlockEditor({
   }, [editor]);
 
   return (
-    <div className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+    <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
       <div className="flex items-baseline justify-between mb-4 gap-3">
         <p className="text-xs text-fysi-muted">
           {savedAt ? (

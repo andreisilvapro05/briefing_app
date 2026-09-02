@@ -121,7 +121,7 @@ export function ProjectStageControls({
   }
 
   return (
-    <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
       <div className="flex items-baseline justify-between gap-3 mb-1 flex-wrap">
         <span className="text-[0.7rem] uppercase tracking-[0.14em] text-fysi-muted font-semibold">
           Andamento do projeto

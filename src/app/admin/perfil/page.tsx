@@ -42,7 +42,7 @@ export default async function MeuPerfilPage({
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Meu Perfil
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -50,12 +50,12 @@ export default async function MeuPerfilPage({
         </p>
       </header>
 
-      <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+      <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
         <Eyebrow className="mb-4 block">Foto de perfil</Eyebrow>
         <ProfilePhotoUploader urlKey={urlKey} fallbackInitials={initials} />
       </section>
 
-      <section className="bg-white border border-fysi-line rounded-[20px] p-6 flex flex-col gap-4">
+      <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 flex flex-col gap-4">
         <Eyebrow>Sobre você</Eyebrow>
 
         <div className="grid sm:grid-cols-2 gap-4">

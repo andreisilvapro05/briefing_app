@@ -21,6 +21,7 @@
     "lucide-react": "^1.14.0",
     "mammoth": "^1.12.0",
     "next": "16.2.4",
+    "node-ical": "^0.27.1",
     "openai": "^6.35.0",
     "pizzip": "^3.2.0",
     "react": "19.2.4",

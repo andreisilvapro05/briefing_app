@@ -78,7 +78,7 @@ export function AllTasksBoard({
   );
 
   return (
-    <section className="bg-white border border-fysi-line rounded-[20px] p-6">
+    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h3 className="text-lg font-medium text-fysi-deep">

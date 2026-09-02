@@ -23,7 +23,7 @@ export default async function NovoClientePage({
   return (
     <AdminShell active="clientes" keyParam={keyParam} userEmail={user.email}>
         <header className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+          <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
             Novo cliente
           </h1>
           <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -42,7 +42,7 @@ export default async function NovoClientePage({
 
         <form
           action={createClientAction}
-          className="bg-white border border-fysi-line rounded-[20px] p-6 flex flex-col gap-4"
+          className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 flex flex-col gap-4"
         >
           {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
 

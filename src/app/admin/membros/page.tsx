@@ -57,7 +57,7 @@ export default async function MembrosPage({
   return (
     <AdminShell active="membros" keyParam={keyParam} userEmail={member.email}>
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Membros da equipe
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -88,7 +88,7 @@ export default async function MembrosPage({
       </div>
 
       {/* Convidar novo membro */}
-      <section className="bg-white border border-fysi-line rounded-[20px] p-5 mb-6">
+      <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
         <Eyebrow>Convidar</Eyebrow>
         <form
           action={inviteMemberAction}
@@ -144,7 +144,7 @@ export default async function MembrosPage({
       </section>
 
       {/* Lista de membros */}
-      <div className="bg-white border border-fysi-line rounded-[20px] overflow-x-auto">
+      <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
             <tr>

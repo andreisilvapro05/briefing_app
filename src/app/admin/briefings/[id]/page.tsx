@@ -50,7 +50,7 @@ export default async function BriefingTemplatePage({
               </Link>
               <div className="mt-2">
                 <Eyebrow>Montar briefing</Eyebrow>
-                <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep mt-1">
+                <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep mt-1">
                   {template!.nome}
                 </h1>
               </div>

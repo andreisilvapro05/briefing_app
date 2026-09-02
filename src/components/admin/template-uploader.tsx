@@ -60,7 +60,7 @@ export function TemplateUploader({
   }
 
   return (
-    <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
       <div className="flex items-baseline justify-between mb-2">
         <Eyebrow>Modelo do contrato</Eyebrow>
         {currentTemplateUpdatedAt ? (

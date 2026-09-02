@@ -143,7 +143,7 @@ export default async function CobrancasPage({
     <AdminShell active="cobrancas" keyParam={keyParamFirst} userEmail={member.email}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+            <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
               Cobranças
             </h1>
             <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -191,7 +191,7 @@ export default async function CobrancasPage({
             com o valor que já está no contrato, e permite adicionar direto
             daqui (pedido do usuário 2026-09-01). */}
         {contratosSemValor.length > 0 ? (
-          <section className="bg-white border border-fysi-line rounded-[16px] p-5 mb-6">
+          <section className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-5 mb-6">
             <div className="mb-3">
               <h2 className="text-lg font-semibold tracking-tight text-fysi-deep">
                 Contratos sem valor de cobrança
@@ -249,7 +249,7 @@ export default async function CobrancasPage({
         ) : null}
 
         {/* A receber — projetos (saldos em aberto do valor do projeto) */}
-        <section className="bg-white border border-fysi-line rounded-[16px] p-5 mb-6">
+        <section className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-5 mb-6">
           <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-fysi-deep">
@@ -333,7 +333,7 @@ export default async function CobrancasPage({
         </h2>
 
         {/* Form adicionar — collapse */}
-        <details className="mb-6 bg-white border border-fysi-line rounded-[16px]">
+        <details className="mb-6 bg-white border border-fysi-line rounded-[16px] shadow-fysi-card">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-fysi-deep select-none">
             ➕ Adicionar cobrança
           </summary>
@@ -465,7 +465,7 @@ export default async function CobrancasPage({
 
         {/* Lista */}
         {lista.length === 0 ? (
-          <div className="bg-white border border-fysi-line rounded-[16px] p-8 text-center text-fysi-muted text-sm">
+          <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-8 text-center text-fysi-muted text-sm">
             Nenhuma cobrança nesse filtro.
           </div>
         ) : (

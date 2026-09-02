@@ -206,7 +206,7 @@ export function ContentBoard({
 
   if (columns.length === 0) {
     return (
-      <div className="bg-white border border-fysi-line rounded-[20px] p-10 text-center">
+      <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-10 text-center">
         <p className="text-fysi-deep font-medium">Quadro vazio</p>
         <p className="text-sm text-fysi-muted mt-1 mb-5">
           Crie as colunas do seu fluxo de conteúdo — ou comece com um modelo

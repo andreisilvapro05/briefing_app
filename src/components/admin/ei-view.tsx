@@ -17,7 +17,7 @@ const EIBlockEditor = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+      <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
         <div className="h-4 w-40 bg-fysi-cream rounded mb-4 animate-pulse" />
         <div className="h-64 bg-fysi-cream/60 rounded animate-pulse" />
       </div>

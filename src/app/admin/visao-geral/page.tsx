@@ -66,7 +66,7 @@ export default async function VisaoGeralPage({
   return (
     <AdminShell active="visao-geral" keyParam={keyParam} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Visão Geral
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -110,7 +110,7 @@ export default async function VisaoGeralPage({
       </section>
 
       {/* Tarefas pendentes */}
-      <section className="bg-white border border-fysi-line rounded-[20px] p-5 mb-6">
+      <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
         <div className="flex items-baseline justify-between mb-4">
           <Eyebrow>Tarefas pendentes da equipe</Eyebrow>
           <Link

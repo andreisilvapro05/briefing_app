@@ -236,7 +236,7 @@ export function BriefingTemplateBuilder({
   return (
     <div className="flex flex-col gap-6">
       {/* Nome + salvar */}
-      <div className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-3">
+      <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col gap-3">
         <Input
           label="Nome do briefing"
           value={nome}
@@ -364,7 +364,7 @@ export function BriefingTemplateBuilder({
       </div>
 
       {/* Aplicar a um cliente */}
-      <div className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-3">
+      <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col gap-3">
         <div>
           <p className="text-sm font-semibold text-fysi-deep">
             Aplicar a um cliente

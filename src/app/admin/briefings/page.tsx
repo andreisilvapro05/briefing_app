@@ -58,7 +58,7 @@ export default async function BriefingsPage({
     <AdminShell active="briefings" keyParam={keyParam} userEmail={user.email}>
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+                <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
                   Briefings
                 </h1>
                 <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -90,7 +90,7 @@ export default async function BriefingsPage({
             {/* Criar novo */}
             <form
               action={createBriefingTemplateAction}
-              className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-end"
+              className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-end"
             >
               {urlKey ? (
                 <input type="hidden" name="key" value={urlKey} />
@@ -116,7 +116,7 @@ export default async function BriefingsPage({
 
             {/* Lista */}
             {templates.length === 0 ? (
-              <div className="bg-white border border-fysi-line rounded-[20px] p-8 text-center text-fysi-muted text-sm">
+              <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center text-fysi-muted text-sm">
                 Nenhum briefing criado ainda. Crie o primeiro acima — depois é
                 só montar as perguntas e aplicar a um cliente.
               </div>
@@ -126,7 +126,7 @@ export default async function BriefingsPage({
                   <li key={t.id}>
                     <Link
                       href={`/admin/briefings/${t.id}${keyParam}`}
-                      className="block bg-white border border-fysi-line rounded-[16px] p-4 hover:border-fysi-mint-vivid transition h-full"
+                      className="block bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 hover:border-fysi-mint-vivid transition h-full"
                     >
                       <p className="font-semibold text-fysi-deep">{t.nome}</p>
                       <p className="text-xs text-fysi-muted mt-1">
@@ -156,7 +156,7 @@ export default async function BriefingsPage({
 
               <form
                 method="get"
-                className="bg-white border border-fysi-line rounded-[16px] p-4 mb-4 flex flex-col sm:flex-row gap-3 sm:items-end"
+                className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 mb-4 flex flex-col sm:flex-row gap-3 sm:items-end"
               >
                 {urlKey ? (
                   <input type="hidden" name="key" value={urlKey} />
@@ -181,7 +181,7 @@ export default async function BriefingsPage({
               </form>
 
               {clients.length === 0 ? (
-                <div className="bg-white border border-fysi-line rounded-[20px] p-8 text-center text-fysi-muted text-sm">
+                <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center text-fysi-muted text-sm">
                   {q
                     ? `Nenhum cliente encontrado para "${q}". Tente outro nome, empresa ou e-mail.`
                     : "Nenhum cliente cadastrado ainda."}
@@ -205,7 +205,7 @@ export default async function BriefingsPage({
                     return (
                       <li
                         key={c.id}
-                        className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+                        className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                       >
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">

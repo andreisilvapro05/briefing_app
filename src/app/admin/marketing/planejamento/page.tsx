@@ -88,7 +88,7 @@ export default async function MarketingPlanejamentoPage({
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Planejamento
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -127,7 +127,7 @@ export default async function MarketingPlanejamentoPage({
 
       <form
         action={createPlanoItemAction}
-        className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-end"
+        className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-end"
       >
         {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
         <input type="hidden" name="mesReferencia" value={mes} />
@@ -143,11 +143,11 @@ export default async function MarketingPlanejamentoPage({
       </form>
 
       {itens.length === 0 ? (
-        <p className="text-sm text-fysi-muted bg-white border border-fysi-line rounded-[16px] p-8 text-center">
+        <p className="text-sm text-fysi-muted bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-8 text-center">
           Nada planejado pra {formatMes(mes)} ainda.
         </p>
       ) : (
-        <div className="bg-white border border-fysi-line rounded-[20px] overflow-hidden">
+        <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-hidden">
           <ul className="divide-y divide-fysi-line">
             {itens.map((item) => (
               <li key={item.id} className="flex items-start gap-3 px-5 py-4">

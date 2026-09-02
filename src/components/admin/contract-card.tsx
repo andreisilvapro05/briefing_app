@@ -483,7 +483,7 @@ export function ContractCard(props: ContractCardProps) {
   const noName = !signerName.trim();
 
   return (
-    <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
       <div className="flex items-baseline justify-between gap-3 mb-4 flex-wrap">
         <Eyebrow>Contrato (Autentique)</Eyebrow>
         <div className="flex items-center gap-2">

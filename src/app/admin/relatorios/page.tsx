@@ -92,7 +92,7 @@ export default async function AdminRelatoriosPage({
     <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={member.email}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">Relatórios</h1>
+            <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">Relatórios</h1>
             <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
               Visão geral de pipeline, conversão, receita e saúde dos projetos.
             </p>

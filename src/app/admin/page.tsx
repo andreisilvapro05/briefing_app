@@ -195,7 +195,7 @@ export default async function AdminPage({
     <AdminShell active="clientes" keyParam={keyParamFirst} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep">
+            <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
               Painel de clientes
             </h1>
             <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
@@ -265,7 +265,7 @@ export default async function AdminPage({
         {/* Filtros */}
         <form
           method="get"
-          className="bg-white border border-fysi-line rounded-[16px] p-4 mb-6 grid sm:grid-cols-[1fr_auto_auto] gap-3"
+          className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 mb-6 grid sm:grid-cols-[1fr_auto_auto] gap-3"
         >
           {/* Preserva ?key= entre filtros se for esse o método de auth */}
           {member.source === "url-key-legacy" && urlKey ? (
@@ -321,7 +321,7 @@ export default async function AdminPage({
 
         {/* Mobile (< md): cards empilhados — a tabela de 7 colunas não cabe
             na tela e força scroll horizontal, escondendo a informação. */}
-        <div className="md:hidden bg-white border border-fysi-line rounded-[20px] divide-y divide-fysi-line overflow-hidden">
+        <div className="md:hidden bg-white border border-fysi-line rounded-[20px] shadow-fysi-card divide-y divide-fysi-line overflow-hidden">
           {clients.length === 0 ? (
             <p className="px-5 py-8 text-center text-fysi-muted text-sm">
               {q || statusFilter || tipoFilter
@@ -399,7 +399,7 @@ export default async function AdminPage({
         </div>
 
         {/* Desktop (md+): tabela completa */}
-        <div className="hidden md:block bg-white border border-fysi-line rounded-[20px] overflow-x-auto">
+        <div className="hidden md:block bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
               <tr>

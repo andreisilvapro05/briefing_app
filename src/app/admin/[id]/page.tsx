@@ -315,13 +315,13 @@ export default async function AdminClientPage({
                   client.project_type
                 : "Tipo a definir"}
             </Eyebrow>
-            <h1 className="text-2xl font-semibold tracking-tight text-fysi-deep mt-2">
+            <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep mt-2">
               {client.empresa || client.nome}
             </h1>
             <p className="text-fysi-muted text-sm mt-1">{headerLinha}</p>
           </div>
 
-          <aside className="bg-white border border-fysi-line rounded-[16px] p-4 flex flex-col gap-3 text-sm">
+          <aside className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col gap-3 text-sm">
             <div className="grid grid-cols-2 gap-2">
               <form action={setProjectTypeAction} className="flex flex-col gap-1">
                 <label className="text-xs uppercase tracking-[0.1em] text-fysi-muted font-medium">
@@ -403,7 +403,7 @@ export default async function AdminClientPage({
         {tab === "geral" ? (
         <>
         {/* Situação do projeto — onde o cliente está, num olhar */}
-        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0">
               <Eyebrow>Onde o cliente está</Eyebrow>
@@ -444,7 +444,7 @@ export default async function AdminClientPage({
         </section>
 
         {/* Link de acesso pro cliente — pra mandar via WhatsApp */}
-        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <Eyebrow>Acesso do cliente</Eyebrow>
 
           {painelLink ? (
@@ -603,7 +603,7 @@ Qualquer dúvida, é só responder por aqui.`}
         />
 
         {/* Dados do cliente — editáveis pelo admin (pra contrato) */}
-        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <Eyebrow>Dados do cliente (para contrato)</Eyebrow>
           <p className="text-sm text-fysi-muted mt-1 mb-4">
             Edite aqui os dados que vão no contrato. Se preencher e-mail, CPF
@@ -686,7 +686,7 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
 
         {tab === "ei" ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] p-8 text-center">
+          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">
             {eiDocId ? (
               <>
                 <p className="text-fysi-deep font-medium">
@@ -724,7 +724,7 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
 
         {tab === "briefing" ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] p-6 flex flex-col gap-4">
+          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 flex flex-col gap-4">
             <div>
               <h3 className="text-lg font-medium text-fysi-deep">
                 Perguntas específicas
@@ -745,7 +745,7 @@ Qualquer dúvida, é só responder por aqui.`}
         {tab === "moodboard" ? (
         <>
         {magicSlug ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
             <Eyebrow>Compartilhar com o cliente</Eyebrow>
             <p className="text-xs text-fysi-muted mt-1 mb-3">
               Página pública do moodboard — mande pro cliente ver as
@@ -783,7 +783,7 @@ Qualquer dúvida, é só responder por aqui.`}
         {tab === "entrega" ? (
         <>
         {magicSlug ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
             <Eyebrow>Compartilhar com o cliente</Eyebrow>
             <p className="text-xs text-fysi-muted mt-1 mb-3">
               Página pública do Documento de Entrega — o cliente abre e baixa
@@ -855,7 +855,7 @@ Qualquer dúvida, é só responder por aqui.`}
           const pct =
             total > 0 ? Math.min(100, Math.round((pago / total) * 100)) : 0;
           return (
-            <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+            <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
               <div className="flex items-baseline justify-between mb-4">
                 <Eyebrow>Pagamento</Eyebrow>
                 {total > 0 ? (
@@ -978,7 +978,7 @@ Qualquer dúvida, é só responder por aqui.`}
 
         {tab === "drive" ? (
         /* Drive — links manuais (Fysi + cliente) */
-        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <Eyebrow>Drive</Eyebrow>
 
           <div className="mt-4 flex flex-col gap-5">
@@ -1081,7 +1081,7 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
 
         {tab === "problemas" ? (
-        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <Eyebrow>Mapeamento de problemas</Eyebrow>
           <h2 className="text-lg font-medium text-fysi-deep mt-1 mb-4">
             Bloco de notas
@@ -1097,7 +1097,7 @@ Qualquer dúvida, é só responder por aqui.`}
             Inicial). Pedido do usuário 2026-08-31, ver referência real em
             https://app.clickup.com/31006509/docs/xj7td-41071. */}
         {briefingDoc ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
             <Eyebrow>Briefing — documento da call</Eyebrow>
             <div className="mt-4">
               <EIView
@@ -1111,7 +1111,7 @@ Qualquer dúvida, é só responder por aqui.`}
         ) : null}
 
         {/* Resumo de preenchimento do briefing (formulário que o cliente preenche sozinho) */}
-        <section className="bg-white border border-fysi-line rounded-[20px] p-6 mb-6">
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <div className="flex items-baseline justify-between mb-4">
             <Eyebrow>Preenchimento do briefing</Eyebrow>
             <span className="text-xs text-fysi-muted">
@@ -1167,7 +1167,7 @@ Qualquer dúvida, é só responder por aqui.`}
 
         {/* Respostas detalhadas, bloco a bloco */}
         {briefingVazio ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] p-8 text-center">
+          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">
             <p className="text-fysi-deep font-medium mb-1">
               Briefing ainda não preenchido
             </p>
@@ -1184,7 +1184,7 @@ Qualquer dúvida, é só responder por aqui.`}
               return (
                 <section
                   key={bloco.id}
-                  className="bg-white border border-fysi-line rounded-[20px] p-6"
+                  className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6"
                 >
                   <div className="flex items-baseline justify-between gap-3">
                     <Eyebrow>

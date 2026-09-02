@@ -155,7 +155,7 @@ export function StatusPieBoard({
   return (
     <div>
       {/* Pizza + legenda */}
-      <section className="bg-white border border-fysi-line rounded-[16px] p-5 mb-5">
+      <section className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-5 mb-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
           <h2 className="text-[0.7rem] uppercase tracking-[0.14em] text-fysi-muted font-semibold">
             Projetos por status
@@ -305,7 +305,7 @@ export function StatusPieBoard({
         {shown.map((g) => (
           <div
             key={g.id}
-            className="bg-white border border-fysi-line rounded-[16px] overflow-hidden"
+            className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card overflow-hidden"
           >
             <div className="flex items-center gap-3 px-5 py-3.5 border-b border-fysi-line">
               <span

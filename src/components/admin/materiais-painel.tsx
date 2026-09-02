@@ -43,7 +43,7 @@ export function MateriaisPainel({
   const zipUrl = `/api/admin/files/zip/${clientId}${keySuffix}`;
 
   return (
-    <section className="bg-white border border-fysi-line rounded-[20px] p-6">
+    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6">
       <div className="flex items-baseline justify-between mb-4 gap-3">
         <div>
           <Eyebrow>Materiais do cliente</Eyebrow>

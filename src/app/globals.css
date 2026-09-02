@@ -249,3 +249,11 @@ body {
 .input:focus {
   border-color: rgba(79, 153, 138, 0.4);
 }
+
+/* Sombra suave dos cards do admin — flutuação leve estilo Apple, aplicada
+   junto com `bg-white border border-fysi-line rounded-[16/20px]`. */
+.shadow-fysi-card {
+  box-shadow:
+    0 1px 2px rgba(4, 43, 48, 0.04),
+    0 12px 32px -16px rgba(4, 43, 48, 0.12);
+}

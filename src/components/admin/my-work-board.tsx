@@ -526,7 +526,7 @@ export function MyWorkBoard({
   }, [pendentes, hoje]);
 
   return (
-    <section className="bg-white border border-fysi-line rounded-[20px] overflow-hidden">
+    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-hidden">
       <div className="px-5 pt-4">
         <div className="flex items-baseline justify-between mb-3">
           <p className="text-sm font-semibold text-fysi-deep">Meu trabalho</p>
