@@ -78,9 +78,10 @@ function annularPath(a0: number, a1: number): string {
 
 type PeriodoFiltro = "todos" | Periodo;
 
+// "Esta semana" removido a pedido da Karine (2026-09-02) — projeto de
+// agência não abre/fecha na semana, o filtro quase sempre ficava vazio.
 const PERIODO_OPTIONS: { value: PeriodoFiltro; label: string }[] = [
   { value: "todos", label: "Todo o período" },
-  { value: "semana", label: "Esta semana" },
   { value: "mes", label: "Este mês" },
 ];
 

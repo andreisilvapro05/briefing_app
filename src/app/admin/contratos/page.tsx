@@ -180,7 +180,6 @@ export default async function ContractsPage({
             otherParams={{ status: params.status, tipo: params.tipo }}
             options={[
               { value: "", label: "Todo o período" },
-              { value: "semana", label: "Esta semana" },
               { value: "mes", label: "Este mês" },
             ]}
           />
