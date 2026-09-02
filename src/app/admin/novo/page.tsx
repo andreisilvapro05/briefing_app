@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFullAccess, hasFinanceAccess } from "@/lib/member";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { createClientAction } from "../[id]/actions";
 
@@ -14,14 +14,23 @@ export default async function NovoClientePage({
 }) {
   const sp = await searchParams;
   const urlKey = sp.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  // Cadastrar cliente é ato comercial — papel "básico" não cria.
+  if (!hasFullAccess(member)) {
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   // Sempre preserva ?key= se veio na URL (mesmo se cookie também autenticou).
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
   return (
-    <AdminShell active="clientes" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell
+      active="clientes"
+      keyParam={keyParam}
+      userEmail={member.email}
+      hideFinance={!hasFinanceAccess(member)}
+    >
         <header className="mb-6">
           <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
             Novo cliente

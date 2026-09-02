@@ -514,8 +514,11 @@ export async function deleteClientAction(formData: FormData) {
  */
 export async function createClientAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  // Mesma regra da tela /admin/novo: criar cliente é ato comercial.
+  if (!hasFullAccess(member))
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
 
   function val(key: string): string {
     return String(formData.get(key) ?? "").trim();

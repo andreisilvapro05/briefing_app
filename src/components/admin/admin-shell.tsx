@@ -270,8 +270,12 @@ export function AdminShell({
 }) {
   const crumb = LABELS[active];
   const initials = (userEmail ?? "F").slice(0, 2).toUpperCase();
+  // "básico" (mesmo flag do Financeiro) também não vê Marketing e Comercial:
+  // metas guardam alvos de faturamento — dado comercial sensível.
   const areas = hideFinance
-    ? AREAS.filter((a) => a.label !== "Financeiro")
+    ? AREAS.filter(
+        (a) => a.label !== "Financeiro" && a.label !== "Marketing e Comercial"
+      )
     : AREAS;
   const urlKey = keyParam ? new URLSearchParams(keyParam).get("key") : null;
 

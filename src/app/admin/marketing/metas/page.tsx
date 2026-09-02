@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Eyebrow } from "@/components/ui/pill";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { Input } from "@/components/ui/input";
-import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess, hasFullAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { GoalProgressInput } from "@/components/admin/goal-progress-input";
@@ -51,6 +51,10 @@ export default async function MarketingMetasPage({
   const urlKey = params.key ?? null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  // Metas/planejamento incluem alvos de faturamento — não pro papel "básico".
+  if (!hasFullAccess(member)) {
+    redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const mes = params.mes || currentMonth();

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Eyebrow } from "@/components/ui/pill";
 import { SubmitTextButton } from "@/components/admin/submit-button";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFullAccess, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { BriefingTemplateBuilder } from "@/components/admin/briefing-template-builder";
@@ -21,8 +21,13 @@ export default async function BriefingTemplatePage({
   const { id } = await params;
   const { key } = await searchParams;
   const urlKey = key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  // Template de briefing é configuração da agência (vale pra todos os
+  // clientes) — só quem tem visão completa edita.
+  if (!hasFullAccess(member)) {
+    redirect(`/admin/briefings${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
 
@@ -40,7 +45,12 @@ export default async function BriefingTemplatePage({
     | null) ?? [];
 
   return (
-    <AdminShell active="briefings" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell
+      active="briefings"
+      keyParam={keyParam}
+      userEmail={member.email}
+      hideFinance={!hasFinanceAccess(member)}
+    >
       <header className="mb-6">
               <Link
                 href={`/admin/briefings${keyParam}`}

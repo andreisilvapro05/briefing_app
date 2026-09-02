@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
 import { SubmitTextButton } from "@/components/admin/submit-button";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { listBriefingTemplates } from "@/lib/briefing-templates-server";
@@ -31,8 +31,11 @@ export default async function BriefingsPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  // Escopo por papel: "básico" só enxerga os clientes em que está marcado
+  // (mesma regra das outras listas). Antes esta tela listava TODOS.
+  const visibleIds = await getVisibleClientIds(member);
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const templates = await listBriefingTemplates();
@@ -46,16 +49,25 @@ export default async function BriefingsPage({
     )
     .order("created_at", { ascending: false })
     .limit(30);
+  if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
   if (q) {
     clientsQuery = clientsQuery.or(
       `nome.ilike.%${q}%,empresa.ilike.%${q}%,email.ilike.%${q}%`,
     );
   }
-  const { data: clientsData } = await clientsQuery;
+  // Sem nenhum cliente visível, nem chega a consultar: `.in(col, [])` do
+  // PostgREST não é confiável pra "nada" (pode devolver tudo).
+  const clientsData =
+    visibleIds && visibleIds.size === 0 ? [] : (await clientsQuery).data;
   const clients = (clientsData ?? []) as ClientRow[];
 
   return (
-    <AdminShell active="briefings" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell
+      active="briefings"
+      keyParam={keyParam}
+      userEmail={member.email}
+      hideFinance={!hasFinanceAccess(member)}
+    >
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
               <div>
                 <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
