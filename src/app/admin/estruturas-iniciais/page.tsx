@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
-import { getTemplateDocument, listEIDocuments } from "@/lib/ei-documents-server";
+import { getTemplateDocumentId, listEIDocuments } from "@/lib/ei-documents-server";
 import { AdminShell } from "@/components/admin/admin-shell";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +23,10 @@ export default async function EstruturasIniciaisIndexPage({
   if (!member) redirect("/admin/login");
 
   const kp = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
-  const template = await getTemplateDocument("ei");
-  const destinoId = template?.id ?? (await listEIDocuments("ei"))[0]?.id ?? null;
+  const destinoId =
+    (await getTemplateDocumentId("ei")) ??
+    (await listEIDocuments("ei"))[0]?.id ??
+    null;
 
   if (destinoId) redirect(`/admin/estruturas-iniciais/${destinoId}${kp}`);
 

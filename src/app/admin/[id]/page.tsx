@@ -1,3 +1,4 @@
+import dynamicImport from "next/dynamic";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -19,7 +20,7 @@ import {
   isEmpty,
 } from "@/lib/briefing-labels";
 import type { ProjectType } from "@/lib/types";
-import { ContractCard } from "@/components/admin/contract-card";
+
 import { MateriaisPainel } from "@/components/admin/materiais-painel";
 import { ClientTabs, type ClientTab } from "@/components/admin/client-tabs";
 import { createEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
@@ -28,10 +29,10 @@ import {
   getOrCreateClientDocument,
 } from "@/lib/ei-documents-server";
 import { EIView } from "@/components/admin/ei-view";
-import { EntregaEditor } from "@/components/admin/entrega-editor";
-import { MoodboardEditor } from "@/components/admin/moodboard-editor";
+
+
 import { ProblemasEditor } from "@/components/admin/problemas-editor";
-import { CustomQuestionsEditor } from "@/components/admin/custom-questions-editor";
+
 import { listCustomQuestions } from "@/lib/custom-questions-server";
 import type { Moodboard } from "@/lib/moodboard";
 import type { EntregaDocumento } from "@/lib/entrega";
@@ -52,11 +53,35 @@ import {
 } from "./actions";
 import { generateMagicSlug } from "@/lib/slug";
 import { ProjectStageControls } from "@/components/admin/project-stage-controls";
-import { TasksBoard } from "@/components/admin/tasks-board";
+
 import { listProjectTasks } from "@/lib/project-tasks-server";
 import { TASK_STATUS_GROUP } from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Componentes pesados por aba, carregados sob demanda. A ficha do cliente
+ * tem 10 abas mas renderiza UMA por vez — importar tudo de forma estática
+ * mandava ContractCard (1300 linhas), TasksBoard (957), EntregaEditor (678)
+ * e MoodboardEditor (447) no bundle de toda abertura, inclusive na aba
+ * "geral", que não usa nenhum deles.
+ */
+const ContractCard = dynamicImport(() =>
+  import("@/components/admin/contract-card").then((m) => m.ContractCard)
+);
+const TasksBoard = dynamicImport(() =>
+  import("@/components/admin/tasks-board").then((m) => m.TasksBoard)
+);
+const EntregaEditor = dynamicImport(() =>
+  import("@/components/admin/entrega-editor").then((m) => m.EntregaEditor)
+);
+const MoodboardEditor = dynamicImport(() =>
+  import("@/components/admin/moodboard-editor").then((m) => m.MoodboardEditor)
+);
+const CustomQuestionsEditor = dynamicImport(() =>
+  import("@/components/admin/custom-questions-editor").then((m) => m.CustomQuestionsEditor)
+);
+
 
 interface BriefingResponse {
   field_id: string;

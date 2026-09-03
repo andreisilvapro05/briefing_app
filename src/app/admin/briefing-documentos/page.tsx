@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
-import { getTemplateDocument, listEIDocuments } from "@/lib/ei-documents-server";
+import { getTemplateDocumentId, listEIDocuments } from "@/lib/ei-documents-server";
 import { AdminShell } from "@/components/admin/admin-shell";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +22,10 @@ export default async function BriefingDocumentosIndexPage({
   if (!member) redirect("/admin/login");
 
   const kp = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
-  const template = await getTemplateDocument("briefing");
   const destinoId =
-    template?.id ?? (await listEIDocuments("briefing"))[0]?.id ?? null;
+    (await getTemplateDocumentId("briefing")) ??
+    (await listEIDocuments("briefing"))[0]?.id ??
+    null;
 
   if (destinoId) redirect(`/admin/briefing-documentos/${destinoId}${kp}`);
 

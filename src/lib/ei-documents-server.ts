@@ -94,6 +94,24 @@ export async function getEIDocument(docId: string): Promise<EIDocument | null> {
   return normalize(data as unknown as RawRow);
 }
 
+/**
+ * Só o id do documento Modelo. As telas de índice (que apenas redirecionam
+ * pro Modelo) usavam getTemplateDocument, que traz o JSON `ei_data` inteiro
+ * e faz join com clients — payload grande pra ler um id.
+ */
+export async function getTemplateDocumentId(
+  kind: EIDocumentKind
+): Promise<string | null> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ei_documents")
+    .select("id")
+    .eq("is_template", true)
+    .eq("kind", kind)
+    .maybeSingle();
+  return (data as { id: string } | null)?.id ?? null;
+}
+
 export async function getTemplateDocument(
   kind: EIDocumentKind
 ): Promise<EIDocument | null> {
