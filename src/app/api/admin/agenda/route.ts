@@ -24,6 +24,9 @@ interface AgendaEvent {
   inicio: string; // "HH:MM" em SP, ou "dia todo"
   fim: string | null;
   diaTodo: boolean;
+  /** Instante exato do início (ISO/UTC) — o cliente usa pra contar quanto falta. */
+  inicioISO: string | null;
+  fimISO: string | null;
 }
 
 function spDateParts(d: Date): { ymd: string; hm: string } {
@@ -126,6 +129,8 @@ export async function POST(request: NextRequest) {
           inicio: diaTodo ? "dia todo" : sp.hm,
           fim: diaTodo || !end ? null : spDateParts(end).hm,
           diaTodo,
+          inicioISO: diaTodo ? null : start.toISOString(),
+          fimISO: diaTodo || !end ? null : end.toISOString(),
         });
       }
     }

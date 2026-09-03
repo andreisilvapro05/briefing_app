@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Hero do "Meu Trabalho" — estilo Apple, pedido da Karine (2026-09-02):
@@ -35,6 +35,39 @@ interface AgendaEvent {
   inicio: string;
   fim: string | null;
   diaTodo: boolean;
+  inicioISO: string | null;
+  fimISO: string | null;
+}
+
+const LS_AVISOS = "fysi-agenda-avisos";
+/** Minutos de antecedência do aviso. */
+const AVISO_ANTES_MIN = 10;
+
+/**
+ * Estado da próxima reunião: acontecendo agora, ou faltando N minutos.
+ * Ignora eventos de dia todo (não têm hora pra avisar).
+ */
+function proximaReuniao(
+  eventos: AgendaEvent[],
+  agora: number
+): { ev: AgendaEvent; minutos: number; emAndamento: boolean } | null {
+  let melhor: { ev: AgendaEvent; minutos: number; emAndamento: boolean } | null =
+    null;
+  for (const ev of eventos) {
+    if (!ev.inicioISO) continue;
+    const inicio = new Date(ev.inicioISO).getTime();
+    const fim = ev.fimISO ? new Date(ev.fimISO).getTime() : inicio;
+    if (agora >= inicio && agora < fim) {
+      return { ev, minutos: 0, emAndamento: true };
+    }
+    if (inicio > agora) {
+      const minutos = Math.round((inicio - agora) / 60000);
+      if (!melhor || minutos < melhor.minutos) {
+        melhor = { ev, minutos, emAndamento: false };
+      }
+    }
+  }
+  return melhor;
 }
 
 function spNow(now: Date) {
@@ -130,6 +163,14 @@ function AgendaCard() {
   const [loaded, setLoaded] = useState(false);
   const [eventos, setEventos] = useState<AgendaEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Relógio próprio (30s) — move o contador "faltam N min" e dispara avisos.
+  const [agora, setAgora] = useState<number>(() => Date.now());
+  const [avisosOn, setAvisosOn] = useState(false);
+  const [permissao, setPermissao] = useState<NotificationPermission | "indisponivel">(
+    "indisponivel"
+  );
+  // Evita repetir o mesmo aviso a cada tique.
+  const avisados = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     // Permite configurar por link: /admin/meu-trabalho?agenda=<url do iCal>.
@@ -168,6 +209,25 @@ function AgendaCard() {
       setIcsUrl(fromUrl);
     }
     setLoaded(true);
+
+    // Preferência de avisos + permissão atual do navegador.
+    try {
+      if (typeof Notification !== "undefined") {
+        setPermissao(Notification.permission);
+        setAvisosOn(
+          window.localStorage.getItem(LS_AVISOS) === "1" &&
+            Notification.permission === "granted"
+        );
+      }
+    } catch {
+      // navegador sem Notification API — segue só com o aviso visual
+    }
+  }, []);
+
+  // Tique de 30s: atualiza o contador da próxima reunião e checa avisos.
+  useEffect(() => {
+    const id = window.setInterval(() => setAgora(Date.now()), 30_000);
+    return () => window.clearInterval(id);
   }, []);
 
   useEffect(() => {
@@ -207,6 +267,55 @@ function AgendaCard() {
     };
   }, [icsUrl]);
 
+  const proxima = eventos ? proximaReuniao(eventos, agora) : null;
+
+  // Dispara a notificação do navegador: uma AVISO_ANTES_MIN antes e outra
+  // na hora de começar. Só funciona com o painel aberto em alguma aba —
+  // notificação com o app fechado exigiria push/service worker.
+  useEffect(() => {
+    if (!avisosOn || !proxima || typeof Notification === "undefined") return;
+    if (Notification.permission !== "granted") return;
+
+    const chave = `${proxima.ev.inicioISO}|${proxima.emAndamento ? "inicio" : "antes"}`;
+    if (avisados.current.has(chave)) return;
+
+    if (proxima.emAndamento) {
+      avisados.current.add(chave);
+      new Notification("Sua reunião começou", {
+        body: proxima.ev.titulo,
+        tag: chave,
+      });
+    } else if (proxima.minutos <= AVISO_ANTES_MIN) {
+      avisados.current.add(chave);
+      new Notification(`Reunião em ${proxima.minutos} min`, {
+        body: `${proxima.ev.inicio} · ${proxima.ev.titulo}`,
+        tag: chave,
+      });
+    }
+  }, [avisosOn, proxima]);
+
+  async function ligarAvisos() {
+    if (typeof Notification === "undefined") return;
+    const p = await Notification.requestPermission();
+    setPermissao(p);
+    const on = p === "granted";
+    setAvisosOn(on);
+    try {
+      window.localStorage.setItem(LS_AVISOS, on ? "1" : "0");
+    } catch {
+      // sem localStorage — vale só nesta visita
+    }
+  }
+
+  function desligarAvisos() {
+    setAvisosOn(false);
+    try {
+      window.localStorage.setItem(LS_AVISOS, "0");
+    } catch {
+      // ok
+    }
+  }
+
   function save() {
     const v = draft.trim();
     if (!v) return;
@@ -237,15 +346,72 @@ function AgendaCard() {
           📅 Agenda de hoje
         </p>
         {icsUrl ? (
-          <button
-            type="button"
-            onClick={disconnect}
-            className="text-[0.68rem] text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
-          >
-            desconectar
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {avisosOn ? (
+              <button
+                type="button"
+                onClick={desligarAvisos}
+                title={`Avisando ${AVISO_ANTES_MIN} min antes (com o painel aberto)`}
+                className="text-[0.68rem] text-fysi-deep font-medium hover:underline underline-offset-2"
+              >
+                🔔 avisos ligados
+              </button>
+            ) : permissao !== "denied" ? (
+              <button
+                type="button"
+                onClick={ligarAvisos}
+                className="text-[0.68rem] text-fysi-deep font-medium hover:underline underline-offset-2"
+              >
+                🔕 ligar avisos
+              </button>
+            ) : (
+              <span
+                className="text-[0.68rem] text-fysi-muted"
+                title="Você bloqueou notificações deste site no navegador"
+              >
+                avisos bloqueados
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={disconnect}
+              className="text-[0.68rem] text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
+            >
+              desconectar
+            </button>
+          </div>
         ) : null}
       </div>
+
+      {/* Aviso da próxima reunião — vira destaque quando está perto */}
+      {proxima ? (
+        <div
+          className={`rounded-[12px] px-3 py-2 border ${
+            proxima.emAndamento
+              ? "bg-red-50 border-red-200"
+              : proxima.minutos <= 15
+                ? "bg-amber-50 border-amber-200"
+                : "bg-fysi-mint/30 border-fysi-mint-vivid/40"
+          }`}
+        >
+          <p
+            className={`text-xs font-semibold ${
+              proxima.emAndamento
+                ? "text-red-700"
+                : proxima.minutos <= 15
+                  ? "text-amber-800"
+                  : "text-fysi-deep"
+            }`}
+          >
+            {proxima.emAndamento
+              ? "🔴 Acontecendo agora"
+              : proxima.minutos < 60
+                ? `⏰ Em ${proxima.minutos} min`
+                : `⏰ Às ${proxima.ev.inicio}`}
+          </p>
+          <p className="text-sm text-fysi-deep truncate">{proxima.ev.titulo}</p>
+        </div>
+      ) : null}
 
       {!loaded ? null : !icsUrl ? (
         configuring ? (
