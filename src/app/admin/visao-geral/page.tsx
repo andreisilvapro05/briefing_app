@@ -64,7 +64,10 @@ export default async function VisaoGeralPage({
     .slice(0, TAREFAS_LIMIT);
 
   return (
-    <AdminShell active="visao-geral" keyParam={keyParam} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
+    <AdminShell active="visao-geral" keyParam={keyParam} userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"} hideFinance={!hasFinanceAccess(member)}>
       <header className="mb-6">
         <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Visão Geral

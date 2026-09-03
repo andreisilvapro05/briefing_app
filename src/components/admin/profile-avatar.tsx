@@ -22,9 +22,14 @@ const INPUT_ID = "topbar-foto-input";
 export function ProfileAvatar({
   urlKey,
   fallbackInitials,
+  fotoUrl: fotoFromServer,
+  canEdit: canEditFromServer,
 }: {
   urlKey?: string | null;
   fallbackInitials: string;
+  /** Foto e permissão vindas do servidor. Presentes = não busca no cliente. */
+  fotoUrl?: string | null;
+  canEdit?: boolean;
 }) {
   const router = useRouter();
   const [profile, setProfile] = useState<OwnProfile | null>(null);
@@ -32,8 +37,10 @@ export function ProfileAvatar({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Só busca se o servidor não mandou a permissão (páginas sem a prop).
+    if (canEditFromServer !== undefined) return;
     void getOwnProfileAction(urlKey ?? null).then(setProfile);
-  }, [urlKey]);
+  }, [urlKey, canEditFromServer]);
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -62,11 +69,14 @@ export function ProfileAvatar({
   }
 
   const initials = profile?.initials ?? fallbackInitials;
-  const canEdit = profile?.canEditPhoto ?? false;
+  // O upload atualiza `profile` localmente, então ele tem prioridade sobre a
+  // foto que veio do servidor (senão a troca de foto não apareceria na hora).
+  const fotoUrl = profile?.fotoUrl ?? fotoFromServer ?? null;
+  const canEdit = profile?.canEditPhoto ?? canEditFromServer ?? false;
 
-  const face = profile?.fotoUrl ? (
+  const face = fotoUrl ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={profile.fotoUrl} alt="" className="w-full h-full object-cover" />
+    <img src={fotoUrl} alt="" className="w-full h-full object-cover" />
   ) : (
     initials
   );
@@ -79,7 +89,7 @@ export function ProfileAvatar({
             htmlFor={INPUT_ID}
             title="Trocar foto de perfil"
             className={`w-9 h-9 rounded-full overflow-hidden grid place-items-center text-xs font-bold shrink-0 cursor-pointer hover:brightness-95 ${
-              profile?.fotoUrl ? "" : "bg-fysi-deep text-fysi-mint"
+              fotoUrl ? "" : "bg-fysi-deep text-fysi-mint"
             } ${uploading ? "opacity-60 pointer-events-none" : ""}`}
           >
             {face}
@@ -96,7 +106,7 @@ export function ProfileAvatar({
       ) : (
         <span
           className={`w-9 h-9 rounded-full overflow-hidden grid place-items-center text-xs font-bold shrink-0 ${
-            profile?.fotoUrl ? "" : "bg-fysi-deep text-fysi-mint"
+            fotoUrl ? "" : "bg-fysi-deep text-fysi-mint"
           }`}
         >
           {face}

@@ -56,6 +56,9 @@ export default async function MeuTrabalhoPage({
       active="meu-trabalho"
       keyParam={keyParam}
       userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-5">

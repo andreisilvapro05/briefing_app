@@ -29,6 +29,9 @@ export default async function NovoClientePage({
       active="clientes"
       keyParam={keyParam}
       userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}
       hideFinance={!hasFinanceAccess(member)}
     >
         <header className="mb-6">

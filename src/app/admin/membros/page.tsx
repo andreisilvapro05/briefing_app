@@ -55,7 +55,10 @@ export default async function MembrosPage({
   const members = (data as TeamMemberRow[]) ?? [];
 
   return (
-    <AdminShell active="membros" keyParam={keyParam} userEmail={member.email}>
+    <AdminShell active="membros" keyParam={keyParam} userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}>
       <header className="mb-6">
         <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Membros da equipe

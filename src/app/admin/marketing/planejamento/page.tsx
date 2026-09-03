@@ -89,6 +89,9 @@ export default async function MarketingPlanejamentoPage({
       active="marketing-planejamento"
       keyParam={keyParam}
       userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">

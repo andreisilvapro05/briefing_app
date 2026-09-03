@@ -289,7 +289,10 @@ export default async function AdminClientPage({
   };
 
   return (
-    <AdminShell active="clientes" keyParam={keyParam} userEmail={member.email} hideFinance={!hasFinanceAccess(member)}>
+    <AdminShell active="clientes" keyParam={keyParam} userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"} hideFinance={!hasFinanceAccess(member)}>
         <Link
           href={`/admin${keyParam}`}
           className="text-xs text-fysi-muted hover:text-fysi-deep mb-3 inline-block"

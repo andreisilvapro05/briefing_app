@@ -1,6 +1,6 @@
 import { createSupabaseServiceRoleClient } from "./supabase/server";
 import { PROJECT_TYPE_LABELS } from "./briefing-labels";
-import { DEFAULT_TASK_STATUS } from "./project-tasks";
+import { DEFAULT_TASK_STATUS, type ProjectTask } from "./project-tasks";
 import {
   GENERAL_LANES,
   isClientStuck,
@@ -49,7 +49,11 @@ export async function getLaneGroups(
   // vez (tabela pequena) tira uma ida ao banco do caminho crítico.
   const [{ data }, tasksByClient, eiDocIds] =
     visibleIds && visibleIds.size === 0
-      ? [{ data: [] }, await getTasksByClient(), new Map<string, string>()]
+      ? [
+          { data: [] },
+          new Map<string, ProjectTask[]>(),
+          new Map<string, string>(),
+        ]
       : await Promise.all([
           clientsQuery,
           getTasksByClient(),

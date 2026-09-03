@@ -76,6 +76,9 @@ export default async function MarketingMetasPage({
       active="marketing-metas"
       keyParam={keyParam}
       userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">

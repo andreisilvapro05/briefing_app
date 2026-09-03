@@ -89,7 +89,10 @@ export default async function AdminRelatoriosPage({
   const maxOrigem = Math.max(1, ...origemEntries.map(([, n]) => n));
 
   return (
-    <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={member.email}>
+    <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">Relatórios</h1>

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createSupabaseServiceRoleClient } from "./supabase/server";
 import { TASK_STATUS_GROUP, type ProjectTask, type TaskStatus } from "./project-tasks";
 
@@ -50,7 +51,13 @@ export interface ProjectTaskClient {
  * Sem filtro de client_id — é intencionalmente um full scan de project_tasks,
  * aceitável no volume atual (~35 clientes, algumas dezenas de tarefas cada).
  */
-export async function listAllProjectTasks(): Promise<
+/**
+ * Varredura completa de project_tasks (com o cliente embutido). Memoizada
+ * por renderização com cache() do React: a Visão Geral chamava esta função
+ * diretamente E de novo por dentro de getLaneGroups → getTasksByClient,
+ * fazendo o mesmo scan duas vezes na mesma página.
+ */
+export const listAllProjectTasks = cache(async function listAllProjectTasksUncached(): Promise<
   (ProjectTask & { client: ProjectTaskClient })[]
 > {
   const service = createSupabaseServiceRoleClient();
@@ -65,7 +72,7 @@ export async function listAllProjectTasks(): Promise<
       ...normalizeTask(row),
       client: row.clients as ProjectTaskClient,
     }));
-}
+});
 
 export interface TaskProgress {
   total: number;

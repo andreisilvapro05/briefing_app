@@ -258,18 +258,30 @@ export function AdminShell({
   active,
   keyParam,
   userEmail,
+  userName,
+  userPhotoUrl,
+  canEditPhoto,
   hideFinance,
   children,
 }: {
   active: AdminSection;
   keyParam: string;
   userEmail?: string | null;
+  /**
+   * Nome/foto vindos do SERVIDOR. Sem eles, o topo buscava o próprio perfil
+   * no cliente — duas Server Actions idênticas (nome e avatar) a cada troca
+   * de aba, cada uma refazendo getCurrentMember. O servidor já tem esses
+   * dados na page: passar por prop tira 2 idas ao servidor por navegação.
+   */
+  userName?: string | null;
+  userPhotoUrl?: string | null;
+  canEditPhoto?: boolean;
   /** Esconde a área Financeiro (Contratos/Cobranças/Projetos Fechados/Relatórios) do menu — role "basico" (ex: designer) não tem acesso a dados financeiros. */
   hideFinance?: boolean;
   children: ReactNode;
 }) {
   const crumb = LABELS[active];
-  const initials = (userEmail ?? "F").slice(0, 2).toUpperCase();
+  const initials = (userName || userEmail || "F").slice(0, 2).toUpperCase();
   // "básico" (mesmo flag do Financeiro) também não vê Marketing e Comercial:
   // metas guardam alvos de faturamento — dado comercial sensível.
   const areas = hideFinance
@@ -360,6 +372,7 @@ export function AdminShell({
               <ProfileNameLink
                 urlKey={urlKey}
                 keyParam={keyParam}
+                name={userName ?? null}
                 fallback={userEmail ?? null}
               />
               <form method="post" action="/api/auth/admin-logout">
@@ -371,7 +384,12 @@ export function AdminShell({
                 </button>
               </form>
             </span>
-            <ProfileAvatar urlKey={urlKey} fallbackInitials={initials} />
+            <ProfileAvatar
+              urlKey={urlKey}
+              fallbackInitials={initials}
+              fotoUrl={userPhotoUrl ?? null}
+              canEdit={canEditPhoto}
+            />
           </div>
         </header>
 

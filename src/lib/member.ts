@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
@@ -85,6 +86,17 @@ function legacyMember(source: "password-legacy" | "url-key-legacy"): Member {
 export async function getCurrentMember(opts?: {
   urlKey?: string | null;
 }): Promise<Member | null> {
+  // Deduplica dentro da MESMA renderização: getCurrentMember roda na page e
+  // de novo em helpers/actions, e cada chamada custa um auth.getUser() de
+  // rede + uma consulta em team_members. A chave é primitiva (string), não o
+  // objeto de opções — cache() compara argumentos por identidade.
+  return getCurrentMemberCached(opts?.urlKey ?? null);
+}
+
+const getCurrentMemberCached = cache(async function getCurrentMemberUncached(
+  urlKeyArg: string | null
+): Promise<Member | null> {
+  const opts = { urlKey: urlKeyArg };
   // Caminho 1: Supabase Auth — identidade real da pessoa, via team_members.
   let supabase: Awaited<ReturnType<typeof createSupabaseServerClient>> | null;
   try {
@@ -148,7 +160,7 @@ export async function getCurrentMember(opts?: {
   }
 
   return null;
-}
+});
 
 export function isAdmin(member: Member): boolean {
   return member.role === "admin";

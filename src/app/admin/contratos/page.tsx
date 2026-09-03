@@ -118,7 +118,10 @@ export default async function ContractsPage({
   const assinados = all.filter((c) => c.contrato_status === "assinado").length;
 
   return (
-    <AdminShell active="contratos" keyParam={keyParam} userEmail={member.email}>
+    <AdminShell active="contratos" keyParam={keyParam} userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}>
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">

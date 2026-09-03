@@ -66,6 +66,9 @@ export default async function BriefingsPage({
       active="briefings"
       keyParam={keyParam}
       userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">

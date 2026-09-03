@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ContentBoard } from "@/components/admin/content-board";
 import { listContentBoard } from "@/lib/content-board-server";
@@ -13,14 +13,22 @@ export default async function ConteudoPage({
 }) {
   const { key } = await searchParams;
   const urlKey = key ?? null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const columns = await listContentBoard();
 
   return (
-    <AdminShell active="conteudo" keyParam={keyParam} userEmail={user.email}>
+    <AdminShell
+      active="conteudo"
+      keyParam={keyParam}
+      userEmail={member.email}
+      userName={member.name}
+      userPhotoUrl={member.fotoUrl}
+      canEditPhoto={member.source === "supabase"}
+      hideFinance={!hasFinanceAccess(member)}
+    >
       <header className="mb-4">
         <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Conteúdo

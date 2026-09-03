@@ -14,18 +14,25 @@ export function ProfileNameLink({
   urlKey,
   keyParam,
   fallback,
+  name: nameFromServer,
 }: {
   urlKey?: string | null;
   keyParam: string;
   fallback: string | null;
+  /** Nome vindo do servidor. Quando presente, NÃO busca no cliente. */
+  name?: string | null;
 }) {
-  const [name, setName] = useState<string | null>(null);
+  const [fetched, setFetched] = useState<string | null>(null);
 
   useEffect(() => {
+    // Só busca se o servidor não mandou (páginas antigas/sem a prop).
+    if (nameFromServer) return;
     void getOwnProfileAction(urlKey ?? null).then((p) => {
-      if (p?.name) setName(displayName(p.name));
+      if (p?.name) setFetched(displayName(p.name));
     });
-  }, [urlKey]);
+  }, [urlKey, nameFromServer]);
+
+  const name = nameFromServer ? displayName(nameFromServer) : fetched;
 
   return (
     <Link
