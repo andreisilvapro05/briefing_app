@@ -74,6 +74,10 @@ export async function POST(request: NextRequest) {
       headers: { "User-Agent": "FysiPainel/1.0" },
       signal: AbortSignal.timeout(8000),
     });
+    // 404 aqui quase sempre é o endereço PÚBLICO de um calendário que não
+    // está público — caso mais comum na prática. Vale um erro próprio pra
+    // UI conseguir explicar o que fazer, em vez de "falhou".
+    if (res.status === 404) return errorResponse("ics-nao-encontrado", 404);
     if (!res.ok) return errorResponse("ics-fetch-failed", 502);
     icsText = await res.text();
   } catch (err) {

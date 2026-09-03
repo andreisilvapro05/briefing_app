@@ -151,13 +151,26 @@ function AgendaCard() {
       body: JSON.stringify({ icsUrl }),
     })
       .then(async (res) => {
-        if (!res.ok) throw new Error(String(res.status));
+        if (!res.ok) {
+          const code = await res
+            .json()
+            .then((d: { error?: string }) => d.error)
+            .catch(() => undefined);
+          throw new Error(code ?? String(res.status));
+        }
         const data = (await res.json()) as { eventos: AgendaEvent[] };
         if (!cancel) setEventos(data.eventos);
       })
-      .catch(() => {
-        if (!cancel)
-          setError("Não consegui ler a agenda. Confere o link e tenta de novo.");
+      .catch((err: unknown) => {
+        if (cancel) return;
+        const code = err instanceof Error ? err.message : "";
+        setError(
+          code === "ics-nao-encontrado"
+            ? "Esse endereço não existe ou o calendário não está público. Use o “Endereço secreto em formato iCal” (o que tem /private- no meio)."
+            : code === "only-google-calendar"
+              ? "Só aceito link do Google Agenda (calendar.google.com)."
+              : "Não consegui ler a agenda. Confere o link e tenta de novo."
+        );
       });
     return () => {
       cancel = true;
@@ -208,9 +221,13 @@ function AgendaCard() {
         configuring ? (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-fysi-muted leading-relaxed">
-              No Google Agenda: ⚙️ Configurações → clica no seu calendário →{" "}
+              No Google Agenda: ⚙️ Configurações → clica no seu calendário na
+              lista da esquerda → role até{" "}
               <strong>&quot;Endereço secreto em formato iCal&quot;</strong> →
-              copia e cola aqui. Fica salvo só neste navegador.
+              copia e cola aqui. É o link que tem{" "}
+              <span className="font-mono">/private-</span> no meio — o
+              endereço <span className="font-mono">/public/</span> só funciona
+              se o calendário for público. Fica salvo neste navegador.
             </p>
             <div className="flex gap-1.5">
               <input
@@ -244,7 +261,19 @@ function AgendaCard() {
           </div>
         )
       ) : error ? (
-        <p className="text-xs text-red-600 my-auto">{error}</p>
+        <div className="my-auto flex flex-col items-start gap-2">
+          <p className="text-xs text-red-600 leading-relaxed">{error}</p>
+          <button
+            type="button"
+            onClick={() => {
+              disconnect();
+              setConfiguring(true);
+            }}
+            className="rounded-full bg-fysi-deep text-fysi-cream text-xs font-medium px-3 py-1.5 hover:bg-fysi-deep/90"
+          >
+            Trocar o link
+          </button>
+        </div>
       ) : eventos === null ? (
         <p className="text-xs text-fysi-muted my-auto">Carregando agenda…</p>
       ) : eventos.length === 0 ? (
