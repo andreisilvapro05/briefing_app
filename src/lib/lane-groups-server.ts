@@ -8,7 +8,7 @@ import {
   type ClientForLane,
 } from "./workflow-lanes";
 import { getTasksByClient, taskProgress } from "./project-tasks-server";
-import { getEIDocumentIdsForClients } from "./ei-documents-server";
+import { getAllEIDocumentIdsByClient } from "./ei-documents-server";
 import type { LaneGroup } from "@/components/admin/status-pie-board";
 
 /**
@@ -44,13 +44,19 @@ export async function getLaneGroups(
     .order("created_at", { ascending: false });
   if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
 
-  const [{ data }, tasksByClient] =
+  // As três consultas são independentes. A dos documentos de EI dependia da
+  // lista de clientes só pra montar o filtro `.in()` — buscar todos de uma
+  // vez (tabela pequena) tira uma ida ao banco do caminho crítico.
+  const [{ data }, tasksByClient, eiDocIds] =
     visibleIds && visibleIds.size === 0
-      ? [{ data: [] }, await getTasksByClient()]
-      : await Promise.all([clientsQuery, getTasksByClient()]);
+      ? [{ data: [] }, await getTasksByClient(), new Map<string, string>()]
+      : await Promise.all([
+          clientsQuery,
+          getTasksByClient(),
+          getAllEIDocumentIdsByClient(),
+        ]);
 
   const clients = (data as ClientForLane[]) ?? [];
-  const eiDocIds = await getEIDocumentIdsForClients(clients.map((c) => c.id));
 
   const byLane = new Map<string, ClientForLane[]>();
   GENERAL_LANES.forEach((l) => byLane.set(l.id, []));

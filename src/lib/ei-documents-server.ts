@@ -141,6 +141,28 @@ export async function getEIDocumentIdsForClients(
   return map;
 }
 
+/**
+ * Mapa client_id → doc_id de TODOS os documentos do kind, sem precisar da
+ * lista de clientes antes. Existe pra que quem já vai buscar clientes possa
+ * disparar esta consulta em PARALELO, em vez de esperar os clientes só pra
+ * montar o filtro `.in()`. A tabela é pequena (≤ 1 doc por cliente/kind).
+ */
+export async function getAllEIDocumentIdsByClient(
+  kind: EIDocumentKind = "ei"
+): Promise<Map<string, string>> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ei_documents")
+    .select("id, client_id")
+    .eq("kind", kind)
+    .not("client_id", "is", null);
+  const map = new Map<string, string>();
+  for (const row of (data as { id: string; client_id: string | null }[] | null) ?? []) {
+    if (row.client_id) map.set(row.client_id, row.id);
+  }
+  return map;
+}
+
 /** Clientes que ainda não têm documento desse kind — pra popular o seletor de criação. */
 export async function listClientsWithoutEIDocument(
   kind: EIDocumentKind
