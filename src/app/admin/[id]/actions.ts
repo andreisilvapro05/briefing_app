@@ -165,10 +165,11 @@ export async function sendToClickupAction(formData: FormData) {
   });
 
   if (result.taskId) {
-    await service
+    const { error: escritaErr } = await service
       .from("clients")
       .update({ clickup_task_id: result.taskId })
       .eq("id", clientId);
+    if (escritaErr) logServerError("cliente.escrita", escritaErr);
   }
 
   revalidatePath(`/admin/${clientId}`);
@@ -216,10 +217,11 @@ export async function setStageAction(formData: FormData) {
     return;
   }
 
-  await service
+  const { error: escritaErr } = await service
     .from("clients")
     .update({ current_stage_index: next })
     .eq("id", clientId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin");
@@ -266,10 +268,11 @@ export async function setProjectTypeAction(formData: FormData) {
     maxIndex
   );
 
-  await service
+  const { error: escritaErr } = await service
     .from("clients")
     .update({ project_type: projectType, current_stage_index: clamped })
     .eq("id", clientId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin");
@@ -335,7 +338,11 @@ export async function setClientContractDataAction(formData: FormData) {
       new Date().toISOString();
   }
 
-  await service.from("clients").update(update).eq("id", clientId);
+  const { error: updErr } = await service
+    .from("clients")
+    .update(update)
+    .eq("id", clientId);
+  if (updErr) logServerError("cliente.update", updErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -370,7 +377,11 @@ export async function setDriveLinksAction(formData: FormData) {
   if (Object.keys(update).length === 0) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("clients").update(update).eq("id", clientId);
+  const { error: updErr } = await service
+    .from("clients")
+    .update(update)
+    .eq("id", clientId);
+  if (updErr) logServerError("cliente.update", updErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -399,13 +410,14 @@ export async function createDriveFoldersAction(formData: FormData) {
   try {
     const folders = await createClientFolders(nome, clientId);
     if (folders) {
-      await service
+      const { error: escritaErr } = await service
         .from("clients")
         .update({
           fysi_drive_link: folders.rootUrl,
           google_drive_folders: folders,
         })
         .eq("id", clientId);
+      if (escritaErr) logServerError("cliente.escrita", escritaErr);
     }
   } catch (err) {
     logServerError("drive.create-folders", err);
@@ -436,7 +448,7 @@ export async function setPaymentAction(formData: FormData) {
   const obs = String(formData.get("pagamentoObservacao") ?? "").trim();
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: escritaErr } = await service
     .from("clients")
     .update({
       pagamento_total: total,
@@ -445,6 +457,7 @@ export async function setPaymentAction(formData: FormData) {
       pagamento_atualizado_at: new Date().toISOString(),
     })
     .eq("id", clientId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   // Webhook outbound: avisa o dashboard financeiro do novo estado.
   const { data: fresh } = await service
@@ -585,13 +598,14 @@ export async function createClientAction(formData: FormData) {
   try {
     const folders = await createClientFolders(nome, created!.id);
     if (folders) {
-      await service
+      const { error: escritaErr } = await service
         .from("clients")
         .update({
           fysi_drive_link: folders.rootUrl,
           google_drive_folders: folders,
         })
         .eq("id", created!.id);
+      if (escritaErr) logServerError("cliente.escrita", escritaErr);
     }
   } catch (err) {
     console.warn("[createClient] Drive folder failed:", err);
@@ -646,7 +660,7 @@ export async function toggleChamadaFeitaAction(formData: FormData) {
     .select("chamada_agendada_at")
     .eq("id", clientId)
     .maybeSingle();
-  await service
+  const { error: escritaErr } = await service
     .from("clients")
     .update({
       chamada_agendada_at: (data as { chamada_agendada_at: string | null })
@@ -655,6 +669,7 @@ export async function toggleChamadaFeitaAction(formData: FormData) {
         : new Date().toISOString(),
     })
     .eq("id", clientId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -677,12 +692,13 @@ export async function toggleBriefingConcluidoAction(formData: FormData) {
     data as { briefing_submitted_at: string | null } | null
   )?.briefing_submitted_at;
 
-  await service
+  const { error: escritaErr } = await service
     .from("clients")
     .update({
       briefing_submitted_at: wasSubmitted ? null : new Date().toISOString(),
     })
     .eq("id", clientId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -707,13 +723,14 @@ export async function setMoodboardAction(formData: FormData) {
   }
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: escritaErr } = await service
     .from("clients")
     .update({
       moodboard_data: parsed,
       moodboard_atualizado_at: new Date().toISOString(),
     })
     .eq("id", clientId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -775,10 +792,11 @@ export async function setCopyReviewLinkAction(formData: FormData) {
   const value = link ? link.slice(0, 1000) : null;
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: escritaErr } = await service
     .from("clients")
     .update({ copy_review_link: value })
     .eq("id", clientId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -794,10 +812,11 @@ export async function setClientStatusAction(formData: FormData) {
   await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: escritaErr } = await service
     .from("clients")
     .update({ status })
     .eq("id", clientId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin");
@@ -873,10 +892,11 @@ export async function updateCustomQuestionAction(formData: FormData) {
   }
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: escritaErr } = await service
     .from("client_custom_questions")
     .update({ label, hint: hint || null, tipo, opcoes })
     .eq("id", questionId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
 }
@@ -923,10 +943,11 @@ export async function moveCustomQuestionAction(formData: FormData) {
 
   for (let i = 0; i < reordered.length; i++) {
     if (reordered[i].ordem !== i) {
-      await service
+      const { error: escritaErr } = await service
         .from("client_custom_questions")
         .update({ ordem: i })
         .eq("id", reordered[i].id);
+      if (escritaErr) logServerError("cliente.escrita", escritaErr);
     }
   }
 
@@ -947,10 +968,11 @@ export async function deleteCustomQuestionAction(formData: FormData) {
   }
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: escritaErr } = await service
     .from("client_custom_questions")
     .delete()
     .eq("id", questionId);
+  if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
 }
