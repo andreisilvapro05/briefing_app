@@ -117,48 +117,50 @@ export default async function AdminPage({
 
   // visibleIds vazio (papel "basico" sem vínculo/sem tarefas) — nem chama o
   // banco: `.in("id", [])` do PostgREST não é confiável pra "nada".
-  let clients: ClientRow[] = [];
-  let error: { message: string } | null = null;
-  if (!visibleIds || visibleIds.size > 0) {
-    let query = service
-      .from("clients")
-      .select(
-        "id, nome, email, empresa, whatsapp, project_type, status, current_stage_index, briefing_submitted_at, contrato_status, pagamento_total, pagamento_pago, created_at, updated_at, last_client_activity_at, clickup_task_id"
-      )
-      .order("created_at", { ascending: false });
+  let clientsQuery = service
+    .from("clients")
+    .select(
+      "id, nome, email, empresa, whatsapp, project_type, status, current_stage_index, briefing_submitted_at, contrato_status, pagamento_total, pagamento_pago, created_at, updated_at, last_client_activity_at, clickup_task_id"
+    )
+    .order("created_at", { ascending: false });
 
-    if (visibleIds) query = query.in("id", Array.from(visibleIds));
-    if (statusFilter === "ativo") query = query.in("status", ACTIVE_STATUSES);
-    else if (statusFilter === "fechado") query = query.in("status", CLOSED_STATUSES);
-    if (tipoFilter) query = query.eq("project_type", tipoFilter);
-    if (q) {
-      // Busca por nome, e-mail ou empresa (case-insensitive)
-      query = query.or(
-        `nome.ilike.%${q}%,email.ilike.%${q}%,empresa.ilike.%${q}%`
-      );
-    }
-
-    const result = await query;
-    clients = (result.data as ClientRow[]) ?? [];
-    error = result.error;
+  if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
+  if (statusFilter === "ativo") clientsQuery = clientsQuery.in("status", ACTIVE_STATUSES);
+  else if (statusFilter === "fechado")
+    clientsQuery = clientsQuery.in("status", CLOSED_STATUSES);
+  if (tipoFilter) clientsQuery = clientsQuery.eq("project_type", tipoFilter);
+  if (q) {
+    // Busca por nome, e-mail ou empresa (case-insensitive)
+    clientsQuery = clientsQuery.or(
+      `nome.ilike.%${q}%,email.ilike.%${q}%,empresa.ilike.%${q}%`
+    );
   }
 
-  // Notificações não lidas (banner no topo). Limite 5 mais recentes pra não
-  // entupir a tela quando tem fila.
-  const { data: notifData } = await service
-    .from("admin_notifications")
-    .select("id, client_id, kind, title, message, created_at")
-    .is("read_at", null)
-    .order("created_at", { ascending: false })
-    .limit(5);
-  const notifications = (notifData as AdminNotification[]) ?? [];
-
-  // Conta totais (sem filtros de busca/tipo/status, mas dentro do que este
-  // membro pode ver) só pra header
   let totalsQuery = service.from("clients").select("status", { count: "exact" });
   if (visibleIds) totalsQuery = totalsQuery.in("id", Array.from(visibleIds));
-  const { data: totalsData } =
-    visibleIds && visibleIds.size === 0 ? { data: [] } : await totalsQuery;
+
+  // As três consultas são independentes — em série somavam 3 idas ao banco
+  // no caminho crítico da tela mais acessada do painel (medido: 3,7s).
+  // visibleIds vazio (papel "basico" sem vínculo) nem chama o banco:
+  // `.in("id", [])` do PostgREST não é confiável pra "nada".
+  const semEscopo = !!visibleIds && visibleIds.size === 0;
+  const [clientsRes, notifRes, totalsRes] = await Promise.all([
+    semEscopo
+      ? Promise.resolve({ data: [], error: null })
+      : clientsQuery,
+    service
+      .from("admin_notifications")
+      .select("id, client_id, kind, title, message, created_at")
+      .is("read_at", null)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    semEscopo ? Promise.resolve({ data: [] }) : totalsQuery,
+  ]);
+
+  const clients = (clientsRes.data as ClientRow[]) ?? [];
+  const error = (clientsRes as { error: { message: string } | null }).error;
+  const notifications = (notifRes.data as AdminNotification[]) ?? [];
+  const { data: totalsData } = totalsRes;
   const totals = (totalsData as { status: string }[] | null) ?? [];
   const totalCount = totals.length;
   const fechadoCount = totals.filter((c) =>
