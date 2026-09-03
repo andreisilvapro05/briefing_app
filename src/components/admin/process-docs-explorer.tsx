@@ -3,12 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ProcessDocRow } from "@/app/admin/processos/page";
 import { useFocusTrap } from "./use-focus-trap";
+import { ProcessDocForm } from "./process-doc-form";
+import { deleteProcessDocAction, moveProcessDocAction } from "@/app/admin/processos/actions";
+import { SubmitTextButton } from "./submit-button";
 
-export function ProcessDocsExplorer({ docs }: { docs: ProcessDocRow[] }) {
+export function ProcessDocsExplorer({
+  docs,
+  urlKey = null,
+  podeEditar = false,
+}: {
+  docs: ProcessDocRow[];
+  urlKey?: string | null;
+  /** hasFullAccess — quem só lê não vê os controles de edição. */
+  podeEditar?: boolean;
+}) {
   const [audiencia, setAudiencia] = useState<"equipe" | "cliente">("equipe");
   const [query, setQuery] = useState("");
   const [categoria, setCategoria] = useState<string | null>(null);
   const [openDoc, setOpenDoc] = useState<ProcessDocRow | null>(null);
+  const [criando, setCriando] = useState(false);
 
   const equipeCount = docs.filter((d) => d.audiencia === "equipe").length;
   const clienteCount = docs.filter((d) => d.audiencia === "cliente").length;
@@ -66,7 +79,30 @@ export function ProcessDocsExplorer({ docs }: { docs: ProcessDocRow[] }) {
         >
           Cliente ({clienteCount})
         </button>
+        {podeEditar ? (
+          <button
+            type="button"
+            onClick={() => setCriando((v) => !v)}
+            className="rounded-full px-4 py-1.5 text-sm font-medium text-fysi-deep hover:bg-fysi-cream transition"
+          >
+            {criando ? "✕ fechar" : "+ Novo"}
+          </button>
+        ) : null}
       </div>
+
+      {criando ? (
+        <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-5">
+          <p className="text-[0.7rem] uppercase tracking-[0.14em] text-fysi-muted font-semibold mb-3">
+            Novo processo
+          </p>
+          <ProcessDocForm
+            urlKey={urlKey}
+            audienciaPadrao={audiencia}
+            categorias={categorias}
+            onCancel={() => setCriando(false)}
+          />
+        </div>
+      ) : null}
 
       <input
         type="search"
@@ -123,7 +159,13 @@ export function ProcessDocsExplorer({ docs }: { docs: ProcessDocRow[] }) {
       )}
 
       {openDoc ? (
-        <ProcessDocModal doc={openDoc} onClose={() => setOpenDoc(null)} />
+        <ProcessDocModal
+          doc={openDoc}
+          urlKey={urlKey}
+          podeEditar={podeEditar}
+          categorias={categorias}
+          onClose={() => setOpenDoc(null)}
+        />
       ) : null}
     </div>
   );
@@ -170,12 +212,19 @@ function ProcessDocCard({
 /** Detalhe em card sobreposto (estilo ClickUp) — abre ao clicar num item. */
 function ProcessDocModal({
   doc,
+  urlKey,
+  podeEditar,
+  categorias,
   onClose,
 }: {
   doc: ProcessDocRow;
+  urlKey: string | null;
+  podeEditar: boolean;
+  categorias: string[];
   onClose: () => void;
 }) {
   const trapRef = useFocusTrap<HTMLDivElement>(true);
+  const [editando, setEditando] = useState(false);
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -217,6 +266,16 @@ function ProcessDocModal({
         </div>
 
         <div className="px-6 py-5 overflow-y-auto flex flex-col gap-4">
+          {editando ? (
+            <ProcessDocForm
+              doc={doc}
+              urlKey={urlKey}
+              audienciaPadrao={doc.audiencia}
+              categorias={categorias}
+              onCancel={() => setEditando(false)}
+            />
+          ) : (
+          <>
           {doc.descricao ? (
             <p className="text-sm text-fysi-deep leading-relaxed whitespace-pre-wrap">
               {doc.descricao}
@@ -237,6 +296,43 @@ function ProcessDocModal({
               🔗 Abrir link →
             </a>
           ) : null}
+
+          {podeEditar ? (
+            <div className="flex items-center gap-3 border-t border-fysi-line pt-4">
+              <button
+                type="button"
+                onClick={() => setEditando(true)}
+                className="text-sm font-medium text-fysi-deep hover:underline"
+              >
+                ✎ Editar
+              </button>
+              <form action={moveProcessDocAction}>
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                <input type="hidden" name="id" value={doc.id} />
+                <input type="hidden" name="direcao" value="cima" />
+                <SubmitTextButton pendingLabel="…">↑ subir</SubmitTextButton>
+              </form>
+              <form action={moveProcessDocAction}>
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                <input type="hidden" name="id" value={doc.id} />
+                <input type="hidden" name="direcao" value="baixo" />
+                <SubmitTextButton pendingLabel="…">↓ descer</SubmitTextButton>
+              </form>
+              <form action={deleteProcessDocAction} className="ml-auto">
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                <input type="hidden" name="id" value={doc.id} />
+                <SubmitTextButton
+                  danger
+                  pendingLabel="Excluindo…"
+                  confirm={`Excluir "${doc.titulo}"? Não dá pra desfazer.`}
+                >
+                  Excluir
+                </SubmitTextButton>
+              </form>
+            </div>
+          ) : null}
+          </>
+          )}
         </div>
       </div>
     </div>

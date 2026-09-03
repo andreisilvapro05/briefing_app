@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess, hasFullAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ProcessDocsExplorer } from "@/components/admin/process-docs-explorer";
@@ -64,7 +64,11 @@ export default async function ProcessosPage({
         </p>
       </header>
 
-      <ProcessDocsExplorer docs={docs} />
+      <ProcessDocsExplorer
+        docs={docs}
+        urlKey={urlKey}
+        podeEditar={hasFullAccess(member)}
+      />
     </AdminShell>
   );
 }
