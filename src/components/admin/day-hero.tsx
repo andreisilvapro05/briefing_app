@@ -37,6 +37,7 @@ interface AgendaEvent {
   diaTodo: boolean;
   inicioISO: string | null;
   fimISO: string | null;
+  link: string | null;
 }
 
 const LS_AVISOS = "fysi-agenda-avisos";
@@ -409,7 +410,19 @@ function AgendaCard() {
                 ? `⏰ Em ${proxima.minutos} min`
                 : `⏰ Às ${proxima.ev.inicio}`}
           </p>
-          <p className="text-sm text-fysi-deep truncate">{proxima.ev.titulo}</p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-fysi-deep truncate">{proxima.ev.titulo}</p>
+            {proxima.ev.link ? (
+              <a
+                href={proxima.ev.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 rounded-full bg-fysi-deep text-fysi-cream text-xs font-semibold px-3 py-1 hover:bg-fysi-deep/90"
+              >
+                Entrar →
+              </a>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -483,7 +496,18 @@ function AgendaCard() {
               <span className="shrink-0 tabular-nums text-xs font-semibold text-fysi-deep bg-fysi-mint/50 rounded-full px-2 py-0.5">
                 {ev.diaTodo ? "dia todo" : ev.inicio}
               </span>
-              <span className="truncate text-fysi-deep">{ev.titulo}</span>
+              <span className="truncate text-fysi-deep flex-1">{ev.titulo}</span>
+              {ev.link ? (
+                <a
+                  href={ev.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Entrar na chamada"
+                  className="shrink-0 text-xs font-medium text-fysi-deep hover:underline underline-offset-2"
+                >
+                  Entrar →
+                </a>
+              ) : null}
             </li>
           ))}
         </ul>

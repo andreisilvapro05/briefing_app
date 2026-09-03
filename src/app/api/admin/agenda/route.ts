@@ -27,6 +27,34 @@ interface AgendaEvent {
   /** Instante exato do início (ISO/UTC) — o cliente usa pra contar quanto falta. */
   inicioISO: string | null;
   fimISO: string | null;
+  /** Link da chamada (Meet/Zoom/Teams), se o evento tiver. */
+  link: string | null;
+}
+
+/** Domínios de videochamada que viram botão "Entrar" no painel. */
+const CALL_HOSTS =
+  /^https:\/\/(meet\.google\.com|[\w.-]*zoom\.us|teams\.(microsoft|live)\.com|[\w.-]*whereby\.com|meet\.jit\.si)\//i;
+
+/**
+ * Acha o link da chamada no evento. O Google Agenda grava em
+ * X-GOOGLE-CONFERENCE (o node-ical expõe como "GOOGLE-CONFERENCE"); Zoom e
+ * afins costumam cair em LOCATION ou no meio da DESCRIPTION.
+ */
+function linkDaChamada(ev: Record<string, unknown>): string | null {
+  const direto = ev["GOOGLE-CONFERENCE"];
+  if (typeof direto === "string" && CALL_HOSTS.test(direto.trim())) {
+    return direto.trim();
+  }
+  for (const campo of ["location", "description"] as const) {
+    const valor = ev[campo];
+    if (typeof valor !== "string") continue;
+    const urls = valor.match(/https:\/\/[^\s<>"']+/g) ?? [];
+    for (const u of urls) {
+      const limpo = u.replace(/[.,)\]]+$/, "");
+      if (CALL_HOSTS.test(limpo)) return limpo;
+    }
+  }
+  return null;
 }
 
 function spDateParts(d: Date): { ymd: string; hm: string } {
@@ -131,6 +159,7 @@ export async function POST(request: NextRequest) {
           diaTodo,
           inicioISO: diaTodo ? null : start.toISOString(),
           fimISO: diaTodo || !end ? null : end.toISOString(),
+          link: linkDaChamada(ev as unknown as Record<string, unknown>),
         });
       }
     }
