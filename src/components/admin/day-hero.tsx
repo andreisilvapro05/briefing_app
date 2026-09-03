@@ -132,10 +132,40 @@ function AgendaCard() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Permite configurar por link: /admin/meu-trabalho?agenda=<url do iCal>.
+    // Serve pra ativar a agenda num aparelho novo (celular) sem copiar e
+    // colar na mão. O parâmetro é REMOVIDO da URL logo em seguida — o
+    // endereço iCal é secreto e não deve ficar na barra nem no histórico.
+    let fromUrl: string | null = null;
     try {
-      setIcsUrl(window.localStorage.getItem(LS_KEY));
+      const sp = new URLSearchParams(window.location.search);
+      const candidato = sp.get("agenda");
+      if (candidato) {
+        const u = new URL(candidato);
+        if (
+          u.protocol === "https:" &&
+          (u.hostname === "calendar.google.com" ||
+            u.hostname.endsWith(".calendar.google.com"))
+        ) {
+          fromUrl = candidato;
+          window.localStorage.setItem(LS_KEY, candidato);
+        }
+        sp.delete("agenda");
+        const q = sp.toString();
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}${q ? `?${q}` : ""}`
+        );
+      }
     } catch {
-      // localStorage indisponível — segue sem agenda
+      // URL inválida ou localStorage indisponível — ignora
+    }
+
+    try {
+      setIcsUrl(fromUrl ?? window.localStorage.getItem(LS_KEY));
+    } catch {
+      setIcsUrl(fromUrl);
     }
     setLoaded(true);
   }, []);
