@@ -76,43 +76,39 @@ export default async function ContractsPage({
   const visibleIds = await getVisibleClientIds(member);
   const service = createSupabaseServiceRoleClient();
 
-  let contracts: ContractRow[] = [];
-  if (!visibleIds || visibleIds.size > 0) {
-    let query = service
-      .from("clients")
-      .select(
-        "id, nome, empresa, email, contrato_status, contrato_signed_url, contrato_dados, autentique_document_id, project_type, updated_at"
-      )
-      .not("autentique_document_id", "is", null)
-      .order("updated_at", { ascending: false });
+  let contractsQuery = service
+    .from("clients")
+    .select(
+      "id, nome, empresa, email, contrato_status, contrato_signed_url, contrato_dados, autentique_document_id, project_type, updated_at"
+    )
+    .not("autentique_document_id", "is", null)
+    .order("updated_at", { ascending: false });
 
-    if (visibleIds) query = query.in("id", Array.from(visibleIds));
-    if (params.status) query = query.eq("contrato_status", params.status);
-    if (params.tipo) query = query.eq("project_type", params.tipo);
-    const desde = params.periodo ? periodoDesde(params.periodo) : null;
-    if (desde) query = query.gte("updated_at", desde);
+  if (visibleIds) contractsQuery = contractsQuery.in("id", Array.from(visibleIds));
+  if (params.status) contractsQuery = contractsQuery.eq("contrato_status", params.status);
+  if (params.tipo) contractsQuery = contractsQuery.eq("project_type", params.tipo);
+  const desde = params.periodo ? periodoDesde(params.periodo) : null;
+  if (desde) contractsQuery = contractsQuery.gte("updated_at", desde);
 
-    const { data } = await query;
-    contracts = (data as ContractRow[]) ?? [];
-  }
+  let allQuery = service
+    .from("clients")
+    .select("contrato_status")
+    .not("autentique_document_id", "is", null);
+  if (visibleIds) allQuery = allQuery.in("id", Array.from(visibleIds));
 
-  // Metadados do modelo de contrato atual (se já foi subido).
-  const { data: tplList } = await service.storage
-    .from("contracts-templates")
-    .list();
-  const modeloAtual = (tplList ?? []).find((f) => f.name === "modelo.docx");
+  // As três são independentes — em série somavam 3 idas (uma delas pro
+  // Storage, que é outra rede) no caminho crítico da tela.
+  const semEscopo = !!visibleIds && visibleIds.size === 0;
+  const [contractsRes, tplRes, allRes] = await Promise.all([
+    semEscopo ? Promise.resolve({ data: [] }) : contractsQuery,
+    service.storage.from("contracts-templates").list(),
+    semEscopo ? Promise.resolve({ data: [] }) : allQuery,
+  ]);
 
-  // Totais (sem filtro de status, mas dentro do que este membro pode ver) só pra header
-  let all: { contrato_status: string | null }[] = [];
-  if (!visibleIds || visibleIds.size > 0) {
-    let allQuery = service
-      .from("clients")
-      .select("contrato_status")
-      .not("autentique_document_id", "is", null);
-    if (visibleIds) allQuery = allQuery.in("id", Array.from(visibleIds));
-    const { data: allData } = await allQuery;
-    all = (allData as { contrato_status: string | null }[] | null) ?? [];
-  }
+  const contracts = (contractsRes.data as ContractRow[]) ?? [];
+  const modeloAtual = (tplRes.data ?? []).find((f) => f.name === "modelo.docx");
+  const all =
+    (allRes.data as { contrato_status: string | null }[] | null) ?? [];
   const total = all.length;
   const pendentes = all.filter((c) => c.contrato_status === "pendente").length;
   const assinados = all.filter((c) => c.contrato_status === "assinado").length;

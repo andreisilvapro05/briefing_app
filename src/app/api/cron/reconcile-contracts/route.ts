@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
+import { isProduction } from "@/lib/api-helpers";
 import { reconcileContract } from "@/lib/contract-reconcile";
 import { logServerError } from "@/lib/api-helpers";
 
@@ -28,8 +29,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ mode: "demo", ok: true });
   }
 
+  // Falha FECHADA: sem CRON_SECRET configurado, esta rota ficava aberta pra
+  // qualquer um — e ela ESCREVE no banco (reconcilia contratos). Em produção
+  // isso é recusa; fora de produção segue liberada pra facilitar teste local.
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
+  if (!cronSecret) {
+    if (isProduction()) {
+      logServerError(
+        "cron.reconcile",
+        new Error("CRON_SECRET ausente em produção — rota recusada")
+      );
+      return NextResponse.json({ error: "cron-secret-missing" }, { status: 503 });
+    }
+  } else {
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });

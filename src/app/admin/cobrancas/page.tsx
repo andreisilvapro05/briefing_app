@@ -46,33 +46,46 @@ export default async function CobrancasPage({
 
   // Cobrança sem client_id é "externa" (fora de projeto) — não entra pra
   // quem tem visão restrita, já que não dá pra saber se é dela.
-  let todas: CobrancaMensal[] = [];
-  if (!visibleIds || visibleIds.size > 0) {
-    let cobrancasQuery = service
-      .from("cobrancas_mensais")
-      .select("*")
-      .order("ativa", { ascending: false })
-      .order("dia_cobranca", { ascending: true });
-    if (visibleIds) cobrancasQuery = cobrancasQuery.in("client_id", Array.from(visibleIds));
-    const { data } = await cobrancasQuery;
-    todas = (data ?? []) as CobrancaMensal[];
-  }
-  const stats = statsCobrancas(todas);
+  let cobrancasQuery = service
+    .from("cobrancas_mensais")
+    .select("*")
+    .order("ativa", { ascending: false })
+    .order("dia_cobranca", { ascending: true });
+  if (visibleIds)
+    cobrancasQuery = cobrancasQuery.in("client_id", Array.from(visibleIds));
   const refAtual = mesRef(new Date());
 
   // "Cobranças a fazer" reais: clientes com saldo em aberto no valor do
   // projeto (pagamento_total > pagamento_pago). Já existem no sistema (aba
   // Pagamentos do cliente) — aqui a gente centraliza o que falta receber.
-  let clientesPagData: unknown[] = [];
-  if (!visibleIds || visibleIds.size > 0) {
-    let clientesPagQuery = service
-      .from("clients")
-      .select("id, nome, empresa, whatsapp, pagamento_total, pagamento_pago, pagamento_observacao")
-      .gt("pagamento_total", 0);
-    if (visibleIds) clientesPagQuery = clientesPagQuery.in("id", Array.from(visibleIds));
-    const result = await clientesPagQuery;
-    clientesPagData = result.data ?? [];
-  }
+  let clientesPagQuery = service
+    .from("clients")
+    .select("id, nome, empresa, whatsapp, pagamento_total, pagamento_pago, pagamento_observacao")
+    .gt("pagamento_total", 0);
+  if (visibleIds)
+    clientesPagQuery = clientesPagQuery.in("id", Array.from(visibleIds));
+  // Contratos gerados mas sem valor de cobrança configurado ainda — "dialoga"
+  // com o valor do contrato (contrato_dados.valor_parcelamento) pra não
+  // precisar abrir a ficha do cliente só pra ver quanto cobrar.
+  let semValorQuery = service
+    .from("clients")
+    .select("id, nome, empresa, contrato_dados")
+    .not("autentique_document_id", "is", null)
+    .or("pagamento_total.is.null,pagamento_total.eq.0");
+  if (visibleIds) semValorQuery = semValorQuery.in("id", Array.from(visibleIds));
+
+  // As três são independentes — em série somavam 3 idas ao banco.
+  const semEscopo = !!visibleIds && visibleIds.size === 0;
+  const [cobrancasRes, clientesPagRes, semValorRes] = await Promise.all([
+    semEscopo ? Promise.resolve({ data: [] }) : cobrancasQuery,
+    semEscopo ? Promise.resolve({ data: [] }) : clientesPagQuery,
+    semEscopo ? Promise.resolve({ data: [] }) : semValorQuery,
+  ]);
+
+  const todas = (cobrancasRes.data ?? []) as CobrancaMensal[];
+  const stats = statsCobrancas(todas);
+  const clientesPagData: unknown[] = clientesPagRes.data ?? [];
+  const contratosSemValorData: unknown[] = semValorRes.data ?? [];
   const projetosPendentes = (
     (clientesPagData as
       | {
@@ -98,20 +111,6 @@ export default async function CobrancasPage({
     0
   );
 
-  // Contratos gerados mas sem valor de cobrança configurado ainda — "dialoga"
-  // com o valor do contrato (contrato_dados.valor_parcelamento) pra não
-  // precisar abrir a ficha do cliente só pra ver quanto cobrar.
-  let contratosSemValorData: unknown[] = [];
-  if (!visibleIds || visibleIds.size > 0) {
-    let q = service
-      .from("clients")
-      .select("id, nome, empresa, contrato_dados")
-      .not("autentique_document_id", "is", null)
-      .or("pagamento_total.is.null,pagamento_total.eq.0");
-    if (visibleIds) q = q.in("id", Array.from(visibleIds));
-    const result = await q;
-    contratosSemValorData = result.data ?? [];
-  }
   const contratosSemValor = (
     (contratosSemValorData as
       | {
