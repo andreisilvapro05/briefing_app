@@ -84,11 +84,12 @@ export async function setMemberPasswordAction(
     }
 
     // Liga o auth_user_id já (senão só ligaria no primeiro login).
-    await service
+    const { error: escritaErr2 } = await service
       .from("team_members")
       .update({ auth_user_id: userId })
       .eq("id", memberId)
       .is("auth_user_id", null);
+    if (escritaErr2) logServerError("membros.escrita", escritaErr2);
 
     revalidatePath("/admin/membros");
     return { password };
@@ -230,10 +231,11 @@ export async function inviteMemberAction(formData: FormData) {
     if (otpErr) {
       logServerError("membros.invite.otp", otpErr);
     } else if (created) {
-      await service
+      const { error: escritaErr3 } = await service
         .from("team_members")
         .update({ invited_at: new Date().toISOString() })
         .eq("id", (created as { id: string }).id);
+      if (escritaErr3) logServerError("membros.escrita", escritaErr3);
     }
   } catch (err) {
     logServerError("membros.invite.otp.throw", err);
@@ -277,10 +279,11 @@ export async function resendInviteAction(formData: FormData) {
     if (otpErr) {
       logServerError("membros.resend.otp", otpErr);
     } else {
-      await service
+      const { error: escritaErr4 } = await service
         .from("team_members")
         .update({ invited_at: new Date().toISOString() })
         .eq("id", memberId);
+      if (escritaErr4) logServerError("membros.escrita", escritaErr4);
     }
   } catch (err) {
     logServerError("membros.resend.otp.throw", err);
@@ -299,7 +302,8 @@ export async function setMemberRoleAction(formData: FormData) {
   if (!memberId || !ROLES.includes(role as MemberRole)) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("team_members").update({ role }).eq("id", memberId);
+  const { error: escritaErr1 } = await service.from("team_members").update({ role }).eq("id", memberId);
+  if (escritaErr1) logServerError("membros.escrita", escritaErr1);
 
   revalidatePath("/admin/membros");
 }
@@ -319,10 +323,11 @@ export async function setMemberTaskValueAction(formData: FormData) {
   if (taskValue && !TASK_VALUES.includes(taskValue)) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: escritaErr5 } = await service
     .from("team_members")
     .update({ task_value: taskValue || null })
     .eq("id", memberId);
+  if (escritaErr5) logServerError("membros.escrita", escritaErr5);
 
   revalidatePath("/admin/membros");
 }
@@ -337,10 +342,11 @@ export async function toggleMemberActiveAction(formData: FormData) {
   if (!memberId) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error: escritaErr6 } = await service
     .from("team_members")
     .update({ active: !active })
     .eq("id", memberId);
+  if (escritaErr6) logServerError("membros.escrita", escritaErr6);
 
   revalidatePath("/admin/membros");
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminUser } from "@/lib/admin";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { logServerError } from "@/lib/api-helpers";
 import { DEFAULT_CONTENT_COLUMNS } from "@/lib/content-board";
 
 /**
@@ -91,10 +92,11 @@ export async function renameColumnAction(formData: FormData) {
   const titulo = String(formData.get("titulo") ?? "").trim();
   if (!columnId || !titulo) return;
 
-  await service
+  const { error: escritaErr3 } = await service
     .from("content_columns")
     .update({ titulo })
     .eq("id", columnId);
+  if (escritaErr3) logServerError("conteudo.escrita", escritaErr3);
   revalidatePath(PATH);
 }
 
@@ -104,7 +106,8 @@ export async function deleteColumnAction(formData: FormData) {
   if (!columnId) return;
 
   // Cartões saem junto (ON DELETE CASCADE).
-  await service.from("content_columns").delete().eq("id", columnId);
+  const { error: escritaErr1 } = await service.from("content_columns").delete().eq("id", columnId);
+  if (escritaErr1) logServerError("conteudo.escrita", escritaErr1);
   revalidatePath(PATH);
 }
 
@@ -130,10 +133,11 @@ export async function moveColumnAction(formData: FormData) {
   [reordered[idx], reordered[swap]] = [reordered[swap], reordered[idx]];
   for (let i = 0; i < reordered.length; i++) {
     if (reordered[i].ordem !== i) {
-      await service
+      const { error: escritaErr4 } = await service
         .from("content_columns")
         .update({ ordem: i })
         .eq("id", reordered[i].id);
+      if (escritaErr4) logServerError("conteudo.escrita", escritaErr4);
     }
   }
   revalidatePath(PATH);
@@ -167,7 +171,7 @@ export async function updateCardAction(formData: FormData) {
   const descricao = String(formData.get("descricao") ?? "").trim();
   if (!cardId || !titulo) return;
 
-  await service
+  const { error: escritaErr5 } = await service
     .from("content_cards")
     .update({
       titulo,
@@ -175,6 +179,7 @@ export async function updateCardAction(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", cardId);
+  if (escritaErr5) logServerError("conteudo.escrita", escritaErr5);
   revalidatePath(PATH);
 }
 
@@ -185,7 +190,7 @@ export async function moveCardAction(formData: FormData) {
   const targetColumnId = String(formData.get("targetColumnId") ?? "");
   if (!cardId || !targetColumnId) return;
 
-  await service
+  const { error: escritaErr6 } = await service
     .from("content_cards")
     .update({
       column_id: targetColumnId,
@@ -193,6 +198,7 @@ export async function moveCardAction(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", cardId);
+  if (escritaErr6) logServerError("conteudo.escrita", escritaErr6);
   revalidatePath(PATH);
 }
 
@@ -215,10 +221,11 @@ export async function setCardImagesAction(formData: FormData) {
     return;
   }
 
-  await service
+  const { error: escritaErr7 } = await service
     .from("content_cards")
     .update({ imagens, updated_at: new Date().toISOString() })
     .eq("id", cardId);
+  if (escritaErr7) logServerError("conteudo.escrita", escritaErr7);
   revalidatePath(PATH);
 }
 
@@ -227,6 +234,7 @@ export async function deleteCardAction(formData: FormData) {
   const cardId = String(formData.get("cardId") ?? "");
   if (!cardId) return;
 
-  await service.from("content_cards").delete().eq("id", cardId);
+  const { error: escritaErr2 } = await service.from("content_cards").delete().eq("id", cardId);
+  if (escritaErr2) logServerError("conteudo.escrita", escritaErr2);
   revalidatePath(PATH);
 }

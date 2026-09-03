@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { logServerError } from "@/lib/api-helpers";
 import {
   mesRef,
   type PagamentoHistorico,
@@ -106,7 +107,8 @@ export async function updateCobrancaAction(formData: FormData) {
   }
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("cobrancas_mensais").update(updates).eq("id", id);
+  const { error: escritaErr1 } = await service.from("cobrancas_mensais").update(updates).eq("id", id);
+  if (escritaErr1) logServerError("cobrancas.escrita", escritaErr1);
 
   revalidatePath("/admin/cobrancas");
 }
@@ -121,7 +123,8 @@ export async function deleteCobrancaAction(formData: FormData) {
   if (!id) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("cobrancas_mensais").delete().eq("id", id);
+  const { error: escritaErr2 } = await service.from("cobrancas_mensais").delete().eq("id", id);
+  if (escritaErr2) logServerError("cobrancas.escrita", escritaErr2);
 
   revalidatePath("/admin/cobrancas");
 }
@@ -165,13 +168,14 @@ export async function registrarPagamentoAction(formData: FormData) {
     a.mesReferencia.localeCompare(b.mesReferencia)
   );
 
-  await service
+  const { error: escritaErr3 } = await service
     .from("cobrancas_mensais")
     .update({
       historico: novoHistorico,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
+  if (escritaErr3) logServerError("cobrancas.escrita", escritaErr3);
 
   // Dispara webhook pro app financeiro (financas-app)
   await sendCobrancaPagaWebhook(id, novo);
@@ -242,10 +246,11 @@ export async function removerPagamentoAction(formData: FormData) {
   const historico = (cur.historico as PagamentoHistorico[] | null) ?? [];
   const novo = historico.filter((h) => h.id !== pagamentoId);
 
-  await service
+  const { error: escritaErr4 } = await service
     .from("cobrancas_mensais")
     .update({ historico: novo, updated_at: new Date().toISOString() })
     .eq("id", cobrancaId);
+  if (escritaErr4) logServerError("cobrancas.escrita", escritaErr4);
 
   revalidatePath("/admin/cobrancas");
 }
@@ -284,13 +289,14 @@ export async function marcarPagoEsteMesAction(formData: FormData) {
     observacao: "",
   };
 
-  await service
+  const { error: escritaErr5 } = await service
     .from("cobrancas_mensais")
     .update({
       historico: [...historico, novo],
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
+  if (escritaErr5) logServerError("cobrancas.escrita", escritaErr5);
 
   // Webhook pro financas-app
   await sendCobrancaPagaWebhook(id, novo);

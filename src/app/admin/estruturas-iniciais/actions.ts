@@ -8,6 +8,7 @@ import {
   hasFullAccess,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { logServerError } from "@/lib/api-helpers";
 import { getTemplateDocument } from "@/lib/ei-documents-server";
 
 function keyParam(urlKey: string | null) {
@@ -101,10 +102,11 @@ export async function updateEIDocumentAction(formData: FormData) {
     if (visible && !visible.has(docClientId)) return;
   }
 
-  await service
+  const { error: escritaErr1 } = await service
     .from("ei_documents")
     .update({ ei_data: parsed, updated_at: new Date().toISOString() })
     .eq("id", docId);
+  if (escritaErr1) logServerError("ei.escrita", escritaErr1);
 
   revalidatePath(`/admin/estruturas-iniciais/${docId}`);
 }
