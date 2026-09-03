@@ -81,7 +81,8 @@ export async function updateEIDocumentAction(formData: FormData) {
   let parsed: { blocks: unknown[] };
   try {
     parsed = JSON.parse(raw) as { blocks: unknown[] };
-  } catch {
+  } catch (err) {
+    logServerError("ei.blocos-json-invalido", err);
     return;
   }
 

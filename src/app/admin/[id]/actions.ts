@@ -718,7 +718,10 @@ export async function setMoodboardAction(formData: FormData) {
   let parsed: Moodboard;
   try {
     parsed = JSON.parse(raw) as Moodboard;
-  } catch {
+  } catch (err) {
+    // JSON malformado: nada é gravado. Sem log isso sumia — e a tela ainda
+    // mostrava "Salvo ✓".
+    logServerError("moodboard.json-invalido", err);
     return;
   }
 
@@ -755,7 +758,8 @@ export async function setEntregaAction(formData: FormData) {
     try {
       const parsed = JSON.parse(raw) as EntregaDocumento;
       updates.entrega_documento = parsed;
-    } catch {
+    } catch (err) {
+      logServerError("entrega.json-invalido", err);
       return;
     }
   }

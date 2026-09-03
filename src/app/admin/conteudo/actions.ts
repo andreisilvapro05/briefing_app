@@ -217,7 +217,8 @@ export async function setCardImagesAction(formData: FormData) {
         .filter((u) => /^https?:\/\//i.test(u))
         .slice(0, 20);
     }
-  } catch {
+  } catch (err) {
+    logServerError("conteudo.imagens-json-invalido", err);
     return;
   }
 
