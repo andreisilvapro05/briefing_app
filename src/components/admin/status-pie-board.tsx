@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { StatusChanger } from "./status-changer";
 import {
@@ -35,8 +35,10 @@ export interface LaneClient {
   created_at: string;
   /** Progresso das subtarefas internas (fechadas/total) — null se nenhuma tarefa gerada ainda. */
   progresso: { total: number; fechadas: number } | null;
-  /** Subtarefas internas do projeto, na ordem — mostradas ao expandir a linha. */
-  tarefas: LaneClientTask[];
+  /**
+   * Subtarefas NÃO vêm do servidor — o accordion busca em
+   * /api/admin/client-tasks ao abrir. `progresso` já diz se existem.
+   */
   /** Sem atividade do cliente há 14+ dias — mostrado como aviso ao lado do nome, não escondendo a fase real. */
   parado: boolean;
   /** Id do documento de Estrutura Inicial do cliente, se existir — vira link no painel de informações da tarefa. */
@@ -376,8 +378,36 @@ function ClientAccordionRow({
   keyParam: string;
   restrictToResponsavel?: EditRestriction;
 }) {
-  const hasTarefas = c.tarefas.length > 0;
-  const { order: tarefas, dragProps } = useTaskDrag(c.tarefas, c.id, urlKey);
+  const hasTarefas = (c.progresso?.total ?? 0) > 0;
+  const [carregadas, setCarregadas] = useState<LaneClientTask[] | null>(null);
+  const [erroCarga, setErroCarga] = useState(false);
+
+  // Busca as subtarefas na primeira vez que a linha é aberta.
+  useEffect(() => {
+    if (!isOpen || carregadas || !hasTarefas) return;
+    let cancel = false;
+    const q = urlKey ? `&key=${encodeURIComponent(urlKey)}` : "";
+    fetch(`/api/admin/client-tasks?clientId=${encodeURIComponent(c.id)}${q}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json() as Promise<{ tarefas: LaneClientTask[] }>;
+      })
+      .then((d) => {
+        if (!cancel) setCarregadas(d.tarefas);
+      })
+      .catch(() => {
+        if (!cancel) setErroCarga(true);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [isOpen, carregadas, hasTarefas, c.id, urlKey]);
+
+  const { order: tarefas, dragProps } = useTaskDrag(
+    carregadas ?? [],
+    c.id,
+    urlKey
+  );
   const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
     "fysi-cols-accordion",
     [200, 160, 56, 56, 110, 120, 80]
@@ -440,7 +470,40 @@ function ClientAccordionRow({
         </a>
       </div>
 
-      {isOpen && hasTarefas ? (
+      {isOpen && hasTarefas && erroCarga ? (
+        <div className="pl-9 pr-5 pb-3 bg-fysi-cream/30">
+          <p className="text-xs text-red-600 py-2">
+            Não consegui carregar as subtarefas.{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setErroCarga(false);
+                setCarregadas(null);
+              }}
+              className="underline underline-offset-2"
+            >
+              Tentar de novo
+            </button>
+          </p>
+        </div>
+      ) : null}
+
+      {isOpen && hasTarefas && !erroCarga && !carregadas ? (
+        <div className="pl-9 pr-5 pb-3 bg-fysi-cream/30">
+          <div className="flex flex-col gap-1.5 py-2">
+            {Array.from({ length: Math.min(c.progresso?.total ?? 1, 4) }).map(
+              (_, i) => (
+                <div
+                  key={i}
+                  className="h-7 rounded-[8px] bg-fysi-line/50 animate-pulse"
+                />
+              )
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {isOpen && hasTarefas && carregadas ? (
         <div className="pl-9 pr-5 pb-3 bg-fysi-cream/30 overflow-x-auto">
           <table
             className="text-sm"

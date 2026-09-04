@@ -86,7 +86,11 @@ export async function getLaneGroups(
         pagamento: total > 0 ? `${Math.round((pago / total) * 100)}%` : "—",
         created_at: c.created_at,
         progresso: tasks ? taskProgress(tasks) : null,
-        tarefas: (tasks ?? []).slice().sort((a, b) => a.ordem - b.ordem),
+        // As tarefas NÃO vão no payload: o accordion busca sob demanda em
+        // /api/admin/client-tasks quando é aberto. Mandar o array completo
+        // de todos os clientes inflava a resposta destas telas (medido:
+        // 217KB em /admin/lista e 229KB em /admin/visao-geral, contra 69KB
+        // de Cobranças) — e o accordion nasce fechado.
         parado: isClientStuck(c),
         eiDocId: eiDocIds.get(c.id) ?? null,
       };
