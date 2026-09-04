@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Eyebrow } from "@/components/ui/pill";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { Input } from "@/components/ui/input";
 import { getCurrentMember, hasFinanceAccess, hasFullAccess } from "@/lib/member";

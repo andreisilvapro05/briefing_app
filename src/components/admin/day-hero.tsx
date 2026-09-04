@@ -111,6 +111,9 @@ export function DayHero({ nome }: { nome: string }) {
   const [now, setNow] = useState<Date | null>(null);
 
   useEffect(() => {
+    // Relógio só começa depois de montar — renderizar hora no servidor
+    // daria mismatch de hidratação a cada segundo.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setNow(new Date());
     const id = window.setInterval(() => setNow(new Date()), 15_000);
     return () => window.clearInterval(id);
@@ -205,10 +208,13 @@ function AgendaCard() {
     }
 
     try {
+      // localStorage não existe no servidor — leitura só após montar.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIcsUrl(fromUrl ?? window.localStorage.getItem(LS_KEY));
     } catch {
       setIcsUrl(fromUrl);
     }
+     
     setLoaded(true);
 
     // Preferência de avisos + permissão atual do navegador.
@@ -234,6 +240,8 @@ function AgendaCard() {
   useEffect(() => {
     if (!icsUrl) return;
     let cancel = false;
+    // Reset antes de buscar — o efeito É a sincronização com a API externa.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
     setEventos(null);
     fetch("/api/admin/agenda", {

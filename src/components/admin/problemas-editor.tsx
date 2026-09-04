@@ -47,6 +47,8 @@ export function ProblemasEditor({
   }, [clientId, keyQ]);
 
   useEffect(() => {
+    // Carrega ao montar; `carregar` faz setState de propósito (é o load).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void carregar();
   }, [carregar]);
 
