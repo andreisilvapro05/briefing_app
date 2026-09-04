@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  salvarAgendaIcsAction,
+  removerAgendaIcsAction,
+  temAgendaNaContaAction,
+} from "@/app/admin/meu-trabalho/actions";
 
 /**
  * Hero do "Meu Trabalho" — estilo Apple, pedido da Karine (2026-09-02):
@@ -106,7 +111,7 @@ function fraseDoDia(now: Date): string {
   return FRASES[diaDoAno % FRASES.length];
 }
 
-export function DayHero({ nome }: { nome: string }) {
+export function DayHero({ nome, urlKey = null }: { nome: string; urlKey?: string | null }) {
   // null até montar — evita mismatch de hidratação (relógio muda a cada render).
   const [now, setNow] = useState<Date | null>(null);
 
@@ -155,13 +160,15 @@ export function DayHero({ nome }: { nome: string }) {
         </p>
       </section>
 
-      <AgendaCard />
+      <AgendaCard urlKey={urlKey} />
     </div>
   );
 }
 
-function AgendaCard() {
+function AgendaCard({ urlKey }: { urlKey: string | null }) {
   const [icsUrl, setIcsUrl] = useState<string | null>(null);
+  /** Agenda salva na conta — vale em qualquer aparelho, sem URL no navegador. */
+  const [naConta, setNaConta] = useState(false);
   const [draft, setDraft] = useState("");
   const [configuring, setConfiguring] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -214,7 +221,13 @@ function AgendaCard() {
     } catch {
       setIcsUrl(fromUrl);
     }
-     
+
+    // Se a agenda está salva NA CONTA, ela vale mesmo sem nada guardado
+    // neste navegador — é o que faz funcionar no celular sem reconfigurar.
+    void temAgendaNaContaAction(urlKey).then((tem) => {
+      if (tem) setNaConta(true);
+    });
+
     setLoaded(true);
 
     // Preferência de avisos + permissão atual do navegador.
@@ -229,7 +242,9 @@ function AgendaCard() {
     } catch {
       // navegador sem Notification API — segue só com o aviso visual
     }
-  }, []);
+    // urlKey é estável dentro da página (vem da URL) — incluído só pra
+    // satisfazer a regra de deps; não causa re-execução na prática.
+  }, [urlKey]);
 
   // Tique de 30s: atualiza o contador da próxima reunião e checa avisos.
   useEffect(() => {
@@ -238,7 +253,7 @@ function AgendaCard() {
   }, []);
 
   useEffect(() => {
-    if (!icsUrl) return;
+    if (!icsUrl && !naConta) return;
     let cancel = false;
     // Reset antes de buscar — o efeito É a sincronização com a API externa.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -247,7 +262,8 @@ function AgendaCard() {
     fetch("/api/admin/agenda", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ icsUrl }),
+      // Sem icsUrl o servidor usa a agenda salva na conta.
+      body: JSON.stringify(icsUrl && !naConta ? { icsUrl } : {}),
     })
       .then(async (res) => {
         if (!res.ok) {
@@ -274,7 +290,7 @@ function AgendaCard() {
     return () => {
       cancel = true;
     };
-  }, [icsUrl]);
+  }, [icsUrl, naConta]);
 
   const proxima = eventos ? proximaReuniao(eventos, agora) : null;
 
@@ -336,6 +352,11 @@ function AgendaCard() {
     setIcsUrl(v);
     setConfiguring(false);
     setDraft("");
+    // Guarda na conta pra valer em qualquer aparelho (o localStorage acima é
+    // só pra sessão de senha compartilhada, que não tem conta própria).
+    void salvarAgendaIcsAction(v, urlKey).then((r) => {
+      if (r.ok) setNaConta(true);
+    });
   }
 
   function disconnect() {
@@ -346,6 +367,8 @@ function AgendaCard() {
     }
     setIcsUrl(null);
     setEventos(null);
+    setNaConta(false);
+    void removerAgendaIcsAction(urlKey);
   }
 
   return (
@@ -354,7 +377,7 @@ function AgendaCard() {
         <p className="text-[0.68rem] uppercase tracking-[0.16em] font-semibold text-fysi-muted">
           📅 Agenda de hoje
         </p>
-        {icsUrl ? (
+        {icsUrl || naConta ? (
           <div className="flex items-center gap-2 shrink-0">
             {avisosOn ? (
               <button
@@ -434,7 +457,7 @@ function AgendaCard() {
         </div>
       ) : null}
 
-      {!loaded ? null : !icsUrl ? (
+      {!loaded ? null : !icsUrl && !naConta ? (
         configuring ? (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-fysi-muted leading-relaxed">

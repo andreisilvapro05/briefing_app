@@ -67,7 +67,7 @@ export default async function MeuTrabalhoPage({
         </h1>
       </header>
 
-      <DayHero nome={nome} />
+      <DayHero nome={nome} urlKey={urlKey} />
 
       {!member.taskValue ? (
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">

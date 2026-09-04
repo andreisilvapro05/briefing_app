@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import ical from "node-ical";
 import { getCurrentMember } from "@/lib/member";
+import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 
 /**
@@ -15,7 +16,9 @@ import { errorResponse, logServerError } from "@/lib/api-helpers";
  * membro logado.
  */
 
-const Body = z.object({ icsUrl: z.string().url().max(600) });
+// `icsUrl` é opcional: quando a pessoa já tem a agenda salva na conta, o
+// servidor usa a de lá e o navegador não precisa mandar a credencial.
+const Body = z.object({ icsUrl: z.string().url().max(600).optional() });
 
 const TZ = "America/Sao_Paulo";
 
@@ -80,14 +83,31 @@ export async function POST(request: NextRequest) {
 
   let body: z.infer<typeof Body>;
   try {
-    body = Body.parse(await request.json());
+    body = Body.parse(await request.json().catch(() => ({})));
   } catch (err) {
     return errorResponse("payload-invalid", 400, err);
   }
 
+  // Preferir a agenda salva NA CONTA — assim vale em qualquer aparelho e a
+  // credencial não trafega do navegador. O corpo só é usado como fallback
+  // (sessão de senha compartilhada, ou antes de salvar na conta).
+  let icsUrl = body.icsUrl ?? null;
+  if (member.source === "supabase") {
+    const service = createSupabaseServiceRoleClient();
+    const { data } = await service
+      .from("team_members")
+      .select("agenda_ics_url")
+      .eq("id", member.id)
+      .maybeSingle();
+    const daConta = (data as { agenda_ics_url: string | null } | null)
+      ?.agenda_ics_url;
+    if (daConta) icsUrl = daConta;
+  }
+  if (!icsUrl) return errorResponse("agenda-nao-configurada", 400);
+
   let url: URL;
   try {
-    url = new URL(body.icsUrl);
+    url = new URL(icsUrl);
   } catch {
     return errorResponse("url-invalid", 400);
   }
