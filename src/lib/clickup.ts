@@ -237,3 +237,82 @@ function humanSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/**
+ * Mapa: status do ClickUp (nome exato da lista de Projetos) → status do app.
+ * Os 14 status da lista "Landing Pages" batem 1:1 com TASK_STATUS_OPTIONS.
+ *
+ * Atenção: o app tem um status a mais — `envio-informacoes` — que NÃO existe
+ * no ClickUp. Projeto nesse estágio é deixado como está pela sincronização,
+ * pra não perder uma etapa que só existe aqui.
+ */
+const CLICKUP_STATUS_MAP: Record<string, string> = {
+  parado: "parado",
+  "nem começou nada": "nem-comecou-nada",
+  "a iniciar": "a-iniciar",
+  onboarding: "onboarding",
+  "redação/copy": "redacao-copy",
+  "design da página": "design-pagina",
+  "validação design+copy": "validacao-design-copy",
+  "ajustes design/copy": "ajustes-design-copy",
+  implementação: "implementacao",
+  "validação implementação": "validacao-implementacao",
+  "ajuste implementação": "ajuste-implementacao",
+  "otimização+entrega": "otimizacao-entrega",
+  concluído: "concluido",
+  "completo| entregue": "completo-entregue",
+};
+
+export interface ClickUpProjectStatus {
+  taskId: string;
+  nome: string;
+  statusApp: string;
+}
+
+/**
+ * Lê os status atuais das tarefas de PROJETO no ClickUp (folder configurado
+ * em CLICKUP_PROJECTS_FOLDER_ID).
+ *
+ * ARMADILHA conhecida: `clients.clickup_task_id` aponta ora pra tarefa de
+ * projeto, ora pra tarefa de BRIEFING (criada por createClickUpBriefingTask,
+ * que vive noutra lista e tem outro conjunto de status). Por isso a leitura
+ * é feita pelo FOLDER de projetos — quem não aparecer nele simplesmente não
+ * é sincronizado, em vez de receber um status que não significa nada.
+ */
+export async function fetchClickUpProjectStatuses(): Promise<
+  { statuses: ClickUpProjectStatus[] } | { skipped: true; reason: string }
+> {
+  const env = getServerEnv();
+  const folderId = process.env.CLICKUP_PROJECTS_FOLDER_ID ?? "";
+  if (!env.clickupToken || !folderId) {
+    return {
+      skipped: true,
+      reason:
+        "ClickUp não configurado (CLICKUP_API_TOKEN ou CLICKUP_PROJECTS_FOLDER_ID).",
+    };
+  }
+
+  const statuses: ClickUpProjectStatus[] = [];
+  // A API pagina de 100 em 100; sem o laço, projeto antigo ficaria de fora.
+  for (let page = 0; page < 20; page++) {
+    const url =
+      `https://api.clickup.com/api/v2/folder/${folderId}/task` +
+      `?include_closed=true&subtasks=false&page=${page}`;
+    const res = await fetch(url, { headers: { Authorization: env.clickupToken } });
+    if (!res.ok) {
+      throw new Error(`ClickUp ${res.status}: ${await res.text()}`);
+    }
+    const data = (await res.json()) as {
+      tasks?: { id: string; name: string; status?: { status?: string } }[];
+      last_page?: boolean;
+    };
+    for (const t of data.tasks ?? []) {
+      const bruto = (t.status?.status ?? "").toLowerCase().trim();
+      const statusApp = CLICKUP_STATUS_MAP[bruto];
+      if (statusApp) statuses.push({ taskId: t.id, nome: t.name, statusApp });
+    }
+    if (data.last_page || (data.tasks?.length ?? 0) < 100) break;
+  }
+
+  return { statuses };
+}

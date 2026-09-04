@@ -1,9 +1,15 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
+import {
+  getCurrentMember,
+  getVisibleClientIds,
+  hasFinanceAccess,
+  hasFullAccess,
+} from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getLaneGroups } from "@/lib/lane-groups-server";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
+import { ClickUpSyncButton } from "@/components/admin/clickup-sync-button";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +44,17 @@ export default async function AdminListaPage({
             status na linha pra mover o projeto.
           </p>
         </div>
-        <Link
-          href={novoHref}
-          className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
-        >
-          + Novo projeto
-        </Link>
+        <div className="flex flex-wrap items-start gap-2">
+          {hasFullAccess(member) ? (
+            <ClickUpSyncButton urlKey={urlKey} />
+          ) : null}
+          <Link
+            href={novoHref}
+            className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+          >
+            + Novo projeto
+          </Link>
+        </div>
       </header>
 
       <StatusPieBoard
