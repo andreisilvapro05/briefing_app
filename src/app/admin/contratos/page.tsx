@@ -7,6 +7,11 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { TemplateUploader } from "@/components/admin/template-uploader";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
+import {
+  ContractsBoard,
+  ViewToggle,
+  type ContractCardData,
+} from "@/components/admin/contracts-board";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +33,8 @@ interface SearchParams {
   status?: string;
   periodo?: string;
   tipo?: string;
+  /** "quadro" (padrão) ou "tabela" — a preferência vive na URL. */
+  vis?: string;
 }
 
 const PERIODO_LABELS: Record<string, string> = {
@@ -109,6 +116,43 @@ export default async function ContractsPage({
   const modeloAtual = (tplRes.data ?? []).find((f) => f.name === "modelo.docx");
   const all =
     (allRes.data as { contrato_status: string | null }[] | null) ?? [];
+  const vis: "quadro" | "tabela" = params.vis === "tabela" ? "tabela" : "quadro";
+
+  /** Mantém os filtros ativos ao alternar a visualização. */
+  function hrefCom(visAlvo: "quadro" | "tabela"): string {
+    const sp = new URLSearchParams();
+    if (urlKey) sp.set("key", urlKey);
+    if (params.status) sp.set("status", params.status);
+    if (params.tipo) sp.set("tipo", params.tipo);
+    if (params.periodo) sp.set("periodo", params.periodo);
+    if (visAlvo === "tabela") sp.set("vis", "tabela");
+    const q = sp.toString();
+    return `/admin/contratos${q ? `?${q}` : ""}`;
+  }
+
+  const cartoes: ContractCardData[] = contracts.map((c) => {
+    const dados = c.contrato_dados ?? {};
+    return {
+      id: c.id,
+      cliente: c.empresa || c.nome,
+      email: c.email,
+      tipo: c.project_type,
+      valor:
+        typeof dados.valor_parcelamento === "string" && dados.valor_parcelamento
+          ? dados.valor_parcelamento
+          : "—",
+      pacote:
+        typeof dados.pacote_nome === "string" && dados.pacote_nome
+          ? dados.pacote_nome
+          : (c.project_type
+              ? PROJECT_TYPE_LABELS[c.project_type] ?? c.project_type
+              : "Contrato"),
+      status: c.contrato_status,
+      assinadoUrl: c.contrato_signed_url,
+      atualizadoEm: c.updated_at,
+    };
+  });
+
   const total = all.length;
   const pendentes = all.filter((c) => c.contrato_status === "pendente").length;
   const assinados = all.filter((c) => c.contrato_status === "assinado").length;
@@ -132,6 +176,11 @@ export default async function ContractsPage({
             <Pill tone="muted">{total} no total</Pill>
             <Pill tone="outline">{pendentes} pendentes</Pill>
             <Pill tone="mint">{assinados} assinados</Pill>
+            <ViewToggle
+              atual={vis}
+              hrefQuadro={hrefCom("quadro")}
+              hrefTabela={hrefCom("tabela")}
+            />
           </div>
         </header>
 
@@ -199,6 +248,13 @@ export default async function ContractsPage({
           </p>
         ) : null}
 
+        {vis === "quadro" ? (
+          <ContractsBoard
+            contratos={cartoes}
+            keyParam={keyParam}
+            formatDate={formatDate}
+          />
+        ) : (
         <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
@@ -319,6 +375,7 @@ export default async function ContractsPage({
             </tbody>
           </table>
         </div>
+        )}
     </AdminShell>
   );
 }
