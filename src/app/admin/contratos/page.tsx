@@ -203,10 +203,10 @@ export default async function ContractsPage({
           <table className="w-full text-sm">
             <thead className="bg-fysi-cream/60 text-left text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted">
               <tr>
-                <th className="px-5 py-3 font-medium">Pacote</th>
+                <th className="px-5 py-3 font-medium">Cliente</th>
                 <th className="px-5 py-3 font-medium">Valor</th>
                 <th className="px-5 py-3 font-medium">Status</th>
-                <th className="px-5 py-3 font-medium">Cliente</th>
+                <th className="px-5 py-3 font-medium">Pacote</th>
                 <th className="px-5 py-3 font-medium">Atualizado</th>
                 <th className="px-5 py-3 font-medium" />
               </tr>
@@ -252,13 +252,18 @@ export default async function ContractsPage({
                       className="border-t border-fysi-line hover:bg-fysi-cream/40 transition"
                     >
                       <td className="px-5 py-4">
-                        <span className="font-medium text-fysi-deep">
-                          {pacoteNome}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className="font-semibold text-fysi-deep">
+                            {c.empresa || c.nome}
+                          </span>
+                          <span className="text-[0.7rem] text-fysi-muted">
+                            {c.email ?? "—"}
+                          </span>
+                        </div>
                       </td>
                       <td className="px-5 py-4">
                         <span
-                          className="block max-w-[14rem] truncate text-fysi-deep"
+                          className="block max-w-[16rem] truncate font-semibold tabular-nums text-fysi-deep"
                           title={valor}
                         >
                           {valor}
@@ -277,27 +282,35 @@ export default async function ContractsPage({
                         )}
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-fysi-muted">
-                            {c.empresa || c.nome}
-                          </span>
-                          <span className="text-[0.7rem] text-fysi-muted/80">
-                            {c.email ?? "—"}
-                          </span>
-                        </div>
+                        <span className="text-xs text-fysi-muted">
+                          {pacoteNome}
+                        </span>
                       </td>
-                      <td className="px-5 py-4 text-xs text-fysi-muted">
+                      <td className="px-5 py-4 text-xs text-fysi-muted whitespace-nowrap">
                         {formatDate(c.updated_at)}
                       </td>
-                      <td className="px-5 py-4 text-right">
-                        <Link
-                          href={`/admin/${c.id}?tab=contrato${
-                            keyParam ? `&${keyParam.slice(1)}` : ""
-                          }`}
-                          className="text-xs font-medium text-fysi-deep hover:underline"
-                        >
-                          Abrir contrato →
-                        </Link>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-3 whitespace-nowrap">
+                          {c.contrato_signed_url ? (
+                            <a
+                              href={c.contrato_signed_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-medium text-fysi-deep hover:underline"
+                              title="Abrir o PDF assinado"
+                            >
+                              ⬇ Assinado
+                            </a>
+                          ) : null}
+                          <Link
+                            href={`/admin/${c.id}?tab=contrato${
+                              keyParam ? `&${keyParam.slice(1)}` : ""
+                            }`}
+                            className="text-xs font-medium text-fysi-deep hover:underline"
+                          >
+                            Abrir →
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );
