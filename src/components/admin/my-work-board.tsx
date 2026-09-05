@@ -34,18 +34,43 @@ const STATUS_DOT: Record<string, string> = {
   "completo-entregue": "#10b981",
 };
 
-const PRIORITY_FLAG_COLOR: Record<string, string> = {
-  "": "text-fysi-line",
-  urgente: "text-red-600",
-  alta: "text-orange-500",
-  normal: "text-blue-500",
-  baixa: "text-fysi-muted",
+/**
+ * Prioridade como etiqueta NOMEADA, não só um ícone de bandeira colorido:
+ * a cor sozinha não diz nada pra quem não decorou a convenção (e some pra
+ * quem tem daltonismo).
+ */
+const PRIORITY_TAG: Record<string, { label: string; classe: string }> = {
+  urgente: {
+    label: "Urgente",
+    classe: "bg-red-50 text-red-700 border-red-200",
+  },
+  alta: {
+    label: "Alta",
+    classe: "bg-orange-50 text-orange-700 border-orange-200",
+  },
+  normal: {
+    label: "Normal",
+    classe: "bg-sky-50 text-sky-700 border-sky-200",
+  },
+  baixa: {
+    label: "Baixa",
+    classe: "bg-fysi-cream text-fysi-muted border-fysi-line",
+  },
 };
 
-function FlagIcon({ className }: { className?: string }) {
+function CalendarIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M5 3a1 1 0 0 1 1-1h11.5a1 1 0 0 1 .8 1.6L15.25 8l3.05 4.4a1 1 0 0 1-.8 1.6H7a1 1 0 0 0-1 1V21a1 1 0 1 1-2 0V3z" />
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3 10h18" />
     </svg>
   );
 }
@@ -170,20 +195,45 @@ function StatusDotPicker({
   );
 }
 
+/** Avatar de iniciais do responsável, na cor fixa da pessoa. */
+function ResponsavelChip({ valor }: { valor: string }) {
+  const m = TEAM_MEMBERS.find((x) => x.value === valor);
+  if (!m) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 shrink-0">
+      <span
+        className={`w-5 h-5 rounded-full grid place-items-center text-[0.55rem] font-bold text-white ${m.cor}`}
+      >
+        {m.iniciais}
+      </span>
+      <span className="text-xs text-fysi-muted">{m.label}</span>
+    </span>
+  );
+}
+
+/**
+ * Cartão de uma demanda. Era uma linha plana (cliente em cinza + título +
+ * bandeirinha); virou cartão com hierarquia: cliente em etiqueta, título em
+ * destaque, e rodapé com prioridade nomeada, responsável e prazo.
+ */
 function TaskRow({
   task,
   onOpen,
   onSave,
+  mostrarResponsavel = false,
 }: {
   task: Task;
   onOpen: () => void;
   onSave: (field: string, value: string) => void;
+  /** Só faz sentido onde as tarefas são de outras pessoas (aba Delegado). */
+  mostrarResponsavel?: boolean;
 }) {
   const hoje = todayStr();
   const atrasada =
     !!task.data_vencimento &&
     task.data_vencimento < hoje &&
     TASK_STATUS_GROUP[task.status] === "ativo";
+  const prio = task.prioridade ? PRIORITY_TAG[task.prioridade] : null;
 
   return (
     <div
@@ -196,29 +246,47 @@ function TaskRow({
           onOpen();
         }
       }}
-      className="flex items-center gap-3 px-3 py-2.5 rounded-[10px] hover:bg-fysi-cream/50 transition group cursor-pointer focus-visible:outline-2 focus-visible:outline-fysi-deep/40"
+      className="group cursor-pointer rounded-[14px] border border-fysi-line bg-white px-3.5 py-3 transition hover:border-fysi-deep/25 hover:shadow-fysi-card focus-visible:outline-2 focus-visible:outline-fysi-deep/40"
     >
-      <StatusDotPicker task={task} onPick={(s) => onSave("status", s)} />
-      <span className="min-w-0 flex-1">
-        <span className="block text-xs text-fysi-muted truncate">
-          {task.client.empresa || task.client.nome}
+      <div className="flex items-start gap-2.5">
+        <span className="mt-1">
+          <StatusDotPicker task={task} onPick={(s) => onSave("status", s)} />
         </span>
-        <span className="block text-sm text-fysi-deep font-medium truncate group-hover:underline underline-offset-2">
-          {task.titulo}
-        </span>
-      </span>
-      <span className="flex items-center gap-2 shrink-0">
-        {task.prioridade ? (
-          <FlagIcon className={PRIORITY_FLAG_COLOR[task.prioridade] ?? PRIORITY_FLAG_COLOR[""]} />
-        ) : null}
-        {task.data_vencimento ? (
-          <span
-            className={`text-xs tabular-nums ${atrasada ? "text-red-600 font-medium" : "text-fysi-muted"}`}
-          >
-            {formatDate(task.data_vencimento)}
+        <div className="min-w-0 flex-1">
+          <span className="inline-block max-w-full truncate rounded-full bg-fysi-mint/40 px-2 py-0.5 text-[0.68rem] font-medium text-fysi-deep">
+            {task.client.empresa || task.client.nome}
           </span>
-        ) : null}
-      </span>
+          <p className="mt-1 text-[0.9rem] font-medium leading-snug text-fysi-deep group-hover:underline underline-offset-2">
+            {task.titulo}
+          </p>
+        </div>
+      </div>
+
+      {prio || mostrarResponsavel || task.data_vencimento ? (
+        <div className="mt-2.5 flex flex-wrap items-center gap-2 pl-[26px]">
+          {prio ? (
+            <span
+              className={`rounded-full border px-2 py-0.5 text-[0.65rem] font-semibold ${prio.classe}`}
+            >
+              {prio.label}
+            </span>
+          ) : null}
+          {mostrarResponsavel && task.responsavel ? (
+            <ResponsavelChip valor={task.responsavel} />
+          ) : null}
+          {task.data_vencimento ? (
+            <span
+              className={`ml-auto inline-flex items-center gap-1 text-xs tabular-nums ${
+                atrasada ? "font-semibold text-red-600" : "text-fysi-muted"
+              }`}
+              title={atrasada ? "Prazo vencido" : "Prazo"}
+            >
+              <CalendarIcon />
+              {formatDate(task.data_vencimento)}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -430,7 +498,7 @@ function GroupSection({
         <span className="text-xs text-fysi-muted">{tasks.length}</span>
       </button>
       {open ? (
-        <div className="pb-1">
+        <div className="flex flex-col gap-2 px-3 pb-3">
           {tasks.map((t) => (
             <TaskRow
               key={t.id}
@@ -480,11 +548,12 @@ function PessoaSection({
         ) : null}
       </button>
       {open ? (
-        <div className="pb-1">
+        <div className="flex flex-col gap-2 px-3 pb-3">
           {tarefas.map((t) => (
             <TaskRow
               key={t.id}
               task={t}
+              mostrarResponsavel
               onOpen={() => onOpenTask(t.id)}
               onSave={(field, value) => onSave(t, field, value)}
             />
@@ -674,7 +743,7 @@ export function MyWorkBoard({
             Nenhuma tarefa concluída ainda.
           </p>
         ) : (
-          <div className="pb-1">
+          <div className="flex flex-col gap-2 px-3 pb-3">
             {feitos.map((t) => (
               <TaskRow
                 key={t.id}
