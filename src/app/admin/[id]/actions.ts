@@ -16,6 +16,7 @@ import { createClickUpBriefingTask } from "@/lib/clickup";
 import { htmlMagicLink, sendEmail } from "@/lib/email";
 import { getServerEnv } from "@/lib/env";
 import { generateMagicSlug } from "@/lib/slug";
+import { parseValorBR } from "@/lib/payment-receipts";
 import {
   buildClientePayload,
   sendDashboardWebhook,
@@ -1338,4 +1339,159 @@ export async function deleteProjectTaskCommentAction(formData: FormData) {
   await service.from("project_task_comments").delete().eq("id", commentId);
 
   revalidatePath(`/admin/${clientId}`);
+}
+
+/* ------------------------------------------------------------------ *
+ * Comprovantes de pagamento
+ *
+ * Cliente que paga no Pix manda o print no WhatsApp e o comprovante se
+ * perde na conversa — semanas depois ninguém sabe se pagou. Aqui o
+ * comprovante fica anexado ao pagamento, E o valor recebido do cliente é
+ * atualizado no mesmo gesto (era o que deixava o sistema desatualizado).
+ * ------------------------------------------------------------------ */
+
+const COMPROVANTES_BUCKET = "comprovantes";
+const MAX_COMPROVANTE_BYTES = 10 * 1024 * 1024;
+const TIPOS_COMPROVANTE = ["image/", "application/pdf"];
+
+export async function addPaymentReceiptAction(
+  formData: FormData
+): Promise<void> {
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+  const member = await requireClientFinanceAccess(formData, clientId);
+
+  const valor = parseValorBR(String(formData.get("valor") ?? ""));
+  if (valor <= 0) return;
+
+  const pagoEm =
+    String(formData.get("pagoEm") ?? "").trim() ||
+    new Date().toISOString().slice(0, 10);
+  const forma = String(formData.get("forma") ?? "pix");
+  const observacao = String(formData.get("observacao") ?? "").trim() || null;
+
+  const service = createSupabaseServiceRoleClient();
+
+  // Anexo é opcional: registrar o recebimento já vale mais que não registrar
+  // nada só porque o print não estava à mão na hora.
+  let arquivoPath: string | null = null;
+  let arquivoNome: string | null = null;
+  let arquivoTipo: string | null = null;
+
+  const file = formData.get("arquivo");
+  if (file instanceof File && file.size > 0) {
+    const tipoOk = TIPOS_COMPROVANTE.some((t) => file.type.startsWith(t));
+    if (!tipoOk || file.size > MAX_COMPROVANTE_BYTES) {
+      logServerError(
+        "comprovante.arquivo-invalido",
+        new Error(`tipo=${file.type} tamanho=${file.size}`)
+      );
+      return;
+    }
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120);
+    const path = `${clientId}/${Date.now()}-${safe}`;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const { error: upErr } = await service.storage
+      .from(COMPROVANTES_BUCKET)
+      .upload(path, bytes, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+    if (upErr) {
+      logServerError("comprovante.upload", upErr);
+      return;
+    }
+    arquivoPath = path;
+    arquivoNome = file.name.slice(0, 200);
+    arquivoTipo = file.type || null;
+  }
+
+  const { error: insErr } = await service.from("payment_receipts").insert({
+    client_id: clientId,
+    valor,
+    pago_em: pagoEm,
+    forma,
+    arquivo_path: arquivoPath,
+    arquivo_nome: arquivoNome,
+    arquivo_tipo: arquivoTipo,
+    observacao,
+    registrado_por: member.name || member.email,
+  });
+  if (insErr) {
+    logServerError("comprovante.insert", insErr);
+    return;
+  }
+
+  // Mantém `pagamento_pago` em dia — é o número que a tela do cliente e as
+  // Cobranças usam. Somar os comprovantes evita o passo manual que a equipe
+  // esquecia de fazer.
+  const { data: recibos } = await service
+    .from("payment_receipts")
+    .select("valor")
+    .eq("client_id", clientId);
+  const somaRecibos = ((recibos as { valor: number }[] | null) ?? []).reduce(
+    (s, r) => s + Number(r.valor || 0),
+    0
+  );
+
+  const { data: atual } = await service
+    .from("clients")
+    .select("pagamento_pago")
+    .eq("id", clientId)
+    .maybeSingle();
+  const pagoAtual = Number(
+    (atual as { pagamento_pago: number | null } | null)?.pagamento_pago ?? 0
+  );
+
+  // Nunca DIMINUIR: pagamentos lançados à mão antes desta tela existir não
+  // têm comprovante e sumiriam do total se a soma virasse a verdade.
+  const novoPago = Math.max(pagoAtual, somaRecibos);
+  if (novoPago !== pagoAtual) {
+    const { error: updErr } = await service
+      .from("clients")
+      .update({
+        pagamento_pago: novoPago,
+        pagamento_atualizado_at: new Date().toISOString(),
+      })
+      .eq("id", clientId);
+    if (updErr) logServerError("comprovante.sync-pago", updErr);
+  }
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin/cobrancas");
+}
+
+export async function deletePaymentReceiptAction(
+  formData: FormData
+): Promise<void> {
+  const clientId = String(formData.get("clientId") ?? "");
+  const receiptId = String(formData.get("receiptId") ?? "");
+  if (!clientId || !receiptId) return;
+  await requireClientFinanceAccess(formData, clientId);
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: row } = await service
+    .from("payment_receipts")
+    .select("arquivo_path, client_id")
+    .eq("id", receiptId)
+    .maybeSingle();
+  const recibo = row as { arquivo_path: string | null; client_id: string } | null;
+  // Não deixa apagar comprovante de outro cliente passando outro clientId.
+  if (!recibo || recibo.client_id !== clientId) return;
+
+  if (recibo.arquivo_path) {
+    const { error: rmErr } = await service.storage
+      .from(COMPROVANTES_BUCKET)
+      .remove([recibo.arquivo_path]);
+    if (rmErr) logServerError("comprovante.remove-arquivo", rmErr);
+  }
+
+  const { error: delErr } = await service
+    .from("payment_receipts")
+    .delete()
+    .eq("id", receiptId);
+  if (delErr) logServerError("comprovante.delete", delErr);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin/cobrancas");
 }

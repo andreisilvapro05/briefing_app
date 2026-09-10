@@ -32,6 +32,8 @@ import { EIView } from "@/components/admin/ei-view";
 
 
 import { ProblemasEditor } from "@/components/admin/problemas-editor";
+import { PaymentReceipts } from "@/components/admin/payment-receipts";
+import type { PaymentReceipt } from "@/lib/payment-receipts";
 
 import { listCustomQuestions } from "@/lib/custom-questions-server";
 import type { Moodboard } from "@/lib/moodboard";
@@ -224,6 +226,18 @@ export default async function AdminClientPage({
     ? buildTimeline(client.project_type)
     : [];
   const currentStage = client.current_stage_index ?? 0;
+
+  // Comprovantes só quando a aba de pagamentos está aberta — nas outras é
+  // consulta desperdiçada.
+  let recibos: PaymentReceipt[] = [];
+  if (tab === "pagamentos") {
+    const { data: recibosData } = await service
+      .from("payment_receipts")
+      .select("*")
+      .eq("client_id", client.id)
+      .order("pago_em", { ascending: false });
+    recibos = (recibosData as PaymentReceipt[] | null) ?? [];
+  }
 
   // Perguntas específicas cadastradas pra este cliente (bloco extra do briefing).
   const customQuestions = await listCustomQuestions(client.id);
@@ -1002,6 +1016,15 @@ Qualquer dúvida, é só responder por aqui.`}
             </section>
           );
         })()}
+
+        <PaymentReceipts
+          clientId={client.id}
+          urlKey={urlKey ?? undefined}
+          recibos={recibos}
+          pagamentoPago={Number(client.pagamento_pago ?? 0)}
+          formatMoney={formatMoney}
+          formatDateShort={formatDate}
+        />
         </>
         ) : null}
 
