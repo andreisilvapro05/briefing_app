@@ -58,7 +58,8 @@ export default async function MembrosPage({
     <AdminShell active="membros" keyParam={keyParam} userEmail={member.email}
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
-      canEditPhoto={member.source === "supabase"}>
+      canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}>
       <header className="mb-6">
         <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Membros da equipe

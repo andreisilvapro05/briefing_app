@@ -3,7 +3,9 @@ import Link from "next/link";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { getCurrentMember, hasFinanceAccess, hasFullAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess, hasFullAccess,
+  isAdmin,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AutoSubmitSelect } from "@/components/admin/auto-submit-select";
@@ -92,6 +94,7 @@ export default async function MarketingPlanejamentoPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">

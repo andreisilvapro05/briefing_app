@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { getCurrentMember, hasFinanceAccess, hasFullAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess, hasFullAccess,
+  isAdmin,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ProcessDocsExplorer } from "@/components/admin/process-docs-explorer";
@@ -51,6 +53,7 @@ export default async function ProcessosPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">

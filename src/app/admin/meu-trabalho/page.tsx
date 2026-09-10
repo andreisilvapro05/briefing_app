@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentMember, hasFinanceAccess, hasFullAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess, hasFullAccess,
+  isAdmin,
+} from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
 import { MyWorkBoard } from "@/components/admin/my-work-board";
@@ -59,6 +61,7 @@ export default async function MeuTrabalhoPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-5">

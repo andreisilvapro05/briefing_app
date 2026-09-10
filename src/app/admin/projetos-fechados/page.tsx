@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { Eyebrow, Pill } from "@/components/ui/pill";
-import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 
@@ -87,7 +89,8 @@ export default async function ProjetosFechadosPage({
     <AdminShell active="projetos-fechados" keyParam={keyParam} userEmail={member.email}
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
-      canEditPhoto={member.source === "supabase"}>
+      canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}>
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">

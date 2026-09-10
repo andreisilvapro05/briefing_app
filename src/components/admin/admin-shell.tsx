@@ -33,6 +33,7 @@ export type AdminSection =
   | "cobrancas"
   | "relatorios"
   | "projetos-fechados"
+  | "custos"
   | "membros";
 
 interface NavItem {
@@ -170,6 +171,11 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <path d="M20 6 9 17l-5-5" />
     </I>
   ),
+  custos: (
+    <I>
+      <path d="M12 3v14M7 12l5 5 5-5M5 21h14" />
+    </I>
+  ),
   membros: (
     <I>
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -225,6 +231,7 @@ const AREAS: NavArea[] = [
       item("contratos", "Contratos", "/admin/contratos"),
       item("cobrancas", "Cobranças", "/admin/cobrancas"),
       item("projetos-fechados", "Projetos Fechados", "/admin/projetos-fechados"),
+      item("custos", "Custos da empresa", "/admin/custos"),
       item("relatorios", "Relatórios", "/admin/relatorios"),
     ],
   },
@@ -261,6 +268,7 @@ export function AdminShell({
   userName,
   userPhotoUrl,
   canEditPhoto,
+  isSocio = false,
   hideFinance,
   children,
 }: {
@@ -276,6 +284,12 @@ export function AdminShell({
   userName?: string | null;
   userPhotoUrl?: string | null;
   canEditPhoto?: boolean;
+  /**
+   * Sócio (isAdmin). "Custos da empresa" tem o salário de cada um, então não
+   * basta ter acesso ao Financeiro. Padrão `false` — falha fechada: quem não
+   * passar a prop não vê o item.
+   */
+  isSocio?: boolean;
   /** Esconde a área Financeiro (Contratos/Cobranças/Projetos Fechados/Relatórios) do menu — role "basico" (ex: designer) não tem acesso a dados financeiros. */
   hideFinance?: boolean;
   children: ReactNode;
@@ -284,11 +298,19 @@ export function AdminShell({
   const initials = (userName || userEmail || "F").slice(0, 2).toUpperCase();
   // "básico" (mesmo flag do Financeiro) também não vê Marketing e Comercial:
   // metas guardam alvos de faturamento — dado comercial sensível.
-  const areas = hideFinance
+  const areasVisiveis = hideFinance
     ? AREAS.filter(
         (a) => a.label !== "Financeiro" && a.label !== "Marketing e Comercial"
       )
     : AREAS;
+  // "Custos da empresa" some pra quem não é sócio — mostrar um item que só
+  // redireciona é pior que não mostrar.
+  const areas = isSocio
+    ? areasVisiveis
+    : areasVisiveis.map((a) => ({
+        ...a,
+        items: a.items.filter((it) => it.id !== "custos"),
+      }));
   const urlKey = keyParam ? new URLSearchParams(keyParam).get("key") : null;
 
   return (

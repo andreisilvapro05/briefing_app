@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { Input } from "@/components/ui/input";
-import { getCurrentMember, hasFinanceAccess, hasFullAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess, hasFullAccess,
+  isAdmin,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { GoalProgressInput } from "@/components/admin/goal-progress-input";
@@ -78,6 +80,7 @@ export default async function MarketingMetasPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">

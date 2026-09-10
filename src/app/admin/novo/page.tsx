@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { getCurrentMember, hasFullAccess, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, hasFullAccess, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { SubmitButton } from "@/components/admin/submit-button";
 import { createClientAction } from "../[id]/actions";
 
@@ -32,6 +34,7 @@ export default async function NovoClientePage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
         <header className="mb-6">

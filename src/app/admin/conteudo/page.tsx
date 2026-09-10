@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ContentBoard } from "@/components/admin/content-board";
 import { listContentBoard } from "@/lib/content-board-server";
@@ -27,6 +29,7 @@ export default async function ConteudoPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-4">

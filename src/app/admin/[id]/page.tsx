@@ -6,7 +6,9 @@ import type { ReactNode } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Eyebrow } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { buildTimeline } from "@/lib/project-types";
 import { blocosForProject } from "@/lib/briefing-schema";
@@ -331,7 +333,8 @@ export default async function AdminClientPage({
     <AdminShell active="clientes" keyParam={keyParam} userEmail={member.email}
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
-      canEditPhoto={member.source === "supabase"} hideFinance={!hasFinanceAccess(member)}>
+      canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)} hideFinance={!hasFinanceAccess(member)}>
         <Link
           href={`/admin${keyParam}`}
           className="text-xs text-fysi-muted hover:text-fysi-deep mb-3 inline-block"

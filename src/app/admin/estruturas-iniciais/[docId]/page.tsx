@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { EIDocumentSidebar } from "@/components/admin/ei-document-sidebar";
 import { EIView } from "@/components/admin/ei-view";
@@ -54,7 +56,8 @@ export default async function EIDocumentPage({
     <AdminShell active="estruturas-iniciais" keyParam={keyParamFirst} userEmail={member.email}
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
-      canEditPhoto={member.source === "supabase"} hideFinance={!hasFinanceAccess(member)}>
+      canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)} hideFinance={!hasFinanceAccess(member)}>
       {/*
         AdminShell's <main> tem px-4 md:px-6 lg:px-8 py-6 — cancelamos com
         margem negativa igual pra sidebar e painel encostarem nas bordas,

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { EIDocumentSidebar } from "@/components/admin/ei-document-sidebar";
 import { EIView } from "@/components/admin/ei-view";
@@ -62,6 +64,7 @@ export default async function BriefingDocumentPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <div className="flex -mx-4 md:-mx-6 lg:-mx-8 -my-6 h-[calc(100vh-3.5rem)]">

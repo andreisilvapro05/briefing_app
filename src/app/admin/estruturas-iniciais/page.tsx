@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentMember, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { getTemplateDocumentId, listEIDocuments } from "@/lib/ei-documents-server";
 import { AdminShell } from "@/components/admin/admin-shell";
 
@@ -38,6 +40,7 @@ export default async function EstruturasIniciaisIndexPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">

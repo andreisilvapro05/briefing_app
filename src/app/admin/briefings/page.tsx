@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Pill } from "@/components/ui/pill";
 import { SubmitTextButton } from "@/components/admin/submit-button";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { listBriefingTemplates } from "@/lib/briefing-templates-server";
@@ -69,6 +71,7 @@ export default async function BriefingsPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">

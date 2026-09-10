@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Eyebrow } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getLaneGroups } from "@/lib/lane-groups-server";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
@@ -67,7 +69,8 @@ export default async function VisaoGeralPage({
     <AdminShell active="visao-geral" keyParam={keyParam} userEmail={member.email}
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
-      canEditPhoto={member.source === "supabase"} hideFinance={!hasFinanceAccess(member)}>
+      canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)} hideFinance={!hasFinanceAccess(member)}>
       <header className="mb-6">
         <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
           Visão Geral

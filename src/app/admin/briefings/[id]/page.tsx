@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Eyebrow } from "@/components/ui/pill";
 import { SubmitTextButton } from "@/components/admin/submit-button";
-import { getCurrentMember, hasFullAccess, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, hasFullAccess, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { BriefingTemplateBuilder } from "@/components/admin/briefing-template-builder";
@@ -52,6 +54,7 @@ export default async function BriefingTemplatePage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">

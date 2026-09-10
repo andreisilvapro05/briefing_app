@@ -6,6 +6,7 @@ import {
   hasFinanceAccess,
   ROLE_LABELS,
   ROLE_HINT,
+  isAdmin,
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ProfilePhotoUploader } from "@/components/admin/profile-photo-uploader";
@@ -43,6 +44,7 @@ export default async function MeuPerfilPage({
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)}
       hideFinance={!hasFinanceAccess(member)}
     >
       <header className="mb-6">

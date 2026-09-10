@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+  isAdmin,
+} from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
@@ -32,7 +34,8 @@ export default async function AdminTarefasPage({
     <AdminShell active="tarefas" keyParam={keyParamFirst} userEmail={member.email}
       userName={member.name}
       userPhotoUrl={member.fotoUrl}
-      canEditPhoto={member.source === "supabase"} hideFinance={!hasFinanceAccess(member)}>
+      canEditPhoto={member.source === "supabase"}
+      isSocio={isAdmin(member)} hideFinance={!hasFinanceAccess(member)}>
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
