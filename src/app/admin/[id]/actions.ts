@@ -1496,7 +1496,11 @@ export async function deletePaymentReceiptAction(
   revalidatePath("/admin/cobrancas");
 }
 
-/** De onde o cliente veio (atribuição do lead). */
+/**
+ * De onde o cliente veio. Grava em `como_conheceu` — a coluna que o próprio
+ * cliente preenche na etapa de dados do contrato e que o relatório de
+ * origem agrupa. O time corrige aqui quando descobre na conversa.
+ */
 export async function setClientOrigemAction(formData: FormData) {
   const clientId = String(formData.get("clientId") ?? "");
   if (!clientId) return;
@@ -1507,7 +1511,7 @@ export async function setClientOrigemAction(formData: FormData) {
   const service = createSupabaseServiceRoleClient();
   const { error } = await service
     .from("clients")
-    .update({ origem })
+    .update({ como_conheceu: origem })
     .eq("id", clientId);
   if (error) logServerError("cliente.origem", error);
 

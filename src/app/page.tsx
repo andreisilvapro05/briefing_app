@@ -18,18 +18,15 @@ import { clearAllResponses } from "@/lib/briefing-store";
 import type { Cliente, ProjectType } from "@/lib/types";
 import { env } from "@/lib/env";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
-import { OrigemPicker } from "@/components/ui/origem-picker";
 
 interface FormState {
   nome: string;
   whatsapp: string;
-  origem: string;
 }
 
 interface FormErrors {
   nome?: string;
   whatsapp?: string;
-  origem?: string;
 }
 
 function validate(values: FormState): FormErrors {
@@ -38,7 +35,6 @@ function validate(values: FormState): FormErrors {
   if (!values.whatsapp.trim()) errors.whatsapp = "Informe um WhatsApp.";
   else if (values.whatsapp.replace(/\D/g, "").length < 10)
     errors.whatsapp = "Número incompleto.";
-  if (!values.origem) errors.origem = "Conta pra gente como nos conheceu.";
   return errors;
 }
 
@@ -49,7 +45,6 @@ export default function IdentificacaoPage() {
     return {
       nome: cliente?.nome ?? "",
       whatsapp: cliente?.whatsapp ?? "",
-      origem: "",
     };
   });
   const [errors, setErrors] = useState<FormErrors>({});
@@ -77,7 +72,7 @@ export default function IdentificacaoPage() {
     clearCliente();
     clearAllResponses();
     setExisting(null);
-    setValues({ nome: "", whatsapp: "", origem: "" });
+    setValues({ nome: "", whatsapp: "" });
     setErrors({});
   }
 
@@ -111,7 +106,6 @@ export default function IdentificacaoPage() {
       body: JSON.stringify({
         nome: values.nome,
         whatsapp: values.whatsapp,
-        origem: values.origem,
         hp: honeypot,
         elapsedMs,
         turnstileToken: turnstileToken || undefined,
@@ -268,12 +262,6 @@ export default function IdentificacaoPage() {
             error={errors.whatsapp}
             hint="Vamos usar pra te avisar quando o time iniciar a produção."
             placeholder="(11) 90000-0000"
-          />
-
-          <OrigemPicker
-            value={values.origem}
-            onChange={(v) => update("origem", v)}
-            error={errors.origem}
           />
 
           {/* Honeypot — invisível pra humanos, bots preenchem. */}

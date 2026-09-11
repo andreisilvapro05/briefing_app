@@ -53,7 +53,6 @@ export function OrigemEditor({
               "bg-fysi-cream border-fysi-line text-fysi-deep"
             }`}
           >
-            <span aria-hidden="true">{origemOpcao(valor)?.emoji ?? "📍"}</span>
             {origemLabel(valor)}
           </span>
         ) : (
@@ -85,7 +84,7 @@ export function OrigemEditor({
         <option value="">Não informado</option>
         {ORIGENS.map((o) => (
           <option key={o.value} value={o.value}>
-            {o.emoji} {o.label}
+            {o.label}
           </option>
         ))}
       </select>

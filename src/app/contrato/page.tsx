@@ -6,6 +6,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eyebrow, Pill } from "@/components/ui/pill";
+import { OrigemPicker } from "@/components/ui/origem-picker";
 import { loadCliente, hydrateCliente } from "@/lib/storage";
 import type { ProjectType } from "@/lib/types";
 
@@ -22,16 +23,6 @@ interface FormState {
   razao_social: string;
   como_conheceu: string;
 }
-
-const COMO_CONHECEU_OPCOES = [
-  "Indicação",
-  "Instagram",
-  "LinkedIn",
-  "Google / Pesquisa",
-  "YouTube",
-  "Evento / Palestra",
-  "Outro",
-];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -254,24 +245,12 @@ export default function ContratoPage() {
                 onChange={(e) => update("cep", e.target.value)}
                 placeholder="00000-000"
               />
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-fysi-deep">
-                  Como nos conheceu?*
-                </label>
-                <select
-                  value={values.como_conheceu}
-                  onChange={(e) => update("como_conheceu", e.target.value)}
-                  className="h-12 rounded-[12px] border border-fysi-line bg-white px-4 text-[0.95rem] text-fysi-deep focus:outline-none focus:border-fysi-green/40"
-                >
-                  <option value="">Selecionar opção…</option>
-                  {COMO_CONHECEU_OPCOES.map((opt) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
+
+            <OrigemPicker
+              value={values.como_conheceu}
+              onChange={(v) => update("como_conheceu", v)}
+            />
           </div>
 
           {/* Bloco 3 — documentos */}

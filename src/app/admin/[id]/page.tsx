@@ -370,7 +370,8 @@ export default async function AdminClientPage({
                 clientId={client.id}
                 urlKey={urlKey ?? undefined}
                 valorInicial={
-                  (client as { origem?: string | null }).origem ?? null
+                  (client as { como_conheceu?: string | null }).como_conheceu ??
+                  null
                 }
               />
             </div>

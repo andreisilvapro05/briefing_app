@@ -44,15 +44,13 @@ export function OrigemPicker({
                 onChange={() => onChange(o.value)}
                 className="sr-only"
               />
-              <span aria-hidden="true" className="text-base leading-none">
-                {o.emoji}
-              </span>
+              <span
+                aria-hidden="true"
+                className={`h-2 w-2 shrink-0 rounded-full ${
+                  selecionado ? o.ponto : "bg-fysi-line"
+                }`}
+              />
               <span className="leading-tight">{o.label}</span>
-              {selecionado ? (
-                <span aria-hidden="true" className="ml-auto text-xs">
-                  ✓
-                </span>
-              ) : null}
             </label>
           );
         })}

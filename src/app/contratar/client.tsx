@@ -23,15 +23,7 @@ import type { ProjectType } from "@/lib/types";
  * navegar livre via click OU sequencial via "Continuar →".
  */
 
-const COMO_CONHECEU_OPCOES = [
-  "Indicação",
-  "Instagram",
-  "LinkedIn",
-  "Google / Pesquisa",
-  "YouTube",
-  "Evento / Palestra",
-  "Outro",
-];
+import { OrigemPicker } from "@/components/ui/origem-picker";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STORAGE_KEY = "fysi:contratar:draft";
@@ -508,24 +500,12 @@ function PanelDados({
             onChange={(e) => onChange("cep", e.target.value)}
             placeholder="00000-000"
           />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-fysi-deep">
-              Como nos conheceu?*
-            </label>
-            <select
-              value={draft.como_conheceu}
-              onChange={(e) => onChange("como_conheceu", e.target.value)}
-              className="h-12 rounded-[12px] border border-fysi-line bg-white px-4 text-[0.95rem] text-fysi-deep focus:outline-none focus:border-fysi-green/40"
-            >
-              <option value="">Selecionar opção…</option>
-              {COMO_CONHECEU_OPCOES.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </div>
         </div>
+
+        <OrigemPicker
+          value={draft.como_conheceu}
+          onChange={(v) => onChange("como_conheceu", v)}
+        />
       </Section>
 
       <Section titulo="Documentos">
