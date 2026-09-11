@@ -20,6 +20,9 @@ const Body = z.object({
   email: z.string().email().optional(),
   empresa: z.string().min(1).optional(),
   whatsapp: z.string().min(8),
+  // De onde conheceu a Fysi — obrigatório na tela do cliente, mas opcional
+  // aqui pra não quebrar chamadas antigas que já estejam em voo.
+  origem: z.string().max(60).optional(),
   // Anti-spam:
   turnstileToken: z.string().optional(),
   hp: z.string().optional(),
@@ -140,6 +143,8 @@ export async function POST(request: NextRequest) {
         nome: parsed.nome,
         empresa: parsed.empresa ?? undefined,
         whatsapp: parsed.whatsapp,
+        // `origem` NÃO entra aqui de propósito: vale a primeira resposta.
+        // Sobrescrever na volta apagaria a atribuição real do lead.
         ip_address: ip as never,
         user_agent: ua,
       })
@@ -156,6 +161,7 @@ export async function POST(request: NextRequest) {
         email: parsed.email ?? "",
         empresa: parsed.empresa ?? "",
         whatsapp: parsed.whatsapp,
+        origem: parsed.origem || null,
         ip_address: ip as never,
         user_agent: ua,
         magic_slug: generateMagicSlug({

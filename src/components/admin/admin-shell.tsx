@@ -216,7 +216,7 @@ const AREAS: NavArea[] = [
     items: [
       item("meu-trabalho", "Meu Trabalho", "/admin/meu-trabalho"),
       item("visao-geral", "Visão Geral", "/admin/visao-geral"),
-      item("clientes", "Clientes", "/admin"),
+      item("clientes", "Clientes", "/admin/clientes"),
       item("lista", "Lista por status", "/admin/lista"),
       item("briefings", "Briefings", "/admin/briefings"),
       item("briefing-documentos", "Documentos de Briefing", "/admin/briefing-documentos"),

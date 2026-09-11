@@ -1495,3 +1495,22 @@ export async function deletePaymentReceiptAction(
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin/cobrancas");
 }
+
+/** De onde o cliente veio (atribuição do lead). */
+export async function setClientOrigemAction(formData: FormData) {
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+  await requireClientAccess(formData, clientId);
+
+  const origem = String(formData.get("origem") ?? "").trim().slice(0, 60) || null;
+
+  const service = createSupabaseServiceRoleClient();
+  const { error } = await service
+    .from("clients")
+    .update({ origem })
+    .eq("id", clientId);
+  if (error) logServerError("cliente.origem", error);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin/clientes");
+}

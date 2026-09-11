@@ -45,6 +45,7 @@ import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
 import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
 import { StatusChanger } from "@/components/admin/status-changer";
+import { OrigemEditor } from "@/components/admin/origem-editor";
 import { getServerEnv } from "@/lib/env";
 import {
   resendClientLinkAction,
@@ -175,7 +176,7 @@ export default async function AdminClientPage({
             Cliente não encontrado.
           </h1>
           <Link
-            href="/admin"
+            href="/admin/clientes"
             className="text-sm text-fysi-deep hover:underline"
           >
             ← Voltar à lista
@@ -364,6 +365,15 @@ export default async function AdminClientPage({
               {client.empresa || client.nome}
             </h1>
             <p className="text-fysi-muted text-sm mt-1">{headerLinha}</p>
+            <div className="mt-2">
+              <OrigemEditor
+                clientId={client.id}
+                urlKey={urlKey ?? undefined}
+                valorInicial={
+                  (client as { origem?: string | null }).origem ?? null
+                }
+              />
+            </div>
           </div>
 
           <aside className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col gap-3 text-sm">
