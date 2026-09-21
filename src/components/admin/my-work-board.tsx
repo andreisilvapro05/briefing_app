@@ -13,6 +13,9 @@ import {
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
 import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
 import { useFocusTrap } from "./use-focus-trap";
+import { TaskComposer } from "./task-composer";
+import { TaskComments } from "./tasks-board";
+import { hojeISO, type ClientOption } from "./task-pickers";
 
 /** `client: null` = demanda interna da agência (ex.: vinda da lista de
  * gestão do ClickUp), que não pertence a nenhuma ficha de cliente. */
@@ -77,10 +80,8 @@ function CalendarIcon() {
   );
 }
 
-/** YYYY-MM-DD local — mesmo padrão de isOverdue() em tasks-board.tsx. */
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+/** Hoje no fuso de Brasília — mesmo relógio de isOverdue() em tasks-board.tsx. */
+const todayStr = hojeISO;
 
 type Grupo = "hoje" | "atraso" | "proximo" | "sem-data";
 
@@ -301,17 +302,30 @@ function TaskRow({
 function TaskCardModal({
   task,
   keyParam,
+  urlKey,
   saving,
   onClose,
   onSave,
 }: {
   task: Task;
   keyParam: string;
+  urlKey: string | null;
   saving: boolean;
   onClose: () => void;
   onSave: (field: string, value: string) => void;
 }) {
   const trapRef = useFocusTrap<HTMLDivElement>(true);
+  const [titulo, setTitulo] = useState(task.titulo);
+  const [observacoes, setObservacoes] = useState(task.observacoes ?? "");
+
+  function salvarTitulo() {
+    const novo = titulo.trim();
+    if (!novo) {
+      setTitulo(task.titulo);
+      return;
+    }
+    if (novo !== task.titulo) onSave("titulo", novo);
+  }
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -337,13 +351,27 @@ function TaskCardModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 px-6 py-5 border-b border-fysi-line">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs text-fysi-muted mb-1 truncate">
               {task.client ? task.client.empresa || task.client.nome : "Interno"}
             </p>
-            <h2 className="text-lg font-semibold text-fysi-deep leading-snug">
-              {task.titulo}
-            </h2>
+            {/* Título editável no lugar, como no ClickUp: parece texto,
+                vira campo ao focar. */}
+            <input
+              type="text"
+              value={titulo}
+              maxLength={200}
+              onChange={(e) => setTitulo(e.target.value)}
+              onBlur={salvarTitulo}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  e.currentTarget.blur();
+                }
+              }}
+              aria-label="Nome da demanda"
+              className="w-full -mx-1.5 px-1.5 py-0.5 rounded-[8px] border border-transparent bg-transparent text-lg font-semibold text-fysi-deep leading-snug hover:border-fysi-line focus:border-fysi-deep/40 focus:bg-white focus:outline-none transition-colors"
+            />
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {saving ? (
@@ -352,6 +380,10 @@ function TaskCardModal({
             <button
               type="button"
               onClick={onClose}
+              // Foco inicial aqui, não no título: o focus trap focaria o
+              // primeiro campo, e no celular isso abre o teclado por cima
+              // do cartão que a pessoa só queria ler.
+              autoFocus
               className="w-8 h-8 grid place-items-center rounded-full text-fysi-muted hover:bg-fysi-cream hover:text-fysi-deep transition"
               aria-label="Fechar"
             >
@@ -443,18 +475,28 @@ function TaskCardModal({
             </div>
           </div>
 
-          <div>
-            <p className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
               Observações
-            </p>
-            {task.observacoes ? (
-              <p className="text-sm text-fysi-deep leading-relaxed whitespace-pre-wrap">
-                {task.observacoes}
-              </p>
-            ) : (
-              <p className="text-sm text-fysi-muted italic">Sem observações.</p>
-            )}
-          </div>
+            </span>
+            <textarea
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              onBlur={() => {
+                if (observacoes.trim() !== (task.observacoes ?? ""))
+                  onSave("observacoes", observacoes);
+              }}
+              placeholder="Notas, links, contexto pra quem for mexer nessa demanda…"
+              rows={3}
+              className="w-full rounded-[10px] border border-fysi-line bg-white text-sm text-fysi-deep px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
+            />
+          </label>
+
+          <TaskComments
+            taskId={task.id}
+            clientId={task.client_id ?? ""}
+            urlKey={urlKey ?? undefined}
+          />
         </div>
 
         {/* Demanda interna não tem projeto pra abrir — o link sumiria numa
@@ -465,7 +507,7 @@ function TaskCardModal({
             href={`/admin/${task.client_id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
             className="text-sm font-medium text-fysi-deep hover:underline"
           >
-            Abrir no projeto (subtarefas, comentários) →
+            Abrir na ficha do cliente →
           </Link>
         </div>
         ) : null}
@@ -577,14 +619,24 @@ export function MyWorkBoard({
   delegadas = [],
   keyParam,
   urlKey,
+  clients = [],
+  meuResponsavel,
+  lockResponsavel = false,
 }: {
   tasks: Task[];
   /** Tarefas de OUTRAS pessoas — alimentam a aba "Delegado". Vazio pro papel básico. */
   delegadas?: Task[];
   keyParam: string;
   urlKey: string | null;
+  /** Clientes que a pessoa enxerga — opções do "+ Nova demanda". */
+  clients?: ClientOption[];
+  /** Valor de `responsavel` do membro logado: demanda nova nasce com ele. */
+  meuResponsavel: string;
+  /** Papel "basico": só cria demanda pra si. */
+  lockResponsavel?: boolean;
 }) {
   const [tab, setTab] = useState<TabId>("pendente");
+  const [criando, setCriando] = useState(false);
   const [patches, setPatches] = useState<Record<string, Partial<Task>>>({});
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [saving, startTransition] = useTransition();
@@ -610,6 +662,8 @@ export function MyWorkBoard({
       responsavel: "responsavel",
       dataInicial: "data_inicial",
       dataVencimento: "data_vencimento",
+      titulo: "titulo",
+      observacoes: "observacoes",
     };
     const column = FIELD_TO_COLUMN[field];
     if (!column) return;
@@ -696,12 +750,38 @@ export function MyWorkBoard({
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card">
       <div className="px-5 pt-4">
-        <div className="flex items-baseline justify-between mb-3">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <p className="text-sm font-semibold text-fysi-deep">Meu trabalho</p>
-          {saving ? (
-            <span className="text-xs text-fysi-muted">Salvando…</span>
-          ) : null}
+          <div className="flex items-center gap-3">
+            {saving ? (
+              <span className="text-xs text-fysi-muted">Salvando…</span>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setCriando((v) => !v)}
+              aria-expanded={criando}
+              className={`inline-flex items-center gap-1.5 rounded-full text-xs font-semibold px-3.5 h-8 transition ${
+                criando
+                  ? "border border-fysi-line text-fysi-muted hover:text-fysi-deep"
+                  : "bg-fysi-deep text-fysi-cream hover:bg-fysi-deep/90"
+              }`}
+            >
+              {criando ? "Fechar" : "+ Nova demanda"}
+            </button>
+          </div>
         </div>
+        {criando ? (
+          <div className="mb-2">
+            <TaskComposer
+              clients={clients}
+              defaultResponsavel={meuResponsavel}
+              lockResponsavel={lockResponsavel}
+              urlKey={urlKey}
+              autoFocus
+              onClose={() => setCriando(false)}
+            />
+          </div>
+        ) : null}
         <div className="flex gap-1 border-b border-fysi-line -mb-px">
           {(
             [
@@ -729,7 +809,7 @@ export function MyWorkBoard({
       {tab === "pendente" ? (
         pendentes.length === 0 ? (
           <p className="text-sm text-fysi-muted text-center py-10">
-            Nenhuma tarefa pendente 🎉
+            Nenhuma tarefa pendente. Tudo em dia.
           </p>
         ) : (
           <div>
@@ -738,7 +818,11 @@ export function MyWorkBoard({
                 key={g}
                 grupo={g}
                 tasks={grupos[g]}
-                defaultOpen={g === "hoje" || g === "atraso"}
+                // "Não programado" só abre sozinho quando é curto: com
+                // dezenas de itens ele empurrava o que tem prazo pra fora da
+                // tela. Mas fechado sempre, a demanda recém-criada sem data
+                // parecia não ter sido salva.
+                defaultOpen={g !== "sem-data" || grupos[g].length <= 8}
                 onOpenTask={setOpenTaskId}
                 onSave={saveField}
               />
@@ -798,8 +882,11 @@ export function MyWorkBoard({
 
       {openTask ? (
         <TaskCardModal
+          // key: o estado local (título, observações) é por demanda.
+          key={openTask.id}
           task={openTask}
           keyParam={keyParam}
+          urlKey={urlKey}
           saving={saving}
           onClose={() => setOpenTaskId(null)}
           onSave={(field, value) => saveField(openTask, field, value)}

@@ -16,6 +16,8 @@ import {
   type ProjectTask,
 } from "@/lib/project-tasks";
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
+import { TaskComposer } from "./task-composer";
+import type { ClientOption } from "./task-pickers";
 
 /** Esta tela agrupa POR cliente, então demanda interna (client null) é
  * filtrada antes de chegar aqui — ver /admin/tarefas. */
@@ -31,6 +33,7 @@ export function AllTasksBoard({
   urlKey,
   keyParam = "",
   eiDocIdByClient = {},
+  clients = [],
   restrictToResponsavel,
 }: {
   tasks: Task[];
@@ -38,9 +41,12 @@ export function AllTasksBoard({
   keyParam?: string;
   /** client_id -> id do documento de Estrutura Inicial, se existir. */
   eiDocIdByClient?: Record<string, string>;
+  /** Clientes visíveis pra pessoa — opções do "+ Nova tarefa". */
+  clients?: ClientOption[];
   restrictToResponsavel?: EditRestriction;
 }) {
   const [query, setQuery] = useState("");
+  const [criando, setCriando] = useState(false);
   const [responsavel, setResponsavel] = useState("");
   const [mostrarFechados, setMostrarFechados] = useState(false);
 
@@ -59,7 +65,7 @@ export function AllTasksBoard({
 
   const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
     "fysi-cols-alltasks",
-    [180, 220, 150, 56, 56, 120, 130, 80]
+    [170, 260, 150, 78, 78, 92, 124, 40]
   );
 
   const filtered = useMemo(() => {
@@ -111,8 +117,41 @@ export function AllTasksBoard({
               </option>
             ))}
           </select>
+          {/* "basico" sem vínculo não cria (o servidor recusaria). */}
+          {restrictToResponsavel === null ? null : (
+            <button
+              type="button"
+              onClick={() => setCriando((v) => !v)}
+              aria-expanded={criando}
+              className={`inline-flex items-center rounded-full text-sm font-semibold px-4 h-9 transition ${
+                criando
+                  ? "border border-fysi-line text-fysi-muted hover:text-fysi-deep"
+                  : "bg-fysi-deep text-fysi-cream hover:bg-fysi-deep/90"
+              }`}
+            >
+              {criando ? "Fechar" : "+ Nova tarefa"}
+            </button>
+          )}
         </div>
       </div>
+
+      {criando ? (
+        <div className="mb-4">
+          <TaskComposer
+            clients={clients}
+            defaultResponsavel={
+              typeof restrictToResponsavel === "string"
+                ? restrictToResponsavel
+                : responsavel
+            }
+            lockResponsavel={typeof restrictToResponsavel === "string"}
+            urlKey={urlKey}
+            autoFocus
+            onClose={() => setCriando(false)}
+            notaInterno="Demanda interna não entra nesta lista (ela é por cliente) — aparece em Meu Trabalho."
+          />
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-2 mb-5">
         {distribuicao.porPessoa.map(({ member, count }) => {
@@ -152,8 +191,9 @@ export function AllTasksBoard({
 
       {tasks.length === 0 ? (
         <p className="text-sm text-fysi-muted">
-          Nenhuma tarefa cadastrada ainda. As tarefas nascem na ficha do
-          cliente, na aba Tarefas — ou de um Modelo de projeto.
+          Nenhuma tarefa cadastrada ainda. Crie a primeira em &ldquo;+ Nova
+          tarefa&rdquo;, ou gere o checklist padrão na aba Tarefas da ficha
+          do cliente.
         </p>
       ) : filtered.length === 0 ? (
         <p className="text-sm text-fysi-muted">
@@ -171,10 +211,10 @@ export function AllTasksBoard({
                 <ResizableTh onResizeStart={startResize(0)}>Cliente</ResizableTh>
                 <ResizableTh onResizeStart={startResize(1)}>Nome</ResizableTh>
                 <ResizableTh onResizeStart={startResize(2)}>Status</ResizableTh>
-                <ResizableTh onResizeStart={startResize(3)}>Prioridade</ResizableTh>
-                <ResizableTh onResizeStart={startResize(4)}>Responsável</ResizableTh>
-                <ResizableTh onResizeStart={startResize(5)}>Data inicial</ResizableTh>
-                <ResizableTh onResizeStart={startResize(6)}>Data de vencimento</ResizableTh>
+                <ResizableTh onResizeStart={startResize(3)} title="Prioridade">Prior.</ResizableTh>
+                <ResizableTh onResizeStart={startResize(4)} title="Responsável">Resp.</ResizableTh>
+                <ResizableTh onResizeStart={startResize(5)}>Início</ResizableTh>
+                <ResizableTh onResizeStart={startResize(6)}>Vencimento</ResizableTh>
                 <ResizableTh />
               </tr>
             </thead>

@@ -12,7 +12,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   seedProjectTasksAction,
-  addProjectTaskAction,
   removeProjectTaskAction,
   updateProjectTaskAction,
   reorderProjectTasksAction,
@@ -25,29 +24,24 @@ import {
   TASK_STATUS_OPTIONS,
   TASK_STATUS_TONE,
   TASK_STATUS_GROUP,
-  TASK_PRIORITY_OPTIONS,
-  TEAM_MEMBERS,
   type ProjectTask,
   type TaskStatus,
 } from "@/lib/project-tasks";
 import type { ProjectType } from "@/lib/types";
+import {
+  AssigneePicker,
+  DueDatePicker,
+  PriorityPicker,
+  hojeISO,
+} from "./task-pickers";
+import { TaskComposer } from "./task-composer";
 
 /** Data (YYYY-MM-DD) já passou e a tarefa não está num status "fechado". */
 function isOverdue(dataVencimento: string, status: TaskStatus): boolean {
   if (!dataVencimento) return false;
   if (TASK_STATUS_GROUP[status] === "fechado") return false;
-  const hoje = new Date().toISOString().slice(0, 10);
-  return dataVencimento < hoje;
+  return dataVencimento < hojeISO();
 }
-
-/** Cor da bandeira por prioridade — igual ClickUp (bandeira, sem texto ao lado). */
-const TASK_PRIORITY_FLAG: Record<string, string> = {
-  "": "text-fysi-line",
-  urgente: "text-red-600",
-  alta: "text-orange-500",
-  normal: "text-blue-500",
-  baixa: "text-fysi-muted",
-};
 
 function GripIcon() {
   return (
@@ -129,13 +123,16 @@ export function ResizableTh({
   children,
   onResizeStart,
   className = "",
+  title,
 }: {
   children?: ReactNode;
   onResizeStart?: (e: React.MouseEvent) => void;
   className?: string;
+  /** Nome por extenso quando o rótulo da coluna é abreviado. */
+  title?: string;
 }) {
   return (
-    <th className={`relative px-3 py-2 font-medium ${className}`}>
+    <th title={title} className={`relative px-3 py-2 font-medium ${className}`}>
       <span className="truncate block pr-2">{children}</span>
       {onResizeStart ? (
         <span
@@ -147,173 +144,45 @@ export function ResizableTh({
   );
 }
 
-function FlagIcon({ className }: { className?: string }) {
+/**
+ * Ação secundária da linha (renomear, remover): aparece no hover ou no foco
+ * do teclado. Em tela de toque não existe hover, então fica sempre visível.
+ */
+const HOVER_ONLY =
+  "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100";
+
+function PencilIcon() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M5 3a1 1 0 0 1 1-1h11.5a1 1 0 0 1 .8 1.6L15.25 8l3.05 4.4a1 1 0 0 1-.8 1.6H7a1 1 0 0 0-1 1V21a1 1 0 1 1-2 0V3z" />
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
     </svg>
   );
 }
 
-/** Fecha um popover ao clicar fora dele. */
-function useClickOutside(
-  ref: React.RefObject<HTMLElement | null>,
-  onOutside: () => void
-) {
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onOutside();
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [ref, onOutside]);
-}
-
-/** Bandeira colorida (sem texto) — clique abre a lista de prioridades, igual ClickUp. */
-function PriorityPicker({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
-  const current = TASK_PRIORITY_OPTIONS.find((o) => o.value === value);
-
+function TrashIcon() {
   return (
-    <div ref={ref} className="relative inline-block">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        title={current?.label}
-        className={`w-7 h-7 rounded-md grid place-items-center hover:bg-fysi-cream transition disabled:opacity-50 ${
-          TASK_PRIORITY_FLAG[value] ?? TASK_PRIORITY_FLAG[""]
-        }`}
-      >
-        <FlagIcon />
-      </button>
-      {open ? (
-        <div className="absolute z-20 top-full left-0 mt-1 w-40 bg-white border border-fysi-line rounded-[10px] shadow-lg py-1">
-          {TASK_PRIORITY_OPTIONS.map((o) => (
-            <button
-              key={o.value}
-              type="button"
-              onClick={() => {
-                onChange(o.value);
-                setOpen(false);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-fysi-cream ${
-                o.value === value
-                  ? "font-semibold text-fysi-deep"
-                  : "text-fysi-muted"
-              }`}
-            >
-              <FlagIcon
-                className={TASK_PRIORITY_FLAG[o.value] ?? TASK_PRIORITY_FLAG[""]}
-              />
-              {o.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" />
+    </svg>
   );
 }
 
-/** Avatar só com iniciais (sem nome ao lado) — clique abre a lista da equipe, igual ClickUp. */
-function AssigneePicker({
-  value,
-  onChange,
-  disabled,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
-  const current = TEAM_MEMBERS.find((m) => m.value === value);
-
+function LockIcon() {
   return (
-    <div ref={ref} className="relative inline-block">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        title={
-          current
-            ? current.externo
-              ? `${current.label} (externo)`
-              : current.label
-            : "Sem responsável"
-        }
-        // Externo ganha anel tracejado: quem olha o quadro precisa saber que
-        // aquela demanda não está com a equipe interna.
-        className={`w-6 h-6 rounded-full grid place-items-center text-[0.58rem] font-bold text-white transition disabled:opacity-50 hover:ring-2 hover:ring-fysi-deep/15 ${
-          current?.externo ? "ring-2 ring-dashed ring-fysi-deep/40" : ""
-        } ${current?.cor ?? "bg-fysi-line"}`}
-      >
-        {current?.iniciais ?? "—"}
-      </button>
-      {open ? (
-        <div className="absolute z-20 top-full left-0 mt-1 w-44 bg-white border border-fysi-line rounded-[10px] shadow-lg py-1 max-h-56 overflow-y-auto">
-          <button
-            type="button"
-            onClick={() => {
-              onChange("");
-              setOpen(false);
-            }}
-            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-fysi-cream ${
-              !value ? "font-semibold text-fysi-deep" : "text-fysi-muted"
-            }`}
-          >
-            <span className="w-5 h-5 rounded-full bg-fysi-line grid place-items-center text-white text-[0.55rem]">
-              —
-            </span>
-            Sem responsável
-          </button>
-          {TEAM_MEMBERS.map((m) => (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => {
-                onChange(m.value);
-                setOpen(false);
-              }}
-              className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-fysi-cream ${
-                m.value === value
-                  ? "font-semibold text-fysi-deep"
-                  : "text-fysi-muted"
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full grid place-items-center text-white text-[0.55rem] font-bold ${m.cor}`}
-              >
-                {m.iniciais}
-              </span>
-              {m.label}
-              {m.externo ? (
-                <span className="ml-auto text-[0.6rem] uppercase tracking-[0.08em] text-fysi-muted">
-                  externo
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+      <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />
+      <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+    </svg>
   );
 }
 
@@ -338,8 +207,28 @@ export function useTaskDrag(
   urlKey?: string
 ) {
   const router = useRouter();
-  const [order, setOrder] = useState(tasks);
-  useEffect(() => setOrder(tasks), [tasks]);
+  // Ordem otimista do último arrasto, válida só enquanto o servidor ainda
+  // devolve a ordem em que o arrasto foi feito (`baseKey`). Quando o refresh
+  // traz a ordem nova, ela deixa de valer sozinha.
+  //
+  // Antes isso era `useState(tasks)` + `useEffect(() => setOrder(tasks),
+  // [tasks])`. Quem chama passa um array NOVO a cada render (`tasks.filter()`,
+  // `carregadas ?? []`), então o efeito disparava em todo render, o setState
+  // gerava outro render, e a lista ficava em loop infinito de renderização —
+  // um por cliente na Lista/Visão Geral, mesmo com o accordion fechado.
+  const [optimistic, setOptimistic] = useState<{
+    ids: string[];
+    baseKey: string;
+  } | null>(null);
+  const serverKey = tasks.map((t) => t.id).join(",");
+  // Derivado a cada render, sem estado nem efeito: os objetos vêm sempre de
+  // `tasks`, então status/datas recém-salvos aparecem mesmo com a ordem
+  // otimista ativa.
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const order =
+    optimistic && optimistic.baseKey === serverKey
+      ? optimistic.ids.flatMap((id) => byId.get(id) ?? [])
+      : tasks;
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
@@ -357,11 +246,10 @@ export function useTaskDrag(
         setOverId(null);
         if (from === -1 || to === -1 || from === to) return;
 
-        const previous = order;
         const next = order.slice();
         const [moved] = next.splice(from, 1);
         next.splice(to, 0, moved);
-        setOrder(next);
+        setOptimistic({ ids: next.map((x) => x.id), baseKey: serverKey });
 
         const fd = new FormData();
         fd.append("clientId", clientId);
@@ -371,7 +259,7 @@ export function useTaskDrag(
         // não é dele), reverte a ordem otimista em vez de deixar a UI mentir.
         reorderProjectTasksAction(fd)
           .then(() => router.refresh())
-          .catch(() => setOrder(previous));
+          .catch(() => setOptimistic(null));
       },
       onDragEnd: () => {
         setDragId(null);
@@ -417,8 +305,22 @@ export function TaskRow({
     task.data_vencimento ?? ""
   );
   const [observacoes, setObservacoes] = useState(task.observacoes ?? "");
+  const [titulo, setTitulo] = useState(task.titulo);
+  const [renomeando, setRenomeando] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  function salvarTitulo() {
+    const novo = titulo.trim();
+    setRenomeando(false);
+    // Vazio ou igual: volta ao que estava, sem ir ao servidor.
+    if (!novo || novo === task.titulo) {
+      setTitulo(task.titulo);
+      return;
+    }
+    setTitulo(novo);
+    saveField("titulo", novo);
+  }
 
   function baseFd() {
     const fd = new FormData();
@@ -438,7 +340,12 @@ export function TaskRow({
   }
 
   function remove() {
-    if (!window.confirm("Remover esta tarefa? Não dá pra desfazer.")) return;
+    if (
+      !window.confirm(
+        `Remover "${task.titulo}"? Comentários e datas vão junto. Não dá pra desfazer.`
+      )
+    )
+      return;
     const fd = baseFd();
     startTransition(async () => {
       await removeProjectTaskAction(fd);
@@ -448,8 +355,6 @@ export function TaskRow({
 
   const totalCols = (clienteCell ? 1 : 0) + 7;
   const locked = pending || readOnly;
-  const fieldClass =
-    "rounded-[8px] border border-transparent hover:border-fysi-line focus:border-fysi-deep/40 bg-transparent hover:bg-white focus:bg-white text-xs px-2 py-1 transition-colors focus:outline-none";
 
   return (
     <>
@@ -484,20 +389,61 @@ export function TaskRow({
             ) : null}
             {readOnly ? (
               <span
-                className="text-fysi-muted/50 shrink-0"
+                className="text-fysi-muted/60 shrink-0"
                 title="Somente leitura — tarefa de outra pessoa"
               >
-                🔒
+                <LockIcon />
               </span>
             ) : null}
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="text-left hover:underline underline-offset-2 truncate min-w-0"
-              title="Ver informações da tarefa"
-            >
-              {task.titulo}
-            </button>
+            {renomeando ? (
+              <input
+                type="text"
+                value={titulo}
+                autoFocus
+                maxLength={200}
+                onChange={(e) => setTitulo(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={salvarTitulo}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.blur();
+                  } else if (e.key === "Escape") {
+                    setTitulo(task.titulo);
+                    setRenomeando(false);
+                  }
+                }}
+                aria-label="Nome da tarefa"
+                className="flex-1 min-w-0 rounded-[6px] border border-fysi-deep/40 bg-white text-sm text-fysi-deep px-1.5 py-0.5 focus:outline-none"
+              />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  onDoubleClick={() => {
+                    if (!locked) setRenomeando(true);
+                  }}
+                  aria-expanded={expanded}
+                  className="text-left hover:underline underline-offset-2 truncate min-w-0"
+                  title={`${titulo} — clique pra ver observações e comentários`}
+                >
+                  {titulo}
+                </button>
+                {readOnly ? null : (
+                  <button
+                    type="button"
+                    onClick={() => setRenomeando(true)}
+                    disabled={locked}
+                    aria-label={`Renomear "${titulo}"`}
+                    title="Renomear"
+                    className={`shrink-0 w-6 h-6 grid place-items-center rounded-md text-fysi-muted hover:text-fysi-deep hover:bg-fysi-cream transition ${HOVER_ONLY}`}
+                  >
+                    <PencilIcon />
+                  </button>
+                )}
+              </>
+            )}
           </div>
         </td>
         <td className="px-3 py-2">
@@ -538,28 +484,32 @@ export function TaskRow({
             }}
           />
         </td>
-        <td className="px-3 py-2 overflow-hidden">
-          <input
-            type="date"
+        {/* Datas com o mesmo seletor da barra de criação (atalhos Hoje /
+            Amanhã / Próxima segunda). O <input type="date"> nativo não cabia
+            na coluna — aparecia cortado como "dd/mm/aa". */}
+        <td className="px-2 py-2 overflow-hidden">
+          <DueDatePicker
+            bare
+            emptyLabel="Início"
             value={dataInicial}
             disabled={locked}
-            onChange={(e) => setDataInicial(e.target.value)}
-            onBlur={() => saveField("dataInicial", dataInicial)}
-            className={`max-w-full ${fieldClass}`}
+            onChange={(v) => {
+              setDataInicial(v);
+              saveField("dataInicial", v);
+            }}
           />
         </td>
-        <td className="px-3 py-2 overflow-hidden">
-          <input
-            type="date"
+        <td className="px-2 py-2 overflow-hidden">
+          <DueDatePicker
+            bare
+            emptyLabel="Vencimento"
             value={dataVencimento}
             disabled={locked}
-            onChange={(e) => setDataVencimento(e.target.value)}
-            onBlur={() => saveField("dataVencimento", dataVencimento)}
-            className={`max-w-full ${fieldClass} ${
-              isOverdue(dataVencimento, status)
-                ? "!border-red-300 text-red-700"
-                : ""
-            }`}
+            overdue={isOverdue(dataVencimento, status)}
+            onChange={(v) => {
+              setDataVencimento(v);
+              saveField("dataVencimento", v);
+            }}
           />
         </td>
         <td className="px-3 py-2 text-right overflow-hidden">
@@ -568,9 +518,11 @@ export function TaskRow({
               type="button"
               onClick={remove}
               disabled={locked}
-              className="text-xs text-red-700 underline underline-offset-2 disabled:opacity-50"
+              aria-label={`Remover "${titulo}"`}
+              title="Remover tarefa"
+              className={`w-7 h-7 inline-grid place-items-center rounded-md text-fysi-muted hover:text-red-700 hover:bg-red-50 transition disabled:opacity-50 ${HOVER_ONLY}`}
             >
-              Remover
+              <TrashIcon />
             </button>
           )}
         </td>
@@ -584,7 +536,7 @@ export function TaskRow({
                   href={eiHref}
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-fysi-deep hover:underline w-fit"
                 >
-                  📐 {eiDocId ? "Ver Estrutura Inicial" : "Criar Estrutura Inicial"} →
+                  {eiDocId ? "Ver Estrutura Inicial" : "Criar Estrutura Inicial"} →
                 </Link>
               ) : null}
 
@@ -596,7 +548,10 @@ export function TaskRow({
                   value={observacoes}
                   disabled={locked}
                   onChange={(e) => setObservacoes(e.target.value)}
-                  onBlur={() => saveField("observacoes", observacoes)}
+                  onBlur={() => {
+                    if (observacoes.trim() !== (task.observacoes ?? ""))
+                      saveField("observacoes", observacoes);
+                  }}
                   placeholder="Notas, links, contexto pra quem for mexer nessa tarefa…"
                   rows={3}
                   className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
@@ -611,7 +566,8 @@ export function TaskRow({
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-fysi-deep underline underline-offset-2 hover:text-fysi-green truncate max-w-xs"
                       >
-                        🔗 {url}
+                        <LinkIcon />
+                        <span className="truncate">{url}</span>
                       </a>
                     ))}
                   </div>
@@ -627,7 +583,7 @@ export function TaskRow({
   );
 }
 
-function TaskComments({
+export function TaskComments({
   taskId,
   clientId,
   urlKey,
@@ -795,7 +751,6 @@ export function TasksBoard({
   restrictToResponsavel?: EditRestriction;
 }) {
   const router = useRouter();
-  const [novoTitulo, setNovoTitulo] = useState("");
   const [mostrarFechados, setMostrarFechados] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -817,7 +772,7 @@ export function TasksBoard({
   );
   const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
     "fysi-cols-tasksboard",
-    [220, 150, 56, 56, 120, 130, 80]
+    [270, 150, 78, 78, 92, 124, 40]
   );
 
   function seed() {
@@ -826,20 +781,6 @@ export function TasksBoard({
     if (urlKey) fd.append("key", urlKey);
     startTransition(async () => {
       await seedProjectTasksAction(fd);
-      router.refresh();
-    });
-  }
-
-  function add() {
-    const titulo = novoTitulo.trim();
-    if (!titulo) return;
-    const fd = new FormData();
-    fd.append("clientId", clientId);
-    fd.append("titulo", titulo);
-    if (urlKey) fd.append("key", urlKey);
-    startTransition(async () => {
-      await addProjectTaskAction(fd);
-      setNovoTitulo("");
       router.refresh();
     });
   }
@@ -886,10 +827,10 @@ export function TasksBoard({
               <tr>
                 <ResizableTh onResizeStart={startResize(0)}>Nome</ResizableTh>
                 <ResizableTh onResizeStart={startResize(1)}>Status</ResizableTh>
-                <ResizableTh onResizeStart={startResize(2)}>Prioridade</ResizableTh>
-                <ResizableTh onResizeStart={startResize(3)}>Responsável</ResizableTh>
-                <ResizableTh onResizeStart={startResize(4)}>Data inicial</ResizableTh>
-                <ResizableTh onResizeStart={startResize(5)}>Data de vencimento</ResizableTh>
+                <ResizableTh onResizeStart={startResize(2)} title="Prioridade">Prior.</ResizableTh>
+                <ResizableTh onResizeStart={startResize(3)} title="Responsável">Resp.</ResizableTh>
+                <ResizableTh onResizeStart={startResize(4)}>Início</ResizableTh>
+                <ResizableTh onResizeStart={startResize(5)}>Vencimento</ResizableTh>
                 <ResizableTh />
               </tr>
             </thead>
@@ -945,28 +886,22 @@ export function TasksBoard({
         </div>
       )}
 
-      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-fysi-line">
-        <input
-          type="text"
-          value={novoTitulo}
-          onChange={(e) => setNovoTitulo(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add();
-            }
-          }}
-          placeholder="Nova tarefa…"
-          className="flex-1 rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-1.5"
-        />
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={add}
-          disabled={pending || !novoTitulo.trim()}
-        >
-          + Adicionar
-        </Button>
+      <div className="mt-4 pt-4 border-t border-fysi-line">
+        {restrictToResponsavel === null ? (
+          // "basico" sem vínculo de tarefas: o servidor recusaria a criação
+          // (a tarefa nasceria sem poder ser editada por quem criou).
+          <p className="text-xs text-fysi-muted">
+            Pra adicionar tarefas, peça a um sócio pra ligar seu login a um
+            responsável em Membros.
+          </p>
+        ) : (
+          <TaskComposer
+            clientId={clientId}
+            urlKey={urlKey}
+            defaultResponsavel={restrictToResponsavel ?? ""}
+            lockResponsavel={typeof restrictToResponsavel === "string"}
+          />
+        )}
       </div>
     </section>
   );

@@ -4,7 +4,7 @@ import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
-import { listAllProjectTasks } from "@/lib/project-tasks-server";
+import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
 import { getEIDocumentIdsForClients } from "@/lib/ei-documents-server";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,10 @@ export default async function AdminTarefasPage({
 
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const visibleIds = await getVisibleClientIds(member);
-  const allTasks = await listAllProjectTasks();
+  const [allTasks, clientOptions] = await Promise.all([
+    listAllProjectTasks(),
+    listClientOptions(visibleIds),
+  ]);
   // Esta tela é "todas as subtarefas de produção", agrupadas por cliente.
   // Demanda interna (sem cliente) não tem lugar aqui — ela aparece em
   // "Meu Trabalho", que é organizado por pessoa.
@@ -61,6 +64,7 @@ export default async function AdminTarefasPage({
         urlKey={urlKey ?? undefined}
         keyParam={keyParamFirst}
         eiDocIdByClient={eiDocIdByClient}
+        clients={clientOptions}
         restrictToResponsavel={
           member.role === "basico" ? member.taskValue : undefined
         }

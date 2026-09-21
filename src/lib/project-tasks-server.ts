@@ -108,3 +108,18 @@ export function taskProgress(tasks: ProjectTask[]): TaskProgress {
       .length,
   };
 }
+
+/**
+ * Clientes como opções do "+ Nova demanda" (Meu Trabalho e Tarefas).
+ * `visibleIds` = escopo do papel "basico" (null/undefined = vê todos).
+ */
+export async function listClientOptions(
+  visibleIds?: Set<string> | null
+): Promise<{ id: string; label: string }[]> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service.from("clients").select("id, nome, empresa");
+  return ((data as ProjectTaskClient[] | null) ?? [])
+    .filter((c) => !visibleIds || visibleIds.has(c.id))
+    .map((c) => ({ id: c.id, label: c.empresa || c.nome || "Sem nome" }))
+    .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+}

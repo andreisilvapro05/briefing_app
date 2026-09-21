@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentMember, hasFinanceAccess, hasFullAccess,
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess, hasFullAccess,
   isAdmin,
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
-import { listAllProjectTasks } from "@/lib/project-tasks-server";
+import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
 import { MyWorkBoard } from "@/components/admin/my-work-board";
 import { DayHero } from "@/components/admin/day-hero";
 import { SubmitTextButton } from "@/components/admin/submit-button";
@@ -58,7 +58,13 @@ export default async function MeuTrabalhoPage({
   // Carrega sempre: mesmo sem vínculo, quem tem visão da equipe precisa ver
   // quanta demanda está sem dono pra poder consertar.
   const podeVerEquipe = hasFullAccess(member);
-  const allTasks = member.taskValue || podeVerEquipe ? await listAllProjectTasks() : [];
+  const [allTasks, clientOptions] = await Promise.all([
+    member.taskValue || podeVerEquipe ? listAllProjectTasks() : [],
+    // Opções do "+ Nova demanda" — no escopo de clientes que a pessoa vê.
+    member.taskValue
+      ? getVisibleClientIds(member).then((ids) => listClientOptions(ids))
+      : [],
+  ]);
   const myTasks = allTasks.filter((t) => t.responsavel === member.taskValue);
   // "Delegado": tarefas ATIVAS de outras pessoas — o que saiu da minha mão e
   // ainda está rodando. Só pra quem tem visão da equipe (admin/avançado);
@@ -112,6 +118,9 @@ export default async function MeuTrabalhoPage({
           delegadas={delegadas}
           keyParam={keyParam}
           urlKey={urlKey}
+          clients={clientOptions}
+          meuResponsavel={member.taskValue}
+          lockResponsavel={member.role === "basico"}
         />
       )}
 

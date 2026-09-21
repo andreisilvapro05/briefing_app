@@ -33,6 +33,7 @@ import {
   TASK_STATUS_GROUP,
   TASK_PRIORITY_OPTIONS,
   TEAM_MEMBERS,
+  donoPadraoDe,
   type TaskStatus,
 } from "@/lib/project-tasks";
 import type { ProjectType } from "@/lib/types";
@@ -1039,20 +1040,73 @@ export async function seedProjectTasksAction(formData: FormData) {
   revalidatePath(`/admin/${clientId}`);
 }
 
+export type AddProjectTaskResult =
+  | { ok: true; id: string }
+  | { ok: false; erro: string };
+
+const TASK_TITLE_MAX = 200;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 /**
- * Adiciona uma tarefa ad-hoc (fora do template) ao final da lista do cliente.
+ * Cria uma tarefa ad-hoc (fora do template), já com responsável, prazo e
+ * prioridade — como o "+ Add task" do ClickUp. Antes só aceitava o título:
+ * a tarefa nascia sem dono e sem data, e cada campo virava um segundo clique
+ * na linha recém-criada.
+ *
+ * `clientId` vazio = demanda interna da agência (sem ficha de cliente).
+ *
+ * Devolve resultado em vez de falhar em silêncio: quem digitou precisa saber
+ * se a tarefa existe ou não.
  */
-export async function addProjectTaskAction(formData: FormData) {
-  const clientId = String(formData.get("clientId") ?? "");
+export async function addProjectTaskAction(
+  formData: FormData
+): Promise<AddProjectTaskResult> {
+  const clientId = String(formData.get("clientId") ?? "").trim();
   const titulo = String(formData.get("titulo") ?? "").trim();
-  if (!clientId || !titulo) return;
-  await requireClientAccess(formData, clientId);
+  if (!titulo) return { ok: false, erro: "Dê um nome pra tarefa." };
+  if (titulo.length > TASK_TITLE_MAX) {
+    return { ok: false, erro: `Nome muito longo (máx. ${TASK_TITLE_MAX}).` };
+  }
+
+  const member = clientId
+    ? await requireClientAccess(formData, clientId)
+    : await getCurrentMember({ urlKey: keyParamOf(formData) });
+  if (!member) redirect("/admin/login");
+
+  let responsavel = String(formData.get("responsavel") ?? "").trim();
+  if (responsavel && !TEAM_MEMBER_VALUES.includes(responsavel)) {
+    return { ok: false, erro: "Responsável inválido." };
+  }
+  // "basico" só edita tarefa em que ELE é o responsável (canEditTask). Criar
+  // pra outra pessoa — ou sem dono — geraria uma tarefa que ele mesmo não
+  // consegue mais mexer.
+  if (member.role === "basico") {
+    if (!member.taskValue) {
+      return {
+        ok: false,
+        erro: "Sua conta não está ligada a um responsável de tarefas.",
+      };
+    }
+    responsavel = member.taskValue;
+  }
+  if (!responsavel) responsavel = donoPadraoDe(titulo) ?? "";
+
+  const prioridade = String(formData.get("prioridade") ?? "").trim();
+  if (prioridade && !TASK_PRIORITY_VALUES.includes(prioridade)) {
+    return { ok: false, erro: "Prioridade inválida." };
+  }
+
+  const dataVencimento = String(formData.get("dataVencimento") ?? "").trim();
+  if (dataVencimento && !DATE_RE.test(dataVencimento)) {
+    return { ok: false, erro: "Data de vencimento inválida." };
+  }
 
   const service = createSupabaseServiceRoleClient();
-  const { data: maxRow } = await service
-    .from("project_tasks")
-    .select("ordem")
-    .eq("client_id", clientId)
+  const ordemQuery = service.from("project_tasks").select("ordem");
+  const { data: maxRow } = await (clientId
+    ? ordemQuery.eq("client_id", clientId)
+    : ordemQuery.is("client_id", null)
+  )
     .order("ordem", { ascending: false })
     .limit(1);
   const nextOrdem =
@@ -1060,14 +1114,30 @@ export async function addProjectTaskAction(formData: FormData) {
       ? Number((maxRow[0] as { ordem: number }).ordem ?? -1)
       : -1) + 1;
 
-  await service.from("project_tasks").insert({
-    client_id: clientId,
-    titulo,
-    ordem: nextOrdem,
-    origem: "manual",
-  });
+  const { data, error } = await service
+    .from("project_tasks")
+    .insert({
+      client_id: clientId || null,
+      titulo,
+      ordem: nextOrdem,
+      origem: "manual",
+      responsavel: responsavel || null,
+      prioridade: prioridade || null,
+      data_vencimento: dataVencimento || null,
+    })
+    .select("id")
+    .single();
+  if (error || !data) {
+    logServerError("addProjectTaskAction", error ?? new Error("sem linha"));
+    return { ok: false, erro: "Não consegui salvar a tarefa. Tente de novo." };
+  }
 
-  revalidatePath(`/admin/${clientId}`);
+  if (clientId) revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin/tarefas");
+  revalidatePath("/admin/meu-trabalho");
+  revalidatePath("/admin/lista");
+  revalidatePath("/admin/visao-geral");
+  return { ok: true, id: String((data as { id: string }).id) };
 }
 
 /**
@@ -1128,6 +1198,14 @@ export async function updateProjectTaskAction(formData: FormData) {
 
   const update: Record<string, unknown> = {};
 
+  // Renomear — antes o título só existia na criação; pra corrigir um erro de
+  // digitação era preciso apagar a tarefa (e perder comentários e datas).
+  if (formData.has("titulo")) {
+    const titulo = String(formData.get("titulo") ?? "").trim();
+    if (!titulo || titulo.length > TASK_TITLE_MAX) return;
+    update.titulo = titulo;
+  }
+
   if (formData.has("status")) {
     const status = String(formData.get("status") ?? "");
     if (!TASK_STATUS_VALUES.includes(status as TaskStatus)) return;
@@ -1170,7 +1248,11 @@ export async function updateProjectTaskAction(formData: FormData) {
   if (Object.keys(update).length === 0) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("project_tasks").update(update).eq("id", taskId);
+  const { error } = await service
+    .from("project_tasks")
+    .update(update)
+    .eq("id", taskId);
+  if (error) logServerError("updateProjectTaskAction", error);
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
   // Editar direto no accordion da Lista por status/Visão Geral (ver
@@ -1257,20 +1339,31 @@ export interface ProjectTaskComment {
 async function canAccessTaskClient(
   member: Awaited<ReturnType<typeof getCurrentMember>>,
   taskId: string
-): Promise<string | null> {
+): Promise<{ clientId: string | null } | null> {
   if (!member) return null;
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("project_tasks")
-    .select("client_id")
+    .select("client_id, responsavel")
     .eq("id", taskId)
     .maybeSingle();
-  const clientId = (data as { client_id: string } | null)?.client_id ?? null;
-  if (!clientId) return null;
+  const task = data as {
+    client_id: string | null;
+    responsavel: string | null;
+  } | null;
+  if (!task) return null;
+
+  // Demanda interna (sem cliente) não tem ficha pra servir de escopo: vale a
+  // mesma regra do "Meu Trabalho" — visão da equipe, ou é o próprio dono.
+  // Antes caía no `return null` e comentário em tarefa interna nunca abria.
+  if (!task.client_id) {
+    const dono = !!member.taskValue && task.responsavel === member.taskValue;
+    return hasFullAccess(member) || dono ? { clientId: null } : null;
+  }
 
   const visibleIds = await getVisibleClientIds(member);
-  if (visibleIds && !visibleIds.has(clientId)) return null;
-  return clientId;
+  if (visibleIds && !visibleIds.has(task.client_id)) return null;
+  return { clientId: task.client_id };
 }
 
 /** Lê os comentários de uma tarefa — buscado sob demanda ao abrir o painel de informações. */
@@ -1302,17 +1395,18 @@ export async function addProjectTaskCommentAction(formData: FormData) {
   const body = String(formData.get("body") ?? "").trim();
   if (!taskId || !body) return;
 
-  const clientId = await canAccessTaskClient(member, taskId);
-  if (!clientId) return;
+  const acesso = await canAccessTaskClient(member, taskId);
+  if (!acesso) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("project_task_comments").insert({
+  const { error } = await service.from("project_task_comments").insert({
     task_id: taskId,
     author: member.name,
     body,
   });
+  if (error) logServerError("addProjectTaskCommentAction", error);
 
-  revalidatePath(`/admin/${clientId}`);
+  if (acesso.clientId) revalidatePath(`/admin/${acesso.clientId}`);
 }
 
 /** Remove um comentário. */
@@ -1333,12 +1427,16 @@ export async function deleteProjectTaskCommentAction(formData: FormData) {
   const taskId = (comment as { task_id: string } | null)?.task_id;
   if (!taskId) return;
 
-  const clientId = await canAccessTaskClient(member, taskId);
-  if (!clientId) return;
+  const acesso = await canAccessTaskClient(member, taskId);
+  if (!acesso) return;
 
-  await service.from("project_task_comments").delete().eq("id", commentId);
+  const { error } = await service
+    .from("project_task_comments")
+    .delete()
+    .eq("id", commentId);
+  if (error) logServerError("deleteProjectTaskCommentAction", error);
 
-  revalidatePath(`/admin/${clientId}`);
+  if (acesso.clientId) revalidatePath(`/admin/${acesso.clientId}`);
 }
 
 /* ------------------------------------------------------------------ *

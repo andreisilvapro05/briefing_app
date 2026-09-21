@@ -410,7 +410,7 @@ function ClientAccordionRow({
   );
   const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
     "fysi-cols-accordion",
-    [200, 160, 56, 56, 110, 120, 80]
+    [270, 150, 78, 78, 92, 124, 40]
   );
 
   return (
@@ -514,8 +514,8 @@ function ClientAccordionRow({
               <tr>
                 <ResizableTh onResizeStart={startResize(0)}>Nome</ResizableTh>
                 <ResizableTh onResizeStart={startResize(1)}>Status</ResizableTh>
-                <ResizableTh onResizeStart={startResize(2)}>Prioridade</ResizableTh>
-                <ResizableTh onResizeStart={startResize(3)}>Responsável</ResizableTh>
+                <ResizableTh onResizeStart={startResize(2)} title="Prioridade">Prior.</ResizableTh>
+                <ResizableTh onResizeStart={startResize(3)} title="Responsável">Resp.</ResizableTh>
                 <ResizableTh onResizeStart={startResize(4)}>Início</ResizableTh>
                 <ResizableTh onResizeStart={startResize(5)}>Vencimento</ResizableTh>
                 <ResizableTh />
