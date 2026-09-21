@@ -24,6 +24,7 @@ import {
 import { createClientFolders } from "@/lib/google-drive";
 import { createAdminNotification } from "@/lib/notifications";
 import { logServerError } from "@/lib/api-helpers";
+import { notifyMember, nomeDoMembro } from "@/lib/member-notifications";
 import type { EntregaDocumento } from "@/lib/entrega";
 import type { Moodboard } from "@/lib/moodboard";
 import {
@@ -472,6 +473,25 @@ export async function setPaymentAction(formData: FormData) {
   if (fresh) {
     const totalNum = total ?? 0;
     const pagoNum = pago ?? 0;
+    // "pagamento.recebido" também estava no enum sem nenhum produtor. Só
+    // avisa quando o valor pago SUBIU — salvar o formulário sem mexer no
+    // valor não é notícia.
+    const pagoAntes = Number(
+      (fresh as { pagamento_pago?: number | null }).pagamento_pago ?? 0
+    );
+    if (pagoNum > 0 && pagoNum !== pagoAntes) {
+      after(async () => {
+        await createAdminNotification({
+          clientId,
+          kind: "pagamento.recebido",
+          title: `Pagamento de ${(fresh as { empresa?: string | null; nome?: string | null }).empresa || (fresh as { nome?: string | null }).nome || "cliente"}`,
+          message:
+            totalNum > 0
+              ? `${Math.round((pagoNum / totalNum) * 100)}% do total recebido`
+              : "valor atualizado",
+        });
+      });
+    }
     void sendDashboardWebhook({
       event: "pagamento.atualizado",
       emittedAt: new Date().toISOString(),
@@ -1132,12 +1152,29 @@ export async function addProjectTaskAction(
     return { ok: false, erro: "Não consegui salvar a tarefa. Tente de novo." };
   }
 
+  const novaId = String((data as { id: string }).id);
+  if (responsavel && responsavel !== member.taskValue) {
+    const quem = member.taskValue;
+    after(async () => {
+      const onde = await nomeDoCliente(clientId || null);
+      await notifyMember({
+        recipient: responsavel,
+        actor: quem,
+        kind: "tarefa.atribuida",
+        taskId: novaId,
+        clientId: clientId || null,
+        title: titulo,
+        message: `${nomeDoMembro(quem)} criou esta demanda pra você · ${onde}`,
+      });
+    });
+  }
+
   if (clientId) revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin/tarefas");
   revalidatePath("/admin/meu-trabalho");
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
-  return { ok: true, id: String((data as { id: string }).id) };
+  return { ok: true, id: novaId };
 }
 
 /**
@@ -1160,6 +1197,19 @@ async function canEditTask(
     .eq("id", taskId)
     .maybeSingle();
   return (data as { responsavel: string | null } | null)?.responsavel === member.taskValue;
+}
+
+/** Nome curto do cliente pra mensagem do aviso ("— interno —" sem cliente). */
+async function nomeDoCliente(clientId: string | null): Promise<string> {
+  if (!clientId) return "demanda interna";
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("clients")
+    .select("nome, empresa")
+    .eq("id", clientId)
+    .maybeSingle();
+  const c = data as { nome: string | null; empresa: string | null } | null;
+  return c?.empresa || c?.nome || "cliente";
 }
 
 /**
@@ -1195,6 +1245,24 @@ export async function updateProjectTaskAction(formData: FormData) {
   const clientId = String(formData.get("clientId") ?? "");
   if (!taskId) return;
   if (!(await canEditTask(member, taskId))) return;
+
+  // Estado anterior: é a diferença que vira aviso ("passou pra você",
+  // "mudou o prazo"). Sem ele não dá pra saber o que de fato mudou.
+  const antes = await (async () => {
+    const service = createSupabaseServiceRoleClient();
+    const { data } = await service
+      .from("project_tasks")
+      .select("titulo, client_id, responsavel, status, data_vencimento")
+      .eq("id", taskId)
+      .maybeSingle();
+    return data as {
+      titulo: string;
+      client_id: string | null;
+      responsavel: string | null;
+      status: string | null;
+      data_vencimento: string | null;
+    } | null;
+  })();
 
   const update: Record<string, unknown> = {};
 
@@ -1253,6 +1321,61 @@ export async function updateProjectTaskAction(formData: FormData) {
     .update(update)
     .eq("id", taskId);
   if (error) logServerError("updateProjectTaskAction", error);
+
+  // Avisos da demanda — depois de gravar, e só do que mudou de verdade.
+  // `after()` porque o aviso não pode atrasar a resposta do campo editado.
+  if (!error && antes) {
+    const quem = member.taskValue;
+    after(async () => {
+      const onde = await nomeDoCliente(antes.client_id);
+      const novoResp = update.responsavel as string | null | undefined;
+      if (novoResp !== undefined && novoResp !== antes.responsavel) {
+        await notifyMember({
+          recipient: novoResp,
+          actor: quem,
+          kind: "tarefa.atribuida",
+          taskId,
+          clientId: antes.client_id,
+          title: antes.titulo,
+          message: `${nomeDoMembro(quem)} passou esta demanda pra você · ${onde}`,
+        });
+      }
+      // Status e prazo avisam QUEM É DONO da tarefa (o responsável que ficou
+      // valendo), não o de antes — se acabou de trocar de mão, o aviso de
+      // atribuição acima já cobre.
+      const dono = (novoResp ?? antes.responsavel) as string | null;
+      if (novoResp === undefined || novoResp === antes.responsavel) {
+        if (update.status && update.status !== antes.status) {
+          await notifyMember({
+            recipient: dono,
+            actor: quem,
+            kind: "tarefa.status",
+            taskId,
+            clientId: antes.client_id,
+            title: antes.titulo,
+            message: `${nomeDoMembro(quem)} mudou o status para "${statusLabel(String(update.status))}" · ${onde}`,
+          });
+        }
+        if (
+          "data_vencimento" in update &&
+          update.data_vencimento !== antes.data_vencimento
+        ) {
+          const novo = update.data_vencimento as string | null;
+          await notifyMember({
+            recipient: dono,
+            actor: quem,
+            kind: "tarefa.prazo",
+            taskId,
+            clientId: antes.client_id,
+            title: antes.titulo,
+            message: novo
+              ? `Prazo agora é ${formatDiaMesCurto(novo)} · ${onde}`
+              : `${nomeDoMembro(quem)} removeu o prazo · ${onde}`,
+          });
+        }
+      }
+    });
+  }
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
   // Editar direto no accordion da Lista por status/Visão Geral (ver
@@ -1405,6 +1528,34 @@ export async function addProjectTaskCommentAction(formData: FormData) {
     body,
   });
   if (error) logServerError("addProjectTaskCommentAction", error);
+
+  // Comentário sem aviso é recado deixado num mural que ninguém olha.
+  if (!error) {
+    const { data: t } = await service
+      .from("project_tasks")
+      .select("titulo, responsavel, client_id")
+      .eq("id", taskId)
+      .maybeSingle();
+    const tarefa = t as {
+      titulo: string;
+      responsavel: string | null;
+      client_id: string | null;
+    } | null;
+    if (tarefa) {
+      const quem = member.taskValue;
+      after(async () => {
+        await notifyMember({
+          recipient: tarefa.responsavel,
+          actor: quem,
+          kind: "tarefa.comentario",
+          taskId,
+          clientId: tarefa.client_id,
+          title: tarefa.titulo,
+          message: `${nomeDoMembro(quem)}: ${body.length > 90 ? `${body.slice(0, 90)}…` : body}`,
+        });
+      });
+    }
+  }
 
   if (acesso.clientId) revalidatePath(`/admin/${acesso.clientId}`);
 }
@@ -1615,4 +1766,22 @@ export async function setClientOrigemAction(formData: FormData) {
 
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin/clientes");
+}
+
+/** Rótulo humano de um status de tarefa ("design-pagina" → "Design da página"). */
+function statusLabel(value: string): string {
+  return TASK_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? value;
+}
+
+/** "24/09" — a data como ela aparece no aviso. */
+function formatDiaMesCurto(iso: string): string {
+  try {
+    return new Date(`${iso}T12:00:00Z`).toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      timeZone: "UTC",
+    });
+  } catch {
+    return iso;
+  }
 }

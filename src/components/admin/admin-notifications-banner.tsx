@@ -7,7 +7,7 @@ import {
   dismissAllNotificationsAction,
   dismissNotificationAction,
 } from "@/app/admin/actions";
-import { NOTIFICATION_KIND_META } from "@/lib/notification-meta";
+import { metaDoAviso, quandoChegou } from "@/lib/notification-meta";
 
 export interface AdminNotification {
   id: string;
@@ -18,7 +18,6 @@ export interface AdminNotification {
   created_at: string;
 }
 
-const KIND_META = NOTIFICATION_KIND_META;
 
 /**
  * Banner de avisos pra admin — mostra notificações não lidas no topo de
@@ -81,17 +80,11 @@ export function AdminNotificationsBanner({
 
       <ul className="divide-y divide-fysi-line">
         {notifications.map((n) => {
-          const meta = KIND_META[n.kind] ?? KIND_META.outro;
-          const minutes = Math.max(
-            1,
-            Math.floor((Date.now() - new Date(n.created_at).getTime()) / 60_000)
-          );
-          const when =
-            minutes < 60
-              ? `${minutes} min`
-              : minutes < 60 * 24
-                ? `${Math.floor(minutes / 60)}h`
-                : `${Math.floor(minutes / 1440)}d`;
+          const meta = metaDoAviso(n.kind);
+          // "há X" só depois de montar: `Date.now()` no render roda no
+          // servidor E no cliente com valores diferentes, e o HTML não bate
+          // na hidratação (mesma classe do erro #418 que este app já teve).
+          const when = quandoChegou(n.created_at);
 
           const href = n.client_id
             ? `/admin/${n.client_id}${keyParam}`
@@ -108,9 +101,7 @@ export function AdminNotificationsBanner({
                 <span
                   className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${meta.ring}`}
                 >
-                  <span className="text-xl leading-none" aria-hidden>
-                    {meta.emoji}
-                  </span>
+                  <span className={meta.tint}>{meta.icon}</span>
                   <span
                     className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white ${meta.dot}`}
                     aria-hidden

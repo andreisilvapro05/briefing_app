@@ -10,6 +10,12 @@ import {
 } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
 import { logServerError } from "@/lib/api-helpers";
+import {
+  listMemberNotifications,
+  markAllMemberNotificationsRead,
+  markMemberNotificationRead,
+  type MemberNotificationRow,
+} from "@/lib/member-notifications";
 
 /**
  * Marca uma notificação como lida (dispensar do banner do /admin).
@@ -83,6 +89,37 @@ export async function getUnreadAdminNotificationsAction(
   const rows = (data as AdminNotificationRow[]) ?? [];
   if (!visibleIds) return rows;
   return rows.filter((n) => !n.client_id || visibleIds.has(n.client_id));
+}
+
+/* ------------------------------------------------------------------ *
+ * Caixa de entrada por pessoa (member_notifications)
+ *
+ * Separada das de cliente: lá o "lido" é global (um dispensa, some pra
+ * todos); aqui cada pessoa tem a própria fila.
+ * ------------------------------------------------------------------ */
+
+export async function getMemberNotificationsAction(
+  urlKey: string | null
+): Promise<MemberNotificationRow[]> {
+  const member = await getCurrentMember({ urlKey });
+  if (!member?.taskValue) return [];
+  return listMemberNotifications(member.taskValue);
+}
+
+export async function dismissMemberNotificationAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member?.taskValue) return;
+  const id = String(formData.get("notificationId") ?? "");
+  if (!id) return;
+  await markMemberNotificationRead(member.taskValue, id);
+}
+
+export async function dismissAllMemberNotificationsAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member?.taskValue) return;
+  await markAllMemberNotificationsRead(member.taskValue);
 }
 
 export interface GlobalSearchResults {

@@ -12,6 +12,7 @@ import {
 } from "@/lib/email";
 import { getServerEnv } from "@/lib/env";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
+import { createAdminNotification } from "@/lib/notifications";
 
 /**
  * Finaliza o briefing.
@@ -231,6 +232,22 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     logServerError("submit.email-time", err);
+  }
+
+  // 6 — Aviso no painel. O kind "briefing.concluido" existia no código desde
+  // 2026-06 mas NENHUMA rota o emitia: a equipe só sabia do briefing novo se
+  // abrisse o e-mail. Agora ele acende o sino do admin.
+  if (clientId) {
+    try {
+      await createAdminNotification({
+        clientId,
+        kind: "briefing.concluido",
+        title: `Briefing concluído: ${parsed.cliente.empresa || parsed.cliente.nome}`,
+        message: `${filesCount} ${filesCount === 1 ? "arquivo" : "arquivos"} anexados`,
+      });
+    } catch (err) {
+      logServerError("submit.notificacao", err);
+    }
   }
 
   return NextResponse.json({ ok: true, clientId, clickupTaskId });
