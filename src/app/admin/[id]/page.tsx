@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Eyebrow } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+import { getCurrentMember, getVisibleClientIds, hasFinanceAccess, hasFullAccess,
   isAdmin,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -15,7 +15,6 @@ import { blocosForProject } from "@/lib/briefing-schema";
 import {
   BLOCO_LABELS,
   BLOCO_NUMBERS,
-  PROJECT_TYPE_LABELS,
   fieldLabel,
   valueLabel,
   isFileField,
@@ -46,6 +45,7 @@ import { CopyButton } from "@/components/admin/copy-button";
 import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
 import { StatusChanger } from "@/components/admin/status-changer";
 import { OrigemEditor } from "@/components/admin/origem-editor";
+import { AutoSubmitSelect } from "@/components/admin/auto-submit-select";
 import { getServerEnv } from "@/lib/env";
 import {
   resendClientLinkAction,
@@ -274,10 +274,6 @@ export default async function AdminClientPage({
   }
   const briefingVazio = camposPreenchidos === 0;
 
-  const headerLinha = [client.nome, client.email, client.whatsapp]
-    .filter(Boolean)
-    .join(" · ");
-
   // Badges por tab — status rápido visível na navegação.
   const totalBlocos = blocosOrdenados.length;
   const blocosPreenchidos = blocosOrdenados.filter((b) => (camposPorBloco.get(b.id) ?? 0) > 0).length;
@@ -286,6 +282,31 @@ export default async function AdminClientPage({
   const pctPagamento = totalPagamento > 0 ? Math.round((pagamentoPago / totalPagamento) * 100) : null;
 
   const contratoStatus = client.contrato_status as string | null;
+
+  // Texto que vai pro cliente pelo WhatsApp (é mensagem, não interface).
+  const mensagemWhats = `Oi ${client.nome?.split(" ")[0] ?? ""}! Aqui é da Fysi.
+
+Seu painel está pronto. Acesse direto:
+${painelLink ?? `${entrarUrl} (WhatsApp ${client.whatsapp} + código ${accessCode})`}
+
+Qualquer dúvida, é só responder por aqui.`;
+
+  // Resumo de tarefas pra Visão geral.
+  const keySuffix = keyParam ? `&${keyParam.slice(1)}` : "";
+  const hojeSP = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date());
+  const tarefasAbertas = tasks.filter(
+    (t) => TASK_STATUS_GROUP[t.status] === "ativo"
+  );
+  const tarefasAtrasadas = tarefasAbertas.filter(
+    (t) => t.data_vencimento && t.data_vencimento < hojeSP
+  ).length;
+  const proximaTarefa =
+    tarefasAbertas
+      .filter((t) => t.data_vencimento && t.data_vencimento >= hojeSP)
+      .sort((a, b) => a.data_vencimento!.localeCompare(b.data_vencimento!))[0] ??
+    null;
   const tabBadges: import("@/components/admin/client-tabs").ClientTabBadges = {
     briefing: client.briefing_submitted_at
       ? { tone: "mint", label: "✓ enviado" }
@@ -337,10 +358,10 @@ export default async function AdminClientPage({
       canEditPhoto={member.source === "supabase"}
       isSocio={isAdmin(member)} hideFinance={!hasFinanceAccess(member)}>
         <Link
-          href={`/admin${keyParam}`}
+          href={`/admin/clientes${keyParam}`}
           className="text-xs text-fysi-muted hover:text-fysi-deep mb-3 inline-block"
         >
-          ← Voltar à lista
+          ← Clientes
         </Link>
 
         <div className="flex flex-col md:flex-row gap-6 items-start">
@@ -353,160 +374,289 @@ export default async function AdminClientPage({
           />
           <div className="flex-1 min-w-0 w-full">
 
-        <header className="grid md:grid-cols-[2fr_1fr] gap-6 mb-6">
-          <div>
-            <Eyebrow>
-              {client.project_type
-                ? PROJECT_TYPE_LABELS[client.project_type] ??
-                  client.project_type
-                : "Tipo a definir"}
-            </Eyebrow>
-            <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep mt-2">
-              {client.empresa || client.nome}
-            </h1>
-            <p className="text-fysi-muted text-sm mt-1">{headerLinha}</p>
-            <div className="mt-2">
-              <OrigemEditor
-                clientId={client.id}
-                urlKey={urlKey ?? undefined}
-                valorInicial={
-                  (client as { como_conheceu?: string | null }).como_conheceu ??
-                  null
-                }
-              />
-            </div>
-          </div>
-
-          <aside className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col gap-3 text-sm">
-            <div className="grid grid-cols-2 gap-2">
-              <form action={setProjectTypeAction} className="flex flex-col gap-1">
-                <label className="text-xs uppercase tracking-[0.1em] text-fysi-muted font-medium">
-                  Tipo
-                </label>
+        {/* Cabeçalho compacto, igual em todas as abas: quem é, como falar com
+            ele e em que status o projeto está. Antes um cartão lateral com
+            tipo/ClickUp/reenviar/excluir ocupava ~300px de altura em TODA
+            aba e empurrava o conteúdo (tarefas, briefing) pra baixo da
+            dobra; e o status — o dado mais consultado — só existia na aba
+            Visão geral. */}
+        <header className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card px-5 py-4 mb-6">
+          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+            <div className="min-w-0 flex-1 basis-72">
+              <form action={setProjectTypeAction}>
                 <input type="hidden" name="clientId" value={client.id} />
                 {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-                <select
+                <AutoSubmitSelect
                   name="projectType"
                   defaultValue={client.project_type ?? ""}
-                  className="text-xs rounded-[8px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                  title="Tipo de projeto — salva ao escolher"
+                  className={`-ml-1 rounded-[8px] border border-transparent hover:border-fysi-line focus:border-fysi-deep/40 bg-transparent px-1 py-0.5 text-[0.7rem] uppercase tracking-[0.14em] font-semibold cursor-pointer focus:outline-none ${
+                    client.project_type ? "text-fysi-muted" : "text-amber-700"
+                  }`}
                 >
                   <option value="" disabled>
-                    escolher
+                    Definir tipo de projeto
                   </option>
                   <option value="landing-com-copy">Landing com copy</option>
                   <option value="landing-sem-copy">Landing sem copy</option>
                   <option value="site-completo">Site completo</option>
                   <option value="seo">SEO</option>
                   <option value="outro">Outro</option>
-                </select>
-                <SubmitTextButton
-                  className="text-[0.72rem] text-fysi-deep hover:underline text-left disabled:opacity-50"
-                  pendingLabel="↳ salvando…"
-                >
-                  ↳ salvar tipo
-                </SubmitTextButton>
+                </AutoSubmitSelect>
               </form>
-            </div>
-
-            {client.clickup_task_id ? (
-              <div>
-                <Eyebrow>ClickUp</Eyebrow>
-                <p className="mt-1 text-xs text-fysi-deep">
-                  Task: {client.clickup_task_id}
-                </p>
+              <h1 className="text-[1.6rem] leading-tight font-semibold tracking-tight text-fysi-deep mt-0.5 break-words">
+                {client.empresa || client.nome}
+              </h1>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fysi-muted">
+                {client.empresa && client.nome ? (
+                  <span className="text-fysi-deep">{client.nome}</span>
+                ) : null}
+                {whatsappHref(client.whatsapp) ? (
+                  <a
+                    href={whatsappHref(client.whatsapp)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Abrir conversa no WhatsApp"
+                    className="inline-flex items-center gap-1.5 hover:text-fysi-deep underline-offset-2 hover:underline"
+                  >
+                    <WhatsIcon />
+                    {client.whatsapp}
+                  </a>
+                ) : client.whatsapp ? (
+                  <span>{client.whatsapp}</span>
+                ) : null}
+                {client.email ? (
+                  <a
+                    href={`mailto:${client.email}`}
+                    className="inline-flex items-center gap-1.5 hover:text-fysi-deep underline-offset-2 hover:underline break-all"
+                  >
+                    <MailIcon />
+                    {client.email}
+                  </a>
+                ) : null}
               </div>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2 pt-3 border-t border-fysi-line">
-              {client.email ? (
-                <form action={resendClientLinkAction}>
-                  <input type="hidden" name="email" value={client.email} />
-                  {urlKey ? (
-                    <input type="hidden" name="key" value={urlKey} />
-                  ) : null}
-                  <SubmitButton size="sm" variant="secondary" pendingLabel="Enviando…">
-                    Reenviar link
-                  </SubmitButton>
-                </form>
-              ) : null}
-              {!client.clickup_task_id ? (
-                <form action={sendToClickupAction}>
-                  <input type="hidden" name="clientId" value={client.id} />
-                  {urlKey ? (
-                    <input type="hidden" name="key" value={urlKey} />
-                  ) : null}
-                  <SubmitButton size="sm" variant="primary" pendingLabel="Enviando…">
-                    Enviar ao ClickUp
-                  </SubmitButton>
-                </form>
-              ) : null}
+              <div className="mt-2">
+                <OrigemEditor
+                  clientId={client.id}
+                  urlKey={urlKey ?? undefined}
+                  valorInicial={
+                    (client as { como_conheceu?: string | null }).como_conheceu ??
+                    null
+                  }
+                />
+              </div>
             </div>
 
-            <div className="border-t border-fysi-line pt-3 flex flex-col gap-2">
-              <ClientPreviewButton
-                clientId={client.id}
-                urlKey={urlKey ?? undefined}
-              />
-              <DeleteClientButton
-                clientId={client.id}
-                clientName={client.empresa || client.nome}
-                urlKey={urlKey ?? undefined}
-              />
+            <div className="flex flex-col items-start md:items-end gap-2.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[0.68rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold">
+                  Status
+                </span>
+                <StatusChanger
+                  clientId={client.id}
+                  status={client.status}
+                  urlKey={urlKey ?? undefined}
+                />
+              </div>
+              <div className="flex flex-wrap items-start md:justify-end gap-2">
+                {/* O preview abre o painel do cliente, que mostra contrato e
+                    valores — mesmo corte das abas financeiras. */}
+                {hasFinanceAccess(member) ? (
+                  <ClientPreviewButton
+                    clientId={client.id}
+                    urlKey={urlKey ?? undefined}
+                  />
+                ) : null}
+                {client.clickup_task_id ? (
+                  <a
+                    href={`https://app.clickup.com/t/${client.clickup_task_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center rounded-full border border-fysi-deep/15 text-fysi-deep text-xs font-medium px-3 py-1.5 hover:bg-fysi-cream"
+                  >
+                    Abrir no ClickUp ↗
+                  </a>
+                ) : null}
+                {/* Ações raras ou destrutivas ficam recolhidas — não competem
+                    com o que se usa todo dia. */}
+                {client.email || !client.clickup_task_id || hasFullAccess(member) ? (
+                <details className="relative group/acoes">
+                  <summary className="list-none [&::-webkit-details-marker]:hidden cursor-pointer inline-flex items-center rounded-full border border-fysi-deep/15 text-fysi-deep text-xs font-medium px-3 py-1.5 hover:bg-fysi-cream select-none">
+                    Mais ações
+                    <span className="ml-1 text-fysi-muted group-open/acoes:rotate-180 transition-transform" aria-hidden>
+                      ▾
+                    </span>
+                  </summary>
+                  <div className="absolute z-20 left-0 md:left-auto md:right-0 mt-1.5 w-64 bg-white border border-fysi-line rounded-[14px] shadow-xl p-3 flex flex-col gap-2.5">
+                    {client.email ? (
+                      <form action={resendClientLinkAction}>
+                        <input type="hidden" name="email" value={client.email} />
+                        {urlKey ? (
+                          <input type="hidden" name="key" value={urlKey} />
+                        ) : null}
+                        <SubmitTextButton
+                          className="text-sm text-fysi-deep hover:underline text-left disabled:opacity-50"
+                          pendingLabel="Enviando…"
+                          savedLabel="Link reenviado ✓"
+                        >
+                          Reenviar link de acesso por e-mail
+                        </SubmitTextButton>
+                      </form>
+                    ) : null}
+                    {!client.clickup_task_id ? (
+                      <form action={sendToClickupAction}>
+                        <input type="hidden" name="clientId" value={client.id} />
+                        {urlKey ? (
+                          <input type="hidden" name="key" value={urlKey} />
+                        ) : null}
+                        <SubmitTextButton
+                          className="text-sm text-fysi-deep hover:underline text-left disabled:opacity-50"
+                          pendingLabel="Enviando…"
+                          savedLabel="Enviado ao ClickUp ✓"
+                        >
+                          Enviar briefing ao ClickUp
+                        </SubmitTextButton>
+                      </form>
+                    ) : null}
+                    {/* O servidor só deixa apagar com acesso total; mostrar o
+                        botão pra quem não pode só levava a um redirect mudo. */}
+                    {hasFullAccess(member) ? (
+                      <div className="border-t border-fysi-line pt-2.5">
+                        <DeleteClientButton
+                          clientId={client.id}
+                          clientName={client.empresa || client.nome}
+                          urlKey={urlKey ?? undefined}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </details>
+                ) : null}
+              </div>
             </div>
-          </aside>
+          </div>
         </header>
 
         {tab === "geral" ? (
         <>
-        {/* Situação do projeto — onde o cliente está, num olhar */}
-        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="min-w-0">
-              <Eyebrow>Onde o cliente está</Eyebrow>
-              <div className="flex items-baseline gap-3 mt-2 flex-wrap">
-                <span className="text-2xl font-semibold text-fysi-deep tracking-tight">
-                  {etapas.length > 0
-                    ? etapas[currentStage]?.titulo ?? "—"
-                    : "Tipo de projeto não definido"}
-                </span>
-                {etapas.length > 0 ? (
-                  <span className="text-sm text-fysi-muted">
-                    Etapa {currentStage + 1} de {etapas.length}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-            <div className="flex flex-col items-start sm:items-end gap-1">
-              <span className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
-                Status
-              </span>
-              <StatusChanger
-                clientId={client.id}
-                status={client.status}
-                urlKey={urlKey ?? undefined}
+        {/* Resumo — o que a Visão geral promete no nome. Cada cartão leva
+            pra aba dele. Substitui o bloco "Onde o cliente está", que
+            repetia a etapa mostrada logo abaixo em "Andamento do projeto". */}
+        <section
+          aria-label="Resumo do projeto"
+          className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6"
+        >
+          <ResumoCard
+            href={`/admin/${client.id}?tab=tarefas${keySuffix}`}
+            titulo="Tarefas"
+            valor={
+              tasks.length === 0
+                ? "Nenhuma"
+                : `${tarefasAbertas.length} aberta${tarefasAbertas.length === 1 ? "" : "s"}`
+            }
+            detalhe={
+              tasks.length === 0
+                ? "Gerar do modelo ou adicionar"
+                : tarefasAtrasadas > 0
+                  ? `${tarefasAtrasadas} em atraso`
+                  : proximaTarefa
+                    ? `Próxima: ${proximaTarefa.titulo} · ${formatDiaMes(proximaTarefa.data_vencimento!)}`
+                    : tarefasAbertas.length > 0
+                      ? "Nenhuma com prazo"
+                      : "Tudo concluído"
+            }
+            tom={
+              tarefasAtrasadas > 0
+                ? "alerta"
+                : tasks.length > 0 && tarefasAbertas.length === 0
+                  ? "ok"
+                  : "neutro"
+            }
+          />
+          <ResumoCard
+            href={`/admin/${client.id}?tab=briefing${keySuffix}`}
+            titulo="Briefing"
+            valor={
+              client.briefing_submitted_at
+                ? "Enviado"
+                : briefingVazio
+                  ? "Não preenchido"
+                  : `${blocosPreenchidos} de ${totalBlocos} blocos`
+            }
+            detalhe={
+              client.briefing_submitted_at
+                ? `em ${formatDate(client.briefing_submitted_at)}`
+                : briefingVazio
+                  ? "Cliente ainda não começou"
+                  : "Em preenchimento"
+            }
+            tom={client.briefing_submitted_at ? "ok" : "neutro"}
+          />
+          {hasFinanceAccess(member) ? (
+            <>
+              <ResumoCard
+                href={`/admin/${client.id}?tab=contrato${keySuffix}`}
+                titulo="Contrato"
+                valor={
+                  contratoStatus === "assinado"
+                    ? "Assinado"
+                    : contratoStatus === "pendente"
+                      ? "Aguardando assinatura"
+                      : contratoStatus === "rejeitado"
+                        ? "Rejeitado"
+                        : contratoStatus === "cancelado"
+                          ? "Cancelado"
+                          : client.contrato_dados
+                            ? "Rascunho"
+                            : "Não enviado"
+                }
+                detalhe={
+                  contratoStatus === "assinado"
+                    ? "PDF assinado na aba Contrato"
+                    : contratoStatus === "pendente"
+                      ? "Link enviado ao cliente"
+                      : "Preencher e enviar"
+                }
+                tom={
+                  contratoStatus === "assinado"
+                    ? "ok"
+                    : contratoStatus === "rejeitado" || contratoStatus === "cancelado"
+                      ? "alerta"
+                      : "neutro"
+                }
               />
-            </div>
-          </div>
-          {etapas.length > 0 ? (
-            <div className="mt-4 h-1.5 bg-fysi-cream rounded-full overflow-hidden">
-              <div
-                className="h-full bg-fysi-mint-vivid rounded-full transition-all"
-                style={{
-                  width: `${Math.round(((currentStage + 1) / etapas.length) * 100)}%`,
-                }}
+              <ResumoCard
+                href={`/admin/${client.id}?tab=pagamentos${keySuffix}`}
+                titulo="Pagamento"
+                valor={
+                  totalPagamento > 0
+                    ? `${pctPagamento}% recebido`
+                    : "Sem valor definido"
+                }
+                detalhe={
+                  totalPagamento > 0
+                    ? `${formatMoney(pagamentoPago)} de ${formatMoney(totalPagamento)}`
+                    : "Informar o total do projeto"
+                }
+                tom={pctPagamento === 100 ? "ok" : "neutro"}
               />
-            </div>
+            </>
           ) : null}
         </section>
 
-        {/* Link de acesso pro cliente — pra mandar via WhatsApp */}
+        {/* Link de acesso pro cliente — pra mandar via WhatsApp.
+            Fora do alcance do papel "basico": o link abre o painel do
+            cliente (que mostra contrato e valores) e o bloco expõe o código
+            de acesso GLOBAL, que entra como qualquer cliente. Designer via
+            os dois só por estar marcada numa tarefa do projeto. */}
+        {hasFinanceAccess(member) ? (
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <Eyebrow>Acesso do cliente</Eyebrow>
 
           {painelLink ? (
             <div className="mt-3 bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] p-4">
               <p className="text-xs uppercase tracking-[0.12em] text-fysi-deep font-medium mb-2">
-                🔗 Link direto (sem senha)
+                Link direto (sem senha)
               </p>
               <div className="flex items-center gap-2 mb-2">
                 <a
@@ -527,7 +677,7 @@ export default async function AdminClientPage({
           ) : (
             <div className="mt-3 bg-amber-50 border border-amber-200 rounded-[12px] p-4">
               <p className="text-xs text-amber-800 leading-relaxed">
-                ⚠️ O link direto deste cliente ainda não foi gerado. Recarregue
+                O link direto deste cliente ainda não foi gerado. Recarregue
                 a página — ele é criado automaticamente. Se continuar assim,
                 o cliente pode entrar normalmente pelo código de acesso em{" "}
                 <span className="font-mono">/entrar</span>.
@@ -540,7 +690,7 @@ export default async function AdminClientPage({
             {painelLink ? (
               <div className="bg-fysi-cream/50 border border-fysi-line rounded-[12px] p-3">
                 <p className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
-                  ✏️ Link do briefing
+                  Link do briefing
                 </p>
                 <div className="flex items-center gap-2">
                   <a
@@ -565,7 +715,7 @@ export default async function AdminClientPage({
             {client.fysi_drive_link || client.cliente_drive_link ? (
               <div className="bg-fysi-cream/50 border border-fysi-line rounded-[12px] p-3">
                 <p className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold mb-1.5">
-                  📁 Drive
+                  Drive
                 </p>
                 <div className="flex flex-col gap-1">
                   {client.fysi_drive_link ? (
@@ -630,20 +780,34 @@ export default async function AdminClientPage({
             </div>
           </details>
 
-          <details className="text-sm mt-3">
-            <summary className="cursor-pointer text-fysi-deep font-medium hover:text-fysi-green">
-              📋 Mensagem pronta pra WhatsApp
-            </summary>
-            <pre className="mt-3 bg-fysi-cream/40 border border-fysi-line rounded-[12px] p-3 text-xs whitespace-pre-wrap font-sans text-fysi-deep">
-{`Oi ${client.nome?.split(" ")[0] ?? ""}! Aqui é da Fysi 👋
-
-Seu painel está pronto. Acesse direto:
-${painelLink ?? `${entrarUrl} (WhatsApp ${client.whatsapp} + código ${accessCode})`}
-
-Qualquer dúvida, é só responder por aqui.`}
+          {/* Aberta por padrão e com botões: era um <pre> dentro de um
+              <details> fechado — pra usar, a pessoa abria, selecionava o
+              texto na mão, copiava e ia pro WhatsApp colar. */}
+          <div className="mt-4 border-t border-fysi-line pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <p className="text-[0.72rem] uppercase tracking-[0.1em] text-fysi-muted font-semibold">
+                Mensagem pronta pra WhatsApp
+              </p>
+              <div className="flex items-center gap-2">
+                <CopyButton value={mensagemWhats} label="Copiar mensagem" />
+                {whatsappHref(client.whatsapp) ? (
+                  <a
+                    href={`${whatsappHref(client.whatsapp)}?text=${encodeURIComponent(mensagemWhats)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center rounded-full border border-fysi-deep/15 text-fysi-deep text-xs font-medium px-3 py-1.5 hover:bg-fysi-cream whitespace-nowrap"
+                  >
+                    Abrir no WhatsApp ↗
+                  </a>
+                ) : null}
+              </div>
+            </div>
+            <pre className="bg-fysi-cream/40 border border-fysi-line rounded-[12px] p-3 text-xs whitespace-pre-wrap font-sans text-fysi-deep">
+              {mensagemWhats}
             </pre>
-          </details>
+          </div>
         </section>
+        ) : null}
 
         {/* Andamento do projeto — etapa clicável + marcadores + link da copy */}
         <ProjectStageControls
@@ -659,7 +823,12 @@ Qualquer dúvida, é só responder por aqui.`}
           }
         />
 
-        {/* Dados do cliente — editáveis pelo admin (pra contrato) */}
+        {/* Dados do cliente — editáveis pelo admin (pra contrato).
+            CPF, RG e endereço: a ESCRITA já exigia acesso financeiro
+            (requireClientFinanceAccess), mas a LEITURA não — o formulário
+            aparecia preenchido pro papel "basico", e salvar só redirecionava
+            em silêncio. */}
+        {hasFinanceAccess(member) ? (
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <Eyebrow>Dados do cliente (para contrato)</Eyebrow>
           <p className="text-sm text-fysi-muted mt-1 mb-4">
@@ -739,6 +908,7 @@ Qualquer dúvida, é só responder por aqui.`}
             </div>
           </form>
         </section>
+        ) : null}
         </>
         ) : null}
 
@@ -777,25 +947,6 @@ Qualquer dúvida, é só responder por aqui.`}
                 </form>
               </>
             )}
-          </section>
-        ) : null}
-
-        {tab === "briefing" ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 flex flex-col gap-4">
-            <div>
-              <h3 className="text-lg font-medium text-fysi-deep">
-                Perguntas específicas
-              </h3>
-              <p className="text-sm text-fysi-muted mt-1">
-                Perguntas sob medida pra este cliente. Aparecem como um bloco
-                extra no briefing dele.
-              </p>
-            </div>
-            <CustomQuestionsEditor
-              clientId={client.id}
-              urlKey={urlKey ?? undefined}
-              questions={customQuestions}
-            />
           </section>
         ) : null}
 
@@ -862,7 +1013,7 @@ Qualquer dúvida, é só responder por aqui.`}
             </div>
             {!client.entrega_finalizada_at ? (
               <p className="text-[0.7rem] text-amber-700 mt-2">
-                ⚠️ A entrega só aparece pro cliente depois que você finalizar
+                A entrega só aparece pro cliente depois que você finalizar
                 abaixo.
               </p>
             ) : null}
@@ -1057,7 +1208,7 @@ Qualquer dúvida, é só responder por aqui.`}
                 <input type="hidden" name="key" value={urlKey} />
               ) : null}
               <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
-                🗂️ Pasta da Fysi
+                Pasta da Fysi
               </label>
               <div className="flex gap-2">
                 <input
@@ -1096,7 +1247,7 @@ Qualquer dúvida, é só responder por aqui.`}
                 <input type="hidden" name="clientId" value={client.id} />
                 {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
                 <SubmitButton size="sm" variant="secondary" pendingLabel="Criando pasta…">
-                  📁 Criar pasta automaticamente no Drive
+                  Criar pasta automaticamente no Drive
                 </SubmitButton>
                 <p className="text-[0.72rem] text-fysi-muted">
                   Cria a estrutura de pastas na pasta da Fysi no Drive e
@@ -1114,7 +1265,7 @@ Qualquer dúvida, é só responder por aqui.`}
                 <input type="hidden" name="key" value={urlKey} />
               ) : null}
               <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
-                📂 Drive do cliente (materiais dele)
+                Drive do cliente (materiais dele)
               </label>
               <div className="flex gap-2">
                 <input
@@ -1328,6 +1479,26 @@ Qualquer dúvida, é só responder por aqui.`}
             ) : null}
           </div>
         )}
+
+        {/* Configuração vem por último: quem abre a aba Briefing quer LER o
+            briefing. O editor de perguntas extras ficava no topo e empurrava
+            o documento e as respostas pra baixo. */}
+          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mt-6 flex flex-col gap-4">
+            <div>
+              <h3 className="text-lg font-medium text-fysi-deep">
+                Perguntas específicas
+              </h3>
+              <p className="text-sm text-fysi-muted mt-1">
+                Perguntas sob medida pra este cliente. Aparecem como um bloco
+                extra no briefing dele.
+              </p>
+            </div>
+            <CustomQuestionsEditor
+              clientId={client.id}
+              urlKey={urlKey ?? undefined}
+              questions={customQuestions}
+            />
+          </section>
         </>
         ) : null}
 
@@ -1352,6 +1523,86 @@ Qualquer dúvida, é só responder por aqui.`}
         </div>
     </AdminShell>
   );
+}
+
+/** wa.me pede DDI: número brasileiro digitado sem o 55 ganha o prefixo. */
+function whatsappHref(raw: string | null | undefined): string | null {
+  const d = (raw ?? "").replace(/\D/g, "");
+  if (d.length < 10) return null;
+  return `https://wa.me/${d.length <= 11 ? `55${d}` : d}`;
+}
+
+function WhatsIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+      <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.7-5.4A8.4 8.4 0 1 1 21 11.5z" />
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+const RESUMO_TOM = {
+  ok: "bg-fysi-mint-vivid",
+  alerta: "bg-red-500",
+  neutro: "bg-fysi-line-strong",
+} as const;
+
+/** Cartão do resumo da Visão geral — o cartão inteiro é o link pra aba. */
+function ResumoCard({
+  href,
+  titulo,
+  valor,
+  detalhe,
+  tom,
+}: {
+  href: string;
+  titulo: string;
+  valor: string;
+  detalhe: string;
+  tom: keyof typeof RESUMO_TOM;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group block bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-4 py-3.5 transition hover:border-fysi-deep/30"
+    >
+      <span className="flex items-center gap-1.5 text-[0.68rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold">
+        <span className={`h-1.5 w-1.5 rounded-full ${RESUMO_TOM[tom]}`} />
+        {titulo}
+        <span className="ml-auto text-fysi-muted opacity-0 group-hover:opacity-100 transition-opacity" aria-hidden>
+          →
+        </span>
+      </span>
+      <span
+        className={`block mt-1.5 text-[0.95rem] font-semibold leading-snug ${
+          tom === "alerta" ? "text-red-700" : "text-fysi-deep"
+        }`}
+      >
+        {valor}
+      </span>
+      <span className="block mt-0.5 text-xs text-fysi-muted truncate" title={detalhe}>
+        {detalhe}
+      </span>
+    </Link>
+  );
+}
+
+function formatDiaMes(iso: string): string {
+  try {
+    return new Date(`${iso}T12:00:00Z`)
+      .toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" })
+      .replace(".", "");
+  } catch {
+    return iso;
+  }
 }
 
 function FieldInput({

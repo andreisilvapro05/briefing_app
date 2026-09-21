@@ -236,7 +236,7 @@ export function ProjectStageControls({
       {/* Link de revisão da copy */}
       <div className="mt-6 pt-5 border-t border-fysi-line flex flex-col gap-2">
         <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold">
-          📝 Link de revisão da copy
+          Link de revisão da copy
         </label>
         <div className="flex gap-2">
           <input

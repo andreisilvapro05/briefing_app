@@ -66,7 +66,7 @@ export function ClientPreviewButton({
         disabled={pending}
         className="inline-flex items-center rounded-full border border-fysi-deep/15 text-fysi-deep text-xs font-medium px-3 py-1.5 hover:bg-fysi-cream disabled:opacity-50"
       >
-        {pending ? "Carregando…" : "👁 Ver como cliente"}
+        {pending ? "Carregando…" : "Ver como cliente"}
       </button>
       {error ? <span className="text-xs text-red-600">{error}</span> : null}
     </div>
