@@ -37,10 +37,22 @@ const ABERTOS = TASK_STATUS_OPTIONS.filter(
   (o) => TASK_STATUS_GROUP[o.value] === "ativo"
 ).map((o) => o.value);
 
+/** Domínio real — o env.appUrl aponta pro *.vercel.app, que não serve de link. */
+const DOMINIO_PADRAO = "https://app.fysilabdigital.com.br";
+
+/**
+ * Base absoluta do link. Sem o fallback, uma requisição sem header de host
+ * geraria `url` RELATIVA ("/admin/..."), e um consumidor que (com razão)
+ * só aceita http(s) descartaria o link — o nome da demanda deixaria de ser
+ * clicável sem nenhum erro aparecer.
+ */
 function baseUrlDe(req: NextRequest): string {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  if (!host) return DOMINIO_PADRAO;
   const proto = req.headers.get("x-forwarded-proto") ?? "https";
-  return host ? `${proto}://${host}` : "";
+  // Só http/https saem daqui: o link é clicado dentro do app de quem lê.
+  const limpo = proto === "http" || proto === "https" ? proto : "https";
+  return `${limpo}://${host}`;
 }
 
 function semCache(res: NextResponse): NextResponse {
