@@ -256,6 +256,21 @@ export async function importarBriefingsDoClickUp(): Promise<ResultadoImportacao>
   const doc = await fetchBriefingPages();
   if (!doc.ok) return { ...vazio, reason: doc.reason };
 
+  // Se veio página mas nenhuma com conteúdo, o problema é o formato da
+  // resposta do ClickUp — não "briefings vazios". Sem esta checagem a
+  // importação terminaria dizendo "160 ignorados" e pareceria sucesso.
+  if (doc.pages.length > 0 && doc.pages.every((p) => !(p.content ?? "").trim())) {
+    return {
+      ...vazio,
+      reason:
+        `O ClickUp devolveu ${doc.pages.length} páginas, mas todas sem conteúdo. ` +
+        "Nada foi importado — o formato da resposta mudou.",
+    };
+  }
+  if (doc.pages.length === 0) {
+    return { ...vazio, reason: "O ClickUp não devolveu nenhuma página." };
+  }
+
   const service = createSupabaseServiceRoleClient();
   const [{ data: clientesData }, { data: existentesData }] = await Promise.all([
     service.from("clients").select("id, nome, empresa"),

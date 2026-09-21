@@ -29,6 +29,9 @@ interface SearchParams {
   q?: string;
   aba?: string;
   filtro?: string;
+  imp?: string;
+  res?: string;
+  motivo?: string;
 }
 
 interface ClientRow {
@@ -232,6 +235,30 @@ export default async function BriefingsPage({
               Filtrar
             </button>
           </form>
+
+          {params.imp === "ok" ? (
+            (() => {
+              const n = (params.res ?? "").split("-").map((x) => Number(x) || 0);
+              return (
+                <p className="text-sm text-fysi-deep bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] px-4 py-3 mb-4">
+                  Importação concluída: {n[0]} briefing{n[0] === 1 ? "" : "s"} novo
+                  {n[0] === 1 ? "" : "s"}, {n[1]} atualizado
+                  {n[1] === 1 ? "" : "s"}.
+                  {n[2] > 0
+                    ? ` ${n[2]} não deram pra vincular a um cliente com segurança e ficaram avulsos — abra e escolha o cliente.`
+                    : ""}
+                  {n[3] > 0
+                    ? ` ${n[3]} credencia${n[3] === 1 ? "l foi retirada" : "is foram retiradas"} do corpo e guardada${n[3] === 1 ? "" : "s"} em Acessos.`
+                    : ""}
+                </p>
+              );
+            })()
+          ) : null}
+          {params.imp === "erro" ? (
+            <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-[12px] px-4 py-3 mb-4">
+              {params.motivo ?? "Não consegui importar agora."}
+            </p>
+          ) : null}
 
           {acessoTotal ? (
             <form
