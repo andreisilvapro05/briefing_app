@@ -1,4 +1,5 @@
 import { getServerEnv } from "./env";
+import { CLICKUP_STATUS_MAP } from "./clickup";
 import { createSupabaseServiceRoleClient } from "./supabase/server";
 import { normalizar } from "./briefing-match";
 import { donoPadraoDe } from "./project-tasks";
@@ -57,22 +58,14 @@ function mapaResponsaveis(): Record<string, string> {
   };
 }
 
-/** Status do ClickUp → status do app. */
-const MAPA_STATUS: Record<string, string> = {
-  "a iniciar": "a-iniciar",
-  onboarding: "onboarding",
-  "informações iniciais": "envio-informacoes",
-  "redação/copy": "redacao-copy",
-  "design da página": "design-pagina",
-  "validação design+copy": "validacao-design-copy",
-  "ajustes design/copy": "ajustes-design-copy",
-  implementação: "implementacao",
-  "validação implementação": "validacao-implementacao",
-  "otimização+entrega": "otimizacao-entrega",
-  concluído: "concluido",
-  "completo/entregue": "completo-entregue",
-  parado: "parado",
-};
+/**
+ * Status do ClickUp → status do app. Mesmo mapa do sync de PROJETOS — antes
+ * eram duas cópias que divergiam: esta tinha "completo/entregue", mas o
+ * ClickUp escreve "completo| entregue" (com barra vertical), então tarefa
+ * entregue nunca era reconhecida. Faltavam também "ajuste implementação",
+ * "nem começou nada" e os status das listas internas.
+ */
+const MAPA_STATUS = CLICKUP_STATUS_MAP;
 
 const MAPA_PRIORIDADE: Record<string, string> = {
   urgent: "urgente",
@@ -87,9 +80,34 @@ interface TarefaClickUp {
   status: string;
   assignee: string | null;
   dueDate: string | null;
+  startDate: string | null;
   priority: string | null;
   parent: string | null;
   listName: string;
+}
+
+/**
+ * Primeiro assignee QUE A EQUIPE RECONHECE, não o primeiro da lista.
+ *
+ * O ClickUp devolve os responsáveis sem ordem garantida, e tarefa da lista
+ * de gestão costuma ter dois (ex.: "Revisão dos grupos do WhatsApp" tem a
+ * Karine e uma ex-integrante). Pegando o [0] cego, a demanda virava "sem
+ * dono" só porque a pessoa que saiu veio primeiro.
+ */
+function donoDe(
+  assignees: { id?: number }[] | undefined,
+  mapa: Record<string, string>
+): string | null {
+  for (const a of assignees ?? []) {
+    const v = a?.id ? mapa[String(a.id)] : undefined;
+    if (v) return v;
+  }
+  return null;
+}
+
+/** Título do ClickUp costuma vir com espaço sobrando ("Copy LP  Raynna"). */
+function tituloDe(name: string | undefined): string {
+  return (name ?? "").replace(/\s+/g, " ").trim();
 }
 
 function dataDe(ms: unknown): string | null {
@@ -137,17 +155,18 @@ async function buscarTarefas(): Promise<
         status?: { status?: string };
         assignees?: { id?: number }[];
         due_date?: unknown;
+        start_date?: unknown;
         priority?: { priority?: string } | null;
         parent?: string | null;
         list?: { name?: string };
       };
-      const primeiro = task.assignees?.[0]?.id;
       tarefas.push({
         id: task.id,
-        name: (task.name ?? "").trim(),
+        name: tituloDe(task.name),
         status: (task.status?.status ?? "").toLowerCase().trim(),
-        assignee: primeiro ? (mapa[String(primeiro)] ?? null) : null,
+        assignee: donoDe(task.assignees, mapa),
         dueDate: dataDe(task.due_date),
+        startDate: dataDe(task.start_date),
         priority: task.priority?.priority
           ? (MAPA_PRIORIDADE[task.priority.priority] ?? null)
           : null,
@@ -192,17 +211,18 @@ async function buscarTarefasInternas(): Promise<TarefaClickUp[]> {
           status?: { status?: string };
           assignees?: { id?: number }[];
           due_date?: unknown;
+          start_date?: unknown;
           priority?: { priority?: string } | null;
           parent?: string | null;
           list?: { name?: string };
         };
-        const primeiro = task.assignees?.[0]?.id;
         out.push({
           id: task.id,
-          name: (task.name ?? "").trim(),
+          name: tituloDe(task.name),
           status: (task.status?.status ?? "").toLowerCase().trim(),
-          assignee: primeiro ? (mapa[String(primeiro)] ?? null) : null,
+          assignee: donoDe(task.assignees, mapa),
           dueDate: dataDe(task.due_date),
+          startDate: dataDe(task.start_date),
           priority: task.priority?.priority
             ? (MAPA_PRIORIDADE[task.priority.priority] ?? null)
             : null,
@@ -393,6 +413,7 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
         ordem,
         status: statusApp ?? "a-iniciar",
         responsavel: t.assignee ?? donoPadraoDe(t.name),
+        data_inicial: t.startDate,
         data_vencimento: t.dueDate,
         prioridade: t.priority,
         origem: "clickup",
@@ -455,6 +476,7 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
       ordem: 0,
       status: MAPA_STATUS[t.status] ?? "a-iniciar",
       responsavel: t.assignee,
+      data_inicial: t.startDate,
       data_vencimento: t.dueDate,
       prioridade: t.priority,
       origem: "clickup",

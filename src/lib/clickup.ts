@@ -246,7 +246,7 @@ function humanSize(bytes: number): string {
  * no ClickUp. Projeto nesse estágio é deixado como está pela sincronização,
  * pra não perder uma etapa que só existe aqui.
  */
-const CLICKUP_STATUS_MAP: Record<string, string> = {
+export const CLICKUP_STATUS_MAP: Record<string, string> = {
   parado: "parado",
   "nem começou nada": "nem-comecou-nada",
   "a iniciar": "a-iniciar",
@@ -261,6 +261,12 @@ const CLICKUP_STATUS_MAP: Record<string, string> = {
   "otimização+entrega": "otimizacao-entrega",
   concluído: "concluido",
   "completo| entregue": "completo-entregue",
+  // Listas de trabalho INTERNO (ex.: "Tarefas Gestão de projetos") têm o
+  // próprio conjunto de status. Sem estes, "feito" caía no default
+  // "a-iniciar" e uma tarefa entregue voltava pra fila de alguém.
+  feito: "completo-entregue",
+  pendência: "parado",
+  recorrente: "a-iniciar",
 };
 
 export interface ClickUpProjectStatus {
