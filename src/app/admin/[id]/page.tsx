@@ -26,8 +26,7 @@ import { MateriaisPainel } from "@/components/admin/materiais-painel";
 import { ClientTabs, type ClientTab } from "@/components/admin/client-tabs";
 import { createEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
 import {
-  getClientEIDocumentId,
-  getOrCreateClientDocument,
+  getClientDocument,
 } from "@/lib/ei-documents-server";
 import { EIView } from "@/components/admin/ei-view";
 
@@ -157,16 +156,19 @@ export default async function AdminClientPage({
     { data: responses },
     { data: files },
     tasks,
-    eiDocId,
+    eiDoc,
     briefingDoc,
   ] = await Promise.all([
     service.from("clients").select("*").eq("id", id).maybeSingle(),
     service.from("briefing_responses").select("*").eq("client_id", id),
     service.from("briefing_files").select("*").eq("client_id", id),
     listProjectTasks(id),
-    getClientEIDocumentId(id),
-    getOrCreateClientDocument(id, "briefing"),
+    // Buscar, não criar: abrir a ficha não pode gerar documento. Era assim
+    // que nasciam os 23 briefings em branco, clones byte a byte do Modelo.
+    getClientDocument(id, "ei"),
+    getClientDocument(id, "briefing"),
   ]);
+  const eiDocId = eiDoc?.id ?? null;
 
   if (!client) {
     return (
@@ -913,41 +915,52 @@ Qualquer dúvida, é só responder por aqui.`;
         ) : null}
 
         {tab === "ei" ? (
-          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">
-            {eiDocId ? (
-              <>
-                <p className="text-fysi-deep font-medium">
-                  Estrutura Inicial deste cliente
-                </p>
-                <a
-                  href={`/admin/estruturas-iniciais/${eiDocId}${
-                    urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""
-                  }`}
-                  className="inline-flex items-center gap-2 mt-4 rounded-full bg-fysi-mint border border-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2"
+          eiDoc ? (
+            <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <Eyebrow>Estrutura Inicial</Eyebrow>
+                <Link
+                  href={`/admin/estruturas-iniciais/${eiDoc.id}${keyParam}`}
+                  className="text-sm font-medium text-fysi-deep hover:text-fysi-deep/70 whitespace-nowrap"
                 >
-                  Abrir Estrutura Inicial ↗
-                </a>
-              </>
-            ) : (
-              <>
-                <p className="text-fysi-deep font-medium">
-                  Nenhuma Estrutura Inicial ainda.
-                </p>
-                <form action={createEIDocumentAction}>
-                  <input type="hidden" name="clientId" value={client.id} />
-                  {urlKey ? (
-                    <input type="hidden" name="key" value={urlKey} />
-                  ) : null}
-                  <SubmitTextButton
-                    className="inline-flex items-center gap-2 mt-4 rounded-full bg-fysi-mint border border-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 disabled:opacity-50"
-                    pendingLabel="Criando…"
-                  >
-                    Criar a partir do Modelo
-                  </SubmitTextButton>
-                </form>
-              </>
-            )}
-          </section>
+                  Abrir em tela cheia →
+                </Link>
+              </div>
+              {/* Editável aqui dentro, como a aba Briefing. Antes esta aba
+                  era só um botão que jogava a pessoa pra outra tela — ler a
+                  EI enquanto se mexe nas tarefas do cliente era impossível. */}
+              <div className="mt-4">
+                <EIView
+                  docId={eiDoc.id}
+                  urlKey={urlKey}
+                  initialBlocks={eiDoc.blocks}
+                  atualizadoAt={eiDoc.updatedAt}
+                />
+              </div>
+            </section>
+          ) : (
+            <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">
+              <p className="text-fysi-deep font-medium">
+                Nenhuma Estrutura Inicial ainda.
+              </p>
+              <p className="text-sm text-fysi-muted mt-1 max-w-md mx-auto">
+                É onde ficam as decisões de estrutura da página antes de o
+                design começar. Nasce do Modelo.
+              </p>
+              <form action={createEIDocumentAction}>
+                <input type="hidden" name="clientId" value={client.id} />
+                {urlKey ? (
+                  <input type="hidden" name="key" value={urlKey} />
+                ) : null}
+                <SubmitTextButton
+                  className="inline-flex items-center gap-2 mt-4 rounded-full bg-fysi-mint border border-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 disabled:opacity-50"
+                  pendingLabel="Criando…"
+                >
+                  Criar a partir do Modelo
+                </SubmitTextButton>
+              </form>
+            </section>
+          )
         ) : null}
 
         {tab === "moodboard" ? (
@@ -1338,7 +1351,28 @@ Qualquer dúvida, é só responder por aqui.`;
               />
             </div>
           </section>
-        ) : null}
+        ) : (
+          <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6 text-center">
+            <p className="text-fysi-deep font-medium">
+              Sem documento de briefing ainda
+            </p>
+            <p className="text-sm text-fysi-muted mt-1 max-w-md mx-auto">
+              É o documento preenchido junto com o cliente na call, a partir
+              do Modelo. Ele ganha link próprio pra compartilhar.
+            </p>
+            <form action={createEIDocumentAction}>
+              <input type="hidden" name="clientId" value={client.id} />
+              <input type="hidden" name="kind" value="briefing" />
+              {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+              <SubmitTextButton
+                className="inline-flex items-center gap-2 mt-4 rounded-full bg-fysi-mint border border-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 disabled:opacity-50"
+                pendingLabel="Criando…"
+              >
+                Criar a partir do Modelo
+              </SubmitTextButton>
+            </form>
+          </section>
+        )}
 
         {/* Resumo de preenchimento do briefing (formulário que o cliente preenche sozinho) */}
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">

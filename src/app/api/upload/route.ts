@@ -5,6 +5,7 @@ import {
 } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
 import { errorResponse, isProduction, logServerError } from "@/lib/api-helpers";
+import { createAdminNotification } from "@/lib/notifications";
 import {
   createClientFolders,
   subfolderForField,
@@ -226,10 +227,24 @@ export async function POST(request: NextRequest) {
       size_bytes: file.size,
     });
     // Atualiza marker de atividade do cliente (indicador "parado" no admin).
-    await service
+    const { data: clienteRow } = await service
       .from("clients")
       .update({ last_client_activity_at: new Date().toISOString() })
-      .eq("id", clientId);
+      .eq("id", clientId)
+      .select("nome, empresa")
+      .maybeSingle();
+
+    // Material novo merece aviso: antes, o arquivo do cliente chegava e o
+    // único sinal era o ponto de "ativo" na lista — ninguém era avisado.
+    // A janela de 30 min agrupa o lote (8 arquivos = 1 aviso).
+    const c = clienteRow as { nome: string | null; empresa: string | null } | null;
+    await createAdminNotification({
+      clientId,
+      kind: "material.enviado",
+      title: `Material novo: ${c?.empresa || c?.nome || "cliente"}`,
+      message: "O cliente enviou arquivos pelo painel",
+      dedupeMinutes: 30,
+    });
   }
 
   return NextResponse.json({

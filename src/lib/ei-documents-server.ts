@@ -211,6 +211,31 @@ export async function listClientsWithoutEIDocument(
  * que precisa do documento pronto pra editar assim que a tela abre, sem
  * passo extra de "criar" (diferente do hub de EI, que tem botão explícito).
  */
+/**
+ * Busca o documento do cliente SEM criar.
+ *
+ * Existe porque `getOrCreateClientDocument` era chamado no carregamento da
+ * ficha: só ABRIR a ficha de um cliente já criava um briefing clonado do
+ * modelo. Em 2026-09-21 havia 23 briefings no banco, todos byte a byte
+ * idênticos, enchendo o hub de Briefings de documentos em branco que
+ * pareciam reais. Criar agora é um gesto explícito de quem vai preencher.
+ */
+export async function getClientDocument(
+  clientId: string,
+  kind: EIDocumentKind
+): Promise<EIDocument | null> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ei_documents")
+    .select(SELECT_FULL)
+    .eq("client_id", clientId)
+    .eq("kind", kind)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data ? normalize(data as unknown as RawRow) : null;
+}
+
 export async function getOrCreateClientDocument(
   clientId: string,
   kind: EIDocumentKind

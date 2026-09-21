@@ -87,6 +87,18 @@ export const NOTIFICATION_KIND_META: Record<string, NotificationMeta> = {
     ring: "bg-fysi-yellow/25",
     tint: "text-fysi-deep",
   },
+  "material.enviado": {
+    icon: (
+      <I>
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+        <path d="M7 10l5-5 5 5M12 5v12" />
+      </I>
+    ),
+    label: "Material do cliente",
+    dot: "bg-fysi-mint-vivid",
+    ring: "bg-fysi-mint/40",
+    tint: "text-fysi-deep",
+  },
   // --- caixa de entrada da pessoa (member_notifications) ---
   "tarefa.atribuida": {
     icon: (

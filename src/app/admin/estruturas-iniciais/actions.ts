@@ -26,6 +26,13 @@ export async function createEIDocumentAction(formData: FormData) {
   if (!member) redirect("/admin/login");
 
   const clientId = String(formData.get("clientId") ?? "");
+  // `kind` permite reaproveitar esta action pro documento de Briefing: o
+  // fluxo é o mesmo (clona o Modelo), só muda a tela de destino.
+  const kind = formData.get("kind") === "briefing" ? "briefing" : "ei";
+  const destino = (docId: string) =>
+    kind === "briefing"
+      ? `/admin/briefings/doc/${docId}${keyParam(urlKey)}`
+      : `/admin/estruturas-iniciais/${docId}${keyParam(urlKey)}`;
   if (!clientId) return;
   if (!hasFullAccess(member)) {
     const visible = await getVisibleClientIds(member);
@@ -38,29 +45,32 @@ export async function createEIDocumentAction(formData: FormData) {
     .from("ei_documents")
     .select("id")
     .eq("client_id", clientId)
-    .eq("kind", "ei")
+    .eq("kind", kind)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   if (existing) {
-    redirect(
-      `/admin/estruturas-iniciais/${(existing as { id: string }).id}${keyParam(urlKey)}`
-    );
+    redirect(destino((existing as { id: string }).id));
   }
 
-  const template = await getTemplateDocument("ei");
+  const template = await getTemplateDocument(kind);
   const blocks = template?.blocks ?? [];
 
-  const { data: created } = await service
+  const { data: created, error } = await service
     .from("ei_documents")
-    .insert({ client_id: clientId, kind: "ei", ei_data: { blocks } })
+    .insert({ client_id: clientId, kind, ei_data: { blocks } })
     .select("id")
     .single();
+  if (error || !created) {
+    logServerError("documento.criar", error ?? new Error("sem linha"));
+    return;
+  }
 
   revalidatePath("/admin/estruturas-iniciais");
+  revalidatePath("/admin/briefings");
   revalidatePath(`/admin/${clientId}`);
 
-  redirect(
-    `/admin/estruturas-iniciais/${(created as { id: string }).id}${keyParam(urlKey)}`
-  );
+  redirect(destino((created as { id: string }).id));
 }
 
 /**
