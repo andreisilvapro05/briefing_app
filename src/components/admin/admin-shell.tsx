@@ -34,6 +34,7 @@ export type AdminSection =
   | "relatorios"
   | "projetos-fechados"
   | "custos"
+  | "chaves-api"
   | "membros";
 
 interface NavItem {
@@ -66,6 +67,13 @@ function I({ children }: { children: ReactNode }) {
 }
 
 const ICONS: Record<AdminSection, ReactNode> = {
+  "chaves-api": (
+    <I>
+      <circle cx="7.5" cy="15.5" r="3.5" />
+      <path d="M10 13L20 3" />
+      <path d="M17 6l2.5 2.5" />
+    </I>
+  ),
   "meu-trabalho": (
     <I>
       <circle cx="12" cy="8" r="4" />
@@ -249,6 +257,7 @@ const AREAS: NavArea[] = [
       item("meu-perfil", "Meu Perfil", "/admin/perfil"),
       item("membros", "Membros", "/admin/membros"),
       item("processos", "Processos & Tutoriais", "/admin/processos"),
+      item("chaves-api", "Chaves de API", "/admin/chaves-api"),
     ],
   },
 ];

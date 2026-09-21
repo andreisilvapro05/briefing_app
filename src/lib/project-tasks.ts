@@ -207,3 +207,52 @@ export const DEFAULT_PROJECT_TASKS: Record<ProjectType, string[]> = {
   ],
   outro: ["Envio Contrato", "Pagamento", "Planejamento", "Execução", "Entrega"],
 };
+
+/**
+ * Dono padrão por TIPO de tarefa.
+ *
+ * Por que isso existe: em 2026-09-20 o app tinha 276 tarefas sem
+ * responsável contra 61 com — "Meu trabalho" ficava vazio pra todo mundo.
+ * Parte disso o ClickUp resolve (sync traz o assignee real), mas lá também
+ * há etapa sem ninguém: "Design", "Implementação", "Ajustes" e "DEP" são
+ * criadas em branco em todo projeto novo.
+ *
+ * Os padrões abaixo saem do que o ClickUp mostra de fato hoje:
+ *   - "Copy LP": 18 de 18 tarefas são da Karine;
+ *   - Design / Bgs / Ajustes: Valéria em todas as que têm dono;
+ *   - Implementação / entrega: Andrei;
+ *   - Contrato/Pagamento: Andrei (é o comercial).
+ *
+ * A Tainá NÃO está no workspace do ClickUp, então não há evidência pra
+ * atribuir nada a ela automaticamente — as demandas dela precisam ser
+ * marcadas no app.
+ *
+ * Só é aplicado a tarefa SEM responsável: nunca sobrescreve escolha da
+ * equipe nem o que veio do ClickUp.
+ */
+export const DONO_PADRAO_POR_TAREFA: Record<string, string> = {
+  "Copy LP": "karine",
+  "Copy do site": "karine",
+  Design: "valeria",
+  "Design (múltiplas páginas)": "valeria",
+  "Criação Assets/BGs": "valeria",
+  "Ajustes v1": "valeria",
+  "Ajustes v2": "valeria",
+  "Ajustes v3": "valeria",
+  Implementação: "andrei",
+  "DEP + Otimização": "andrei",
+  "Envio Contrato": "andrei",
+  Pagamento: "andrei",
+};
+
+/** Dono padrão de um título, tolerante a variação ("Copy LP Laurence"). */
+export function donoPadraoDe(titulo: string): string | null {
+  const t = titulo.trim();
+  if (DONO_PADRAO_POR_TAREFA[t]) return DONO_PADRAO_POR_TAREFA[t];
+  const baixo = t.toLowerCase();
+  if (/^copy\b/.test(baixo)) return "karine";
+  if (/^(design|criação assets|criacao assets|bgs|ajustes)\b/.test(baixo))
+    return "valeria";
+  if (/^(implementa|dep\b|otimiza)/.test(baixo)) return "andrei";
+  return null;
+}

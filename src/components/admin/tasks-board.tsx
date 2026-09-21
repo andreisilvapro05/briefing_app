@@ -441,10 +441,13 @@ export function TaskRow({
   return (
     <>
       <tr
+        // Âncora estável da demanda: é o destino do campo `url` de
+        // GET /api/demandas, que apps externos usam pra abrir a tarefa aqui.
+        id={`tarefa-${task.id}`}
         draggable={false}
         onDragOver={drag?.onDragOver}
         onDrop={drag?.onDrop}
-        className={`group border-t border-fysi-line hover:bg-fysi-cream/40 transition-colors ${
+        className={`group border-t border-fysi-line hover:bg-fysi-cream/40 transition-colors scroll-mt-24 target:bg-fysi-yellow/40 ${
           drag?.isDragging ? "opacity-40" : ""
         } ${drag?.isOver ? "bg-fysi-mint/20" : ""}`}
       >

@@ -185,3 +185,98 @@ export async function applyTemplateToClientAction(formData: FormData) {
   revalidatePath(`/admin/${clientId}`);
   redirect(`/admin/${clientId}${keySuffix(urlKey)}#briefing`);
 }
+
+// ---------------------------------------------------------------------------
+// Briefing como documento próprio: importação do ClickUp e link público.
+// Pedido do usuário 2026-09-20.
+// ---------------------------------------------------------------------------
+
+/**
+ * Puxa as páginas do doc de briefings do ClickUp pro app, fiel ao conteúdo
+ * (caixinhas marcadas, links, divisores). Idempotente: rodar de novo
+ * atualiza o que mudou lá em vez de duplicar.
+ */
+export async function importarBriefingsAction(formData: FormData) {
+  const urlKey = (formData.get("key") as string | null) ?? null;
+  const { getCurrentMember, hasFullAccess } = await import("@/lib/member");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+
+  const { importarBriefingsDoClickUp } = await import("@/lib/briefings-server");
+  const r = await importarBriefingsDoClickUp();
+
+  const sp = new URLSearchParams();
+  if (urlKey) sp.set("key", urlKey);
+  if (!r.ok) {
+    logServerError("importarBriefingsAction", new Error(r.reason ?? "falhou"));
+    sp.set("imp", "erro");
+    if (r.reason) sp.set("motivo", r.reason);
+  } else {
+    sp.set("imp", "ok");
+    sp.set(
+      "res",
+      [r.criados, r.atualizados, r.semCliente, r.credenciaisProtegidas].join("-")
+    );
+  }
+  revalidatePath("/admin/briefings");
+  redirect(`/admin/briefings?${sp.toString()}`);
+}
+
+/** Liga o link público do briefing (token próprio, não o magic_slug). */
+export async function compartilharBriefingAction(formData: FormData) {
+  const urlKey = (formData.get("key") as string | null) ?? null;
+  const id = (formData.get("id") as string | null) ?? "";
+  const dias = Number(formData.get("dias") ?? "");
+  const { getCurrentMember, hasFullAccess } = await import("@/lib/member");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  // Criar link público é decisão de quem tem visão completa — não do papel
+  // "basico", que é justamente de quem o briefing deve ficar separado.
+  if (!hasFullAccess(member)) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+  if (!id) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+
+  const { ativarCompartilhamento } = await import("@/lib/briefings-server");
+  const r = await ativarCompartilhamento(id, {
+    expiraEmDias: Number.isFinite(dias) && dias > 0 ? dias : null,
+  });
+  if ("erro" in r) logServerError("compartilharBriefingAction", new Error(r.erro));
+
+  revalidatePath(`/admin/briefings/doc/${id}`);
+  redirect(`/admin/briefings/doc/${id}${keySuffix(urlKey)}`);
+}
+
+/** Revoga o link. Troca o token: o link antigo não volta a valer. */
+export async function revogarCompartilhamentoAction(formData: FormData) {
+  const urlKey = (formData.get("key") as string | null) ?? null;
+  const id = (formData.get("id") as string | null) ?? "";
+  const { getCurrentMember, hasFullAccess } = await import("@/lib/member");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+  if (!id) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+
+  const { revogarCompartilhamento } = await import("@/lib/briefings-server");
+  await revogarCompartilhamento(id);
+
+  revalidatePath(`/admin/briefings/doc/${id}`);
+  redirect(`/admin/briefings/doc/${id}${keySuffix(urlKey)}`);
+}
+
+/** Vincula (ou desvincula) o briefing avulso a um cliente. */
+export async function vincularBriefingAction(formData: FormData) {
+  const urlKey = (formData.get("key") as string | null) ?? null;
+  const id = (formData.get("id") as string | null) ?? "";
+  const clientId = ((formData.get("clientId") as string | null) ?? "").trim();
+  const { getCurrentMember, hasFullAccess } = await import("@/lib/member");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+  if (!id) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+
+  const { vincularBriefingACliente } = await import("@/lib/briefings-server");
+  await vincularBriefingACliente(id, clientId || null);
+
+  revalidatePath(`/admin/briefings/doc/${id}`);
+  redirect(`/admin/briefings/doc/${id}${keySuffix(urlKey)}`);
+}
