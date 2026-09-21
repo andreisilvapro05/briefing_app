@@ -683,8 +683,11 @@ export function MyWorkBoard({
       });
   }, [delegadasAtivas, hoje]);
 
+  // Sem overflow-hidden no <section>: ele recortava o seletor de status, que
+  // é absolute e precisa escapar do cartão. O arredondamento das bordas vem
+  // dos filhos, não do recorte do container.
   return (
-    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-hidden">
+    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card">
       <div className="px-5 pt-4">
         <div className="flex items-baseline justify-between mb-3">
           <p className="text-sm font-semibold text-fysi-deep">Meu trabalho</p>

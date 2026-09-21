@@ -8,7 +8,17 @@ import { listAllProjectTasks } from "@/lib/project-tasks-server";
 import { MyWorkBoard } from "@/components/admin/my-work-board";
 import { DayHero } from "@/components/admin/day-hero";
 import { SubmitTextButton } from "@/components/admin/submit-button";
-import { TEAM_MEMBERS } from "@/lib/project-tasks";
+import { TEAM_MEMBERS, TASK_STATUS_GROUP, type TaskStatus } from "@/lib/project-tasks";
+
+/**
+ * "Aberta" = status do grupo ativo. Antes o painel contava
+ * `status !== "completo-entregue"`, então "Concluído" entrava como aberta e
+ * o número do topo não batia com o banco (Valéria aparecia 136 em vez de
+ * 121). O mesmo valia pro "sem responsável", que somava tarefa já fechada.
+ */
+function ehAtiva(status: TaskStatus): boolean {
+  return TASK_STATUS_GROUP[status] === "ativo";
+}
 import { sincronizarDemandasAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -78,22 +88,6 @@ export default async function MeuTrabalhoPage({
 
       <DayHero nome={nome} urlKey={urlKey} />
 
-      {podeVerEquipe ? (
-        <SyncDemandas
-          urlKey={urlKey}
-          sync={params.sync ?? null}
-          res={params.res ?? null}
-          motivo={params.motivo ?? null}
-          semDono={allTasks.filter((t) => !t.responsavel).length}
-          porPessoa={TEAM_MEMBERS.map((m) => ({
-            label: m.label,
-            cor: m.cor,
-            n: allTasks.filter(
-              (t) => t.responsavel === m.value && t.status !== "completo-entregue"
-            ).length,
-          }))}
-        />
-      ) : null}
 
       {!member.taskValue ? (
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">
@@ -120,6 +114,30 @@ export default async function MeuTrabalhoPage({
           urlKey={urlKey}
         />
       )}
+
+      {/* Painel da equipe fica DEPOIS do trabalho da pessoa: o que é meu vem
+          primeiro. Antes empurrava "Meu trabalho" pra baixo da dobra. */}
+      {podeVerEquipe ? (
+        <div className="mt-6">
+          <SyncDemandas
+            urlKey={urlKey}
+            sync={params.sync ?? null}
+            res={params.res ?? null}
+            motivo={params.motivo ?? null}
+            semDono={
+              allTasks.filter((t) => !t.responsavel && ehAtiva(t.status)).length
+            }
+            porPessoa={TEAM_MEMBERS.map((m) => ({
+              label: m.label,
+              cor: m.cor,
+              externo: Boolean(m.externo),
+              n: allTasks.filter(
+                (t) => t.responsavel === m.value && ehAtiva(t.status)
+              ).length,
+            }))}
+          />
+        </div>
+      ) : null}
     </AdminShell>
   );
 }
@@ -145,7 +163,7 @@ function SyncDemandas({
   res: string | null;
   motivo: string | null;
   semDono: number;
-  porPessoa: { label: string; cor: string; n: number }[];
+  porPessoa: { label: string; cor: string; n: number; externo: boolean }[];
 }) {
   const n = (res ?? "").split("-").map((x) => Number(x) || 0);
   return (
@@ -171,10 +189,18 @@ function SyncDemandas({
 
       {sync === "ok" ? (
         <p className="text-sm text-fysi-deep bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] px-4 py-3 mt-3">
-          Sincronizado: {n[0]} responsáve{n[0] === 1 ? "l" : "is"} do ClickUp,{" "}
-          {n[1]} status e {n[2]} prazo{n[2] === 1 ? "" : "s"} atualizados.
-          {n[3] > 0 ? ` Mais ${n[3]} receberam o dono padrão do tipo de tarefa.` : ""}
-          {n[4] > 0 ? ` Ainda restam ${n[4]} sem dono definível.` : ""}
+          Sincronizado.
+          {n[0] > 0
+            ? ` ${n[0]} demanda${n[0] === 1 ? "" : "s"} que só existia${n[0] === 1 ? "" : "m"} no ClickUp foi trazida${n[0] === 1 ? "" : "s"} pra cá.`
+            : " Nenhuma demanda nova no ClickUp."}
+          {n[1] > 0 ? ` ${n[1]} ligada${n[1] === 1 ? "" : "s"} à tarefa de origem.` : ""}
+          {n[3] > 0 ? ` ${n[3]} responsáve${n[3] === 1 ? "l" : "is"} atualizado${n[3] === 1 ? "" : "s"}.` : ""}
+          {n[4] > 0 ? ` ${n[4]} status.` : ""}
+          {n[5] > 0 ? ` ${n[5]} prazo${n[5] === 1 ? "" : "s"}.` : ""}
+          {n[6] > 0 ? ` ${n[6]} receberam o dono padrão do tipo de tarefa.` : ""}
+          {n[2] > 0
+            ? ` ${n[2]} do ClickUp ficaram de fora por estarem sem data ("Não programado").`
+            : ""}
         </p>
       ) : null}
       {sync === "erro" ? (
@@ -195,7 +221,11 @@ function SyncDemandas({
               {p.label.slice(0, 1)}
             </span>
             <span className="text-xs text-fysi-deep">
-              {p.label} · <strong className="font-semibold">{p.n}</strong> aberta
+              {p.label}
+              {p.externo ? (
+                <span className="text-fysi-muted"> (externo)</span>
+              ) : null}{" "}
+              · <strong className="font-semibold">{p.n}</strong> aberta
               {p.n === 1 ? "" : "s"}
             </span>
           </li>

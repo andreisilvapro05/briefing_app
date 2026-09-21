@@ -152,6 +152,10 @@ export interface ResultadoSyncTarefas {
   ok: boolean;
   reason?: string;
   vinculadas: number;
+  /** Existiam no ClickUp e não existiam aqui. */
+  criadas: number;
+  /** No ClickUp sem data ("Não programado") — não são trazidas. */
+  ignoradasSemPrazo: number;
   responsavelDefinido: number;
   statusAtualizado: number;
   prazoAtualizado: number;
@@ -170,10 +174,24 @@ export interface ResultadoSyncTarefas {
  * NÃO cria tarefa nova e NÃO apaga: o app tem etapas que o ClickUp não tem
  * (Pagamento, Envio Contrato) e sobrescrever perderia trabalho.
  */
+/**
+ * Casa tarefa do ClickUp com `project_tasks`, preenche QUEM/QUANDO e **cria
+ * o que existe no ClickUp e não existe aqui**.
+ *
+ * Por que criar passou a ser necessário: as duas listas nasceram separadas.
+ * O app gerou tarefas pelo modelo (DEFAULT_PROJECT_TASKS) e o ClickUp tem as
+ * reais — em 2026-09-21 a Karine tinha 177 tarefas no ClickUp e 10 aqui, com
+ * `clickup_task_id` nulo em 100% das linhas. Só atualizar nunca ia alcançar.
+ *
+ * O que NÃO faz: apagar. O app tem etapas que o ClickUp não tem (Pagamento,
+ * Envio Contrato) e sumir com elas perderia trabalho.
+ */
 export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefas> {
   const base: ResultadoSyncTarefas = {
     ok: false,
     vinculadas: 0,
+    criadas: 0,
+    ignoradasSemPrazo: 0,
     responsavelDefinido: 0,
     statusAtualizado: 0,
     prazoAtualizado: 0,
@@ -189,7 +207,9 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
     service.from("clients").select("id, clickup_task_id").not("clickup_task_id", "is", null),
     service
       .from("project_tasks")
-      .select("id, client_id, titulo, status, responsavel, data_vencimento, prioridade, clickup_task_id"),
+      .select(
+        "id, client_id, titulo, ordem, status, responsavel, data_vencimento, prioridade, clickup_task_id"
+      ),
   ]);
 
   // clickup_task_id do PROJETO → client_id no app.
@@ -202,6 +222,7 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
     id: string;
     client_id: string;
     titulo: string;
+    ordem: number | null;
     status: string | null;
     responsavel: string | null;
     data_vencimento: string | null;
@@ -210,35 +231,108 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
   }
   const linhas = (tarefasData as Linha[] | null) ?? [];
   const porClickUpId = new Map<string, Linha>();
-  const porClienteTitulo = new Map<string, Linha[]>();
+  const porCliente = new Map<string, Linha[]>();
+  const maiorOrdem = new Map<string, number>();
   for (const l of linhas) {
     if (l.clickup_task_id) porClickUpId.set(l.clickup_task_id, l);
-    const chave = `${l.client_id}::${normalizar(l.titulo)}`;
-    const arr = porClienteTitulo.get(chave);
+    const arr = porCliente.get(l.client_id);
     if (arr) arr.push(l);
-    else porClienteTitulo.set(chave, [l]);
+    else porCliente.set(l.client_id, [l]);
+    maiorOrdem.set(l.client_id, Math.max(maiorOrdem.get(l.client_id) ?? 0, l.ordem ?? 0));
+  }
+
+  // Ids já usados nesta rodada — duas tarefas do ClickUp não podem casar
+  // com a mesma linha do app.
+  const jaCasadas = new Set<string>();
+
+  /**
+   * Acha a linha do app equivalente. O modelo do app usa título genérico
+   * ("Copy LP", "Design") e o ClickUp usa nomeado ("Copy LP Danielle",
+   * "Design LP Ygor"), então título igual não basta.
+   */
+  function casarLinha(clientId: string, nomeClickUp: string): Linha | null {
+    const cands = (porCliente.get(clientId) ?? []).filter(
+      (l) => !l.clickup_task_id && !jaCasadas.has(l.id)
+    );
+    if (cands.length === 0) return null;
+    const alvo = normalizar(nomeClickUp);
+
+    const exatas = cands.filter((l) => normalizar(l.titulo) === alvo);
+    if (exatas.length === 1) return exatas[0];
+
+    // Prefixo nos dois sentidos: "copy lp danielle" começa com "copy lp".
+    const prefixo = cands.filter((l) => {
+      const t = normalizar(l.titulo);
+      return t.length >= 4 && (alvo.startsWith(t) || t.startsWith(alvo));
+    });
+    if (prefixo.length === 1) return prefixo[0];
+    // Empate: fica com o título mais longo (mais específico).
+    if (prefixo.length > 1) {
+      return prefixo.sort(
+        (a, b) => normalizar(b.titulo).length - normalizar(a.titulo).length
+      )[0];
+    }
+    return null;
   }
 
   const res: ResultadoSyncTarefas = { ...base, ok: true };
+  const novas: Record<string, unknown>[] = [];
 
   for (const t of r.tarefas) {
     if (!t.assignee) res.semResponsavelNoClickUp += 1;
 
-    let alvo = porClickUpId.get(t.id) ?? null;
+    // A tarefa que representa o PROJETO não vira etapa — ela É o projeto.
+    if (projetoParaCliente.has(t.id)) continue;
 
-    if (!alvo && t.parent) {
-      const clientId = projetoParaCliente.get(t.parent);
-      if (clientId) {
-        const cands = porClienteTitulo.get(`${clientId}::${normalizar(t.name)}`);
-        // Só aceita quando é inequívoco — "Ajustes" casaria com v1/v2/v3.
-        if (cands?.length === 1) alvo = cands[0];
-      }
-    }
+    let alvo = porClickUpId.get(t.id) ?? null;
+    let clientId = alvo?.client_id ?? null;
 
     if (!alvo) {
-      res.semCorrespondencia += 1;
+      clientId = t.parent ? (projetoParaCliente.get(t.parent) ?? null) : null;
+      if (!clientId) {
+        // Sem cliente conhecido não dá pra pendurar em lugar nenhum.
+        res.semCorrespondencia += 1;
+        continue;
+      }
+      alvo = casarLinha(clientId, t.name);
+    }
+
+    const statusApp = MAPA_STATUS[t.status] ?? null;
+
+    if (!alvo) {
+      // Existe no ClickUp e não existe aqui: cria.
+      if (!clientId || !t.name) {
+        res.semCorrespondencia += 1;
+        continue;
+      }
+      // "Não programado" não entra (decisão da Karine em 2026-09-21): são
+      // 168 tarefas sem data só dela. Sem prazo elas não têm o que fazer no
+      // "Meu Trabalho", que é organizado por quando vence — e entupiriam a
+      // lista. Tarefa que JÁ existe aqui continua sendo atualizada
+      // normalmente, com ou sem prazo lá.
+      if (!t.dueDate) {
+        res.ignoradasSemPrazo += 1;
+        continue;
+      }
+      const ordem = (maiorOrdem.get(clientId) ?? 0) + 1;
+      maiorOrdem.set(clientId, ordem);
+      novas.push({
+        client_id: clientId,
+        titulo: t.name,
+        ordem,
+        status: statusApp ?? "a-iniciar",
+        responsavel: t.assignee ?? donoPadraoDe(t.name),
+        data_vencimento: t.dueDate,
+        prioridade: t.priority,
+        origem: "clickup",
+        clickup_task_id: t.id,
+        clickup_sync_at: new Date().toISOString(),
+      });
+      res.criadas += 1;
       continue;
     }
+
+    jaCasadas.add(alvo.id);
 
     const patch: Record<string, unknown> = {};
     if (!alvo.clickup_task_id) {
@@ -251,7 +345,6 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
       patch.responsavel = t.assignee;
       res.responsavelDefinido += 1;
     }
-    const statusApp = MAPA_STATUS[t.status];
     // "envio-informacoes" é etapa só do app — não deixa o ClickUp derrubar.
     if (statusApp && statusApp !== alvo.status && alvo.status !== "envio-informacoes") {
       patch.status = statusApp;
@@ -268,6 +361,17 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
     if (Object.keys(patch).length === 0) continue;
     patch.clickup_sync_at = new Date().toISOString();
     await service.from("project_tasks").update(patch).eq("id", alvo.id);
+  }
+
+  // Insere em lotes — uma chamada por tarefa nova estouraria o tempo da action.
+  for (let i = 0; i < novas.length; i += 200) {
+    const { error } = await service
+      .from("project_tasks")
+      .insert(novas.slice(i, i + 200));
+    if (error) {
+      res.criadas -= Math.min(200, novas.length - i);
+      res.reason = `Algumas tarefas não puderam ser criadas: ${error.message}`;
+    }
   }
 
   return res;

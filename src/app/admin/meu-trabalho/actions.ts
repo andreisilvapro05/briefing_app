@@ -129,11 +129,13 @@ export async function sincronizarDemandasAction(formData: FormData) {
   sp.set(
     "res",
     [
+      r.criadas,
+      r.vinculadas,
+      r.ignoradasSemPrazo,
       r.responsavelDefinido,
       r.statusAtualizado,
       r.prazoAtualizado,
       padrao.preenchidas,
-      padrao.restantesSemDono,
     ].join("-")
   );
   revalidatePath("/admin/meu-trabalho");
