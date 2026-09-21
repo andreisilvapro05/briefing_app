@@ -1,6 +1,8 @@
 "use server";
 
-import { getCurrentMember } from "@/lib/member";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { getCurrentMember, hasFullAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/api-helpers";
 
@@ -83,4 +85,58 @@ export async function temAgendaNaContaAction(
     .eq("id", member.id)
     .maybeSingle();
   return !!(data as { agenda_ics_url: string | null } | null)?.agenda_ics_url;
+}
+
+// ---------------------------------------------------------------------------
+// Sync das demandas com o ClickUp. Pedido do usuário 2026-09-20:
+// "ter bem certo as demandas de cada um (...) puxe tudo atualizado do click up".
+// ---------------------------------------------------------------------------
+
+/**
+ * Traz do ClickUp responsável, status, prazo e prioridade de cada demanda,
+ * e depois preenche com o dono padrão o que continuou sem ninguém.
+ *
+ * Não cria nem apaga tarefa: o app tem etapas que o ClickUp não tem
+ * (Pagamento, Envio Contrato) e sobrescrever perderia trabalho.
+ */
+export async function sincronizarDemandasAction(formData: FormData) {
+  const urlKey = (formData.get("key") as string | null) ?? null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  // Mexe na demanda da equipe inteira — não é ação de quem só vê a própria.
+  if (!hasFullAccess(member)) {
+    redirect(`/admin/meu-trabalho${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
+
+  const { sincronizarTarefasDoClickUp, preencherDonosPadrao } = await import(
+    "@/lib/clickup-tasks-sync"
+  );
+
+  const sp = new URLSearchParams();
+  if (urlKey) sp.set("key", urlKey);
+
+  const r = await sincronizarTarefasDoClickUp();
+  if (!r.ok) {
+    logServerError("sincronizarDemandasAction", new Error(r.reason ?? "falhou"));
+    sp.set("sync", "erro");
+    if (r.reason) sp.set("motivo", r.reason);
+    redirect(`/admin/meu-trabalho?${sp.toString()}`);
+  }
+
+  const padrao = await preencherDonosPadrao();
+
+  sp.set("sync", "ok");
+  sp.set(
+    "res",
+    [
+      r.responsavelDefinido,
+      r.statusAtualizado,
+      r.prazoAtualizado,
+      padrao.preenchidas,
+      padrao.restantesSemDono,
+    ].join("-")
+  );
+  revalidatePath("/admin/meu-trabalho");
+  revalidatePath("/admin/tarefas");
+  redirect(`/admin/meu-trabalho?${sp.toString()}`);
 }

@@ -7,6 +7,9 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
 import { MyWorkBoard } from "@/components/admin/my-work-board";
 import { DayHero } from "@/components/admin/day-hero";
+import { SubmitTextButton } from "@/components/admin/submit-button";
+import { TEAM_MEMBERS } from "@/lib/project-tasks";
+import { sincronizarDemandasAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +35,7 @@ function firstName(name: string): string {
 export default async function MeuTrabalhoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ key?: string }>;
+  searchParams: Promise<{ key?: string; sync?: string; res?: string; motivo?: string }>;
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
@@ -42,12 +45,15 @@ export default async function MeuTrabalhoPage({
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const nome = firstName(member.name);
 
-  const allTasks = member.taskValue ? await listAllProjectTasks() : [];
+  // Carrega sempre: mesmo sem vínculo, quem tem visão da equipe precisa ver
+  // quanta demanda está sem dono pra poder consertar.
+  const podeVerEquipe = hasFullAccess(member);
+  const allTasks = member.taskValue || podeVerEquipe ? await listAllProjectTasks() : [];
   const myTasks = allTasks.filter((t) => t.responsavel === member.taskValue);
   // "Delegado": tarefas ATIVAS de outras pessoas — o que saiu da minha mão e
   // ainda está rodando. Só pra quem tem visão da equipe (admin/avançado);
   // "básico" não enxerga o trabalho dos outros.
-  const delegadas = hasFullAccess(member)
+  const delegadas = podeVerEquipe
     ? allTasks.filter(
         (t) => t.responsavel && t.responsavel !== member.taskValue
       )
@@ -71,6 +77,23 @@ export default async function MeuTrabalhoPage({
       </header>
 
       <DayHero nome={nome} urlKey={urlKey} />
+
+      {podeVerEquipe ? (
+        <SyncDemandas
+          urlKey={urlKey}
+          sync={params.sync ?? null}
+          res={params.res ?? null}
+          motivo={params.motivo ?? null}
+          semDono={allTasks.filter((t) => !t.responsavel).length}
+          porPessoa={TEAM_MEMBERS.map((m) => ({
+            label: m.label,
+            cor: m.cor,
+            n: allTasks.filter(
+              (t) => t.responsavel === m.value && t.status !== "completo-entregue"
+            ).length,
+          }))}
+        />
+      ) : null}
 
       {!member.taskValue ? (
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">
@@ -98,5 +121,95 @@ export default async function MeuTrabalhoPage({
         />
       )}
     </AdminShell>
+  );
+}
+
+/**
+ * Barra de sincronização com o ClickUp + panorama de quem está com o quê.
+ *
+ * Existe porque em 2026-09-20 havia 276 demandas sem responsável contra 61
+ * com: o "Meu Trabalho" de todo mundo aparecia vazio e não dava pra saber
+ * de quem era o quê. O número de "sem dono" fica visível de propósito — é o
+ * indicador de que a distribuição ainda não está certa.
+ */
+function SyncDemandas({
+  urlKey,
+  sync,
+  res,
+  motivo,
+  semDono,
+  porPessoa,
+}: {
+  urlKey: string | null;
+  sync: string | null;
+  res: string | null;
+  motivo: string | null;
+  semDono: number;
+  porPessoa: { label: string; cor: string; n: number }[];
+}) {
+  const n = (res ?? "").split("-").map((x) => Number(x) || 0);
+  return (
+    <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-fysi-deep">Demandas da equipe</p>
+          <p className="text-xs text-fysi-muted mt-0.5">
+            Puxa do ClickUp quem é responsável, o status e o prazo de cada
+            demanda. Não cria nem apaga tarefa.
+          </p>
+        </div>
+        <form action={sincronizarDemandasAction}>
+          {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+          <SubmitTextButton
+            className="rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-5 py-2.5 hover:bg-fysi-deep/90 whitespace-nowrap disabled:opacity-50"
+            pendingLabel="Sincronizando…"
+          >
+            Sincronizar do ClickUp
+          </SubmitTextButton>
+        </form>
+      </div>
+
+      {sync === "ok" ? (
+        <p className="text-sm text-fysi-deep bg-fysi-mint/40 border border-fysi-mint-vivid/40 rounded-[12px] px-4 py-3 mt-3">
+          Sincronizado: {n[0]} responsáve{n[0] === 1 ? "l" : "is"} do ClickUp,{" "}
+          {n[1]} status e {n[2]} prazo{n[2] === 1 ? "" : "s"} atualizados.
+          {n[3] > 0 ? ` Mais ${n[3]} receberam o dono padrão do tipo de tarefa.` : ""}
+          {n[4] > 0 ? ` Ainda restam ${n[4]} sem dono definível.` : ""}
+        </p>
+      ) : null}
+      {sync === "erro" ? (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-[12px] px-4 py-3 mt-3">
+          {motivo ?? "Não consegui sincronizar agora."}
+        </p>
+      ) : null}
+
+      <ul className="flex flex-wrap gap-2 mt-4">
+        {porPessoa.map((p) => (
+          <li
+            key={p.label}
+            className="inline-flex items-center gap-2 rounded-full border border-fysi-line bg-fysi-cream/40 pl-1.5 pr-3 py-1"
+          >
+            <span
+              className={`h-5 w-5 rounded-full ${p.cor} text-white text-[0.6rem] font-semibold flex items-center justify-center`}
+            >
+              {p.label.slice(0, 1)}
+            </span>
+            <span className="text-xs text-fysi-deep">
+              {p.label} · <strong className="font-semibold">{p.n}</strong> aberta
+              {p.n === 1 ? "" : "s"}
+            </span>
+          </li>
+        ))}
+        {semDono > 0 ? (
+          <li className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            <span className="text-xs text-amber-900">
+              <strong className="font-semibold">{semDono}</strong> sem
+              responsável
+            </span>
+          </li>
+        ) : null}
+      </ul>
+    </section>
   );
 }

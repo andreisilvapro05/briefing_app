@@ -1164,7 +1164,20 @@ Qualquer dúvida, é só responder por aqui.`}
             https://app.clickup.com/31006509/docs/xj7td-41071. */}
         {briefingDoc ? (
           <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
-            <Eyebrow>Briefing — documento da call</Eyebrow>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <Eyebrow>Briefing — documento da call</Eyebrow>
+              {/* O briefing tem vida própria fora da ficha: é lá que fica o
+                  link público, que abre só este documento e não dá acesso a
+                  contrato, valores nem ao resto do cliente. */}
+              <Link
+                href={`/admin/briefings/doc/${briefingDoc.id}${
+                  urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""
+                }`}
+                className="text-sm font-medium text-fysi-deep hover:text-fysi-deep/70 whitespace-nowrap"
+              >
+                Abrir e compartilhar →
+              </Link>
+            </div>
             <div className="mt-4">
               <EIView
                 docId={briefingDoc.id}
@@ -1197,9 +1210,13 @@ Qualquer dúvida, é só responder por aqui.`}
                 const n = camposPorBloco.get(bloco.id) ?? 0;
                 const feito = n > 0;
                 return (
-                  <li
-                    key={bloco.id}
-                    className={`rounded-[12px] border px-3 py-2 ${
+                  <li key={bloco.id}>
+                    {/* Âncora: o resumo vira navegação do documento, como o
+                        índice de um doc do ClickUp. Antes era só enfeite e
+                        obrigava a rolar a página inteira pra achar um bloco. */}
+                    <a
+                      href={`#bloco-${bloco.id}`}
+                      className={`block rounded-[12px] border px-3 py-2 transition hover:border-fysi-mint-vivid ${
                       feito
                         ? "bg-fysi-mint border-fysi-mint-vivid/40"
                         : "bg-fysi-cream/40 border-fysi-line"
@@ -1220,6 +1237,7 @@ Qualquer dúvida, é só responder por aqui.`}
                         ? `${n} ${n === 1 ? "campo" : "campos"}`
                         : "Pendente"}
                     </span>
+                    </a>
                   </li>
                 );
               })}
@@ -1250,7 +1268,8 @@ Qualquer dúvida, é só responder por aqui.`}
               return (
                 <section
                   key={bloco.id}
-                  className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6"
+                  id={`bloco-${bloco.id}`}
+                  className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 scroll-mt-24"
                 >
                   <div className="flex items-baseline justify-between gap-3">
                     <Eyebrow>
@@ -1266,19 +1285,30 @@ Qualquer dúvida, é só responder por aqui.`}
                     </span>
                   </div>
 
+                  {/* Grade: resposta curta ocupa metade da largura, texto
+                      longo ocupa tudo. Empilhar tudo em coluna fazia um bloco
+                      de 10 campos virar uma tela inteira de rolagem. */}
                   {fields.length > 0 ? (
-                    <div className="mt-3 flex flex-col gap-4">
-                      {fields.map((f) => (
-                        <div
-                          key={f.field_id}
-                          className="border-b border-fysi-line last:border-b-0 pb-4 last:pb-0"
-                        >
-                          <p className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium mb-1">
-                            {customLabels.get(f.field_id) ?? fieldLabel(f.field_id)}
-                          </p>
-                          {renderFieldValue(f.field_id, f.value)}
-                        </div>
-                      ))}
+                    <div className="mt-3 grid sm:grid-cols-2 gap-x-6 gap-y-3">
+                      {fields.map((f) => {
+                        const bruto =
+                          typeof f.value === "string" ? f.value : "";
+                        const longo =
+                          isFileField(f.value) || bruto.length > 90 || bruto.includes("\n");
+                        return (
+                          <div
+                            key={f.field_id}
+                            className={`border-b border-fysi-line pb-3 last:border-b-0 ${
+                              longo ? "sm:col-span-2" : ""
+                            }`}
+                          >
+                            <p className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium mb-1">
+                              {customLabels.get(f.field_id) ?? fieldLabel(f.field_id)}
+                            </p>
+                            {renderFieldValue(f.field_id, f.value)}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
                     <p className="text-sm text-fysi-muted mt-3">
