@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   TaskRow,
@@ -12,8 +12,11 @@ import {
 } from "./tasks-board";
 import {
   TASK_STATUS_GROUP,
+  TASK_STATUS_OPTIONS,
+  TASK_STATUS_TONE,
   TEAM_MEMBERS,
   type ProjectTask,
+  type TaskStatus,
 } from "@/lib/project-tasks";
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
 import { TaskComposer } from "./task-composer";
@@ -47,6 +50,9 @@ export function AllTasksBoard({
 }) {
   const [query, setQuery] = useState("");
   const [criando, setCriando] = useState(false);
+  // "Agrupar por" é como o ClickUp organiza a lista — sem isso, 130 tarefas
+  // de 30 clientes viram uma tabela plana em que nada salta.
+  const [agruparPor, setAgruparPor] = useState<Agrupamento>("status");
   const [responsavel, setResponsavel] = useState("");
   const [mostrarFechados, setMostrarFechados] = useState(false);
 
@@ -65,7 +71,7 @@ export function AllTasksBoard({
 
   const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
     "fysi-cols-alltasks",
-    [170, 260, 150, 78, 78, 92, 124, 40]
+    [168, 232, 182, 74, 74, 92, 124, 40]
   );
 
   const filtered = useMemo(() => {
@@ -81,6 +87,12 @@ export function AllTasksBoard({
   }, [tasks, query, responsavel]);
 
   const abertas = filtered.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo");
+  const grupos = useMemo(
+    () => agrupar(abertas, agruparPor),
+    // `abertas` é derivado de `filtered`, que já é memoizado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filtered, agruparPor]
+  );
   const fechadas = filtered.filter(
     (t) => TASK_STATUS_GROUP[t.status] === "fechado"
   );
@@ -105,6 +117,19 @@ export function AllTasksBoard({
             placeholder="Buscar por cliente ou tarefa…"
             className="rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-1.5 w-56"
           />
+          <label className="inline-flex items-center gap-1.5 text-sm text-fysi-muted">
+            Agrupar por
+            <select
+              value={agruparPor}
+              onChange={(e) => setAgruparPor(e.target.value as Agrupamento)}
+              className="rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5 text-fysi-deep"
+            >
+              <option value="status">Status</option>
+              <option value="responsavel">Responsável</option>
+              <option value="cliente">Cliente</option>
+              <option value="nenhum">Nada</option>
+            </select>
+          </label>
           <select
             value={responsavel}
             onChange={(e) => setResponsavel(e.target.value)}
@@ -219,21 +244,51 @@ export function AllTasksBoard({
               </tr>
             </thead>
             <tbody>
-              {abertas.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  task={t}
-                  clientId={t.client_id}
-                  urlKey={urlKey}
-                  clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
-                  eiDocId={eiDocIdByClient[t.client_id] ?? null}
-                  eiHref={
-                    eiDocIdByClient[t.client_id]
-                      ? `/admin/estruturas-iniciais/${eiDocIdByClient[t.client_id]}${keyParam}`
-                      : `/admin/estruturas-iniciais${keyParam}`
-                  }
-                  readOnly={isReadOnlyFor(t, restrictToResponsavel)}
-                />
+              {grupos.map((g) => (
+                <Fragment key={g.chave}>
+                  {g.titulo ? (
+                    <tr className="border-t border-fysi-line">
+                      <th
+                        colSpan={8}
+                        scope="colgroup"
+                        className="bg-fysi-cream/60 px-3 py-1.5 text-left"
+                      >
+                        <span className="inline-flex items-center gap-2">
+                          {g.tom ? (
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.7rem] font-medium ${g.tom}`}
+                            >
+                              {g.titulo}
+                            </span>
+                          ) : (
+                            <span className="text-[0.78rem] font-semibold text-fysi-deep">
+                              {g.titulo}
+                            </span>
+                          )}
+                          <span className="text-xs text-fysi-muted">
+                            {g.tarefas.length}
+                          </span>
+                        </span>
+                      </th>
+                    </tr>
+                  ) : null}
+                  {g.tarefas.map((t) => (
+                    <TaskRow
+                      key={t.id}
+                      task={t}
+                      clientId={t.client_id}
+                      urlKey={urlKey}
+                      clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
+                      eiDocId={eiDocIdByClient[t.client_id] ?? null}
+                      eiHref={
+                        eiDocIdByClient[t.client_id]
+                          ? `/admin/estruturas-iniciais/${eiDocIdByClient[t.client_id]}${keyParam}`
+                          : `/admin/estruturas-iniciais${keyParam}`
+                      }
+                      readOnly={isReadOnlyFor(t, restrictToResponsavel)}
+                    />
+                  ))}
+                </Fragment>
               ))}
               {mostrarFechados
                 ? fechadas.map((t) => (
@@ -288,4 +343,84 @@ function ClienteLink({
       {client.empresa || client.nome || "Sem nome"}
     </Link>
   );
+}
+
+type Agrupamento = "status" | "responsavel" | "cliente" | "nenhum";
+
+interface Grupo {
+  chave: string;
+  /** null = sem cabeçalho (agrupamento "nada"). */
+  titulo: string | null;
+  /** Classe da pílula, quando o grupo é um status. */
+  tom: string | null;
+  tarefas: Task[];
+}
+
+/**
+ * Agrupa a lista como o "Group by" do ClickUp. A ordem dos grupos segue a
+ * ordem canônica do estágio (TASK_STATUS_OPTIONS), não a alfabética — ler
+ * "A iniciar" antes de "Implementação" é o fluxo real do projeto.
+ */
+function agrupar(tarefas: Task[], por: Agrupamento): Grupo[] {
+  if (por === "nenhum") {
+    return [{ chave: "todas", titulo: null, tom: null, tarefas }];
+  }
+
+  const mapa = new Map<string, Task[]>();
+  for (const t of tarefas) {
+    const k =
+      por === "status"
+        ? t.status
+        : por === "responsavel"
+          ? (t.responsavel ?? "")
+          : t.client_id;
+    const arr = mapa.get(k);
+    if (arr) arr.push(t);
+    else mapa.set(k, [t]);
+  }
+
+  const grupos: Grupo[] = [];
+  if (por === "status") {
+    for (const o of TASK_STATUS_OPTIONS) {
+      const arr = mapa.get(o.value);
+      if (arr?.length) {
+        grupos.push({
+          chave: o.value,
+          titulo: o.label,
+          tom: TASK_STATUS_TONE[o.value as TaskStatus],
+          tarefas: arr,
+        });
+      }
+    }
+    return grupos;
+  }
+
+  if (por === "responsavel") {
+    for (const m of TEAM_MEMBERS) {
+      const arr = mapa.get(m.value);
+      if (arr?.length) {
+        grupos.push({ chave: m.value, titulo: m.label, tom: null, tarefas: arr });
+      }
+    }
+    const semDono = mapa.get("");
+    if (semDono?.length) {
+      grupos.push({
+        chave: "sem-dono",
+        titulo: "Sem responsável",
+        tom: null,
+        tarefas: semDono,
+      });
+    }
+    return grupos;
+  }
+
+  // Cliente: alfabético, que é como se procura um nome.
+  return Array.from(mapa.entries())
+    .map(([clientId, arr]) => ({
+      chave: clientId,
+      titulo: arr[0].client.empresa || arr[0].client.nome || "Sem nome",
+      tom: null,
+      tarefas: arr,
+    }))
+    .sort((a, b) => (a.titulo ?? "").localeCompare(b.titulo ?? "", "pt-BR"));
 }

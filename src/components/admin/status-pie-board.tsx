@@ -410,7 +410,7 @@ function ClientAccordionRow({
   );
   const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
     "fysi-cols-accordion",
-    [270, 150, 78, 78, 92, 124, 40]
+    [262, 182, 74, 74, 92, 124, 40]
   );
 
   return (
