@@ -34,6 +34,14 @@ export interface BriefingResumo {
   temCredenciais: boolean;
   /** Quantos blocos com texto — separa briefing real de modelo em branco. */
   preenchimento: number;
+  /**
+   * O conteúdo é idêntico ao do Modelo, ou seja: ninguém escreveu nada nele.
+   *
+   * `preenchimento` sozinho não pega esse caso — o clone herda TODO o texto
+   * do Modelo e aparece como "48 linhas", parecendo um briefing de verdade.
+   * Em 2026-09-21 havia 23 documentos assim no hub.
+   */
+  igualAoModelo: boolean;
   updatedAt: string;
 }
 
@@ -92,8 +100,17 @@ function tituloDe(row: Row): string {
   return "Briefing sem título";
 }
 
-function resumo(row: Row): BriefingResumo {
+/** Assinatura do conteúdo: só o texto, pra ignorar ids de bloco. */
+function assinatura(blocks: PartialBlock[]): string {
+  return blocks
+    .map((b) => blockPlainText(b).trim())
+    .filter(Boolean)
+    .join("\u0001");
+}
+
+function resumo(row: Row, assinaturaModelo?: string | null): BriefingResumo {
   const blocks = blocosDe(row);
+  const assin = assinatura(blocks);
   return {
     id: row.id,
     titulo: tituloDe(row),
@@ -106,6 +123,8 @@ function resumo(row: Row): BriefingResumo {
     compartilhado: Boolean(row.share_enabled && row.share_token),
     temCredenciais: Array.isArray(row.credenciais) && row.credenciais.length > 0,
     preenchimento: contarPreenchimento(blocks),
+    igualAoModelo:
+      !row.is_template && !!assinaturaModelo && assin === assinaturaModelo,
     updatedAt: row.updated_at,
   };
 }
@@ -119,7 +138,11 @@ export async function listarBriefings(): Promise<BriefingResumo[]> {
     .eq("kind", "briefing")
     .order("is_template", { ascending: false })
     .order("updated_at", { ascending: false });
-  return ((data as unknown as Row[] | null) ?? []).map(resumo);
+  const rows = (data as unknown as Row[] | null) ?? [];
+  // A ordenação já traz o Modelo primeiro (is_template desc).
+  const modelo = rows.find((r) => r.is_template);
+  const assinaturaModelo = modelo ? assinatura(blocosDe(modelo)) : null;
+  return rows.map((r) => resumo(r, assinaturaModelo));
 }
 
 export async function obterBriefing(id: string): Promise<BriefingCompleto | null> {

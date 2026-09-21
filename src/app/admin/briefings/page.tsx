@@ -110,7 +110,9 @@ export default async function BriefingsPage({
     if (filtro === "compartilhados") docs = docs.filter((d) => d.compartilhado);
     else if (filtro === "avulsos") docs = docs.filter((d) => !d.clientId && !d.isTemplate);
     else if (filtro === "vazios")
-      docs = docs.filter((d) => !d.isTemplate && d.preenchimento < 5);
+      docs = docs.filter(
+        (d) => !d.isTemplate && (d.igualAoModelo || d.preenchimento < 5)
+      );
   }
 
   const totalCompartilhados = docs.filter((d) => d.compartilhado).length;
@@ -225,7 +227,7 @@ export default async function BriefingsPage({
                 <option value="todos">Todos</option>
                 <option value="compartilhados">Só com link público</option>
                 <option value="avulsos">Só sem cliente vinculado</option>
-                <option value="vazios">Só em branco</option>
+                <option value="vazios">Só os não começados</option>
               </select>
             </div>
             <button
@@ -329,7 +331,14 @@ export default async function BriefingsPage({
                           tem acessos
                         </span>
                       ) : null}
-                      {!d.isTemplate && d.preenchimento < 5 ? (
+                      {/* "Só o Modelo" é diferente de "em branco": o clone
+                          herda TODO o texto do Modelo e aparecia como "48
+                          linhas", como se alguém já tivesse preenchido. */}
+                      {d.igualAoModelo ? (
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-fysi-cream border border-fysi-line-strong text-fysi-muted">
+                          só o Modelo
+                        </span>
+                      ) : !d.isTemplate && d.preenchimento < 5 ? (
                         <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-white border border-fysi-line text-fysi-muted">
                           em branco
                         </span>
@@ -344,7 +353,9 @@ export default async function BriefingsPage({
                       {d.origem === "clickup" ? <span>via ClickUp</span> : null}
                       {!d.isTemplate ? (
                         <span>
-                          {d.preenchimento} linha{d.preenchimento === 1 ? "" : "s"}
+                          {d.igualAoModelo
+                            ? "nada preenchido ainda"
+                            : `${d.preenchimento} linha${d.preenchimento === 1 ? "" : "s"}`}
                         </span>
                       ) : null}
                       <span>{dataCurta(d.updatedAt)}</span>
