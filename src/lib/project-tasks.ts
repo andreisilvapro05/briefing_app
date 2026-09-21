@@ -156,7 +156,8 @@ export function ehExterno(responsavel: string | null | undefined): boolean {
 
 export interface ProjectTask {
   id: string;
-  client_id: string;
+  /** null = demanda interna da agência, não ligada a nenhum cliente. */
+  client_id: string | null;
   titulo: string;
   ordem: number;
   status: TaskStatus;

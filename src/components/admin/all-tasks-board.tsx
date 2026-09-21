@@ -17,7 +17,9 @@ import {
 } from "@/lib/project-tasks";
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
 
-type Task = ProjectTask & { client: ProjectTaskClient };
+/** Esta tela agrupa POR cliente, então demanda interna (client null) é
+ * filtrada antes de chegar aqui — ver /admin/tarefas. */
+type Task = ProjectTask & { client: ProjectTaskClient; client_id: string };
 
 /**
  * Visão central de todas as tarefas de todos os clientes — /admin/tarefas.

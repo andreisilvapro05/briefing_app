@@ -18,6 +18,19 @@ import { donoPadraoDe } from "./project-tasks";
 const FOLDER_ID = process.env.CLICKUP_PROJECTS_FOLDER_ID ?? "90110919806";
 
 /**
+ * Listas de trabalho INTERNO (sem cliente) — ex.: "Tarefas Gestão de
+ * projetos". Ficam fora do folder de projetos, e era por isso que demandas
+ * reais não apareciam no app: o sync só olhava o folder. A Karine tinha
+ * "Revisão dos grupos do WhatsApp" atribuída a ela e invisível aqui.
+ */
+const LISTAS_INTERNAS = (
+  process.env.CLICKUP_INTERNAL_LIST_IDS ?? "901102129822"
+)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+/**
  * ClickUp user id → `responsavel` do app (TEAM_MEMBERS).
  * Configurável por env pra não precisar de deploy quando entrar gente nova.
  * Padrão = o workspace da Fysi hoje.
@@ -148,6 +161,61 @@ async function buscarTarefas(): Promise<
   return { ok: true, tarefas };
 }
 
+/** Tarefas das listas internas (trabalho da agência, sem cliente). */
+async function buscarTarefasInternas(): Promise<TarefaClickUp[]> {
+  const env = getServerEnv();
+  if (!env.clickupToken || LISTAS_INTERNAS.length === 0) return [];
+  const mapa = mapaResponsaveis();
+  const out: TarefaClickUp[] = [];
+
+  for (const listId of LISTAS_INTERNAS) {
+    for (let page = 0; page < 10; page++) {
+      const url =
+        `https://api.clickup.com/api/v2/list/${listId}/task` +
+        `?subtasks=true&include_closed=false&page=${page}`;
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          headers: { Authorization: env.clickupToken },
+          cache: "no-store",
+        });
+      } catch {
+        break;
+      }
+      if (!res.ok) break;
+      const json = (await res.json()) as { tasks?: unknown[]; last_page?: boolean };
+      const lote = json.tasks ?? [];
+      for (const t of lote) {
+        const task = t as {
+          id: string;
+          name?: string;
+          status?: { status?: string };
+          assignees?: { id?: number }[];
+          due_date?: unknown;
+          priority?: { priority?: string } | null;
+          parent?: string | null;
+          list?: { name?: string };
+        };
+        const primeiro = task.assignees?.[0]?.id;
+        out.push({
+          id: task.id,
+          name: (task.name ?? "").trim(),
+          status: (task.status?.status ?? "").toLowerCase().trim(),
+          assignee: primeiro ? (mapa[String(primeiro)] ?? null) : null,
+          dueDate: dataDe(task.due_date),
+          priority: task.priority?.priority
+            ? (MAPA_PRIORIDADE[task.priority.priority] ?? null)
+            : null,
+          parent: task.parent ?? null,
+          listName: task.list?.name ?? "",
+        });
+      }
+      if (lote.length < 100 || json.last_page) break;
+    }
+  }
+  return out;
+}
+
 export interface ResultadoSyncTarefas {
   ok: boolean;
   reason?: string;
@@ -156,6 +224,8 @@ export interface ResultadoSyncTarefas {
   criadas: number;
   /** No ClickUp sem data ("Não programado") — não são trazidas. */
   ignoradasSemPrazo: number;
+  /** Trabalho interno da agência (sem cliente) trazido das listas de gestão. */
+  internasCriadas: number;
   responsavelDefinido: number;
   statusAtualizado: number;
   prazoAtualizado: number;
@@ -192,6 +262,7 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
     vinculadas: 0,
     criadas: 0,
     ignoradasSemPrazo: 0,
+    internasCriadas: 0,
     responsavelDefinido: 0,
     statusAtualizado: 0,
     prazoAtualizado: 0,
@@ -361,6 +432,36 @@ export async function sincronizarTarefasDoClickUp(): Promise<ResultadoSyncTarefa
     if (Object.keys(patch).length === 0) continue;
     patch.clickup_sync_at = new Date().toISOString();
     await service.from("project_tasks").update(patch).eq("id", alvo.id);
+  }
+
+  // ---- Trabalho interno (sem cliente), das listas de gestão ----
+  const internas = await buscarTarefasInternas();
+  const idsInternosExistentes = new Set(
+    linhas.map((l) => l.clickup_task_id).filter(Boolean) as string[]
+  );
+  for (const t of internas) {
+    if (!t.name) continue;
+    if (idsInternosExistentes.has(t.id)) continue;
+    // Mesma regra do trabalho de cliente: sem data não entra.
+    if (!t.dueDate) {
+      res.ignoradasSemPrazo += 1;
+      continue;
+    }
+    // Sem responsável não há em qual "Meu Trabalho" mostrar.
+    if (!t.assignee) continue;
+    novas.push({
+      client_id: null,
+      titulo: t.name,
+      ordem: 0,
+      status: MAPA_STATUS[t.status] ?? "a-iniciar",
+      responsavel: t.assignee,
+      data_vencimento: t.dueDate,
+      prioridade: t.priority,
+      origem: "clickup",
+      clickup_task_id: t.id,
+      clickup_sync_at: new Date().toISOString(),
+    });
+    res.internasCriadas += 1;
   }
 
   // Insere em lotes — uma chamada por tarefa nova estouraria o tempo da action.

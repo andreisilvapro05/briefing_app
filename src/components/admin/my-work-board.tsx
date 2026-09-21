@@ -14,7 +14,9 @@ import type { ProjectTaskClient } from "@/lib/project-tasks-server";
 import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
 import { useFocusTrap } from "./use-focus-trap";
 
-type Task = ProjectTask & { client: ProjectTaskClient };
+/** `client: null` = demanda interna da agência (ex.: vinda da lista de
+ * gestão do ClickUp), que não pertence a nenhuma ficha de cliente. */
+type Task = ProjectTask & { client: ProjectTaskClient | null };
 
 const STATUS_DOT: Record<string, string> = {
   parado: "#ef4444",
@@ -254,7 +256,7 @@ function TaskRow({
         </span>
         <div className="min-w-0 flex-1">
           <span className="inline-block max-w-full truncate rounded-full bg-fysi-mint/40 px-2 py-0.5 text-[0.68rem] font-medium text-fysi-deep">
-            {task.client.empresa || task.client.nome}
+            {task.client ? task.client.empresa || task.client.nome : "Interno"}
           </span>
           <p className="mt-1 text-[0.9rem] font-medium leading-snug text-fysi-deep group-hover:underline underline-offset-2">
             {task.titulo}
@@ -337,7 +339,7 @@ function TaskCardModal({
         <div className="flex items-start justify-between gap-3 px-6 py-5 border-b border-fysi-line">
           <div className="min-w-0">
             <p className="text-xs text-fysi-muted mb-1 truncate">
-              {task.client.empresa || task.client.nome}
+              {task.client ? task.client.empresa || task.client.nome : "Interno"}
             </p>
             <h2 className="text-lg font-semibold text-fysi-deep leading-snug">
               {task.titulo}
@@ -455,6 +457,9 @@ function TaskCardModal({
           </div>
         </div>
 
+        {/* Demanda interna não tem projeto pra abrir — o link sumiria numa
+            rota inválida (/admin/null). */}
+        {task.client_id ? (
         <div className="px-6 py-4 border-t border-fysi-line bg-fysi-cream/30">
           <Link
             href={`/admin/${task.client_id}?tab=tarefas${keyParam ? `&${keyParam.slice(1)}` : ""}`}
@@ -463,6 +468,7 @@ function TaskCardModal({
             Abrir no projeto (subtarefas, comentários) →
           </Link>
         </div>
+        ) : null}
       </div>
     </div>
   );
@@ -615,7 +621,8 @@ export function MyWorkBoard({
     }));
     const fd = new FormData();
     fd.append("taskId", task.id);
-    fd.append("clientId", task.client_id);
+    // Demanda interna não tem cliente; a action só usa isso pra revalidar.
+    fd.append("clientId", task.client_id ?? "");
     fd.append(field, value);
     if (urlKey) fd.append("key", urlKey);
     startTransition(async () => {

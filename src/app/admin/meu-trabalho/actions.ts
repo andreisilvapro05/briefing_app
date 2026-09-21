@@ -136,6 +136,7 @@ export async function sincronizarDemandasAction(formData: FormData) {
       r.statusAtualizado,
       r.prazoAtualizado,
       padrao.preenchidas,
+      r.internasCriadas,
     ].join("-")
   );
   revalidatePath("/admin/meu-trabalho");

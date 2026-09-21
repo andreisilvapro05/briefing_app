@@ -10,7 +10,7 @@ import { TASK_STATUS_GROUP, type ProjectTask, type TaskStatus } from "./project-
 function normalizeTask(row: Record<string, unknown>): ProjectTask {
   return {
     id: String(row.id),
-    client_id: String(row.client_id),
+    client_id: row.client_id ? String(row.client_id) : null,
     titulo: String(row.titulo ?? ""),
     ordem: Number(row.ordem ?? 0),
     status: (row.status as TaskStatus) ?? "a-iniciar",
@@ -58,7 +58,7 @@ export interface ProjectTaskClient {
  * fazendo o mesmo scan duas vezes na mesma página.
  */
 export const listAllProjectTasks = cache(async function listAllProjectTasksUncached(): Promise<
-  (ProjectTask & { client: ProjectTaskClient })[]
+  (ProjectTask & { client: ProjectTaskClient | null })[]
 > {
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
@@ -66,12 +66,13 @@ export const listAllProjectTasks = cache(async function listAllProjectTasksUncac
     .select("*, clients(id, nome, empresa)")
     .order("data_vencimento", { ascending: true, nullsFirst: false });
 
-  return ((data as Record<string, unknown>[]) ?? [])
-    .filter((row) => row.clients)
-    .map((row) => ({
-      ...normalizeTask(row),
-      client: row.clients as ProjectTaskClient,
-    }));
+  // Sem `.filter(row => row.clients)`: demanda interna (sem cliente) é
+  // trabalho real e sumia daqui. A Karine tinha "Revisão dos grupos do
+  // WhatsApp" no ClickUp e ela nunca aparecia no app.
+  return ((data as Record<string, unknown>[]) ?? []).map((row) => ({
+    ...normalizeTask(row),
+    client: (row.clients as ProjectTaskClient | null) ?? null,
+  }));
 });
 
 export interface TaskProgress {
@@ -89,6 +90,9 @@ export async function getTasksByClient(): Promise<Map<string, ProjectTask[]>> {
   const all = await listAllProjectTasks();
   const result = new Map<string, ProjectTask[]>();
   for (const t of all) {
+    // Agrupamento por cliente ignora a demanda interna — ela não pertence a
+    // nenhuma ficha (a Visão Geral e a Lista por status são por cliente).
+    if (!t.client_id) continue;
     const arr = result.get(t.client_id);
     if (arr) arr.push(t);
     else result.set(t.client_id, [t]);

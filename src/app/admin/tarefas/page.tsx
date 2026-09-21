@@ -22,9 +22,18 @@ export default async function AdminTarefasPage({
   const keyParamFirst = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const visibleIds = await getVisibleClientIds(member);
   const allTasks = await listAllProjectTasks();
+  // Esta tela é "todas as subtarefas de produção", agrupadas por cliente.
+  // Demanda interna (sem cliente) não tem lugar aqui — ela aparece em
+  // "Meu Trabalho", que é organizado por pessoa.
+  const comCliente = allTasks.filter(
+    (t): t is (typeof allTasks)[number] & {
+      client: NonNullable<(typeof allTasks)[number]["client"]>;
+      client_id: string;
+    } => t.client !== null && t.client_id !== null
+  );
   const tasks = visibleIds
-    ? allTasks.filter((t) => visibleIds.has(t.client_id))
-    : allTasks;
+    ? comCliente.filter((t) => visibleIds.has(t.client_id))
+    : comCliente;
   const eiDocIds = await getEIDocumentIdsForClients([
     ...new Set(tasks.map((t) => t.client_id)),
   ]);

@@ -53,7 +53,10 @@ export default async function VisaoGeralPage({
   // primeiro (vencimento mais próximo/atrasado; sem vencimento vai pro fim).
   const tarefasPendentes = allTasks
     .filter((t) => !isClosedTaskStatus(t.status))
-    .filter((t) => !visibleIds || visibleIds.has(t.client_id))
+    // Demanda interna (sem cliente) fica fora: esta lista mostra o cliente
+    // ao lado de cada tarefa e o escopo do papel é por cliente.
+    .filter((t) => t.client !== null && t.client_id !== null)
+    .filter((t) => !visibleIds || visibleIds.has(t.client_id as string))
     .sort((a, b) => {
       if (!a.data_vencimento && !b.data_vencimento) return 0;
       if (!a.data_vencimento) return 1;
@@ -147,7 +150,7 @@ export default async function VisaoGeralPage({
                     {t.titulo}
                   </span>
                   <span className="text-[0.72rem] text-fysi-muted truncate">
-                    {t.client.empresa || t.client.nome}
+                    {t.client?.empresa || t.client?.nome}
                     {t.responsavel ? ` · ${t.responsavel}` : ""}
                   </span>
                 </div>

@@ -198,6 +198,9 @@ function SyncDemandas({
           {n[4] > 0 ? ` ${n[4]} status.` : ""}
           {n[5] > 0 ? ` ${n[5]} prazo${n[5] === 1 ? "" : "s"}.` : ""}
           {n[6] > 0 ? ` ${n[6]} receberam o dono padrão do tipo de tarefa.` : ""}
+          {n[7] > 0
+            ? ` ${n[7]} demanda${n[7] === 1 ? "" : "s"} interna${n[7] === 1 ? "" : "s"} (sem cliente) da lista de gestão.`
+            : ""}
           {n[2] > 0
             ? ` ${n[2]} do ClickUp ficaram de fora por estarem sem data ("Não programado").`
             : ""}
