@@ -23,7 +23,9 @@ const FOLDER_ID = process.env.CLICKUP_PROJECTS_FOLDER_ID ?? "90110919806";
  * Padrão = o workspace da Fysi hoje.
  *
  * Atenção: a Tainá NÃO está no workspace do ClickUp, então as demandas dela
- * nunca vêm daqui — têm que ser atribuídas no app.
+ * nunca vêm daqui — são atribuídas pelo dono padrão do tipo de tarefa.
+ * O Leonardo está no ClickUp mas é externo (ver TeamMember.externo): a
+ * tarefa dele é atribuída a ele em vez de virar tarefa sem dono.
  */
 function mapaResponsaveis(): Record<string, string> {
   const bruto = process.env.CLICKUP_MEMBER_MAP;
@@ -38,6 +40,7 @@ function mapaResponsaveis(): Record<string, string> {
     "87402023": "valeria", // Valéria Nunes
     "49116767": "andrei", // Andrei
     "43099461": "karine", // karine de França sackt
+    "82109102": "leonardo", // Leonardo Santos — freelancer/externo
   };
 }
 

@@ -121,6 +121,12 @@ export interface TeamMember {
   label: string;
   iniciais: string;
   cor: string; // classe Tailwind de fundo do avatar
+  /**
+   * Freelancer/parceiro: recebe demanda, mas não é da equipe interna.
+   * Aparece marcado como externo em vez de sumir — antes, tarefa atribuída
+   * a ele no ClickUp virava tarefa sem dono aqui.
+   */
+  externo?: boolean;
 }
 
 export const TEAM_MEMBERS: TeamMember[] = [
@@ -128,7 +134,25 @@ export const TEAM_MEMBERS: TeamMember[] = [
   { value: "valeria", label: "Valéria", iniciais: "VN", cor: "bg-pink-500" },
   { value: "karine", label: "Karine", iniciais: "KS", cor: "bg-violet-500" },
   { value: "andrei", label: "Andrei", iniciais: "A", cor: "bg-indigo-500" },
+  // Externo: está no workspace do ClickUp, não é equipe interna.
+  {
+    value: "leonardo",
+    label: "Leonardo",
+    iniciais: "L",
+    cor: "bg-slate-500",
+    externo: true,
+  },
 ];
+
+/** Só a equipe interna — pra telas que não devem oferecer freelancer. */
+export const TEAM_MEMBERS_INTERNOS: TeamMember[] = TEAM_MEMBERS.filter(
+  (m) => !m.externo
+);
+
+export function ehExterno(responsavel: string | null | undefined): boolean {
+  if (!responsavel) return false;
+  return Boolean(TEAM_MEMBERS.find((m) => m.value === responsavel)?.externo);
+}
 
 export interface ProjectTask {
   id: string;
@@ -231,6 +255,10 @@ export const DEFAULT_PROJECT_TASKS: Record<ProjectType, string[]> = {
  * equipe nem o que veio do ClickUp.
  */
 export const DONO_PADRAO_POR_TAREFA: Record<string, string> = {
+  // Decisão da Karine em 2026-09-21: a coleta de informação inicial com o
+  // cliente é da Tainá. Como ela não está no ClickUp, essa demanda nunca vem
+  // de lá — só é atribuída aqui.
+  "Informações Iniciais": "taina",
   "Copy LP": "karine",
   "Copy do site": "karine",
   Design: "valeria",
@@ -254,5 +282,6 @@ export function donoPadraoDe(titulo: string): string | null {
   if (/^(design|criação assets|criacao assets|bgs|ajustes)\b/.test(baixo))
     return "valeria";
   if (/^(implementa|dep\b|otimiza)/.test(baixo)) return "andrei";
+  if (/^informa[çc][õo]es iniciais/.test(baixo)) return "taina";
   return null;
 }

@@ -252,10 +252,18 @@ function AssigneePicker({
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
-        title={current?.label ?? "Sem responsável"}
+        title={
+          current
+            ? current.externo
+              ? `${current.label} (externo)`
+              : current.label
+            : "Sem responsável"
+        }
+        // Externo ganha anel tracejado: quem olha o quadro precisa saber que
+        // aquela demanda não está com a equipe interna.
         className={`w-6 h-6 rounded-full grid place-items-center text-[0.58rem] font-bold text-white transition disabled:opacity-50 hover:ring-2 hover:ring-fysi-deep/15 ${
-          current?.cor ?? "bg-fysi-line"
-        }`}
+          current?.externo ? "ring-2 ring-dashed ring-fysi-deep/40" : ""
+        } ${current?.cor ?? "bg-fysi-line"}`}
       >
         {current?.iniciais ?? "—"}
       </button>
@@ -296,6 +304,11 @@ function AssigneePicker({
                 {m.iniciais}
               </span>
               {m.label}
+              {m.externo ? (
+                <span className="ml-auto text-[0.6rem] uppercase tracking-[0.08em] text-fysi-muted">
+                  externo
+                </span>
+              ) : null}
             </button>
           ))}
         </div>
