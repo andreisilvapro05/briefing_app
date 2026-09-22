@@ -118,7 +118,10 @@ export function StatusPieBoard({
   novoHref: string;
   restrictToResponsavel?: EditRestriction;
 }) {
-  const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
+  // Abre no mês corrente: "todo o período" soma 3 anos de projeto entregue,
+  // e a pizza ficava 44% verde de trabalho que já acabou — o que está em
+  // andamento agora virava uma fatia fininha. Pedido da Karine (22/09).
+  const [periodo, setPeriodo] = useState<PeriodoFiltro>("mes");
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const grupos = useGruposColapsados("fysi-grupos-lista");

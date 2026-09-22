@@ -52,6 +52,24 @@ function limparValor(v: string): string {
 const RE_CONTEXTO =
   /(dom[íi]nio|hospedagem|servidor|ftp|cpanel|wordpress|painel|e-?mail|registro\.br|godaddy|hostgator|hostinger|acessos?)/i;
 
+/**
+ * Cabeçalho que declara um BLOCO de acesso inteiro — não um campo só.
+ *
+ * O primeiro item do Modelo de EI é literalmente "Dados de acesso
+ * domínio/hospedagem/wordpress:", e a medição sobre 429 páginas do ClickUp
+ * mostrou que em cerca de metade delas a credencial aparece como linha
+ * solta, sem rótulo nenhum (uma página tem nove seguidas). Nenhuma regex de
+ * palavra-chave alcança isso.
+ *
+ * Então, dentro desse bloco, a suspeita se inverte: tudo que tem cara de
+ * valor vai pro cofre até o próximo título ou divisor. Mandar um apelido
+ * inocente pro cofre de Acessos incomoda — a equipe continua vendo. Deixar
+ * uma senha de cliente no corpo do documento, que pode ganhar link público,
+ * não tem volta.
+ */
+const RE_ABRE_BLOCO_ACESSO =
+  /(dados\s+de\s+acesso|credenciais|logins?\s+e\s+senhas?|^acessos?\b)/i;
+
 /** Link que denuncia uma área administrativa — abre um contexto de acesso. */
 const RE_URL_ADMIN =
   /(wp-admin|wp-login|\/admin\b|cpanel|webmail|painel\.|hostinger|hostgator)/i;
@@ -69,13 +87,16 @@ const RE_URL_ADMIN =
  * (onde a equipe continua vendo) incomoda; deixar uma senha escapar pro link
  * público, não tem volta.
  */
-function pareceCredencialSolta(t: string): boolean {
+function pareceCredencialSolta(t: string, dentroDeRegiao = false): boolean {
   const linha = t.trim();
-  if (linha.length < 3 || linha.length > 60) return false;
+  const limite = dentroDeRegiao ? 80 : 60;
+  if (linha.length < 3 || linha.length > limite) return false;
   if (/^https?:\/\//i.test(linha)) return false;
   if (/[:：]\s*$/.test(linha)) return false;
-  // Frase tem espaços e palavras; credencial, não.
-  if (linha.split(/\s+/).length > 2) return false;
+  // Frase tem espaços e palavras; credencial, não. Dentro de um bloco de
+  // acesso a régua afrouxa: lá a linha crua é a regra, não a exceção, e
+  // "joao.silva 2024" ou "usuario admin" precisam passar.
+  if (linha.split(/\s+/).length > (dentroDeRegiao ? 5 : 2)) return false;
   const classes =
     Number(/[a-z]/.test(linha)) +
     Number(/[A-Z]/.test(linha)) +
@@ -119,9 +140,23 @@ export function extrairCredenciais(
    * documento inteiro.
    */
   let janelaSolta = 0;
+  /**
+   * Dentro de um bloco "Dados de acesso …", toda linha com cara de valor é
+   * tratada como credencial, até o próximo título ou divisor. Ver
+   * RE_ABRE_BLOCO_ACESSO pro porquê.
+   */
+  let regiaoAcesso = false;
 
   for (const bloco of blocks) {
     const texto = blockPlainText(bloco);
+    const tipo = (bloco as { type?: string }).type;
+
+    // Título ou divisor fecham o bloco de acesso — é onde o assunto vira
+    // outro. Sem esse fim, a varredura sairia comendo o documento inteiro.
+    if (tipo === "heading" || tipo === "divider") {
+      regiaoAcesso = RE_ABRE_BLOCO_ACESSO.test(texto);
+      if (regiaoAcesso) contexto = texto.trim() || contexto;
+    }
 
     // A credencial é testada ANTES do tipo do bloco. Antes, `heading` era
     // empurrado pra saída sem nunca passar por aqui, e uma página real
@@ -142,7 +177,7 @@ export function extrairCredenciais(
       continue;
     }
 
-    if ((bloco as { type?: string }).type === "heading") {
+    if (tipo === "heading") {
       const achou = RE_CONTEXTO.exec(texto);
       if (achou) contexto = texto.trim();
       janelaSolta = 0;
@@ -162,12 +197,22 @@ export function extrairCredenciais(
     // credencial ela mesma.
     if (!RE_CREDENCIAL.test(texto) && RE_CONTEXTO.test(texto) && /:\s*$/.test(texto)) {
       contexto = texto.replace(/:\s*$/, "").trim();
+      // No Modelo de EI esse campo é parágrafo, não título — e é ele que
+      // abre o bloco de acesso na maioria das páginas.
+      regiaoAcesso = RE_ABRE_BLOCO_ACESSO.test(texto);
       saida.push(bloco);
       continue;
     }
 
-    if (janelaSolta > 0 && pareceCredencialSolta(texto)) {
-      janelaSolta -= 1;
+    // Dentro do bloco de acesso a janela não conta linhas: vale até o
+    // próximo título ou divisor. Três pares de login+senha seguidos
+    // (Filipe, KB Marketing, Clémerson) estouravam o limite de duas e a
+    // terceira senha ficava no corpo.
+    const solta =
+      (regiaoAcesso || janelaSolta > 0) &&
+      pareceCredencialSolta(texto, regiaoAcesso);
+    if (solta) {
+      if (!regiaoAcesso) janelaSolta -= 1;
       credenciais.push({
         contexto,
         rotulo: "acesso (sem rótulo no briefing)",
@@ -179,7 +224,7 @@ export function extrairCredenciais(
       }
       continue;
     }
-    if (texto.trim()) janelaSolta = 0;
+    if (texto.trim() && !regiaoAcesso) janelaSolta = 0;
 
     saida.push(bloco);
   }
