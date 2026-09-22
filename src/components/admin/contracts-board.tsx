@@ -199,7 +199,7 @@ function CartaoContrato({
             className="ml-auto text-xs font-medium text-fysi-deep hover:underline"
             title="Abrir o PDF assinado"
           >
-            ⬇ Assinado
+            ↓ Assinado
           </a>
         ) : null}
       </div>

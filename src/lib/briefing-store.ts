@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
 import { loadCliente } from "./storage";
 
 /**
@@ -80,25 +86,48 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 // transmitem seu último status aqui e o pill do bloco-shell escuta. Fixa o
 // bug reportado: o pill mostrava sempre "idle".
 let globalSaveStatus: SaveStatus = "idle";
-const saveListeners = new Set<(s: SaveStatus) => void>();
+const saveListeners = new Set<() => void>();
 
 function broadcastSave(status: SaveStatus) {
   globalSaveStatus = status;
-  saveListeners.forEach((fn) => fn(status));
+  for (const avisar of saveListeners) avisar();
+}
+
+function subscribeSave(avisar: () => void) {
+  saveListeners.add(avisar);
+  return () => {
+    saveListeners.delete(avisar);
+  };
+}
+
+function snapshotSave(): SaveStatus {
+  return globalSaveStatus;
+}
+
+/**
+ * No servidor nunca houve autosave: o status é sempre "idle". Constante
+ * literal em vez de `globalSaveStatus` porque o módulo é compartilhado
+ * entre requisições — ler a variável ali arriscaria vazar o status de um
+ * render pro HTML de outro.
+ */
+function snapshotSaveNoServidor(): SaveStatus {
+  return "idle";
 }
 
 /** Hook pro indicador de salvamento (topo do briefing) — reflete o último
- * status de autosave de qualquer campo. */
+ * status de autosave de qualquer campo.
+ *
+ * `useSyncExternalStore` e não useState + useEffect: isto É um store externo
+ * (variável de módulo + lista de ouvintes). Lendo no efeito, o React avisava
+ * do setState em cascata e, pior, uma troca de status ocorrida ENTRE o
+ * primeiro render e a inscrição se perdia — o pill ficava desatualizado até
+ * o salvamento seguinte. Aqui o React relê o snapshot ao se inscrever. */
 export function useGlobalSaveStatus(): SaveStatus {
-  const [status, setStatus] = useState<SaveStatus>(globalSaveStatus);
-  useEffect(() => {
-    saveListeners.add(setStatus);
-    setStatus(globalSaveStatus);
-    return () => {
-      saveListeners.delete(setStatus);
-    };
-  }, []);
-  return status;
+  return useSyncExternalStore(
+    subscribeSave,
+    snapshotSave,
+    snapshotSaveNoServidor
+  );
 }
 
 /**

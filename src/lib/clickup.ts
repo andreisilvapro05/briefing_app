@@ -87,13 +87,13 @@ function renderMarkdown(input: CreateTaskInput): string {
 
   if (filesCount !== undefined && filesCount > 0) {
     lines.push(
-      `📎 **${filesCount} arquivo${filesCount > 1 ? "s anexados" : " anexado"}** — visualizar no painel admin`
+      `**${filesCount} arquivo${filesCount > 1 ? "s anexados" : " anexado"}** — visualizar no painel admin`
     );
     lines.push("");
   }
 
   if (publicLinkParaPainelAdmin) {
-    lines.push(`🔗 [Abrir no painel admin](${publicLinkParaPainelAdmin})`);
+    lines.push(`[Abrir no painel admin](${publicLinkParaPainelAdmin})`);
     lines.push("");
   }
 
@@ -170,7 +170,7 @@ function formatValue(fullFieldId: string, value: unknown): string {
       size: number;
     }>;
     return files
-      .map((f) => `- 📁 [${f.name}](${f.url}) · ${humanSize(f.size)}`)
+      .map((f) => `- [${f.name}](${f.url}) · ${humanSize(f.size)}`)
       .join("\n");
   }
 

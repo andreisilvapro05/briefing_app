@@ -256,6 +256,94 @@ export function esforcoDe(v: string | null | undefined): Esforco | null {
   return ESFORCOS.find((e) => e.value === v) ?? null;
 }
 
+/**
+ * Cadência de uma demanda interna que se repete.
+ *
+ * Pedido da Karine (2026-09-22): o trabalho da Tainá tem muita coisa de
+ * cadência — conferir pagamentos, postar conteúdo, mandar o relatório da
+ * semana. Hoje cada uma é digitada de novo toda vez, ou fica aberta pra
+ * sempre depois de feita.
+ *
+ * A próxima ocorrência nasce quando a atual é CONCLUÍDA, não num horário:
+ * o app não tem agendador, e gerar ao abrir a tela seria efeito colateral
+ * num GET — o <Link> do Next faz prefetch e criaria demanda sozinho.
+ *
+ * Isso tem uma consequência, e ela é desejável: se a ocorrência da semana
+ * passada não foi concluída, a próxima não aparece. Fica uma só, vencida,
+ * olhando pra pessoa — em vez de quatro cópias empilhadas.
+ */
+export interface Recorrencia {
+  value: string;
+  label: string;
+  /** Rótulo do chip na linha: "toda semana". */
+  curto: string;
+  /** Quantos dias somar. `mes: true` significa "mesmo dia do mês que vem". */
+  dias: number;
+  mes?: boolean;
+}
+
+export const RECORRENCIAS: Recorrencia[] = [
+  { value: "diaria", label: "Todo dia", curto: "todo dia", dias: 1 },
+  { value: "semanal", label: "Toda semana", curto: "toda semana", dias: 7 },
+  {
+    value: "quinzenal",
+    label: "A cada 15 dias",
+    curto: "15 em 15 dias",
+    dias: 15,
+  },
+  { value: "mensal", label: "Todo mês", curto: "todo mês", dias: 0, mes: true },
+];
+
+export const RECORRENCIA_VALUES: string[] = RECORRENCIAS.map((r) => r.value);
+
+export function recorrenciaDe(v: string | null | undefined): Recorrencia | null {
+  if (!v) return null;
+  return RECORRENCIAS.find((r) => r.value === v) ?? null;
+}
+
+/**
+ * Data da próxima ocorrência. Conta a partir do VENCIMENTO da atual, não de
+ * hoje: uma demanda semanal concluída com três dias de atraso continua
+ * caindo no mesmo dia da semana, senão a série iria escorregando pra frente
+ * a cada vez que alguém atrasasse.
+ *
+ * `base` sem vencimento cai em `hoje` — é o único jeito de a série começar.
+ *
+ * No mensal, dia 31 em mês de 30 vira o último dia do mês, não dia 1 do mês
+ * seguinte: `new Date(2026, 1, 31)` viraria 3 de março sem o ajuste, e a
+ * demanda de fim de mês pularia pro começo do outro.
+ */
+export function proximaOcorrencia(
+  recorrencia: string,
+  base: string | null,
+  hoje: string
+): string | null {
+  const r = recorrenciaDe(recorrencia);
+  if (!r) return null;
+  const partida = base && /^\d{4}-\d{2}-\d{2}$/.test(base) ? base : hoje;
+  const d = new Date(`${partida}T12:00:00Z`);
+  if (Number.isNaN(d.getTime())) return null;
+
+  if (r.mes) {
+    const diaOriginal = d.getUTCDate();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() + 1);
+    const ultimoDia = new Date(
+      Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)
+    ).getUTCDate();
+    d.setUTCDate(Math.min(diaOriginal, ultimoDia));
+  } else {
+    d.setUTCDate(d.getUTCDate() + r.dias);
+  }
+
+  const proxima = d.toISOString().slice(0, 10);
+  // Se a série estava muito atrasada, um salto só não basta pra chegar no
+  // futuro. Avança até passar de hoje — sem isso a próxima já nasceria
+  // vencida e a pessoa veria duas atrasadas em vez de uma.
+  if (proxima <= hoje) return proximaOcorrencia(recorrencia, proxima, hoje);
+  return proxima;
+}
+
 /** Vazio ("") = sem prioridade — vira `null` no banco. */
 export const TASK_PRIORITY_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Sem prioridade" },
@@ -396,6 +484,10 @@ export interface ProjectTask {
   eisenhower: string | null;
   /** Tamanho da tarefa (ver ESFORCOS). null = não estimada. */
   esforco: string | null;
+  /** Cadência (ver RECORRENCIAS). null = não repete. */
+  recorrencia: string | null;
+  /** Demanda que gerou esta ocorrência — identifica a série. */
+  recorrencia_origem: string | null;
   responsavel: string | null;
   data_inicial: string | null;
   data_vencimento: string | null;

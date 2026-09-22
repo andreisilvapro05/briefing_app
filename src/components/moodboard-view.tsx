@@ -45,7 +45,7 @@ function MoodboardCard({ item }: { item: MoodboardItem }) {
   return (
     <article className="flex flex-col gap-3 rounded-[16px] border border-fysi-line bg-white p-4">
       <span className="text-[0.65rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
-        {tipoIcon(item.tipo)} {tipoLabel(item.tipo)}
+        {tipoLabel(item.tipo)}
       </span>
 
       {item.titulo ? (
@@ -120,10 +120,6 @@ function prettyLink(url: string): string {
   } catch {
     return url;
   }
-}
-
-function tipoIcon(t: MoodboardItemTipo): string {
-  return t === "imagem" ? "🖼️" : t === "link" ? "🔗" : t === "cor" ? "🎨" : "📝";
 }
 
 function tipoLabel(t: MoodboardItemTipo): string {

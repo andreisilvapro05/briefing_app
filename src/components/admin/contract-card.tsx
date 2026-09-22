@@ -501,7 +501,7 @@ export function ContractCard(props: ContractCardProps) {
             >
               {forceEditMode
                 ? "Voltar ao status atual"
-                : "📝 Editar proposta / Enviar novo"}
+                : "Editar proposta / Enviar novo"}
             </Button>
           ) : null}
         </div>
@@ -509,7 +509,7 @@ export function ContractCard(props: ContractCardProps) {
 
       {forceEditMode && hasContract ? (
         <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-[12px] px-3 py-2 mb-4">
-          ⚠ Já existe um contrato no Autentique. Se você gerar e enviar de
+          Já existe um contrato no Autentique. Se você gerar e enviar de
           novo, será criado um <strong>novo documento</strong> (o anterior
           continua lá). Cancela o antigo no Autentique antes se for o caso.
         </p>
@@ -747,7 +747,8 @@ export function ContractCard(props: ContractCardProps) {
               </div>
               <div
                 className="contract-preview max-h-[60vh] overflow-y-auto px-5 py-4 text-sm text-fysi-deep leading-relaxed"
-                // eslint-disable-next-line react/no-danger
+                // HTML gerado aqui mesmo a partir do template do contrato —
+                // não vem de campo livre preenchido pelo cliente.
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
             </div>
@@ -807,9 +808,9 @@ export function ContractCard(props: ContractCardProps) {
                 ? "Gerando…"
                 : showPreview
                   ? previewSig !== null && buildPreviewSig() !== previewSig
-                    ? "🔄 Atualizar prévia"
+                    ? "Atualizar prévia"
                     : "Ocultar prévia"
-                  : "👁 Pré-visualizar contrato"}
+                  : "Pré-visualizar contrato"}
             </Button>
             {props.contratoStatus !== "assinado" ? (
               <a
@@ -818,7 +819,7 @@ export function ContractCard(props: ContractCardProps) {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 hover:brightness-95 transition"
               >
-                ✍ Assinar no Autentique →
+                Assinar no Autentique →
               </a>
             ) : null}
             <Button
@@ -901,7 +902,7 @@ export function ContractCard(props: ContractCardProps) {
           <div className="rounded-[14px] border border-fysi-line bg-fysi-cream/40 p-3 flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-fysi-deep font-medium">
-                ⚡ Proposta rápida — escolha um pacote padrão ou duplique de
+                Proposta rápida — escolha um pacote padrão ou duplique de
                 outro cliente
               </p>
               <Button
@@ -1214,7 +1215,8 @@ export function ContractCard(props: ContractCardProps) {
               </div>
               <div
                 className="contract-preview max-h-[60vh] overflow-y-auto px-5 py-4 text-sm text-fysi-deep leading-relaxed"
-                // eslint-disable-next-line react/no-danger
+                // HTML gerado aqui mesmo a partir do template do contrato —
+                // não vem de campo livre preenchido pelo cliente.
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
             </div>
@@ -1231,7 +1233,7 @@ export function ContractCard(props: ContractCardProps) {
                 void previewInline(true);
               }}
             >
-              {previewLoading ? "Gerando…" : "👁 Pré-visualizar"}
+              {previewLoading ? "Gerando…" : "Pré-visualizar"}
             </Button>
             <Button
               type="button"

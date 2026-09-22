@@ -248,7 +248,7 @@ export function renderEntregaMarkdown(
 ): string {
   const lines: string[] = [];
   const titulo = meta?.empresa || meta?.clientName || "Cliente";
-  lines.push(`# 🎁 Documento de Entrega — ${titulo}`);
+  lines.push(`# Documento de Entrega — ${titulo}`);
   if (meta?.entregueEm) {
     lines.push("");
     lines.push(`Entregue em ${meta.entregueEm}`);
@@ -261,7 +261,7 @@ export function renderEntregaMarkdown(
   }
 
   if (doc.acessos.length > 0 && doc.acessos.some((a) => a.nome.trim())) {
-    lines.push("## 🔐 Acessos");
+    lines.push("## Acessos");
     lines.push("");
     doc.acessos
       .filter((a) => a.nome.trim())
@@ -276,7 +276,7 @@ export function renderEntregaMarkdown(
   }
 
   if (doc.tutoriais.length > 0 && doc.tutoriais.some((t) => t.titulo.trim())) {
-    lines.push("## 📺 Tutoriais");
+    lines.push("## Tutoriais");
     lines.push("");
     doc.tutoriais
       .filter((t) => t.titulo.trim())
@@ -288,7 +288,7 @@ export function renderEntregaMarkdown(
   }
 
   if (doc.backups.length > 0 && doc.backups.some((b) => b.titulo.trim())) {
-    lines.push("## 💾 Backups");
+    lines.push("## Backups");
     lines.push("");
     doc.backups
       .filter((b) => b.titulo.trim())
@@ -299,14 +299,14 @@ export function renderEntregaMarkdown(
   }
 
   if (doc.documentacao.trim()) {
-    lines.push("## 📄 Documentação técnica");
+    lines.push("## Documentação técnica");
     lines.push("");
     lines.push(doc.documentacao.trim());
     lines.push("");
   }
 
   if (doc.garantia.trim()) {
-    lines.push("## 🛡️ Garantia");
+    lines.push("## Garantia");
     lines.push("");
     lines.push(doc.garantia.trim());
     lines.push("");
@@ -314,7 +314,7 @@ export function renderEntregaMarkdown(
 
   // Indique e ganhe
   if (doc.referral?.ativo && doc.referral.valor.trim()) {
-    lines.push("## 🎁 Bora de bônus? Indique e ganhe!");
+    lines.push("## Bora de bônus? Indique e ganhe!");
     lines.push("");
     lines.push(`**Valor:** ${doc.referral.valor}`);
     if (doc.referral.condicoes) {
@@ -326,7 +326,7 @@ export function renderEntregaMarkdown(
 
   // NPS
   if (doc.npsUrl?.trim()) {
-    lines.push("## 📝 Pesquisa de satisfação");
+    lines.push("## Pesquisa de satisfação");
     lines.push("");
     lines.push(`Conta pra gente como foi: ${doc.npsUrl}`);
     lines.push("");
@@ -335,11 +335,11 @@ export function renderEntregaMarkdown(
   // Checklists
   if (doc.checklists) {
     const groups: Array<{ titulo: string; items: ChecklistItem[] }> = [
-      { titulo: "🔒 Checklist de segurança", items: doc.checklists.seguranca },
-      { titulo: "💾 Checklist de backup", items: doc.checklists.backup },
-      { titulo: "✅ Checklist obrigatório", items: doc.checklists.obrigatorio },
-      { titulo: "🔍 Checklist de SEO", items: doc.checklists.seo },
-      { titulo: "👤 Checklist do cliente", items: doc.checklists.cliente },
+      { titulo: "Checklist de segurança", items: doc.checklists.seguranca },
+      { titulo: "Checklist de backup", items: doc.checklists.backup },
+      { titulo: "Checklist obrigatório", items: doc.checklists.obrigatorio },
+      { titulo: "Checklist de SEO", items: doc.checklists.seo },
+      { titulo: "Checklist do cliente", items: doc.checklists.cliente },
     ];
     groups.forEach((g) => {
       const valid = g.items.filter((i) => i.label.trim());
@@ -355,7 +355,7 @@ export function renderEntregaMarkdown(
 
   // Cliente preencheu domínio/hospedagem
   if (doc.clienteDominio?.trim() || doc.clienteHospedagem?.trim()) {
-    lines.push("## 🌐 Domínio e hospedagem");
+    lines.push("## Domínio e hospedagem");
     lines.push("");
     if (doc.clienteDominio?.trim()) {
       lines.push(`- **Domínio:** ${doc.clienteDominio}`);
@@ -368,7 +368,7 @@ export function renderEntregaMarkdown(
 
   // Relatório técnico
   if (doc.relatorioTecnico?.trim()) {
-    lines.push("## 🔧 Relatório técnico");
+    lines.push("## Relatório técnico");
     lines.push("");
     lines.push("```");
     lines.push(doc.relatorioTecnico);

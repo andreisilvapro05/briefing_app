@@ -32,6 +32,8 @@ import type { Moodboard } from "@/lib/moodboard";
 import {
   EISENHOWER_VALUES,
   ESFORCO_VALUES,
+  RECORRENCIA_VALUES,
+  proximaOcorrencia,
   DEFAULT_PROJECT_TASKS,
   DEFAULT_TASK_STATUS,
   TASK_STATUS_OPTIONS,
@@ -1158,6 +1160,14 @@ export async function addProjectTaskAction(
   if (esforco && !ESFORCO_VALUES.includes(esforco)) {
     return { ok: false, erro: "Tamanho de tarefa inválido." };
   }
+  // Repetição é de trabalho interno: tarefa de projeto acontece uma vez só.
+  const recorrencia = String(formData.get("recorrencia") ?? "").trim();
+  if (recorrencia && !RECORRENCIA_VALUES.includes(recorrencia)) {
+    return { ok: false, erro: "Cadência inválida." };
+  }
+  if (recorrencia && clientId) {
+    return { ok: false, erro: "Tarefa de cliente não se repete." };
+  }
 
   // Área só existe pra demanda INTERNA. Numa demanda de cliente ela seria
   // uma segunda classificação concorrendo com o próprio cliente.
@@ -1198,6 +1208,7 @@ export async function addProjectTaskAction(
       area: clientId ? null : area || null,
       eisenhower: eisenhower || null,
       esforco: esforco || null,
+      recorrencia: clientId ? null : recorrencia || null,
     })
     .select("id")
     .single();
@@ -1305,7 +1316,25 @@ export async function removeProjectTaskAction(formData: FormData) {
  * achando que tinha salvado; só descobria no próximo carregamento, quando o
  * valor antigo voltava. Agora a recusa tem nome e a tela desfaz.
  */
-export type UpdateTaskResult = { ok: true } | { ok: false; erro: string };
+/**
+ * Hoje (YYYY-MM-DD) no fuso de Brasília. O servidor roda em UTC: depois das
+ * 21h "hoje" já seria amanhã, e a próxima ocorrência de uma demanda diária
+ * nasceria um dia à frente do que a pessoa vê na tela.
+ */
+const FMT_HOJE_SP = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+function hojeEmSaoPaulo(): string {
+  return FMT_HOJE_SP.format(new Date());
+}
+
+export type UpdateTaskResult =
+  /** `proximaEm` vem preenchido quando concluir gerou a próxima ocorrência. */
+  | { ok: true; proximaEm?: string }
+  | { ok: false; erro: string };
 
 export async function updateProjectTaskAction(
   formData: FormData
@@ -1327,7 +1356,9 @@ export async function updateProjectTaskAction(
     const service = createSupabaseServiceRoleClient();
     const { data } = await service
       .from("project_tasks")
-      .select("titulo, client_id, responsavel, status, data_vencimento")
+      .select(
+        "titulo, client_id, responsavel, status, data_vencimento, area, prioridade, eisenhower, esforco, ordem, recorrencia, recorrencia_origem, observacoes"
+      )
       .eq("id", taskId)
       .maybeSingle();
     return data as {
@@ -1336,6 +1367,14 @@ export async function updateProjectTaskAction(
       responsavel: string | null;
       status: string | null;
       data_vencimento: string | null;
+      area: string | null;
+      prioridade: string | null;
+      eisenhower: string | null;
+      esforco: string | null;
+      ordem: number | null;
+      recorrencia: string | null;
+      recorrencia_origem: string | null;
+      observacoes: string | null;
     } | null;
   })();
 
@@ -1420,6 +1459,19 @@ export async function updateProjectTaskAction(
     update.esforco = e || null;
   }
 
+  if (formData.has("recorrencia")) {
+    const r = String(formData.get("recorrencia") ?? "").trim();
+    if (r && !RECORRENCIA_VALUES.includes(r)) {
+      return { ok: false, erro: "Cadência inválida." };
+    }
+    // Repetição é de trabalho interno da agência: uma tarefa de PROJETO não
+    // se repete, ela acontece uma vez por projeto.
+    if (r && antes?.client_id) {
+      return { ok: false, erro: "Tarefa de cliente não se repete." };
+    }
+    update.recorrencia = r || null;
+  }
+
   if (formData.has("observacoes")) {
     update.observacoes = String(formData.get("observacoes") ?? "").trim() || null;
   }
@@ -1435,6 +1487,53 @@ export async function updateProjectTaskAction(
   if (error) {
     logServerError("updateProjectTaskAction", error);
     return { ok: false, erro: "Não consegui salvar. Confira a conexão e tente de novo." };
+  }
+
+  // Demanda recorrente concluída gera a próxima. Aqui e não num agendador
+  // porque o app não tem cron; e não ao abrir a tela porque isso seria
+  // efeito colateral num GET, que o prefetch do <Link> dispararia sozinho.
+  const virouFechada =
+    typeof update.status === "string" &&
+    TASK_STATUS_GROUP[update.status as TaskStatus] === "fechado" &&
+    antes?.status != null &&
+    TASK_STATUS_GROUP[antes.status as TaskStatus] !== "fechado";
+
+  let proximaCriada: string | null = null;
+  if (virouFechada && antes?.recorrencia && !antes.client_id) {
+    const proxima = proximaOcorrencia(
+      antes.recorrencia,
+      antes.data_vencimento,
+      hojeEmSaoPaulo()
+    );
+    if (proxima) {
+      // A série aponta sempre pra PRIMEIRA demanda: seguir a corrente elo a
+      // elo se perderia se alguém apagasse uma ocorrência do meio.
+      const origem = antes.recorrencia_origem ?? taskId;
+      const { error: erroProxima } = await service.from("project_tasks").insert({
+        client_id: null,
+        titulo: antes.titulo,
+        area: antes.area,
+        ordem: antes.ordem ?? 0,
+        origem: "manual",
+        status: DEFAULT_TASK_STATUS,
+        responsavel: antes.responsavel,
+        prioridade: antes.prioridade,
+        eisenhower: antes.eisenhower,
+        esforco: antes.esforco,
+        observacoes: antes.observacoes,
+        data_vencimento: proxima,
+        recorrencia: antes.recorrencia,
+        recorrencia_origem: origem,
+      });
+      // Índice único (recorrencia_origem, data_vencimento) barra a segunda
+      // cópia quando alguém reabre e conclui a mesma ocorrência de novo.
+      // Isso NÃO é erro: é a guarda funcionando.
+      if (erroProxima && erroProxima.code !== "23505") {
+        logServerError("updateProjectTaskAction.recorrencia", erroProxima);
+      } else if (!erroProxima) {
+        proximaCriada = proxima;
+      }
+    }
   }
 
   // Avisos da demanda — depois de gravar, e só do que mudou de verdade.
@@ -1500,7 +1599,7 @@ export async function updateProjectTaskAction(
   revalidatePath("/admin/visao-geral");
   revalidatePath("/admin/demandas");
 
-  return { ok: true };
+  return proximaCriada ? { ok: true, proximaEm: proximaCriada } : { ok: true };
 }
 
 /**

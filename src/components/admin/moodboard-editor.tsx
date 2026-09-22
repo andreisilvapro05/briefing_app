@@ -126,7 +126,7 @@ export function MoodboardEditor({
       <div className="flex items-baseline justify-between mb-4 gap-3 flex-wrap">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Eyebrow>🎨 Moodboard (opcional)</Eyebrow>
+            <Eyebrow>Moodboard (opcional)</Eyebrow>
             <Pill
               tone={
                 data.status === "aprovado"
@@ -146,7 +146,7 @@ export function MoodboardEditor({
           </p>
           {saveError ? (
             <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1 mt-1.5 inline-block">
-              ⚠ {saveError}
+              {saveError}
             </p>
           ) : savedAt ? (
             <p className="text-xs text-emerald-700 mt-1">
@@ -166,7 +166,7 @@ export function MoodboardEditor({
               onClick={enviarAoCliente}
               disabled={pending || data.items.length === 0}
             >
-              📤 Enviar ao cliente
+              Enviar ao cliente
             </Button>
           ) : null}
           {data.status === "enviado" || data.status === "em_revisao" ? (
@@ -216,7 +216,7 @@ export function MoodboardEditor({
                 onClick={() => addItem(t)}
                 className="inline-flex items-center gap-1.5 rounded-full border border-fysi-line bg-white px-3 py-1.5 text-xs hover:border-fysi-deep/40 text-fysi-deep"
               >
-                {tipoIcon(t)} {tipoLabel(t)}
+                {tipoLabel(t)}
               </button>
             )
           )}
@@ -278,7 +278,7 @@ function CardEditor({
     <div className="rounded-[14px] border border-fysi-line bg-fysi-cream/20 p-3 flex flex-col gap-2.5">
       <div className="flex items-center justify-between gap-1">
         <span className="text-[0.72rem] uppercase tracking-[0.08em] text-fysi-muted font-medium">
-          {tipoIcon(item.tipo)} {tipoLabel(item.tipo)}
+          {tipoLabel(item.tipo)}
         </span>
         <span
           className="text-xs"
@@ -430,10 +430,6 @@ function CardEditor({
       </div>
     </div>
   );
-}
-
-function tipoIcon(t: MoodboardItemTipo): string {
-  return t === "imagem" ? "🖼️" : t === "link" ? "🔗" : t === "cor" ? "🎨" : "📝";
 }
 
 function tipoLabel(t: MoodboardItemTipo): string {

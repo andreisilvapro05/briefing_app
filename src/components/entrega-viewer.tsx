@@ -134,7 +134,7 @@ export function EntregaViewer({
     >
       <div className="flex items-baseline justify-between gap-3 mb-4 flex-wrap print:flex-col">
         <div>
-          <Eyebrow>📦 Documento de Entrega de Projeto</Eyebrow>
+          <Eyebrow>Documento de Entrega de Projeto</Eyebrow>
           <h2 className="fysi-display text-2xl md:text-3xl mt-1">
             DEP · {empresa || clientName || "Cliente"}
           </h2>
@@ -145,14 +145,14 @@ export function EntregaViewer({
             onClick={downloadMarkdown}
             className="inline-flex items-center gap-1 rounded-full border border-fysi-line text-xs font-medium px-3 py-2 text-fysi-deep hover:border-fysi-deep/40"
           >
-            ⬇ Baixar .md
+            ↓ Baixar .md
           </button>
           <button
             type="button"
             onClick={printPage}
             className="inline-flex items-center gap-1 rounded-full bg-fysi-deep text-fysi-cream text-xs font-medium px-3 py-2 hover:bg-fysi-deep/90"
           >
-            🖨️ Imprimir / Salvar PDF
+            Imprimir / Salvar PDF
           </button>
         </div>
       </div>
@@ -181,7 +181,7 @@ export function EntregaViewer({
       {/* Sumário */}
       <div className="rounded-[14px] bg-fysi-cream/40 border border-fysi-line px-4 py-3 mb-6">
         <p className="text-[0.7rem] uppercase tracking-[0.12em] font-semibold text-fysi-deep mb-2">
-          📑 Sumário
+          Sumário
         </p>
         <ol className="text-sm text-fysi-deep flex flex-col gap-1 list-decimal list-inside">
           {sumario.map((s) => (
@@ -200,7 +200,7 @@ export function EntregaViewer({
       <div className="flex flex-col gap-7">
         {/* Acessos */}
         {acessosValidos.length > 0 ? (
-          <Section id="acessos" titulo="🔐 Dados de acesso">
+          <Section id="acessos" titulo="Dados de acesso">
             <div className="grid sm:grid-cols-2 gap-3">
               {acessosValidos.map((a, i) => (
                 <AcessoCard key={i} acesso={a} />
@@ -211,7 +211,7 @@ export function EntregaViewer({
 
         {/* Tutoriais */}
         {tutoriaisValidos.length > 0 ? (
-          <Section id="tutoriais" titulo="📺 Tutoriais">
+          <Section id="tutoriais" titulo="Tutoriais">
             <ul className="flex flex-col gap-2">
               {tutoriaisValidos.map((t, i) => (
                 <li key={i}>
@@ -256,7 +256,7 @@ export function EntregaViewer({
 
         {/* Backups */}
         {backupsValidos.length > 0 ? (
-          <Section id="backups" titulo="💾 Backups">
+          <Section id="backups" titulo="Backups">
             <ul className="flex flex-col gap-1.5">
               {backupsValidos.map((b, i) => (
                 <li
@@ -289,7 +289,7 @@ export function EntregaViewer({
 
         {/* Documentação */}
         {entrega.documentacao?.trim() ? (
-          <Section id="doc" titulo="📄 Documentação técnica">
+          <Section id="doc" titulo="Documentação técnica">
             <div className="bg-fysi-cream/40 rounded-[14px] p-4 text-sm text-fysi-deep whitespace-pre-wrap leading-relaxed">
               {entrega.documentacao}
             </div>
@@ -298,7 +298,7 @@ export function EntregaViewer({
 
         {/* Garantia */}
         {entrega.garantia?.trim() ? (
-          <Section id="garantia" titulo="🛡️ Garantia">
+          <Section id="garantia" titulo="Garantia">
             <div className="bg-fysi-yellow/20 border-2 border-fysi-yellow rounded-[16px] p-4">
               <p className="text-sm text-fysi-deep leading-relaxed">
                 {entrega.garantia}
@@ -309,7 +309,7 @@ export function EntregaViewer({
 
         {/* Indique e Ganhe */}
         {entrega.referral?.ativo && entrega.referral.valor.trim() ? (
-          <Section id="referral" titulo="🎁 Bora de bônus? Indique e Ganhe!">
+          <Section id="referral" titulo="Bora de bônus? Indique e Ganhe!">
             <div className="bg-fysi-mint border border-fysi-mint-vivid/30 rounded-[16px] p-5">
               <p className="text-xl font-semibold text-fysi-deep mb-2">
                 {entrega.referral.valor}
@@ -323,7 +323,7 @@ export function EntregaViewer({
 
         {/* NPS */}
         {entrega.npsUrl?.trim() ? (
-          <Section id="nps" titulo="📝 Pesquisa de satisfação">
+          <Section id="nps" titulo="Pesquisa de satisfação">
             <div className="rounded-[16px] border border-fysi-line bg-fysi-cream/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <p className="text-sm text-fysi-deep leading-relaxed">
                 Conta pra gente como foi sua experiência. Sua opinião nos ajuda
@@ -343,26 +343,26 @@ export function EntregaViewer({
 
         {/* Checklists */}
         {hasChecklists(entrega) ? (
-          <Section id="checklists" titulo="✅ Checklists do projeto">
+          <Section id="checklists" titulo="Checklists do projeto">
             <div className="grid md:grid-cols-2 gap-3">
               <ChecklistCard
-                titulo="🔒 Segurança"
+                titulo="Segurança"
                 items={entrega.checklists?.seguranca ?? []}
               />
               <ChecklistCard
-                titulo="💾 Backup"
+                titulo="Backup"
                 items={entrega.checklists?.backup ?? []}
               />
               <ChecklistCard
-                titulo="✅ Obrigatório"
+                titulo="Obrigatório"
                 items={entrega.checklists?.obrigatorio ?? []}
               />
               <ChecklistCard
-                titulo="🔍 SEO"
+                titulo="SEO"
                 items={entrega.checklists?.seo ?? []}
               />
               <ChecklistCard
-                titulo="👤 Cliente"
+                titulo="Cliente"
                 items={entrega.checklists?.cliente ?? []}
               />
             </div>
@@ -370,7 +370,7 @@ export function EntregaViewer({
         ) : null}
 
         {/* Cliente preenche */}
-        <Section id="cliente" titulo="🌐 Domínio e hospedagem (você preenche)">
+        <Section id="cliente" titulo="Domínio e hospedagem (você preenche)">
           <div className="rounded-[16px] border-2 border-fysi-yellow bg-fysi-yellow/10 p-4 flex flex-col gap-3 print:break-inside-avoid">
             <p className="text-xs text-fysi-deep/80 leading-relaxed">
               Anote aqui pra ter sempre à mão. Fica salvo no seu painel.
@@ -415,14 +415,14 @@ export function EntregaViewer({
               </button>
             </div>
             {error ? (
-              <p className="text-xs text-red-700">⚠ {error}</p>
+              <p className="text-xs text-red-700">{error}</p>
             ) : null}
           </div>
         </Section>
 
         {/* Relatório técnico */}
         {entrega.relatorioTecnico?.trim() ? (
-          <Section id="tecnico" titulo="🔧 Relatório técnico">
+          <Section id="tecnico" titulo="Relatório técnico">
             <p className="text-xs text-fysi-muted mb-2">
               Permite verificar se alguma alteração foi feita no site
               posteriormente.
@@ -434,7 +434,7 @@ export function EntregaViewer({
         ) : null}
 
         <p className="text-center text-xs text-fysi-muted pt-4 border-t border-fysi-line">
-          Fysi Lab · obrigado pela confiança 💚
+          Fysi Lab · obrigado pela confiança
         </p>
       </div>
     </section>
@@ -529,7 +529,7 @@ function CopyRow({
           className="text-fysi-muted hover:text-fysi-deep text-xs px-1 shrink-0 print:hidden"
           aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
         >
-          {visible ? "🙈" : "👁"}
+          <IconeOlho cortado={visible} />
         </button>
       ) : null}
       <button
@@ -583,5 +583,26 @@ function hasChecklists(doc: EntregaDocumento): boolean {
     c.obrigatorio.some((i) => i.label.trim()) ||
     c.seo.some((i) => i.label.trim()) ||
     c.cliente.some((i) => i.label.trim())
+  );
+}
+
+/** Olho de "mostrar senha"; cortado quando a senha já está à mostra. */
+function IconeOlho({ cortado }: { cortado: boolean }) {
+  return (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+      {cortado ? <path d="M4 20 20 4" /> : null}
+    </svg>
   );
 }

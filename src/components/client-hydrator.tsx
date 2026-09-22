@@ -34,16 +34,27 @@ export function ClientHydrator({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    try {
-      hydrateCliente(cliente);
-      // Busca respostas no servidor antes de redirecionar (cliente pode
-      // ter preenchido coisas em outro aparelho).
-      void pullResponsesFromServer(cliente.id).finally(() => {
-        router.replace(destino);
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar.");
+    let cancelado = false;
+    async function hidratarEIr() {
+      try {
+        hydrateCliente(cliente);
+        // Busca respostas no servidor antes de redirecionar (cliente pode
+        // ter preenchido coisas em outro aparelho). A função engole os
+        // próprios erros de rede — só `hydrateCliente` chega aqui, quando o
+        // navegador bloqueia o localStorage (aba anônima com cookies off).
+        await pullResponsesFromServer(cliente.id);
+      } catch (err) {
+        if (!cancelado) {
+          setError(err instanceof Error ? err.message : "Erro ao carregar.");
+        }
+        return;
+      }
+      if (!cancelado) router.replace(destino);
     }
+    void hidratarEIr();
+    return () => {
+      cancelado = true;
+    };
   }, [cliente, router, destino]);
 
   return (
@@ -58,7 +69,7 @@ export function ClientHydrator({
                 Carregando seu painel…
               </p>
               <p className="text-fysi-muted text-sm mt-1">
-                Olá, {cliente.nome.split(" ")[0]} 👋
+                Olá, {cliente.nome.split(" ")[0]}
               </p>
             </>
           )}

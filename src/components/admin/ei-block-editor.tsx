@@ -117,7 +117,7 @@ export function EIBlockEditor({
       </div>
       {saveError ? (
         <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1 mb-3 inline-block">
-          ⚠ {saveError}
+          {saveError}
         </p>
       ) : null}
       <BlockNoteView editor={editor} />

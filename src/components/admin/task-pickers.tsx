@@ -15,10 +15,12 @@ import {
   AREAS,
   EISENHOWER,
   ESFORCOS,
+  RECORRENCIAS,
   TASK_PRIORITY_OPTIONS,
   TEAM_MEMBERS,
   esforcoDe,
   quadranteDe,
+  recorrenciaDe,
   type Quadrante,
 } from "@/lib/project-tasks";
 
@@ -992,6 +994,113 @@ function IconeAmpulheta() {
       className="shrink-0"
     >
       <path d="M6 2h12M6 22h12M6 2c0 4 6 6 6 10 0-4 6-6 6-10M6 22c0-4 6-6 6-10 0 4 6 6 6 10" />
+    </svg>
+  );
+}
+
+/**
+ * Cadência de uma demanda interna que se repete.
+ *
+ * Só aparece em demanda da agência: tarefa de PROJETO não se repete, ela
+ * acontece uma vez por projeto — e o servidor recusa se tentar.
+ */
+export function RecorrenciaPicker({
+  value,
+  onChange,
+  disabled,
+  showLabel = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  showLabel?: boolean;
+}) {
+  const { open, toggle, close, triggerRef, panelRef, panelStyle } =
+    usePopover();
+  const atual = recorrenciaDe(value);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={
+          atual
+            ? `Repete ${atual.curto}. A próxima nasce quando esta for concluída.`
+            : "Repetir esta demanda"
+        }
+        className={`${CHIP_CLASS} ${
+          atual
+            ? "bg-indigo-50 text-indigo-800 border-indigo-200"
+            : "text-fysi-muted"
+        }`}
+      >
+        <IconeRepetir />
+        {atual ? atual.curto : showLabel ? "Repetir" : null}
+      </button>
+      {open ? (
+        <div
+          ref={panelRef}
+          role="menu"
+          style={panelStyle}
+          className={`${PANEL_CLASS} w-64`}
+        >
+          <MenuItem
+            active={!value}
+            onClick={() => {
+              onChange("");
+              close();
+            }}
+          >
+            <span className="h-2 w-2 rounded-full bg-fysi-line-strong shrink-0" />
+            Não se repete
+          </MenuItem>
+          {RECORRENCIAS.map((r) => (
+            <MenuItem
+              key={r.value}
+              active={r.value === value}
+              onClick={() => {
+                onChange(r.value === value ? "" : r.value);
+                close();
+              }}
+            >
+              <span className="h-2 w-2 rounded-full bg-indigo-500 shrink-0" />
+              {r.label}
+            </MenuItem>
+          ))}
+          <p className="px-3 pt-2 pb-1 text-[0.66rem] leading-snug text-fysi-muted border-t border-fysi-line mt-1">
+            A próxima nasce quando você concluir esta. Se esta ficar aberta,
+            não acumula cópia — fica uma só, vencida.
+          </p>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** Duas setas em ciclo. */
+function IconeRepetir() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path d="M17 2l4 4-4 4" />
+      <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+      <path d="M7 22l-4-4 4-4" />
+      <path d="M21 13v1a4 4 0 0 1-4 4H3" />
     </svg>
   );
 }

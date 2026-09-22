@@ -117,7 +117,7 @@ export function MeusMateriaisCard({
                   <div className="flex items-center gap-2 min-w-0">
                     <span className={`h-1.5 w-1.5 rounded-full ${tone.dot}`} />
                     <span className="text-sm text-fysi-deep/80">
-                      {cat.emoji} {cat.label}
+                      {cat.label}
                     </span>
                   </div>
                   <span className="text-[0.7rem] uppercase tracking-[0.1em] font-medium text-fysi-deep">

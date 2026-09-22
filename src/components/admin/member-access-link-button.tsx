@@ -77,7 +77,7 @@ export function MemberAccessLinkButton({
         disabled={pending}
         className="text-xs font-medium text-fysi-deep hover:underline disabled:opacity-50"
       >
-        {pending ? "Gerando…" : "🔗 Gerar link de acesso"}
+        {pending ? "Gerando…" : "Gerar link de acesso"}
       </button>
       {error ? <span className="text-[0.68rem] text-red-600">{error}</span> : null}
     </div>

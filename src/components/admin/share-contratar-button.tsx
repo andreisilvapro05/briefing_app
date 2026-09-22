@@ -41,7 +41,7 @@ export function ShareContratarButton() {
         title="Copiar link de contratação"
         className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-fysi-deep hover:bg-fysi-cream/50 transition"
       >
-        {copied ? "✓ Copiado" : "🔗 Link /contratar"}
+        {copied ? "✓ Copiado" : "Link /contratar"}
       </button>
       <button
         type="button"
@@ -50,8 +50,27 @@ export function ShareContratarButton() {
         aria-label="Compartilhar pelo WhatsApp"
         className="inline-flex items-center px-2.5 py-2 border-l border-fysi-line text-sm text-fysi-deep hover:bg-fysi-mint/40 transition"
       >
-        💬
+        <IconeBalao />
       </button>
     </div>
+  );
+}
+
+/** Balão de conversa — o botão só tem o ícone; o rótulo vive no aria-label. */
+function IconeBalao() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.9 8.9 0 0 1-4-.9L3 21l1.9-4.6A8.4 8.4 0 0 1 4 11.5a8.4 8.4 0 0 1 8.5-8.4h.5a8.4 8.4 0 0 1 8 8.4Z" />
+    </svg>
   );
 }

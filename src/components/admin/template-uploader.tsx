@@ -65,11 +65,11 @@ export function TemplateUploader({
         <Eyebrow>Modelo do contrato</Eyebrow>
         {currentTemplateUpdatedAt ? (
           <span className="text-xs text-fysi-deep">
-            ✅ modelo atualizado em {formatDate(currentTemplateUpdatedAt)}
+            modelo atualizado em {formatDate(currentTemplateUpdatedAt)}
           </span>
         ) : (
           <span className="text-xs text-amber-700">
-            ⚠️ nenhum modelo subido ainda
+            nenhum modelo subido ainda
           </span>
         )}
       </div>
@@ -89,7 +89,7 @@ export function TemplateUploader({
           }`}
           className="inline-flex items-center gap-1.5 mb-4 rounded-full border border-fysi-line bg-white text-sm font-medium text-fysi-deep px-4 py-2 hover:border-fysi-deep/40 hover:bg-fysi-cream/40 transition"
         >
-          ⬇ Baixar modelo atual (.docx)
+          ↓ Baixar modelo atual (.docx)
         </a>
       ) : null}
 

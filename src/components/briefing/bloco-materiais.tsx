@@ -106,7 +106,7 @@ export function BlocoMateriais() {
       </div>
 
       <CategoriaMateriais
-        titulo="🏷️ Logo"
+        titulo="Logo"
         descricao="Arquivos da sua marca (preferência por SVG ou PNG transparente; AI/PSD também serve)."
         accept="image/*,.svg,.ai,.eps,.psd,application/pdf"
         files={logo}
@@ -119,7 +119,7 @@ export function BlocoMateriais() {
       />
 
       <CategoriaMateriais
-        titulo="🎨 Identidade visual"
+        titulo="Identidade visual"
         descricao="Manual de marca, paleta de cores, tipografia — se já tem documentado."
         accept="image/*,application/pdf,.ai,.psd"
         files={identidade}
@@ -132,7 +132,7 @@ export function BlocoMateriais() {
       />
 
       <CategoriaMateriais
-        titulo="📸 Imagens e fotos"
+        titulo="Imagens e fotos"
         descricao="Fotos da equipe, ambiente, produto, eventos — tudo que pode aparecer na página."
         accept="image/*"
         files={imagens}
@@ -145,7 +145,7 @@ export function BlocoMateriais() {
       />
 
       <CategoriaMateriais
-        titulo="💬 Depoimentos"
+        titulo="Depoimentos"
         descricao="Prints, vídeos, áudios ou textos de clientes."
         accept="image/*,video/*,audio/*,application/pdf"
         files={depoimentos}
@@ -158,7 +158,7 @@ export function BlocoMateriais() {
       />
 
       <CategoriaMateriais
-        titulo="📄 Documentos"
+        titulo="Documentos"
         descricao="Copy pronta, planilhas, apresentações."
         accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,.doc,.docx,.pdf,.txt,.rtf"
         files={documentos}
@@ -171,7 +171,7 @@ export function BlocoMateriais() {
       />
 
       <CategoriaMateriais
-        titulo="📁 Outros materiais"
+        titulo="Outros materiais"
         descricao="Qualquer coisa que não bateu em outra categoria."
         files={outros}
         onFilesChange={setOutros}

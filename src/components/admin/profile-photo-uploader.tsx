@@ -99,7 +99,7 @@ export function ProfilePhotoUploader({
                   : "cursor-pointer hover:border-fysi-deep/40 hover:bg-fysi-cream/40"
               }`}
             >
-              {uploading ? "Enviando…" : "📷 Trocar foto"}
+              {uploading ? "Enviando…" : "Trocar foto"}
             </label>
             <input
               id={INPUT_ID}

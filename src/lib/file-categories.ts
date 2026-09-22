@@ -18,7 +18,6 @@ export type FileCategory =
 export interface CategoryDef {
   id: FileCategory;
   label: string;
-  emoji: string;
   hint: string;
   // Cor base (mesmas convenções do design system Fysi)
   tone: "yellow" | "mint" | "pink" | "violet" | "amber" | "muted";
@@ -28,49 +27,42 @@ export const CATEGORY_DEFS: CategoryDef[] = [
   {
     id: "logo",
     label: "Logo",
-    emoji: "🏷️",
     hint: "Arquivos da logomarca (SVG, PNG, AI)",
     tone: "yellow",
   },
   {
     id: "identidade",
     label: "Identidade visual",
-    emoji: "🎨",
     hint: "Manual de marca, paleta, tipografia",
     tone: "violet",
   },
   {
     id: "imagens",
     label: "Imagens e fotos",
-    emoji: "📸",
     hint: "Fotos do produto, equipe, ambiente",
     tone: "mint",
   },
   {
     id: "depoimentos",
     label: "Depoimentos",
-    emoji: "💬",
     hint: "Prints, vídeos ou textos de clientes",
     tone: "pink",
   },
   {
     id: "audios",
     label: "Áudios",
-    emoji: "🎤",
     hint: "Gravações enviadas pelo cliente",
     tone: "amber",
   },
   {
     id: "documentos",
     label: "Documentos",
-    emoji: "📄",
     hint: "PDFs, planilhas, textos prontos",
     tone: "muted",
   },
   {
     id: "outros",
     label: "Outros materiais",
-    emoji: "📁",
     hint: "Tudo que não bate em outra categoria",
     tone: "muted",
   },

@@ -146,14 +146,20 @@ export function StatusPieBoard({
   const withCount = periodGroups.filter((g) => g.clients.length > 0);
   const total = withCount.reduce((s, g) => s + g.clients.length, 0);
 
-  // Segmentos do donut (começa no topo, -90°)
-  let acc = 0;
-  const segs = withCount.map((g) => {
-    const frac = g.clients.length / total;
-    const a0 = acc * 2 * Math.PI - Math.PI / 2;
-    acc += frac;
-    const a1 = acc * 2 * Math.PI - Math.PI / 2;
-    return { g, a0, a1 };
+  // Segmentos do donut (começa no topo, -90°).
+  // O começo de cada fatia é a soma das frações que vieram antes. Somamos
+  // essa corrida aqui, numa passada só, em vez de carregar um acumulador
+  // reatribuído no meio do render — a reatribuição é o que o React Compiler
+  // recusa, porque um `map` pode ser reexecutado fora do render.
+  const fracoes = withCount.map((g) => g.clients.length / total);
+  const segs = withCount.map((g, i) => {
+    const inicio = fracoes.slice(0, i).reduce((s, f) => s + f, 0);
+    const fim = inicio + fracoes[i];
+    return {
+      g,
+      a0: inicio * 2 * Math.PI - Math.PI / 2,
+      a1: fim * 2 * Math.PI - Math.PI / 2,
+    };
   });
 
   function toggle(id: string) {

@@ -202,7 +202,7 @@ function ProcessDocCard({
 
       {doc.link ? (
         <span className="text-xs font-medium text-fysi-muted mt-1">
-          🔗 tem link
+          tem link
         </span>
       ) : null}
     </button>
@@ -293,7 +293,7 @@ function ProcessDocModal({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 self-start rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 hover:brightness-95 transition"
             >
-              🔗 Abrir link →
+              Abrir link →
             </a>
           ) : null}
 

@@ -7,6 +7,7 @@ import {
   AreaPicker,
   EisenhowerPicker,
   EsforcoPicker,
+  RecorrenciaPicker,
   AssigneePicker,
   ClientPicker,
   DueDatePicker,
@@ -72,6 +73,8 @@ export function TaskComposer({
   // voltam ao vazio depois de criar, como o prazo e a prioridade.
   const [eisenhower, setEisenhower] = useState("");
   const [esforco, setEsforco] = useState("");
+  /** Só demanda interna repete — tarefa de projeto acontece uma vez só. */
+  const [recorrencia, setRecorrencia] = useState("");
   const [area, setArea] = useState(defaultArea);
   const [erro, setErro] = useState<string | null>(null);
   const [criada, setCriada] = useState<string | null>(null);
@@ -105,7 +108,10 @@ export function TaskComposer({
     fd.append("eisenhower", eisenhower);
     fd.append("esforco", esforco);
     // Área só acompanha demanda interna (o servidor recusa nas de cliente).
-    if (cliente === "") fd.append("area", area);
+    if (cliente === "") {
+      fd.append("area", area);
+      fd.append("recorrencia", recorrencia);
+    }
     if (urlKey) fd.append("key", urlKey);
 
     startTransition(async () => {
@@ -132,6 +138,8 @@ export function TaskComposer({
       setPrioridade("");
       setEisenhower("");
       setEsforco("");
+      // A cadência FICA: quem lança "conferir pagamentos toda semana"
+      // costuma lançar a próxima recorrente logo em seguida.
       inputRef.current?.focus();
       router.refresh();
     });
@@ -184,6 +192,14 @@ export function TaskComposer({
           ) : null}
           {cliente === "" && !areaFixa ? (
             <AreaPicker value={area} onChange={setArea} disabled={pending} />
+          ) : null}
+          {cliente === "" ? (
+            <RecorrenciaPicker
+              value={recorrencia}
+              onChange={setRecorrencia}
+              disabled={pending}
+              showLabel
+            />
           ) : null}
           <AssigneePicker
             value={responsavel}

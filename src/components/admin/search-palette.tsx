@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   globalSearchAction,
@@ -26,54 +26,64 @@ export function SearchPalette({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<GlobalSearchResults>(EMPTY);
+  const [lastResults, setLastResults] = useState<GlobalSearchResults>(EMPTY);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const trapRef = useFocusTrap<HTMLDivElement>(open);
+
+  // Abrir já limpa a busca anterior: o reset vive aqui, no gesto, e não num
+  // efeito que rodava depois do render (setState em cascata).
+  const abrir = useCallback(() => {
+    setQuery("");
+    setLastResults(EMPTY);
+    setOpen(true);
+  }, []);
+  const fechar = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((v) => !v);
+        if (open) fechar();
+        else abrir();
       } else if (e.key === "Escape") {
-        setOpen(false);
+        fechar();
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [open, abrir, fechar]);
 
+  // Foco no campo quando abre — mexer no DOM é justamente o que um efeito faz.
   useEffect(() => {
-    if (open) {
-      setQuery("");
-      setResults(EMPTY);
-      requestAnimationFrame(() => inputRef.current?.focus());
-    }
+    if (!open) return;
+    const quadro = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(quadro);
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const q = query.trim();
-    if (q.length < 2) {
-      setResults(EMPTY);
-      return;
-    }
+    // Menos de 2 letras não busca; e a lista some por conta do `results`
+    // derivado abaixo, sem precisar zerar estado aqui dentro.
+    if (q.length < 2) return;
     const handle = setTimeout(() => {
       startTransition(async () => {
         const r = await globalSearchAction(q, urlKey ?? null);
-        setResults(r);
+        setLastResults(r);
       });
     }, 250);
     return () => clearTimeout(handle);
   }, [query, open, urlKey]);
 
   function go(href: string) {
-    setOpen(false);
+    fechar();
     router.push(href);
   }
 
   const hasQuery = query.trim().length >= 2;
+  // Apagar a busca esconde os resultados na hora, sem esperar um efeito.
+  const results = hasQuery ? lastResults : EMPTY;
   const hasResults =
     results.clientes.length + results.tarefas.length + results.documentos.length > 0;
 
@@ -81,7 +91,7 @@ export function SearchPalette({
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={abrir}
         className="flex items-center gap-2.5 w-full max-w-md rounded-full border border-fysi-line bg-fysi-cream/40 px-4 py-2.5 text-sm text-fysi-muted hover:border-fysi-deep/30 hover:text-fysi-deep hover:bg-fysi-cream/70 transition"
       >
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
@@ -100,7 +110,7 @@ export function SearchPalette({
       {open ? (
         <div
           className="fixed inset-0 z-50 bg-black/30 flex items-start justify-center pt-[12vh] px-4"
-          onClick={() => setOpen(false)}
+          onClick={fechar}
         >
           <div
             ref={trapRef}

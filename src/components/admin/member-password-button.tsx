@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { setMemberPasswordAction } from "@/app/admin/membros/actions";
 
 /**
- * "🔑 Definir senha" por membro — gera uma senha forte no servidor e
+ * "Definir senha" por membro — gera uma senha forte no servidor e
  * mostra UMA vez pro admin copiar e mandar pra pessoa (junto com o
  * e-mail dela, em /admin/login). Também serve pra resetar senha
  * esquecida. Não depende de e-mail chegar.
@@ -86,7 +86,7 @@ export function MemberPasswordButton({
         disabled={pending}
         className="text-xs font-medium text-fysi-deep hover:underline disabled:opacity-50"
       >
-        {pending ? "Gerando…" : "🔑 Definir senha"}
+        {pending ? "Gerando…" : "Definir senha"}
       </button>
       {error ? <span className="text-[0.68rem] text-red-600">{error}</span> : null}
     </div>

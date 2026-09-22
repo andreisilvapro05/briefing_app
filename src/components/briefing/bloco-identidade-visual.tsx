@@ -145,7 +145,7 @@ export function BlocoIdentidadeVisual() {
         {temFotos === "sim" ? (
           <p className="text-xs text-fysi-muted bg-fysi-cream/60 rounded-[10px] px-3 py-2">
             Volte ao bloco <strong>Materiais</strong> (Etapa 01) e envie em
-            &quot;📸 Imagens e fotos&quot; — pode subir arquivo ou colar link
+            &quot;Imagens e fotos&quot; — pode subir arquivo ou colar link
             do Drive.
           </p>
         ) : null}

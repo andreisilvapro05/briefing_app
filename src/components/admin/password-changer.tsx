@@ -69,7 +69,7 @@ export function PasswordChanger({
           onClick={() => setOpen(true)}
           className="text-sm font-medium text-fysi-deep hover:underline"
         >
-          🔒 Trocar minha senha
+          Trocar minha senha
         </button>
         {ok ? (
           <span className="text-xs text-fysi-deep font-medium">

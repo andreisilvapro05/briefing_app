@@ -18,7 +18,7 @@ export function EntregaPrintButton() {
       onClick={baixarPdf}
       className="inline-flex items-center gap-2 rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-5 py-2.5 hover:bg-fysi-deep/90 transition print:hidden"
     >
-      <span aria-hidden>⬇</span> Baixar PDF
+      <span aria-hidden>↓</span> Baixar PDF
     </button>
   );
 }

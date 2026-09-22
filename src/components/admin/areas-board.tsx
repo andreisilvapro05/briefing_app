@@ -12,6 +12,7 @@ import {
   type TaskStatus,
 } from "@/lib/project-tasks";
 import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
+import { formatDiaMes } from "@/lib/datas";
 import { TaskComposer } from "./task-composer";
 import {
   AreaPicker,
@@ -19,6 +20,7 @@ import {
   DueDatePicker,
   EisenhowerPicker,
   EsforcoPicker,
+  RecorrenciaPicker,
   hojeISO,
 } from "./task-pickers";
 
@@ -48,6 +50,8 @@ export function AreasBoard({
   const [criandoEm, setCriandoEm] = useState<string | null>(null);
   const [mostrarFeitas, setMostrarFeitas] = useState(false);
   const [filtroPessoa, setFiltroPessoa] = useState("");
+  /** Data da próxima ocorrência criada ao concluir uma demanda recorrente. */
+  const [proximaCriada, setProximaCriada] = useState<string | null>(null);
   const hoje = hojeISO();
 
   const visiveis = useMemo(() => {
@@ -209,12 +213,35 @@ export function AreasBoard({
                   hoje={hoje}
                   urlKey={urlKey}
                   onSalvo={() => router.refresh()}
+                  onProximaCriada={setProximaCriada}
                 />
               ))}
             </ul>
           )}
         </section>
       ))}
+
+      {proximaCriada ? (
+        <p
+          role="status"
+          className="flex items-center justify-between gap-3 rounded-[14px] border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-900"
+        >
+          <span>
+            Demanda concluída. A próxima já está na lista, para{" "}
+            <strong className="font-semibold">
+              {formatDiaMes(proximaCriada)}
+            </strong>
+            .
+          </span>
+          <button
+            type="button"
+            onClick={() => setProximaCriada(null)}
+            className="shrink-0 text-xs font-semibold text-indigo-900/70 hover:text-indigo-900"
+          >
+            fechar
+          </button>
+        </p>
+      ) : null}
 
       {abertasNaVista === 0 && grupos.semArea.length === 0 && !criandoEm ? (
         <p className="text-sm text-fysi-muted px-1">
@@ -264,6 +291,7 @@ export function AreasBoard({
                 hoje={hoje}
                 urlKey={urlKey}
                 onSalvo={() => router.refresh()}
+                onProximaCriada={setProximaCriada}
               />
             ))}
           </ul>
@@ -279,11 +307,14 @@ function LinhaDemanda({
   hoje,
   urlKey,
   onSalvo,
+  onProximaCriada,
 }: {
   task: ProjectTask;
   hoje: string;
   urlKey?: string | null;
   onSalvo: () => void;
+  /** Concluir uma demanda recorrente gerou a próxima, nesta data. */
+  onProximaCriada: (dataISO: string) => void;
 }) {
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [responsavel, setResponsavel] = useState(task.responsavel ?? "");
@@ -291,6 +322,7 @@ function LinhaDemanda({
   const [area, setArea] = useState(task.area ?? "");
   const [eisenhower, setEisenhower] = useState(task.eisenhower ?? "");
   const [esforco, setEsforco] = useState(task.esforco ?? "");
+  const [recorrencia, setRecorrencia] = useState(task.recorrencia ?? "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(false);
 
@@ -314,6 +346,10 @@ function LinhaDemanda({
         setErro(true);
         return;
       }
+      // Concluir uma demanda recorrente cria a próxima. Ela some desta
+      // lista (fica fechada) e a nova entra com outra data — sem este aviso
+      // a tela parece só ter engolido a demanda.
+      if (r.proximaEm) onProximaCriada(r.proximaEm);
       onSalvo();
     } catch {
       // Reverte o que a tela já mostrava: deixar o valor novo na tela depois
@@ -409,6 +445,16 @@ function LinhaDemanda({
           const anterior = eisenhower;
           setEisenhower(v);
           void salvar("eisenhower", v, () => setEisenhower(anterior));
+        }}
+      />
+
+      <RecorrenciaPicker
+        value={recorrencia}
+        disabled={salvando}
+        onChange={(v) => {
+          const anterior = recorrencia;
+          setRecorrencia(v);
+          void salvar("recorrencia", v, () => setRecorrencia(anterior));
         }}
       />
 

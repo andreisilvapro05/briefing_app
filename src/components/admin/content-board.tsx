@@ -739,8 +739,11 @@ function CardModal({
                     key={url}
                     className="relative group rounded-[10px] overflow-hidden border border-fysi-line"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <a href={url} target="_blank" rel="noopener noreferrer">
+                      {/* Miniatura de anexo do Storage: URL assinada, de host
+                          variável. next/image exigiria allowlist de domínio e
+                          otimização que não paga num thumb de 96px. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={url}
                         alt=""

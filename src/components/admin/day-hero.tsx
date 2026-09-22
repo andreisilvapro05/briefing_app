@@ -520,10 +520,10 @@ function AgendaCard({ urlKey }: { urlKey: string | null }) {
             }`}
           >
             {proxima.emAndamento
-              ? "🔴 Acontecendo agora"
+              ? "Acontecendo agora"
               : proxima.minutos < 60
-                ? `⏰ Em ${proxima.minutos} min`
-                : `⏰ Às ${proxima.ev.inicio}`}
+                ? `Em ${proxima.minutos} min`
+                : `Às ${proxima.ev.inicio}`}
           </p>
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm text-fysi-deep truncate">{proxima.ev.titulo}</p>
@@ -545,7 +545,7 @@ function AgendaCard({ urlKey }: { urlKey: string | null }) {
         configuring ? (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-fysi-muted leading-relaxed">
-              No Google Agenda: ⚙️ Configurações → clica no seu calendário na
+              No Google Agenda: Configurações → clica no seu calendário na
               lista da esquerda → role até{" "}
               <strong>&quot;Endereço secreto em formato iCal&quot;</strong> →
               copia e cola aqui. É o link que tem{" "}
@@ -602,7 +602,7 @@ function AgendaCard({ urlKey }: { urlKey: string | null }) {
         <p className="text-xs text-fysi-muted my-auto">Carregando agenda…</p>
       ) : eventos.length === 0 ? (
         <p className="text-sm text-fysi-muted my-auto">
-          Sem compromissos hoje 🎉
+          Sem compromissos hoje
         </p>
       ) : (
         <ul className="flex flex-col gap-1.5 overflow-y-auto max-h-36 pr-1">

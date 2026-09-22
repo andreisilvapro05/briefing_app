@@ -212,7 +212,7 @@ export function EntregaEditor({
     <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
       <div className="flex items-baseline justify-between mb-4 gap-3 flex-wrap">
         <div className="min-w-0">
-          <Eyebrow>📦 Documento de Entrega</Eyebrow>
+          <Eyebrow>Documento de Entrega</Eyebrow>
           <p className="text-xs text-fysi-muted mt-1">
             Acessos, tutoriais, backups e garantia.{" "}
             {finalizadaAt ? (
@@ -228,7 +228,7 @@ export function EntregaEditor({
           </p>
           {saveError ? (
             <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-2 py-1 mt-1.5 inline-block">
-              ⚠ {saveError}
+              {saveError}
             </p>
           ) : savedAt ? (
             <p className="text-xs text-emerald-700 mt-1">
@@ -247,7 +247,7 @@ export function EntregaEditor({
             Copiar MD
           </Button>
           <Button type="button" size="sm" variant="secondary" onClick={downloadMarkdown}>
-            ⬇ .md
+            ↓ .md
           </Button>
           <Button
             type="button"
@@ -272,13 +272,13 @@ export function EntregaEditor({
               value={data.mensagemFinal}
               onChange={(e) => update("mensagemFinal", e.target.value)}
               rows={3}
-              placeholder="Ex: Andrei, foi um prazer trabalhar com você. Abaixo está tudo o que você precisa pra cuidar do seu site daqui pra frente. Qualquer dúvida, é só chamar 💚"
+              placeholder="Ex: Andrei, foi um prazer trabalhar com você. Abaixo está tudo o que você precisa pra cuidar do seu site daqui pra frente. Qualquer dúvida, é só chamar"
               hint="Aparece no topo do documento no painel do cliente."
             />
           </Block>
 
           {/* Acessos */}
-          <Block titulo="🔐 Acessos">
+          <Block titulo="Acessos">
             <p className="text-xs text-fysi-muted">
               Logins do WordPress, hospedagem, domínio. Tudo o que o cliente
               precisa pra administrar.
@@ -352,7 +352,7 @@ export function EntregaEditor({
           </Block>
 
           {/* Tutoriais */}
-          <Block titulo="📺 Tutoriais">
+          <Block titulo="Tutoriais">
             <div className="flex flex-col gap-3">
               {data.tutoriais.map((t, i) => (
                 <div
@@ -405,7 +405,7 @@ export function EntregaEditor({
           </Block>
 
           {/* Backups */}
-          <Block titulo="💾 Backups">
+          <Block titulo="Backups">
             <p className="text-xs text-fysi-muted">
               Links pra arquivos de backup completos do site (banco + uploads).
             </p>
@@ -462,7 +462,7 @@ export function EntregaEditor({
           </Block>
 
           {/* Documentação */}
-          <Block titulo="📄 Documentação técnica">
+          <Block titulo="Documentação técnica">
             <Textarea
               value={data.documentacao}
               onChange={(e) => update("documentacao", e.target.value)}
@@ -472,7 +472,7 @@ export function EntregaEditor({
           </Block>
 
           {/* Garantia */}
-          <Block titulo="🛡️ Garantia">
+          <Block titulo="Garantia">
             <Textarea
               value={data.garantia}
               onChange={(e) => update("garantia", e.target.value)}
@@ -482,7 +482,7 @@ export function EntregaEditor({
           </Block>
 
           {/* Indique e Ganhe */}
-          <Block titulo="🎁 Indique e Ganhe">
+          <Block titulo="Indique e Ganhe">
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -511,7 +511,7 @@ export function EntregaEditor({
           </Block>
 
           {/* NPS */}
-          <Block titulo="📝 Formulário de satisfação (NPS)">
+          <Block titulo="Formulário de satisfação (NPS)">
             <Input
               label="URL do formulário"
               value={data.npsUrl ?? ""}
@@ -523,35 +523,35 @@ export function EntregaEditor({
 
           {/* Checklists */}
           <ChecklistBlock
-            titulo="🔒 Checklist de Segurança"
+            titulo="Checklist de Segurança"
             items={getCks().seguranca}
             onUpdate={(i, p) => updateChecklist("seguranca", i, p)}
             onAdd={() => addChecklistItem("seguranca")}
             onRemove={(i) => removeChecklistItem("seguranca", i)}
           />
           <ChecklistBlock
-            titulo="💾 Checklist de Backup"
+            titulo="Checklist de Backup"
             items={getCks().backup}
             onUpdate={(i, p) => updateChecklist("backup", i, p)}
             onAdd={() => addChecklistItem("backup")}
             onRemove={(i) => removeChecklistItem("backup", i)}
           />
           <ChecklistBlock
-            titulo="✅ Checklist Obrigatório"
+            titulo="Checklist Obrigatório"
             items={getCks().obrigatorio}
             onUpdate={(i, p) => updateChecklist("obrigatorio", i, p)}
             onAdd={() => addChecklistItem("obrigatorio")}
             onRemove={(i) => removeChecklistItem("obrigatorio", i)}
           />
           <ChecklistBlock
-            titulo="🔍 Checklist de SEO"
+            titulo="Checklist de SEO"
             items={getCks().seo}
             onUpdate={(i, p) => updateChecklist("seo", i, p)}
             onAdd={() => addChecklistItem("seo")}
             onRemove={(i) => removeChecklistItem("seo", i)}
           />
           <ChecklistBlock
-            titulo="👤 Checklist do Cliente"
+            titulo="Checklist do Cliente"
             items={getCks().cliente}
             onUpdate={(i, p) => updateChecklist("cliente", i, p)}
             onAdd={() => addChecklistItem("cliente")}
@@ -559,7 +559,7 @@ export function EntregaEditor({
           />
 
           {/* Relatório técnico */}
-          <Block titulo="🔧 Relatório técnico (Site Health WP)">
+          <Block titulo="Relatório técnico (Site Health WP)">
             <Textarea
               value={data.relatorioTecnico ?? ""}
               onChange={(e) => update("relatorioTecnico", e.target.value)}
