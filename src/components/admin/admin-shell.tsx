@@ -33,6 +33,7 @@ export type AdminSection =
   | "meu-trabalho"
   | "demandas"
   | "equipe"
+  | "prioridades"
   | "visao-geral"
   | "clientes"
   | "lista"
@@ -104,6 +105,13 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <path d="M2.5 20c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6" />
       <circle cx="17.5" cy="9.5" r="2.4" />
       <path d="M16 14.2c3 .3 5.5 2.7 5.5 5.8" />
+    </I>
+  ),
+  prioridades: (
+    <I>
+      <path d="M4 20V4M4 20h16" />
+      <path d="M4 12h16M12 20V4" opacity="0.45" />
+      <circle cx="8" cy="8" r="1.9" fill="currentColor" stroke="none" />
     </I>
   ),
   demandas: (
@@ -280,6 +288,7 @@ const AREAS: NavArea[] = [
     items: [
       item("demandas", "Demandas por área", "/admin/demandas"),
       item("equipe", "Equipe", "/admin/equipe"),
+      item("prioridades", "Prioridades", "/admin/prioridades"),
     ],
   },
   {
