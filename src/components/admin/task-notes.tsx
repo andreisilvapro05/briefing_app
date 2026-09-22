@@ -117,9 +117,17 @@ export function TaskNotes({
             }
           }
           if (menuAberto && barraPos.current !== null) {
-            const depoisDaBarra = novo.slice(barraPos.current + 1, cursor);
-            if (depoisDaBarra.includes(" ") || depoisDaBarra.includes("\n")) fechar();
-            else setBusca(depoisDaBarra);
+            // Se a própria "/" sumiu (backspace), o menu perdeu a âncora.
+            if (novo[barraPos.current] !== "/" || cursor <= barraPos.current) {
+              fechar();
+            } else {
+              const depoisDaBarra = novo.slice(barraPos.current + 1, cursor);
+              if (depoisDaBarra.includes(" ") || depoisDaBarra.includes("\n")) {
+                fechar();
+              } else {
+                setBusca(depoisDaBarra);
+              }
+            }
           }
           onChange(novo);
         }}
@@ -212,11 +220,14 @@ export function extrairLinks(
   // todo assim, e continuar mostrando é melhor que fazer sumir.
   const cru = /https?:\/\/[^\s<>"')\]]+/g;
   while ((m = cru.exec(texto))) {
-    if (vistos.has(m[0])) continue;
     const antes = texto.slice(Math.max(0, m.index - 2), m.index);
     if (antes.endsWith("](")) continue;
-    vistos.add(m[0]);
-    out.push({ label: m[0], url: m[0] });
+    // "veja https://drive.google.com/abc." — o ponto é da frase, não da URL.
+    // Sem aparar, o chip levava a um endereço que não existe.
+    const url = m[0].replace(/[.,;:!?]+$/, "");
+    if (!url || vistos.has(url)) continue;
+    vistos.add(url);
+    out.push({ label: url, url });
   }
 
   return out;

@@ -40,6 +40,7 @@ import {
   type TaskStatus,
 } from "@/lib/project-tasks";
 import type { ProjectType } from "@/lib/types";
+import { formatDiaMesCurto } from "@/lib/datas";
 
 function keyParamOf(formData: FormData): string | null {
   return String(formData.get("key") ?? "") || null;
@@ -1824,19 +1825,6 @@ export async function setClientOrigemAction(formData: FormData) {
 /** Rótulo humano de um status de tarefa ("design-pagina" → "Design da página"). */
 function statusLabel(value: string): string {
   return TASK_STATUS_OPTIONS.find((o) => o.value === value)?.label ?? value;
-}
-
-/** "24/09" — a data como ela aparece no aviso. */
-function formatDiaMesCurto(iso: string): string {
-  try {
-    return new Date(`${iso}T12:00:00Z`).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      timeZone: "UTC",
-    });
-  } catch {
-    return iso;
-  }
 }
 
 /**

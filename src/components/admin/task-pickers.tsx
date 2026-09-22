@@ -1,5 +1,7 @@
 "use client";
 
+import { formatDiaMes as formatShortDate, formatDataCompleta } from "@/lib/datas";
+
 import {
   useCallback,
   useEffect,
@@ -46,33 +48,11 @@ function somarDias(iso: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** "21 set" — curto o bastante pra caber num chip. */
-export function formatShortDate(iso: string): string {
-  try {
-    return new Date(`${iso}T12:00:00Z`)
-      .toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-        timeZone: "UTC",
-      })
-      // pt-BR devolve "21 de set." — no chip cabe só "21 set".
-      .replace(" de ", " ")
-      .replace(".", "");
-  } catch {
-    return iso;
-  }
-}
-
-/** "21/09/2026" — pro title/tooltip, onde cabe a data inteira. */
-function formatFullDate(iso: string): string {
-  try {
-    return new Date(`${iso}T12:00:00Z`).toLocaleDateString("pt-BR", {
-      timeZone: "UTC",
-    });
-  } catch {
-    return iso;
-  }
-}
+/**
+ * "21 set" — curto o bastante pra caber num chip.
+ * Reexportado: metade da tabela de tarefas importa daqui.
+ */
+export { formatShortDate };
 
 /** Cor da bandeira por prioridade — igual ClickUp (bandeira, sem texto ao lado). */
 export const TASK_PRIORITY_FLAG: Record<string, string> = {
@@ -492,7 +472,7 @@ export function DueDatePicker({
         aria-expanded={open}
         title={
           value
-            ? `${emptyLabel}: ${formatFullDate(value)}${overdue ? " — vencido" : ""}`
+            ? `${emptyLabel}: ${formatDataCompleta(value)}${overdue ? " — vencido" : ""}`
             : `Definir ${emptyLabel.toLowerCase()}`
         }
         className={`${bare ? BARE_CHIP_CLASS : CHIP_CLASS} ${

@@ -16,6 +16,7 @@ import { useFocusTrap } from "./use-focus-trap";
 import { TaskComposer } from "./task-composer";
 import { TaskComments } from "./tasks-board";
 import { hojeISO, type ClientOption } from "./task-pickers";
+import { formatDataCurta } from "@/lib/datas";
 
 /** `client: null` = demanda interna da agência (ex.: vinda da lista de
  * gestão do ClickUp), que não pertence a nenhuma ficha de cliente. */
@@ -101,18 +102,6 @@ const GRUPO_LABEL: Record<Grupo, string> = {
 
 const GRUPO_ORDER: Grupo[] = ["hoje", "atraso", "proximo", "sem-data"];
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(`${iso}T12:00:00`).toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "2-digit",
-      timeZone: "America/Sao_Paulo",
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function statusLabelOf(status: string): string {
   return TASK_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
@@ -285,7 +274,7 @@ function TaskRow({
               title={atrasada ? "Prazo vencido" : "Prazo"}
             >
               <CalendarIcon />
-              {formatDate(task.data_vencimento)}
+              {formatDataCurta(task.data_vencimento)}
             </span>
           ) : null}
         </div>

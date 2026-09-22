@@ -59,6 +59,7 @@ import { ProjectStageControls } from "@/components/admin/project-stage-controls"
 
 import { listProjectTasks } from "@/lib/project-tasks-server";
 import { TASK_STATUS_GROUP } from "@/lib/project-tasks";
+import { formatDiaMes } from "@/lib/datas";
 
 export const dynamic = "force-dynamic";
 
@@ -1608,15 +1609,6 @@ function ResumoCard({
   );
 }
 
-function formatDiaMes(iso: string): string {
-  try {
-    return new Date(`${iso}T12:00:00Z`)
-      .toLocaleDateString("pt-BR", { day: "2-digit", month: "short", timeZone: "UTC" })
-      .replace(".", "");
-  } catch {
-    return iso;
-  }
-}
 
 function FieldInput({
   label,

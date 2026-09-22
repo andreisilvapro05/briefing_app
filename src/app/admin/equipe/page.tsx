@@ -16,6 +16,7 @@ import {
   type ProjectTask,
 } from "@/lib/project-tasks";
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
+import { formatDiaMes } from "@/lib/datas";
 
 export const dynamic = "force-dynamic";
 
@@ -28,20 +29,6 @@ function hojeSP(): string {
   }).format(new Date());
 }
 
-function diaMes(iso: string): string {
-  try {
-    return new Date(`${iso}T12:00:00Z`)
-      .toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-        timeZone: "UTC",
-      })
-      .replace(" de ", " ")
-      .replace(".", "");
-  } catch {
-    return iso;
-  }
-}
 
 /**
  * Dashboard da equipe — um cartão por pessoa.
@@ -291,7 +278,7 @@ function ItemDemanda({
             atrasada ? "text-red-700 font-semibold" : "text-fysi-muted"
           }`}
         >
-          {diaMes(task.data_vencimento)}
+          {formatDiaMes(task.data_vencimento)}
         </span>
       ) : null}
     </span>
