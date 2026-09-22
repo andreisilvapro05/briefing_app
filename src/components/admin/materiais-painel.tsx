@@ -6,6 +6,8 @@ import {
   categorizeFile,
   type FileCategory,
 } from "@/lib/file-categories";
+import { MateriaisChecklist } from "@/components/admin/materiais-checklist";
+import type { MaterialItem } from "@/lib/materiais-cliente";
 
 interface BriefingFile {
   field_id: string;
@@ -16,19 +18,33 @@ interface BriefingFile {
 }
 
 /**
- * Painel "Materiais" no /admin/[id]: agrupa todos os anexos do briefing por
- * categoria (Logo, Identidade, Imagens, Depoimentos, Áudios, Documentos,
- * Outros), mostra preview de imagens em grid e oferece "Baixar tudo" como
- * ZIP organizado.
+ * Painel "Materiais" no /admin/[id] — o ÚNICO lugar de material do cliente.
+ *
+ * Duas metades da mesma história:
+ *  1. o que ainda FALTA chegar (`MateriaisChecklist`, ligado à lista que o
+ *     cliente vê no link público do briefing);
+ *  2. o que JÁ chegou: os anexos do briefing agrupados por categoria (Logo,
+ *     Identidade, Imagens, Depoimentos, Áudios, Documentos, Outros), com
+ *     preview em grid e "Baixar tudo" como ZIP organizado.
+ *
+ * As duas ficam juntas de propósito: o pedido explícito da dona é que
+ * gestão não vire aba espalhada. Quem abre "Materiais" quer saber o que
+ * tem e o que falta na mesma olhada.
  */
 export function MateriaisPainel({
   files,
   clientId,
   urlKey,
+  materiais = [],
+  docId,
 }: {
   files: BriefingFile[];
   clientId: string;
   urlKey: string | null;
+  /** Lista "o que o cliente precisa enviar" — ver `client_materials`. */
+  materiais?: MaterialItem[];
+  /** Briefing aberto no admin, se houver — só pra revalidar a tela certa. */
+  docId?: string | null;
 }) {
   // Agrupa por categoria mantendo a ordem definida em CATEGORY_DEFS
   const groups = new Map<FileCategory, BriefingFile[]>();
@@ -44,23 +60,34 @@ export function MateriaisPainel({
 
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6">
-      <div className="flex items-baseline justify-between mb-4 gap-3">
-        <div>
-          <Eyebrow>Materiais do cliente</Eyebrow>
-          <p className="text-xs text-fysi-muted mt-1">
-            {files.length} arquivo{files.length === 1 ? "" : "s"} ·{" "}
-            {formatBytes(totalBytes)} no total
-          </p>
-        </div>
-        <a
-          href={zipUrl}
-          className="inline-flex items-center gap-1.5 rounded-full bg-fysi-deep text-fysi-cream text-xs font-medium px-3 py-2 hover:bg-fysi-deep/90"
-        >
-          ⬇ Baixar tudo (.zip)
-        </a>
-      </div>
+      <MateriaisChecklist
+        clientId={clientId}
+        urlKey={urlKey}
+        docId={docId}
+        itens={materiais}
+      />
 
-      <div className="flex flex-col gap-4">
+      <div className="border-t border-fysi-line mt-6 pt-5">
+        <div className="flex items-baseline justify-between mb-4 gap-3">
+          <div>
+            <Eyebrow>O que já chegou pelo painel</Eyebrow>
+            <p className="text-xs text-fysi-muted mt-1">
+              {files.length === 0
+                ? "Nenhum arquivo enviado pelo painel ainda. Material que chegar por WhatsApp ou Drive não aparece aqui — marque na lista acima."
+                : `${files.length} arquivo${files.length === 1 ? "" : "s"} · ${formatBytes(totalBytes)} no total`}
+            </p>
+          </div>
+          {files.length > 0 ? (
+            <a
+              href={zipUrl}
+              className="inline-flex items-center gap-1.5 rounded-full bg-fysi-deep text-fysi-cream text-xs font-medium px-3 py-2 hover:bg-fysi-deep/90"
+            >
+              Baixar tudo (.zip)
+            </a>
+          ) : null}
+        </div>
+
+        <div className="flex flex-col gap-4">
         {CATEGORY_DEFS.map((cat) => {
           const items = groups.get(cat.id) ?? [];
           if (items.length === 0) return null;
@@ -70,7 +97,7 @@ export function MateriaisPainel({
               <div className="flex items-center gap-2">
                 <span className={`h-2 w-2 rounded-full ${tone.dot}`} />
                 <span className="text-[0.7rem] uppercase tracking-[0.08em] font-semibold text-fysi-deep">
-                  {cat.emoji} {cat.label}
+                  {cat.label}
                 </span>
                 <span className="text-[0.72rem] text-fysi-muted">
                   · {items.length}
@@ -94,6 +121,7 @@ export function MateriaisPainel({
             </div>
           );
         })}
+        </div>
       </div>
     </section>
   );
@@ -118,8 +146,22 @@ function ImageCard({ file }: { file: BriefingFile }) {
           loading="lazy"
         />
       ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2 text-center">
-          <span className="text-2xl">📎</span>
+        <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 p-2 text-center">
+          {/* Ícone de clipe em SVG — interface da Fysi não usa emoji. */}
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className="text-fysi-muted"
+          >
+            <path d="M21 12.5 12.5 21a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7.5-7.5" />
+          </svg>
           <span className="text-[0.72rem] text-fysi-muted truncate w-full">
             {file.file_name}
           </span>

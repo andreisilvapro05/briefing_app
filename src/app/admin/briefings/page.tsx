@@ -13,6 +13,8 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { listBriefingTemplates } from "@/lib/briefing-templates-server";
 import { listarBriefings } from "@/lib/briefings-server";
+import { resumosPorCliente } from "@/lib/materiais-cliente-server";
+import { fraseResumo, type ResumoMateriais } from "@/lib/materiais-cliente";
 import { createBriefingTemplateAction, importarBriefingsAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -120,6 +122,15 @@ export default async function BriefingsPage({
 
   const totalCompartilhados = docs.filter((d) => d.compartilhado).length;
   const totalAvulsos = docs.filter((d) => !d.clientId && !d.isTemplate).length;
+
+  // "faltam 3 de 8" ao lado de cada cliente, na linha do briefing dele. Uma
+  // consulta só pra lista inteira — uma por linha derrubaria a tela.
+  const resumoMateriais: Map<string, ResumoMateriais> =
+    aba === "documentos"
+      ? await resumosPorCliente(
+          docs.map((d) => d.clientId).filter((id): id is string => Boolean(id))
+        )
+      : new Map();
 
   // ---------- Aba Modelos ----------
   const templates = aba === "modelos" ? await listBriefingTemplates() : [];
@@ -334,6 +345,27 @@ export default async function BriefingsPage({
                           tem acessos
                         </span>
                       ) : null}
+                      {/* Material do cliente: o que ainda não chegou. É o que
+                          trava landing page depois do briefing pronto. */}
+                      {(() => {
+                        const r = d.clientId
+                          ? resumoMateriais.get(d.clientId)
+                          : undefined;
+                        if (!r || r.total === 0) return null;
+                        return (
+                          <span
+                            className={`text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap ${
+                              r.faltam === 0
+                                ? "bg-fysi-mint text-fysi-deep"
+                                : "bg-amber-50 text-amber-800 border border-amber-200"
+                            }`}
+                          >
+                            {r.faltam === 0
+                              ? "material completo"
+                              : `material: ${fraseResumo(r)}`}
+                          </span>
+                        );
+                      })()}
                       {/* "Só o Modelo" é diferente de "em branco": o clone
                           herda TODO o texto do Modelo e aparecia como "48
                           linhas", como se alguém já tivesse preenchido. */}

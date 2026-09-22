@@ -23,9 +23,30 @@ export interface CredencialItem {
   valor: string;
 }
 
-/** `Senha:`, `Login:`, `Usuário:`, `Senha do painel:` … */
+/**
+ * `Senha:`, `Login:`, `Usuário:`, `Senha do painel:` …
+ *
+ * O prefixo tolerante não é capricho: a âncora `^\s*` deixava passar
+ * `* Senha: …` e `- Login: …`, que é como o marcador de lista do ClickUp
+ * chega quando a página vira markdown. Uma página real (EI - Gustavo
+ * Vicelli) começava com `"* "` e a senha ia inteira pro corpo do documento.
+ * Aqui só se tolera lixo de formatação — bullet, traço, citação, negrito —
+ * nunca texto, senão "combinei a senha: depois eu mando" viraria credencial.
+ */
 const RE_CREDENCIAL =
-  /^\s*(senha|password|login|usu[áa]rio|user|e-?mail de acesso|acesso)\s*:\s*(.*)$/i;
+  /^[\s*\-•·>#]*(?:\*\*)?\s*(senha|password|login|usu[áa]rio|user|e-?mail de acesso|acesso)(?:\*\*)?\s*:\s*(.*)$/i;
+
+/**
+ * Tira o negrito/itálico que sobra do markdown em volta do valor.
+ *
+ * Os asteriscos e os espaços saem juntos: em `**Senha:** **valor**` o
+ * fechamento do rótulo cai dentro do valor, e limpar em duas passadas
+ * separadas deixava `**valor` — um asterisco colado na senha, que quem
+ * fosse usar copiaria junto.
+ */
+function limparValor(v: string): string {
+  return v.replace(/^[\s*_`]+/, "").replace(/[\s*_`]+$/, "");
+}
 
 /** Cabeçalhos que definem o "contexto" de credenciais que vêm abaixo. */
 const RE_CONTEXTO =
@@ -102,6 +123,25 @@ export function extrairCredenciais(
   for (const bloco of blocks) {
     const texto = blockPlainText(bloco);
 
+    // A credencial é testada ANTES do tipo do bloco. Antes, `heading` era
+    // empurrado pra saída sem nunca passar por aqui, e uma página real
+    // (EI - Araya) trazia a senha dentro de um título — que ia inteira pro
+    // corpo do documento, o mesmo corpo que pode ganhar link público.
+    const mAqui = RE_CREDENCIAL.exec(texto);
+    if (mAqui && ehValorReal(mAqui[2])) {
+      credenciais.push({
+        contexto,
+        rotulo: mAqui[1].trim(),
+        valor: limparValor(mAqui[2]),
+      });
+      if (!jaAvisou) {
+        saida.push(avisoDeCofre());
+        jaAvisou = true;
+      }
+      janelaSolta = 0;
+      continue;
+    }
+
     if ((bloco as { type?: string }).type === "heading") {
       const achou = RE_CONTEXTO.exec(texto);
       if (achou) contexto = texto.trim();
@@ -123,21 +163,6 @@ export function extrairCredenciais(
     if (!RE_CREDENCIAL.test(texto) && RE_CONTEXTO.test(texto) && /:\s*$/.test(texto)) {
       contexto = texto.replace(/:\s*$/, "").trim();
       saida.push(bloco);
-      continue;
-    }
-
-    const m = RE_CREDENCIAL.exec(texto);
-    if (m && ehValorReal(m[2])) {
-      credenciais.push({
-        contexto,
-        rotulo: m[1].trim(),
-        valor: m[2].trim(),
-      });
-      if (!jaAvisou) {
-        saida.push(avisoDeCofre());
-        jaAvisou = true;
-      }
-      janelaSolta = 0;
       continue;
     }
 

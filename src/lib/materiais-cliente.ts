@@ -119,6 +119,25 @@ export function resumirMateriais(itens: MaterialItem[]): ResumoMateriais {
   return { total: faltam + enviados, faltam, enviados, aConferir, naoSeAplica };
 }
 
+/**
+ * `timestamptz` → "22/09" no fuso de Brasília.
+ *
+ * Não dá pra reaproveitar `formatDiaMesCurto` de `datas.ts`: aquela espera
+ * prazo no formato YYYY-MM-DD (ela monta `${iso}T12:00:00Z`) e devolveria o
+ * ISO cru pra um timestamp completo. Sem fuso, o servidor em UTC mostra o dia
+ * seguinte pra tudo que foi marcado depois das 21h.
+ */
+export function dataCurtaDoMomento(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
+}
+
 /** "faltam 3 de 8" — a frase que a Karine pediu pra bater o olho e entender. */
 export function fraseResumo(r: ResumoMateriais): string {
   if (r.total === 0) return "Sem itens na lista";

@@ -36,6 +36,8 @@ import { PaymentReceipts } from "@/components/admin/payment-receipts";
 import type { PaymentReceipt } from "@/lib/payment-receipts";
 
 import { listCustomQuestions } from "@/lib/custom-questions-server";
+import { listarMateriais } from "@/lib/materiais-cliente-server";
+import type { MaterialItem } from "@/lib/materiais-cliente";
 import type { Moodboard } from "@/lib/moodboard";
 import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
@@ -228,6 +230,13 @@ export default async function AdminClientPage({
       .eq("client_id", client.id)
       .order("pago_em", { ascending: false });
     recibos = (recibosData as PaymentReceipt[] | null) ?? [];
+  }
+
+  // "O que o cliente precisa enviar" — só na aba Briefing, que é onde o
+  // painel de Materiais mora. Nas outras abas seria consulta jogada fora.
+  let materiais: MaterialItem[] = [];
+  if (tab === "briefing") {
+    materiais = await listarMateriais(client.id);
   }
 
   // Perguntas específicas cadastradas pra este cliente (bloco extra do briefing).
@@ -1360,6 +1369,20 @@ Qualquer dúvida, é só responder por aqui.`;
           </section>
         )}
 
+        {/* Materiais: o que falta o cliente enviar + o que já chegou.
+            Antes só aparecia quando havia arquivo, e escondido no fim das
+            respostas — ou seja, sumia justamente pro cliente que não mandou
+            nada, que é de quem se precisa cobrar. */}
+        <div className="mb-6">
+          <MateriaisPainel
+            files={filesList}
+            clientId={client.id}
+            urlKey={urlKey}
+            materiais={materiais}
+            docId={briefingDoc?.id ?? null}
+          />
+        </div>
+
         {/* Resumo de preenchimento do briefing (formulário que o cliente preenche sozinho) */}
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
           <div className="flex items-baseline justify-between mb-4">
@@ -1489,14 +1512,6 @@ Qualquer dúvida, é só responder por aqui.`;
                 </section>
               );
             })}
-
-            {filesList.length > 0 ? (
-              <MateriaisPainel
-                files={filesList}
-                clientId={client.id}
-                urlKey={urlKey}
-              />
-            ) : null}
           </div>
         )}
 

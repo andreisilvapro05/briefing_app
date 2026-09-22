@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow } from "@/components/ui/pill";
 import { obterBriefingPorToken } from "@/lib/briefings-server";
+import { listarMateriais } from "@/lib/materiais-cliente-server";
 import { BriefingReadOnly } from "@/components/briefing-read-only";
+import { MateriaisDoCliente } from "@/components/briefing/materiais-do-cliente";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +37,11 @@ export default async function BriefingPublicoPage({
   // visitante que o briefing existe.
   if (!doc) notFound();
 
+  // A lista de pendências do cliente ("o que falta você nos enviar"). Só
+  // existe quando o briefing está vinculado a um cliente — briefing avulso
+  // não tem de quem cobrar material.
+  const materiais = doc.clientId ? await listarMateriais(doc.clientId) : [];
+
   return (
     <Shell contextLabel="Briefing" sectionLabel={doc.titulo}>
       <ContentFrame size="lg">
@@ -57,6 +64,10 @@ export default async function BriefingPublicoPage({
             . Este link abre só este briefing — nada mais da conta do cliente.
           </p>
         </header>
+
+        {/* Vem ANTES do briefing: é a única parte da página em que quem abre
+            tem algo a fazer. Depois do documento, ninguém rola até o fim. */}
+        <MateriaisDoCliente token={token} itens={materiais} />
 
         <article className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-10">
           <BriefingReadOnly blocks={doc.blocks} />

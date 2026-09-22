@@ -15,6 +15,8 @@ import {
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { obterBriefing } from "@/lib/briefings-server";
+import { listarMateriais } from "@/lib/materiais-cliente-server";
+import { MateriaisChecklist } from "@/components/admin/materiais-checklist";
 import {
   compartilharBriefingAction,
   revogarCompartilhamentoAction,
@@ -62,6 +64,10 @@ export default async function BriefingDocPage({
   const baseUrl = host ? `${proto}://${host}` : "";
   const linkPublico =
     doc.compartilhado && doc.shareToken ? `${baseUrl}/b/${doc.shareToken}` : null;
+
+  // "O que o cliente precisa enviar". Briefing avulso (sem cliente) não tem
+  // de quem cobrar material, então nem carrega a lista.
+  const materiais = doc.clientId ? await listarMateriais(doc.clientId) : [];
 
   // Lista de clientes só é necessária pra vincular um briefing avulso.
   let clientes: { id: string; nome: string | null; empresa: string | null }[] = [];
@@ -239,6 +245,28 @@ export default async function BriefingDocPage({
             </SubmitTextButton>
           </form>
         </section>
+      ) : null}
+
+      {/* ---- O que o cliente precisa enviar ---- */}
+      {doc.clientId ? (
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-5">
+          <MateriaisChecklist
+            clientId={doc.clientId}
+            urlKey={urlKey}
+            docId={doc.id}
+            itens={materiais}
+          />
+          <p className="text-xs text-fysi-muted mt-4 border-t border-fysi-line pt-3">
+            É a mesma lista que aparece no painel de Materiais da ficha do
+            cliente — não existe uma segunda em outro lugar.
+          </p>
+        </section>
+      ) : !doc.isTemplate ? (
+        <p className="text-xs text-fysi-muted bg-fysi-cream/60 border border-fysi-line rounded-[12px] px-4 py-3 mb-5">
+          Vincule este briefing a um cliente acima pra montar a lista do que
+          ele precisa enviar (logo, fotos, acessos, CNPJ). Sem cliente, não há
+          de quem cobrar.
+        </p>
       ) : null}
 
       {/* ---- Acessos (credenciais) ---- */}

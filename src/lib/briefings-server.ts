@@ -402,3 +402,35 @@ export async function vincularBriefingACliente(
     .eq("kind", "briefing");
   return error ? { erro: error.message } : {};
 }
+
+/**
+ * Só o cliente por trás de um token público — sem carregar os blocos.
+ *
+ * Existe pro lado do cliente da lista "o que você precisa nos enviar": a ação
+ * que marca um item precisa saber DE QUEM é o briefing daquele link, e nada
+ * mais. Aplica as mesmas travas de `obterBriefingPorToken` (revogado ou
+ * expirado devolve null), pra um link revogado não continuar escrevendo no
+ * banco.
+ */
+export async function clienteDoBriefingPorToken(
+  token: string
+): Promise<{ briefingId: string; clientId: string } | null> {
+  if (!token || token.length < 16) return null;
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ei_documents")
+    .select("id, client_id, share_enabled, share_expires_at")
+    .eq("share_token", token)
+    .eq("kind", "briefing")
+    .maybeSingle();
+  const row = data as {
+    id: string;
+    client_id: string | null;
+    share_enabled: boolean | null;
+    share_expires_at: string | null;
+  } | null;
+  if (!row || !row.share_enabled || !row.client_id) return null;
+  if (row.share_expires_at && new Date(row.share_expires_at) < new Date())
+    return null;
+  return { briefingId: row.id, clientId: row.client_id };
+}
