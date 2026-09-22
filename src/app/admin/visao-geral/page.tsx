@@ -135,7 +135,7 @@ export default async function VisaoGeralPage({
         </p>
         {tarefasPendentes.length === 0 ? (
           <p className="text-sm text-fysi-muted py-6 text-center">
-            Nenhuma tarefa pendente 🎉
+            Nenhuma tarefa pendente.
           </p>
         ) : (
           <div className="flex flex-col gap-1.5">

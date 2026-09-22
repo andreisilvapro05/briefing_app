@@ -29,7 +29,7 @@ const FRASES = [
   "O cliente sente o cuidado nos detalhes.",
   "Começa pelo mais difícil, o resto flui.",
   "Prazo é promessa — combina antes de estourar.",
-  "Bebe água e fecha uma tarefa. 💧",
+  "Bebe água e fecha uma tarefa.",
 ];
 
 const TZ = "America/Sao_Paulo";
@@ -98,10 +98,83 @@ function spNow(now: Date) {
   };
 }
 
-function saudacao(hora: number): { texto: string; emoji: string } {
-  if (hora < 12) return { texto: "BOM DIA", emoji: "☀️" };
-  if (hora < 18) return { texto: "BOA TARDE", emoji: "🌤️" };
-  return { texto: "BOA NOITE", emoji: "🌙" };
+/**
+ * Saudação por faixa do dia. O ícone é SVG desenhado, não emoji: emoji
+ * muda de desenho conforme o sistema operacional de quem olha e destoa da
+ * interface (regra da casa — nada de emoji na tela).
+ */
+function saudacao(hora: number): { texto: string; periodo: Periodo } {
+  if (hora < 12) return { texto: "BOM DIA", periodo: "manha" };
+  if (hora < 18) return { texto: "BOA TARDE", periodo: "tarde" };
+  return { texto: "BOA NOITE", periodo: "noite" };
+}
+
+type Periodo = "manha" | "tarde" | "noite";
+
+const TRACO = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  "aria-hidden": true,
+};
+
+function IconeAgenda() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" {...TRACO}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M8 3v4M16 3v4M3 10h18" />
+    </svg>
+  );
+}
+
+/** Sino com o traço cortado quando os avisos estão desligados. */
+function IconeSino({ ligado }: { ligado: boolean }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" {...TRACO}>
+      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+      {ligado ? null : <path d="M3 3l18 18" />}
+    </svg>
+  );
+}
+
+/** Sol a pino, sol baixo e lua — o mesmo traço dos outros ícones do app. */
+function IconePeriodo({ periodo }: { periodo: Periodo }) {
+  const comum = {
+    width: 13,
+    height: 13,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+    className: "inline-block -mt-px mr-1.5 align-middle",
+  };
+  if (periodo === "noite") {
+    return (
+      <svg {...comum}>
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+      </svg>
+    );
+  }
+  if (periodo === "tarde") {
+    return (
+      <svg {...comum}>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 3v2M12 19v2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M3 12h2M19 12h2M5.6 18.4 7 17M17 7l1.4-1.4" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...comum}>
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 2v2M12 20v2M4.2 4.2l1.5 1.5M18.3 18.3l1.5 1.5M2 12h2M20 12h2M4.2 19.8l1.5-1.5M18.3 5.7l1.5-1.5" />
+    </svg>
+  );
 }
 
 function fraseDoDia(now: Date): string {
@@ -153,7 +226,15 @@ export function DayHero({ nome, urlKey = null }: { nome: string; urlKey?: string
       {/* Frase do dia */}
       <section className="bg-white border border-fysi-line rounded-[24px] shadow-fysi-card p-6 flex flex-col justify-center gap-2 min-h-[150px]">
         <p className="text-[0.68rem] uppercase tracking-[0.16em] font-semibold text-fysi-muted min-h-[1rem]">
-          {sauda ? `${sauda.emoji} ${sauda.texto}${nome ? `, ${nome.toUpperCase()}` : ""}` : ""}
+          {sauda ? (
+            <>
+              <IconePeriodo periodo={sauda.periodo} />
+              {sauda.texto}
+              {nome ? `, ${nome.toUpperCase()}` : ""}
+            </>
+          ) : (
+            ""
+          )}
         </p>
         <p className="text-xl leading-snug font-medium text-fysi-deep min-h-[1.75rem]">
           {now ? fraseDoDia(now) : ""}
@@ -374,8 +455,9 @@ function AgendaCard({ urlKey }: { urlKey: string | null }) {
   return (
     <section className="bg-white border border-fysi-line rounded-[24px] shadow-fysi-card p-6 flex flex-col gap-2.5 min-h-[150px]">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-[0.68rem] uppercase tracking-[0.16em] font-semibold text-fysi-muted">
-          📅 Agenda de hoje
+        <p className="text-[0.68rem] uppercase tracking-[0.16em] font-semibold text-fysi-muted flex items-center gap-1.5">
+          <IconeAgenda />
+          Agenda de hoje
         </p>
         {icsUrl || naConta ? (
           <div className="flex items-center gap-2 shrink-0">
@@ -384,17 +466,19 @@ function AgendaCard({ urlKey }: { urlKey: string | null }) {
                 type="button"
                 onClick={desligarAvisos}
                 title={`Avisando ${AVISO_ANTES_MIN} min antes (com o painel aberto)`}
-                className="text-[0.68rem] text-fysi-deep font-medium hover:underline underline-offset-2"
+                className="inline-flex items-center gap-1 text-[0.68rem] text-fysi-deep font-medium hover:underline underline-offset-2"
               >
-                🔔 avisos ligados
+                <IconeSino ligado />
+                avisos ligados
               </button>
             ) : permissao !== "denied" ? (
               <button
                 type="button"
                 onClick={ligarAvisos}
-                className="text-[0.68rem] text-fysi-deep font-medium hover:underline underline-offset-2"
+                className="inline-flex items-center gap-1 text-[0.68rem] text-fysi-deep font-medium hover:underline underline-offset-2"
               >
-                🔕 ligar avisos
+                <IconeSino ligado={false} />
+                ligar avisos
               </button>
             ) : (
               <span
