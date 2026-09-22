@@ -359,6 +359,7 @@ export function TaskRow({
   const [titulo, setTitulo] = useState(task.titulo);
   const [renomeando, setRenomeando] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function salvarTitulo() {
@@ -370,7 +371,7 @@ export function TaskRow({
       return;
     }
     setTitulo(novo);
-    saveField("titulo", novo);
+    saveField("titulo", novo, () => setTitulo(task.titulo));
   }
 
   function baseFd() {
@@ -381,11 +382,28 @@ export function TaskRow({
     return fd;
   }
 
-  function saveField(field: string, value: string) {
+  /**
+   * Grava um campo. `reverter` desfaz o estado local quando o servidor
+   * recusa — sem isso a tela ficava mostrando o valor novo de um campo que
+   * não salvou, e quem editou só descobria no próximo carregamento.
+   */
+  function saveField(field: string, value: string, reverter?: () => void) {
     const fd = baseFd();
     fd.append(field, value);
+    setErroSalvar(null);
     startTransition(async () => {
-      await updateProjectTaskAction(fd);
+      try {
+        const r = await updateProjectTaskAction(fd);
+        if (!r.ok) {
+          reverter?.();
+          setErroSalvar(r.erro);
+          return;
+        }
+      } catch {
+        reverter?.();
+        setErroSalvar("Não consegui salvar. Confira a conexão.");
+        return;
+      }
       router.refresh();
     });
   }
@@ -482,6 +500,15 @@ export function TaskRow({
                   {titulo}
                 </button>
                 <MarcadoresDaTarefa eisenhower={eisenhower} esforco={esforco} />
+                {erroSalvar ? (
+                  <span
+                    role="alert"
+                    title={erroSalvar}
+                    className="inline-flex items-center gap-1 shrink-0 rounded-full border border-red-200 bg-red-50 px-2 text-[0.62rem] font-semibold leading-[1.15rem] text-red-700"
+                  >
+                    não salvou
+                  </span>
+                ) : null}
                 {readOnly ? null : (
                   <button
                     type="button"
@@ -504,8 +531,9 @@ export function TaskRow({
             disabled={locked}
             onChange={(e) => {
               const next = e.target.value as TaskStatus;
+              const anteriorDeStatus = status;
               setStatus(next);
-              saveField("status", next);
+              saveField("status", next, () => setStatus(anteriorDeStatus));
             }}
             className={`max-w-full rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[status]}`}
           >
@@ -521,8 +549,9 @@ export function TaskRow({
             value={prioridade}
             disabled={locked}
             onChange={(v) => {
+              const anteriorDePrioridade = prioridade;
               setPrioridade(v);
-              saveField("prioridade", v);
+              saveField("prioridade", v, () => setPrioridade(anteriorDePrioridade));
             }}
           />
         </td>
@@ -531,8 +560,9 @@ export function TaskRow({
             value={responsavel}
             disabled={locked}
             onChange={(v) => {
+              const anteriorDeResponsavel = responsavel;
               setResponsavel(v);
-              saveField("responsavel", v);
+              saveField("responsavel", v, () => setResponsavel(anteriorDeResponsavel));
             }}
           />
         </td>
@@ -546,8 +576,9 @@ export function TaskRow({
             value={dataInicial}
             disabled={locked}
             onChange={(v) => {
+              const anteriorDeDatainicial = dataInicial;
               setDataInicial(v);
-              saveField("dataInicial", v);
+              saveField("dataInicial", v, () => setDataInicial(anteriorDeDatainicial));
             }}
           />
         </td>
@@ -559,8 +590,9 @@ export function TaskRow({
             disabled={locked}
             overdue={isOverdue(dataVencimento, status)}
             onChange={(v) => {
+              const anteriorDeDatavencimento = dataVencimento;
               setDataVencimento(v);
-              saveField("dataVencimento", v);
+              saveField("dataVencimento", v, () => setDataVencimento(anteriorDeDatavencimento));
             }}
           />
         </td>
@@ -603,8 +635,9 @@ export function TaskRow({
                   disabled={locked}
                   showLabel
                   onChange={(v) => {
+                    const anterior = eisenhower;
                     setEisenhower(v);
-                    saveField("eisenhower", v);
+                    saveField("eisenhower", v, () => setEisenhower(anterior));
                   }}
                 />
                 <EsforcoPicker
@@ -612,8 +645,9 @@ export function TaskRow({
                   disabled={locked}
                   showLabel
                   onChange={(v) => {
+                    const anterior = esforco;
                     setEsforco(v);
-                    saveField("esforco", v);
+                    saveField("esforco", v, () => setEsforco(anterior));
                   }}
                 />
               </div>
@@ -628,7 +662,9 @@ export function TaskRow({
                   onChange={setObservacoes}
                   onBlur={() => {
                     if (observacoes.trim() !== (task.observacoes ?? ""))
-                      saveField("observacoes", observacoes);
+                      saveField("observacoes", observacoes, () =>
+                        setObservacoes(task.observacoes ?? "")
+                      );
                   }}
                   clientId={task.client_id}
                   urlKey={urlKey}

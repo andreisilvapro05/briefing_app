@@ -1296,15 +1296,30 @@ export async function removeProjectTaskAction(formData: FormData) {
  * FormData (mesmo padrão de setClientContractDataAction). Usado pra editar
  * status/prioridade/responsável/datas inline, um de cada vez.
  */
-export async function updateProjectTaskAction(formData: FormData) {
+/**
+ * Resultado da edição de um campo da tarefa.
+ *
+ * Antes isto devolvia `void` e cada recusa era um `return` seco: papel sem
+ * permissão, valor fora da lista, erro do banco — tudo terminava igual, em
+ * silêncio. Quem editava via o campo com o valor novo na tela e ia embora
+ * achando que tinha salvado; só descobria no próximo carregamento, quando o
+ * valor antigo voltava. Agora a recusa tem nome e a tela desfaz.
+ */
+export type UpdateTaskResult = { ok: true } | { ok: false; erro: string };
+
+export async function updateProjectTaskAction(
+  formData: FormData
+): Promise<UpdateTaskResult> {
   const urlKey = String(formData.get("key") ?? "") || null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
 
   const taskId = String(formData.get("taskId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
-  if (!taskId) return;
-  if (!(await canEditTask(member, taskId))) return;
+  if (!taskId) return { ok: false, erro: "Tarefa não identificada." };
+  if (!(await canEditTask(member, taskId))) {
+    return { ok: false, erro: "Você só edita tarefa em que é o responsável." };
+  }
 
   // Estado anterior: é a diferença que vira aviso ("passou pra você",
   // "mudou o prazo"). Sem ele não dá pra saber o que de fato mudou.
@@ -1330,13 +1345,17 @@ export async function updateProjectTaskAction(formData: FormData) {
   // digitação era preciso apagar a tarefa (e perder comentários e datas).
   if (formData.has("titulo")) {
     const titulo = String(formData.get("titulo") ?? "").trim();
-    if (!titulo || titulo.length > TASK_TITLE_MAX) return;
+    if (!titulo || titulo.length > TASK_TITLE_MAX) {
+      return { ok: false, erro: `O nome precisa ter de 1 a ${TASK_TITLE_MAX} caracteres.` };
+    }
     update.titulo = titulo;
   }
 
   if (formData.has("status")) {
     const status = String(formData.get("status") ?? "");
-    if (!TASK_STATUS_VALUES.includes(status as TaskStatus)) return;
+    if (!TASK_STATUS_VALUES.includes(status as TaskStatus)) {
+      return { ok: false, erro: "Status inválido." };
+    }
     update.status = status;
     // Grupo "fechado" (hoje só "completo-entregue") marca concluida_em e é
     // o que faz a data de vencimento parar de ser destacada como atrasada
@@ -1350,13 +1369,17 @@ export async function updateProjectTaskAction(formData: FormData) {
 
   if (formData.has("prioridade")) {
     const prioridade = String(formData.get("prioridade") ?? "");
-    if (prioridade && !TASK_PRIORITY_VALUES.includes(prioridade)) return;
+    if (prioridade && !TASK_PRIORITY_VALUES.includes(prioridade)) {
+      return { ok: false, erro: "Prioridade inválida." };
+    }
     update.prioridade = prioridade || null;
   }
 
   if (formData.has("responsavel")) {
     const responsavel = String(formData.get("responsavel") ?? "");
-    if (responsavel && !TEAM_MEMBER_VALUES.includes(responsavel)) return;
+    if (responsavel && !TEAM_MEMBER_VALUES.includes(responsavel)) {
+      return { ok: false, erro: "Responsável inválido." };
+    }
     update.responsavel = responsavel || null;
   }
 
@@ -1371,21 +1394,29 @@ export async function updateProjectTaskAction(formData: FormData) {
 
   if (formData.has("area")) {
     const area = String(formData.get("area") ?? "").trim();
-    if (area && !AREA_VALUES.includes(area)) return;
+    if (area && !AREA_VALUES.includes(area)) {
+      return { ok: false, erro: "Área inválida." };
+    }
     // Nunca deixa uma demanda de cliente ganhar área (ver addProjectTaskAction).
-    if (area && antes?.client_id) return;
+    if (area && antes?.client_id) {
+      return { ok: false, erro: "Demanda de cliente não tem área." };
+    }
     update.area = area || null;
   }
 
   if (formData.has("eisenhower")) {
     const q = String(formData.get("eisenhower") ?? "").trim();
-    if (q && !EISENHOWER_VALUES.includes(q)) return;
+    if (q && !EISENHOWER_VALUES.includes(q)) {
+      return { ok: false, erro: "Quadrante inválido." };
+    }
     update.eisenhower = q || null;
   }
 
   if (formData.has("esforco")) {
     const e = String(formData.get("esforco") ?? "").trim();
-    if (e && !ESFORCO_VALUES.includes(e)) return;
+    if (e && !ESFORCO_VALUES.includes(e)) {
+      return { ok: false, erro: "Tamanho de tarefa inválido." };
+    }
     update.esforco = e || null;
   }
 
@@ -1393,14 +1424,18 @@ export async function updateProjectTaskAction(formData: FormData) {
     update.observacoes = String(formData.get("observacoes") ?? "").trim() || null;
   }
 
-  if (Object.keys(update).length === 0) return;
+  // Nada mudou: não é erro, é toque sem efeito.
+  if (Object.keys(update).length === 0) return { ok: true };
 
   const service = createSupabaseServiceRoleClient();
   const { error } = await service
     .from("project_tasks")
     .update(update)
     .eq("id", taskId);
-  if (error) logServerError("updateProjectTaskAction", error);
+  if (error) {
+    logServerError("updateProjectTaskAction", error);
+    return { ok: false, erro: "Não consegui salvar. Confira a conexão e tente de novo." };
+  }
 
   // Avisos da demanda — depois de gravar, e só do que mudou de verdade.
   // `after()` porque o aviso não pode atrasar a resposta do campo editado.
@@ -1464,6 +1499,8 @@ export async function updateProjectTaskAction(formData: FormData) {
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
   revalidatePath("/admin/demandas");
+
+  return { ok: true };
 }
 
 /**

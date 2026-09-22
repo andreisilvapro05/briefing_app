@@ -306,7 +306,14 @@ function LinhaDemanda({
     fd.append(campo, valor);
     if (urlKey) fd.append("key", urlKey);
     try {
-      await updateProjectTaskAction(fd);
+      const r = await updateProjectTaskAction(fd);
+      // A recusa do servidor não é exceção: ela volta como { ok: false }.
+      // Só o catch deixava passar valor recusado em silêncio.
+      if (!r.ok) {
+        reverter();
+        setErro(true);
+        return;
+      }
       onSalvo();
     } catch {
       // Reverte o que a tela já mostrava: deixar o valor novo na tela depois

@@ -674,13 +674,19 @@ export function MyWorkBoard({
     fd.append(field, value);
     if (urlKey) fd.append("key", urlKey);
     startTransition(async () => {
-      try {
-        await updateProjectTaskAction(fd);
-      } catch {
+      function desfazer() {
         setPatches((p) => ({
           ...p,
           [task.id]: { ...p[task.id], [column]: previous },
         }));
+      }
+      try {
+        // Recusa do servidor volta como { ok: false }, não como exceção —
+        // sem esta checagem o valor recusado ficava na tela até recarregar.
+        const r = await updateProjectTaskAction(fd);
+        if (!r.ok) desfazer();
+      } catch {
+        desfazer();
       }
     });
   }
