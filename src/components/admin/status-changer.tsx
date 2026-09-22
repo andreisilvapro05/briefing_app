@@ -45,14 +45,20 @@ export function StatusChanger({
     });
   }
 
+  const rotulo =
+    TASK_STATUS_OPTIONS.find((o) => o.value === current)?.label ?? current;
+
   return (
-    <span className="relative inline-flex">
+    // max-w-full/min-w-0: a largura natural de um <select> é a da opção mais
+    // longa ("Validação implementação"), que estourava a coluna de 150px da
+    // Lista — a pílula ficava cortada no meio, com o canto direito quadrado.
+    <span className="relative inline-flex max-w-full min-w-0" title={rotulo}>
       <select
         value={current}
         onChange={(e) => change(e.target.value)}
         disabled={pending}
         aria-label="Alterar status"
-        className={`appearance-none rounded-full border text-xs font-medium pl-3 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-fysi-deep/30 disabled:opacity-50 ${
+        className={`w-full min-w-0 truncate appearance-none rounded-full border text-xs font-medium pl-3 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-fysi-deep/30 disabled:opacity-50 ${
           TASK_STATUS_TONE[current as TaskStatus] ?? TASK_STATUS_TONE[DEFAULT_TASK_STATUS]
         }`}
       >

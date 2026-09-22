@@ -13,6 +13,7 @@ import {
   type EditRestriction,
 } from "./tasks-board";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
+import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import { DEFAULT_TASK_STATUS, type ProjectTask } from "@/lib/project-tasks";
 
 /**
@@ -111,6 +112,7 @@ export function StatusPieBoard({
   const [periodo, setPeriodo] = useState<PeriodoFiltro>("todos");
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const grupos = useGruposColapsados("fysi-grupos-lista");
 
   function toggleExpanded(clientId: string) {
     setExpanded((prev) => {
@@ -309,48 +311,68 @@ export function StatusPieBoard({
             key={g.id}
             className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card overflow-hidden"
           >
-            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-fysi-line">
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-white"
-                style={{ background: g.color }}
+            <div
+              className={`flex items-center gap-3 px-5 py-3.5 ${
+                grupos.fechado(g.id) ? "" : "border-b border-fysi-line"
+              }`}
+            >
+              {/* O cabeçalho inteiro é o alvo do clique — mirar num triângulo
+                  de 10px pra recolher um bloco é trabalho desnecessário. */}
+              <button
+                type="button"
+                onClick={() => grupos.alternar(g.id)}
+                aria-expanded={!grupos.fechado(g.id)}
+                className="flex items-center gap-3 min-w-0 flex-1 text-left group/cab"
               >
-                {g.label}
-              </span>
-              <span className="text-sm font-semibold text-fysi-deep tabular-nums">
-                {g.clients.length}
-              </span>
-              {g.description ? (
-                <span className="text-[0.72rem] text-fysi-muted truncate hidden md:inline">
-                  {g.description}
+                <span className="text-fysi-muted group-hover/cab:text-fysi-deep">
+                  <Caret aberto={!grupos.fechado(g.id)} />
                 </span>
-              ) : null}
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-white"
+                  style={{ background: g.color }}
+                >
+                  {g.label}
+                </span>
+                <span className="text-sm font-semibold text-fysi-deep tabular-nums">
+                  {g.clients.length}
+                </span>
+                {g.description ? (
+                  <span className="text-[0.72rem] text-fysi-muted truncate hidden md:inline">
+                    {g.description}
+                  </span>
+                ) : null}
+              </button>
               <Link
                 href={novoHref}
-                className="ml-auto text-xs font-medium text-fysi-deep hover:underline"
+                className="ml-auto shrink-0 text-xs font-medium text-fysi-deep hover:underline"
               >
                 + Novo projeto
               </Link>
             </div>
 
-            <div className="hidden md:grid grid-cols-[1fr_160px_150px_90px_64px] gap-3 px-5 py-2 bg-fysi-cream/40 text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
-              <span>Cliente</span>
-              <span>Tipo</span>
-              <span>Status</span>
-              <span>Pagamento</span>
-              <span className="text-right">Ação</span>
-            </div>
+            {grupos.fechado(g.id) ? null : (
+              <>
+                <div className="hidden md:grid grid-cols-[1fr_160px_150px_90px_64px] gap-3 px-5 py-2 bg-fysi-cream/40 text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                  <span>Cliente</span>
+                  <span>Tipo</span>
+                  <span>Status</span>
+                  <span>Pagamento</span>
+                  <span className="text-right">Ação</span>
+                </div>
 
-            {g.clients.map((c) => (
-              <ClientAccordionRow
-                key={c.id}
-                c={c}
-                isOpen={expanded.has(c.id)}
-                onToggle={() => toggleExpanded(c.id)}
-                urlKey={urlKey}
-                keyParam={keyParam}
-                restrictToResponsavel={restrictToResponsavel}
-              />
-            ))}
+                {g.clients.map((c) => (
+                  <ClientAccordionRow
+                    key={c.id}
+                    c={c}
+                    isOpen={expanded.has(c.id)}
+                    onToggle={() => toggleExpanded(c.id)}
+                    urlKey={urlKey}
+                    keyParam={keyParam}
+                    restrictToResponsavel={restrictToResponsavel}
+                  />
+                ))}
+              </>
+            )}
           </div>
         ))}
       </section>
@@ -417,22 +439,37 @@ function ClientAccordionRow({
     <div className="border-t border-fysi-line/70">
       <div className="grid grid-cols-2 md:grid-cols-[1fr_160px_150px_90px_64px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
         <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
+          {/* O nome é o botão de abrir as subtarefas, não só o triângulo:
+              era o que se tentava clicar. Quem quer ABRIR a ficha usa o
+              "Ver →" no fim da linha — são duas intenções diferentes e
+              agora cada uma tem seu alvo. Cliente sem subtarefa nenhuma não
+              tem o que recolher: aí o nome leva direto pra ficha. */}
           {hasTarefas ? (
             <button
               type="button"
               onClick={onToggle}
               aria-expanded={isOpen}
-              aria-label={isOpen ? "Fechar subtarefas" : "Abrir subtarefas"}
-              className="text-fysi-muted hover:text-fysi-deep shrink-0 w-4"
+              className="flex items-center gap-1.5 min-w-0 text-left group/nome"
+              title={isOpen ? "Fechar subtarefas" : "Abrir subtarefas"}
             >
-              {isOpen ? "▾" : "▸"}
+              <span className="text-fysi-muted group-hover/nome:text-fysi-deep shrink-0 w-4">
+                <Caret aberto={isOpen} />
+              </span>
+              <span className="font-medium text-fysi-deep truncate group-hover/nome:underline underline-offset-2">
+                {c.empresa || c.nome}
+              </span>
             </button>
           ) : (
-            <span className="w-4 shrink-0" />
+            <>
+              <span className="w-4 shrink-0" />
+              <a
+                href={`/admin/${c.id}${keyParam}`}
+                className="font-medium text-fysi-deep truncate hover:underline underline-offset-2"
+              >
+                {c.empresa || c.nome}
+              </a>
+            </>
           )}
-          <span className="font-medium text-fysi-deep truncate">
-            {c.empresa || c.nome}
-          </span>
           {c.parado ? (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-xs uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
@@ -444,7 +481,7 @@ function ClientAccordionRow({
           ) : null}
         </span>
         <span className="text-fysi-muted truncate">{c.tipo}</span>
-        <span className="truncate flex items-center gap-2">
+        <span className="flex items-center gap-2 min-w-0">
           <StatusChanger
             clientId={c.id}
             status={c.status || DEFAULT_TASK_STATUS}

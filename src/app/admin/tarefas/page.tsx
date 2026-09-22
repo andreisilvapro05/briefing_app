@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function AdminTarefasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ key?: string }>;
+  searchParams: Promise<{ key?: string; resp?: string }>;
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
@@ -61,6 +61,9 @@ export default async function AdminTarefasPage({
         restrictToResponsavel={
           member.role === "basico" ? member.taskValue : undefined
         }
+        // Cada aba tem seu endereço (?resp=valeria), como as views do
+        // ClickUp: recarregar mantém a lista, e o link pode ser mandado.
+        viewInicial={params.resp ?? ""}
       />
     </AdminShell>
   );

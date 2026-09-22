@@ -20,11 +20,15 @@ import {
 } from "@/lib/project-tasks";
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
 import { TaskComposer } from "./task-composer";
+import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import type { ClientOption } from "./task-pickers";
 
 /** Esta tela agrupa POR cliente, então demanda interna (client null) é
  * filtrada antes de chegar aqui — ver /admin/tarefas. */
 type Task = ProjectTask & { client: ProjectTaskClient; client_id: string };
+
+/** Valor de aba das tarefas órfãs — "" já significa "todas". */
+const SEM_DONO = "__sem__";
 
 /**
  * Visão central de todas as tarefas de todos os clientes — /admin/tarefas.
@@ -36,33 +40,83 @@ export function AllTasksBoard({
   urlKey,
   clients = [],
   restrictToResponsavel,
+  viewInicial = "",
 }: {
   tasks: Task[];
   urlKey?: string;
   /** Clientes visíveis pra pessoa — opções do "+ Nova tarefa". */
   clients?: ClientOption[];
   restrictToResponsavel?: EditRestriction;
+  /**
+   * Aba aberta ao chegar, lida do `?resp=` pelo servidor. Vem por prop em
+   * vez de useSearchParams pra não exigir Suspense nesta árvore.
+   */
+  viewInicial?: string;
 }) {
   const [query, setQuery] = useState("");
   const [criando, setCriando] = useState(false);
   // "Agrupar por" é como o ClickUp organiza a lista — sem isso, 130 tarefas
   // de 30 clientes viram uma tabela plana em que nada salta.
   const [agruparPor, setAgruparPor] = useState<Agrupamento>("status");
-  const [responsavel, setResponsavel] = useState("");
+  /** "" = todos; SEM_DONO = as órfãs; senão o `value` da pessoa. */
+  const [responsavel, setResponsavel] = useState(viewInicial);
   const [mostrarFechados, setMostrarFechados] = useState(false);
+  const colapso = useGruposColapsados("fysi-grupos-tarefas");
+
+  /**
+   * A aba escolhida fica na URL: no ClickUp cada "Lista Valéria" é um
+   * endereço próprio, que se recarrega e se manda pra alguém. `replaceState`
+   * em vez de router.push porque a página é force-dynamic — empurrar pelo
+   * router refaria a consulta inteira no servidor só pra filtrar no cliente.
+   */
+  function escolherView(v: string) {
+    setResponsavel(v);
+    if (typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search);
+    if (v) q.set("resp", v);
+    else q.delete("resp");
+    const busca = q.toString();
+    window.history.replaceState(
+      null,
+      "",
+      busca ? `${window.location.pathname}?${busca}` : window.location.pathname
+    );
+  }
 
   const abertasTotal = useMemo(
     () => tasks.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo"),
     [tasks]
   );
-  const distribuicao = useMemo(() => {
-    const porPessoa = TEAM_MEMBERS.map((m) => ({
-      member: m,
-      count: abertasTotal.filter((t) => t.responsavel === m.value).length,
-    }));
-    const semResponsavel = abertasTotal.filter((t) => !t.responsavel).length;
-    return { porPessoa, semResponsavel };
-  }, [abertasTotal]);
+  /**
+   * As abas. Pessoa sem nenhuma tarefa aberta não vira aba — a barra mostra
+   * quem tem trabalho agora, não o quadro de funcionários. A aba da pessoa
+   * escolhida fica mesmo zerada, senão a aba some debaixo do clique.
+   */
+  const viewsDisponiveis = useMemo(() => {
+    const lista: {
+      value: string;
+      label: string;
+      iniciais?: string;
+      cor?: string;
+      count: number;
+    }[] = [{ value: "", label: "Todos", count: abertasTotal.length }];
+    for (const m of TEAM_MEMBERS) {
+      const count = abertasTotal.filter((t) => t.responsavel === m.value).length;
+      if (count === 0 && responsavel !== m.value) continue;
+      lista.push({
+        value: m.value,
+        label: m.label,
+        iniciais: m.iniciais,
+        cor: m.cor,
+        count,
+      });
+    }
+    const orfas = abertasTotal.filter((t) => !t.responsavel).length;
+    if (orfas > 0 || responsavel === SEM_DONO) {
+      lista.push({ value: SEM_DONO, label: "Sem responsável", count: orfas });
+    }
+    return lista;
+  }, [abertasTotal, responsavel]);
 
   const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
     "fysi-cols-alltasks",
@@ -72,7 +126,11 @@ export function AllTasksBoard({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tasks.filter((t) => {
-      if (responsavel && t.responsavel !== responsavel) return false;
+      if (responsavel === SEM_DONO) {
+        if (t.responsavel) return false;
+      } else if (responsavel && t.responsavel !== responsavel) {
+        return false;
+      }
       if (!q) return true;
       const nomeCliente = (t.client.empresa || t.client.nome || "").toLowerCase();
       return (
@@ -91,9 +149,57 @@ export function AllTasksBoard({
   const fechadas = filtered.filter(
     (t) => TASK_STATUS_GROUP[t.status] === "fechado"
   );
+  const chavesGrupos = grupos.map((g) => g.chave);
+  const todosFechados =
+    chavesGrupos.length > 0 &&
+    colapso.totalFechados(chavesGrupos) === chavesGrupos.length;
 
   return (
     <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6">
+      {/* Abas de visualização — as "Lista", "Lista Karine", "Lista Andrei"
+          do ClickUp. Antes isto era um <select> mais uma fileira de pílulas
+          fazendo a mesma coisa em dois lugares; a aba diz de relance em qual
+          lista você está e quantas tarefas cada pessoa tem em aberto. */}
+      <div
+        role="tablist"
+        aria-label="Lista por responsável"
+        className="flex items-end gap-1 overflow-x-auto -mx-6 px-6 mb-5 border-b border-fysi-line"
+      >
+        {viewsDisponiveis.map((v) => {
+          const ativa = responsavel === v.value;
+          return (
+            <button
+              key={v.value || "todos"}
+              type="button"
+              role="tab"
+              aria-selected={ativa}
+              onClick={() => escolherView(v.value)}
+              className={`flex items-center gap-2 shrink-0 whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px transition ${
+                ativa
+                  ? "border-fysi-deep text-fysi-deep font-semibold"
+                  : "border-transparent text-fysi-muted hover:text-fysi-deep hover:border-fysi-line-strong"
+              }`}
+            >
+              {v.iniciais ? (
+                <span
+                  className={`w-5 h-5 rounded-full grid place-items-center text-[0.6rem] font-bold text-white shrink-0 ${v.cor}`}
+                >
+                  {v.iniciais}
+                </span>
+              ) : null}
+              {v.label}
+              <span
+                className={`tabular-nums text-xs ${
+                  ativa ? "text-fysi-deep/60" : "text-fysi-muted"
+                }`}
+              >
+                {v.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h3 className="text-lg font-medium text-fysi-deep">
@@ -125,18 +231,19 @@ export function AllTasksBoard({
               <option value="nenhum">Nada</option>
             </select>
           </label>
-          <select
-            value={responsavel}
-            onChange={(e) => setResponsavel(e.target.value)}
-            className="rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5"
-          >
-            <option value="">Todos os responsáveis</option>
-            {TEAM_MEMBERS.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          {agruparPor !== "nenhum" && chavesGrupos.length > 1 ? (
+            <button
+              type="button"
+              onClick={() =>
+                todosFechados
+                  ? colapso.abrirTodos()
+                  : colapso.fecharTodos(chavesGrupos)
+              }
+              className="rounded-[8px] border border-fysi-line text-sm text-fysi-muted hover:text-fysi-deep px-2.5 py-1.5 transition"
+            >
+              {todosFechados ? "Expandir tudo" : "Recolher tudo"}
+            </button>
+          ) : null}
           {/* "basico" sem vínculo não cria (o servidor recusaria). */}
           {restrictToResponsavel === null ? null : (
             <button
@@ -162,7 +269,9 @@ export function AllTasksBoard({
             defaultResponsavel={
               typeof restrictToResponsavel === "string"
                 ? restrictToResponsavel
-                : responsavel
+                : responsavel === SEM_DONO
+                  ? ""
+                  : responsavel
             }
             lockResponsavel={typeof restrictToResponsavel === "string"}
             urlKey={urlKey}
@@ -172,42 +281,6 @@ export function AllTasksBoard({
           />
         </div>
       ) : null}
-
-      <div className="flex flex-wrap gap-2 mb-5">
-        {distribuicao.porPessoa.map(({ member, count }) => {
-          const isActive = responsavel === member.value;
-          return (
-            <button
-              key={member.value}
-              type="button"
-              onClick={() =>
-                setResponsavel((cur) => (cur === member.value ? "" : member.value))
-              }
-              className={`flex items-center gap-2 rounded-full border pl-1.5 pr-3 py-1 text-xs font-medium transition ${
-                isActive
-                  ? "border-fysi-deep bg-fysi-deep text-fysi-cream"
-                  : "border-fysi-line bg-white text-fysi-deep hover:border-fysi-deep/40"
-              }`}
-            >
-              <span
-                className={`w-5 h-5 rounded-full grid place-items-center text-[0.6rem] font-bold text-white shrink-0 ${member.cor}`}
-              >
-                {member.iniciais}
-              </span>
-              {member.label}
-              <span className={isActive ? "text-fysi-cream/80" : "text-fysi-muted"}>
-                {count}
-              </span>
-            </button>
-          );
-        })}
-        {distribuicao.semResponsavel > 0 ? (
-          <span className="flex items-center gap-1.5 rounded-full border border-dashed border-fysi-line px-3 py-1 text-xs text-fysi-muted">
-            Sem responsável
-            <span className="font-medium">{distribuicao.semResponsavel}</span>
-          </span>
-        ) : null}
-      </div>
 
       {tasks.length === 0 ? (
         <p className="text-sm text-fysi-muted">
@@ -248,7 +321,18 @@ export function AllTasksBoard({
                         scope="colgroup"
                         className="bg-fysi-cream/60 px-3 py-1.5 text-left"
                       >
-                        <span className="inline-flex items-center gap-2">
+                        {/* Clicar no cabeçalho recolhe o grupo, como no
+                            ClickUp. "Concluído: 67" empurrava pra baixo os
+                            três itens que interessam. */}
+                        <button
+                          type="button"
+                          onClick={() => colapso.alternar(g.chave)}
+                          aria-expanded={!colapso.fechado(g.chave)}
+                          className="inline-flex items-center gap-2 text-left group/cab"
+                        >
+                          <span className="text-fysi-muted group-hover/cab:text-fysi-deep">
+                            <Caret aberto={!colapso.fechado(g.chave)} />
+                          </span>
                           {g.tom ? (
                             <span
                               className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.7rem] font-medium ${g.tom}`}
@@ -263,20 +347,24 @@ export function AllTasksBoard({
                           <span className="text-xs text-fysi-muted">
                             {g.tarefas.length}
                           </span>
-                        </span>
+                        </button>
                       </th>
                     </tr>
                   ) : null}
-                  {g.tarefas.map((t) => (
-                    <TaskRow
-                      key={t.id}
-                      task={t}
-                      clientId={t.client_id}
-                      urlKey={urlKey}
-                      clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
-                      readOnly={isReadOnlyFor(t, restrictToResponsavel)}
-                    />
-                  ))}
+                  {g.titulo && colapso.fechado(g.chave)
+                    ? null
+                    : g.tarefas.map((t) => (
+                        <TaskRow
+                          key={t.id}
+                          task={t}
+                          clientId={t.client_id}
+                          urlKey={urlKey}
+                          clienteCell={
+                            <ClienteLink client={t.client} urlKey={urlKey} />
+                          }
+                          readOnly={isReadOnlyFor(t, restrictToResponsavel)}
+                        />
+                      ))}
                 </Fragment>
               ))}
               {mostrarFechados
