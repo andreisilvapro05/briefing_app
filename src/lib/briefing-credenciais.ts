@@ -34,7 +34,24 @@ export interface CredencialItem {
  * nunca texto, senão "combinei a senha: depois eu mando" viraria credencial.
  */
 const RE_CREDENCIAL =
-  /^[\s*\-•·>#]*(?:\*\*)?\s*(senha|password|login|usu[áa]rio|user|e-?mail de acesso|acesso)(?:\*\*)?\s*:\s*(.*)$/i;
+  /^[\s*\-•·>#]*(?:\*\*)?\s*(senha|pass(?:word|wd)?|login|usu[áa]rio|user\s?name|user|e-?mail de acesso|acesso)(?:\*\*)?\s*[:：]\s*(.*)$/i;
+
+/**
+ * Linha no formato "Rótulo: valor" que NÃO é credencial — um campo do
+ * Modelo ("Paleta: Azul", "Prazo: 30/10", "Logo do cliente: enviado").
+ *
+ * Dentro do bloco "Dados de acesso …" a suspeita está invertida (toda linha
+ * curta vira credencial), e a revisão de 22/09 mostrou o preço: rodando o
+ * código real sobre uma EI no formato do Modelo, os campos seguintes ao de
+ * acesso — paleta, tipografia, prazo, responsável — saíam do documento e
+ * reapareciam no cofre como "acesso (sem rótulo)". Um campo rotulado que
+ * não é de acesso é o sinal mais confiável de que o assunto mudou: ele
+ * FECHA a região, além de não ser credencial.
+ */
+const RE_CAMPO_ROTULADO = /^[\s*\-•·>#]*(?:\*\*)?\s*([^:：]{2,40}?)(?:\*\*)?\s*[:：]\s*\S/;
+
+/** Frase, não valor: termina em "?" ou tem cara de pergunta do briefing. */
+const RE_PERGUNTA = /\?\s*$/;
 
 /**
  * Tira o negrito/itálico que sobra do markdown em volta do valor.
@@ -93,10 +110,23 @@ function pareceCredencialSolta(t: string, dentroDeRegiao = false): boolean {
   if (linha.length < 3 || linha.length > limite) return false;
   if (/^https?:\/\//i.test(linha)) return false;
   if (/[:：]\s*$/.test(linha)) return false;
+  const tokens = linha.split(/\s+/);
   // Frase tem espaços e palavras; credencial, não. Dentro de um bloco de
-  // acesso a régua afrouxa: lá a linha crua é a regra, não a exceção, e
-  // "joao.silva 2024" ou "usuario admin" precisam passar.
-  if (linha.split(/\s+/).length > (dentroDeRegiao ? 5 : 2)) return false;
+  // acesso a régua afrouxa um pouco — "joao.silva 2024" precisa passar —
+  // mas não a ponto de engolir prosa: a revisão de 22/09 mostrou "Azul e
+  // branco, algo clean" indo pro cofre com a régua de 5 palavras. Então:
+  // até 3 tokens, e com mais de um, algum deles tem que ter dígito ou
+  // símbolo. Frase de verdade quase nunca tem.
+  if (tokens.length > (dentroDeRegiao ? 3 : 2)) return false;
+  if (tokens.length > 1 && !tokens.some((tk) => /[0-9@._\-!#$%&*+=/\\]/.test(tk))) {
+    return false;
+  }
+  // Uma palavra só, curta e sem nada além de letras ("Azul", "admin") é
+  // resposta de briefing tanto quanto usuário — e usuário sem senha não é
+  // segredo. Fica no corpo.
+  if (tokens.length === 1 && linha.length < 6 && /^[A-Za-zÀ-ÿ]+$/.test(linha)) {
+    return false;
+  }
   const classes =
     Number(/[a-z]/.test(linha)) +
     Number(/[A-Z]/.test(linha)) +
@@ -146,15 +176,58 @@ export function extrairCredenciais(
    * RE_ABRE_BLOCO_ACESSO pro porquê.
    */
   let regiaoAcesso = false;
+  /**
+   * Linhas seguidas, dentro da região, que NÃO pareceram valor. Duas delas
+   * fecham a região: se o texto voltou a ser prosa, o bloco de acesso
+   * acabou mesmo que ninguém tenha posto um título depois — sem isso, uma
+   * região aberta num parágrafo sem título nenhum abaixo engolia o
+   * documento até o fim (medido na revisão: pergunta do briefing, Instagram,
+   * e-mail e valor do projeto iam pro cofre).
+   */
+  let linhasSemValorNaRegiao = 0;
 
   for (const bloco of blocks) {
-    const texto = blockPlainText(bloco);
+    const textoBruto = blockPlainText(bloco);
     const tipo = (bloco as { type?: string }).type;
+
+    // Bloco de código multilinha: é como se cola um par login/senha, e a
+    // regex de credencial não atravessa "\n". Se QUALQUER linha do bloco
+    // for credencial, o bloco inteiro vai pro cofre — um codeBlock com senha
+    // não tem parte aproveitável no corpo. Achado da revisão de 22/09.
+    if (tipo === "codeBlock" && textoBruto.includes("\n")) {
+      const linhas = textoBruto.split("\n");
+      const achadas: CredencialItem[] = [];
+      for (const linha of linhas) {
+        const m = RE_CREDENCIAL.exec(linha);
+        if (m && ehValorReal(m[2])) {
+          achadas.push({ contexto, rotulo: m[1].trim(), valor: limparValor(m[2]) });
+        } else if (regiaoAcesso && pareceCredencialSolta(linha, true)) {
+          achadas.push({
+            contexto,
+            rotulo: "acesso (sem rótulo no briefing)",
+            valor: linha.trim(),
+          });
+        }
+      }
+      if (achadas.length > 0) {
+        credenciais.push(...achadas);
+        if (!jaAvisou) {
+          saida.push(avisoDeCofre());
+          jaAvisou = true;
+        }
+        continue;
+      }
+      saida.push(bloco);
+      continue;
+    }
+
+    const texto = textoBruto;
 
     // Título ou divisor fecham o bloco de acesso — é onde o assunto vira
     // outro. Sem esse fim, a varredura sairia comendo o documento inteiro.
     if (tipo === "heading" || tipo === "divider") {
       regiaoAcesso = RE_ABRE_BLOCO_ACESSO.test(texto);
+      linhasSemValorNaRegiao = 0;
       if (regiaoAcesso) contexto = texto.trim() || contexto;
     }
 
@@ -198,8 +271,21 @@ export function extrairCredenciais(
     if (!RE_CREDENCIAL.test(texto) && RE_CONTEXTO.test(texto) && /:\s*$/.test(texto)) {
       contexto = texto.replace(/:\s*$/, "").trim();
       // No Modelo de EI esse campo é parágrafo, não título — e é ele que
-      // abre o bloco de acesso na maioria das páginas.
-      regiaoAcesso = RE_ABRE_BLOCO_ACESSO.test(texto);
+      // abre o bloco de acesso na maioria das páginas. Um sub-rótulo de
+      // acesso ("Link da hospedagem:", "WordPress:") dentro de um bloco já
+      // aberto MANTÉM a região: antes fechava, e as senhas soltas logo
+      // abaixo ficavam no corpo.
+      regiaoAcesso = regiaoAcesso || RE_ABRE_BLOCO_ACESSO.test(texto);
+      linhasSemValorNaRegiao = 0;
+      saida.push(bloco);
+      continue;
+    }
+
+    // Um campo rotulado que não é de acesso ("Paleta: Azul", "Prazo: 30/10")
+    // é o próximo item do Modelo: fecha o bloco de acesso e fica no corpo.
+    if (regiaoAcesso && RE_CAMPO_ROTULADO.test(texto) && !RE_CREDENCIAL.test(texto)) {
+      regiaoAcesso = false;
+      linhasSemValorNaRegiao = 0;
       saida.push(bloco);
       continue;
     }
@@ -210,8 +296,10 @@ export function extrairCredenciais(
     // terceira senha ficava no corpo.
     const solta =
       (regiaoAcesso || janelaSolta > 0) &&
+      !RE_PERGUNTA.test(texto) &&
       pareceCredencialSolta(texto, regiaoAcesso);
     if (solta) {
+      linhasSemValorNaRegiao = 0;
       if (!regiaoAcesso) janelaSolta -= 1;
       credenciais.push({
         contexto,
@@ -225,6 +313,13 @@ export function extrairCredenciais(
       continue;
     }
     if (texto.trim() && !regiaoAcesso) janelaSolta = 0;
+    if (texto.trim() && regiaoAcesso) {
+      linhasSemValorNaRegiao += 1;
+      if (linhasSemValorNaRegiao >= 2) {
+        regiaoAcesso = false;
+        linhasSemValorNaRegiao = 0;
+      }
+    }
 
     saida.push(bloco);
   }
