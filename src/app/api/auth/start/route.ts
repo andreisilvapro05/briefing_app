@@ -161,7 +161,13 @@ export async function POST(request: NextRequest) {
         email: parsed.email ?? "",
         empresa: parsed.empresa ?? "",
         whatsapp: parsed.whatsapp,
-        origem: parsed.origem || null,
+        // A coluna se chama `como_conheceu`, não `origem`: a `origem` foi
+        // criada por engano e removida na migration 20260911000000. Este
+        // insert continuou mandando `origem` e, como PostgREST rejeita
+        // coluna que não existe, TODO cliente novo pela Tela 1 morria em
+        // "create-failed" desde 2026-09-11 — os clientes criados depois
+        // dessa data no banco nasceram todos pelo formulário de contrato.
+        como_conheceu: parsed.origem || null,
         ip_address: ip as never,
         user_agent: ua,
         magic_slug: generateMagicSlug({
