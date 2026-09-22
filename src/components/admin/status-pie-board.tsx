@@ -207,11 +207,29 @@ export function StatusPieBoard({
 
         {total === 0 ? (
           <p className="text-sm text-fysi-muted py-8 text-center">
-            Nenhum projeto ainda.{" "}
-            <Link href={novoHref} className="text-fysi-deep underline">
-              Adicione o primeiro
-            </Link>
-            .
+            {periodo === "todos" ? (
+              <>
+                Nenhum projeto ainda.{" "}
+                <Link href={novoHref} className="text-fysi-deep underline">
+                  Adicione o primeiro
+                </Link>
+                .
+              </>
+            ) : (
+              // Com o filtro de mês ligado (que é o padrão desde 22/09),
+              // "nenhum projeto ainda" mentia com a agência cheia de projeto.
+              <>
+                Nenhum projeto entrou este mês.{" "}
+                <button
+                  type="button"
+                  onClick={() => setPeriodo("todos")}
+                  className="text-fysi-deep underline"
+                >
+                  Ver todo o período
+                </button>
+                .
+              </>
+            )}
           </p>
         ) : (
           <div className="grid md:grid-cols-[260px_1fr] gap-6 items-center">

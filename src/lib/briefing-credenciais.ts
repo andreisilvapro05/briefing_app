@@ -34,7 +34,7 @@ export interface CredencialItem {
  * nunca texto, senão "combinei a senha: depois eu mando" viraria credencial.
  */
 const RE_CREDENCIAL =
-  /^[\s*\-•·>#]*(?:\*\*)?\s*(senha|pass(?:word|wd)?|login|usu[áa]rio|user\s?name|user|e-?mail de acesso|acesso)(?:\*\*)?\s*[:：]\s*(.*)$/i;
+  /^[\s*\-•·>#|]*(?:\*\*)?\s*(senha|pass(?:word|wd)?|login|usu[áa]rio|user\s?name|user|e-?mail de acesso|acesso)(?:\*\*)?\s*[:：]\s*(.*)$/i;
 
 /**
  * Linha no formato "Rótulo: valor" que NÃO é credencial — um campo do
@@ -62,7 +62,8 @@ const RE_PERGUNTA = /\?\s*$/;
  * fosse usar copiaria junto.
  */
 function limparValor(v: string): string {
-  return v.replace(/^[\s*_`]+/, "").replace(/[\s*_`]+$/, "");
+  // O "|" é a borda da célula quando a credencial veio numa tabela markdown.
+  return v.replace(/^[\s*_`|]+/, "").replace(/[\s*_`|]+$/, "");
 }
 
 /** Cabeçalhos que definem o "contexto" de credenciais que vêm abaixo. */
