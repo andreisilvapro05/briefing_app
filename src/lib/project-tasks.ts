@@ -181,6 +181,12 @@ export const AREAS: Area[] = [
     barra: "bg-emerald-500",
   },
   {
+    value: "atendimento",
+    label: "Atendimento",
+    tom: "bg-teal-50 text-teal-800 border-teal-200",
+    barra: "bg-teal-500",
+  },
+  {
     value: "curso",
     label: "Curso",
     tom: "bg-violet-50 text-violet-800 border-violet-200",
