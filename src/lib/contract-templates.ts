@@ -16,10 +16,15 @@ export interface ContractTemplate {
   link_parcelamento?: string;
 }
 
+/**
+ * `label` é rótulo dos botões "Pacotes padrão" no admin, então segue a
+ * regra da casa e não leva emoji. O que chega ao contrato do cliente é
+ * `pacote_nome` ("Fysilab Start"), que nunca teve.
+ */
 export const STANDARD_TEMPLATES: ContractTemplate[] = [
   {
     id: "fysilab-start",
-    label: "🚀 Fysilab Start (landing simples)",
+    label: "Fysilab Start (landing simples)",
     pacote_nome: "Fysilab Start",
     valor_parcelamento: "R$1.800,00 à vista ou 7x de R$260",
     prazo_execucao: "06 dias úteis",
@@ -33,7 +38,7 @@ export const STANDARD_TEMPLATES: ContractTemplate[] = [
   },
   {
     id: "fysilab-pro-copy",
-    label: "✨ Fysilab Pro com Copy (landing + copy estratégica)",
+    label: "Fysilab Pro com Copy (landing + copy estratégica)",
     pacote_nome: "Fysilab Pro com Copy",
     valor_parcelamento: "R$2.300,00 à vista ou 7x de R$420",
     prazo_execucao: "12 dias úteis",
@@ -49,7 +54,7 @@ export const STANDARD_TEMPLATES: ContractTemplate[] = [
   },
   {
     id: "site-completo",
-    label: "🏗️ Site completo (múltiplas páginas)",
+    label: "Site completo (múltiplas páginas)",
     pacote_nome: "Site completo",
     valor_parcelamento: "R$4.500,00 à vista ou 10x de R$490",
     prazo_execucao: "20 dias úteis",
@@ -64,7 +69,7 @@ export const STANDARD_TEMPLATES: ContractTemplate[] = [
   },
   {
     id: "seo-mensal",
-    label: "📈 SEO mensal (recorrente)",
+    label: "SEO mensal (recorrente)",
     pacote_nome: "SEO Fysi",
     valor_parcelamento: "R$1.500,00 / mês — fidelidade mínima 3 meses",
     prazo_execucao: "Recorrente (mensal)",
