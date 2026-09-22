@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { addProjectTaskAction } from "@/app/admin/[id]/actions";
 import {
   AreaPicker,
+  EisenhowerPicker,
+  EsforcoPicker,
   AssigneePicker,
   ClientPicker,
   DueDatePicker,
@@ -66,6 +68,10 @@ export function TaskComposer({
   const [responsavel, setResponsavel] = useState(defaultResponsavel);
   const [prazo, setPrazo] = useState("");
   const [prioridade, setPrioridade] = useState("");
+  // Os dois são opcionais ("se quiser", pedido da Karine): nascem vazios e
+  // voltam ao vazio depois de criar, como o prazo e a prioridade.
+  const [eisenhower, setEisenhower] = useState("");
+  const [esforco, setEsforco] = useState("");
   const [area, setArea] = useState(defaultArea);
   const [erro, setErro] = useState<string | null>(null);
   const [criada, setCriada] = useState<string | null>(null);
@@ -96,6 +102,8 @@ export function TaskComposer({
     fd.append("responsavel", responsavel);
     fd.append("dataVencimento", prazo);
     fd.append("prioridade", prioridade);
+    fd.append("eisenhower", eisenhower);
+    fd.append("esforco", esforco);
     // Área só acompanha demanda interna (o servidor recusa nas de cliente).
     if (cliente === "") fd.append("area", area);
     if (urlKey) fd.append("key", urlKey);
@@ -122,6 +130,8 @@ export function TaskComposer({
       setTitulo("");
       setPrazo("");
       setPrioridade("");
+      setEisenhower("");
+      setEsforco("");
       inputRef.current?.focus();
       router.refresh();
     });
@@ -185,6 +195,18 @@ export function TaskComposer({
           <PriorityPicker
             value={prioridade}
             onChange={setPrioridade}
+            disabled={pending}
+            showLabel
+          />
+          <EsforcoPicker
+            value={esforco}
+            onChange={setEsforco}
+            disabled={pending}
+            showLabel
+          />
+          <EisenhowerPicker
+            value={eisenhower}
+            onChange={setEisenhower}
             disabled={pending}
             showLabel
           />

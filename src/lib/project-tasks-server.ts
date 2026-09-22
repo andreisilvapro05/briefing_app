@@ -16,6 +16,8 @@ function normalizeTask(row: Record<string, unknown>): ProjectTask {
     ordem: Number(row.ordem ?? 0),
     status: (row.status as TaskStatus) ?? "a-iniciar",
     prioridade: (row.prioridade as string | null) ?? null,
+    eisenhower: (row.eisenhower as string | null) ?? null,
+    esforco: (row.esforco as string | null) ?? null,
     responsavel: (row.responsavel as string | null) ?? null,
     data_inicial: (row.data_inicial as string | null) ?? null,
     data_vencimento: (row.data_vencimento as string | null) ?? null,

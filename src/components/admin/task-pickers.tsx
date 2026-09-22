@@ -13,8 +13,13 @@ import {
 } from "react";
 import {
   AREAS,
+  EISENHOWER,
+  ESFORCOS,
   TASK_PRIORITY_OPTIONS,
   TEAM_MEMBERS,
+  esforcoDe,
+  quadranteDe,
+  type Quadrante,
 } from "@/lib/project-tasks";
 
 /**
@@ -749,5 +754,244 @@ export function AreaPicker({
         </div>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Matriz de Eisenhower — grade 2×2 de verdade, não uma lista de quatro
+ * rótulos.
+ *
+ * A matriz só ajuda quando os dois eixos estão à vista: o que faz pensar é
+ * ver que "responder e-mail" cai na coluna urgente E na linha "não
+ * importante" ao mesmo tempo. Numa lista suspensa isso vira quatro nomes
+ * soltos e a pessoa escolhe pelo rótulo que soa melhor, que é o contrário
+ * do exercício.
+ */
+export function EisenhowerPicker({
+  value,
+  onChange,
+  disabled,
+  showLabel = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  showLabel?: boolean;
+}) {
+  const { open, toggle, close, triggerRef, panelRef, panelStyle } =
+    usePopover();
+  const atual = quadranteDe(value);
+
+  function escolher(v: string) {
+    onChange(v === value ? "" : v);
+    close();
+  }
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={
+          atual
+            ? `${atual.label} — ${atual.acao}`
+            : "Matriz de Eisenhower: urgente × importante"
+        }
+        className={`${CHIP_CLASS} ${atual ? atual.tom : "text-fysi-muted"}`}
+      >
+        <IconeMatriz />
+        {atual ? atual.label : showLabel ? "Matriz" : null}
+      </button>
+      {open ? (
+        <div
+          ref={panelRef}
+          role="menu"
+          style={panelStyle}
+          className={`${PANEL_CLASS} w-[21rem] p-2.5`}
+        >
+          <div className="grid grid-cols-[auto_1fr_1fr] gap-1.5 items-stretch">
+            <span />
+            <span className="text-[0.62rem] uppercase tracking-[0.1em] text-fysi-muted text-center pb-0.5">
+              Urgente
+            </span>
+            <span className="text-[0.62rem] uppercase tracking-[0.1em] text-fysi-muted text-center pb-0.5">
+              Não urgente
+            </span>
+
+            <EixoVertical texto="Importante" />
+            <CelulaMatriz q={EISENHOWER[0]} value={value} onPick={escolher} />
+            <CelulaMatriz q={EISENHOWER[1]} value={value} onPick={escolher} />
+
+            <EixoVertical texto="Não import." />
+            <CelulaMatriz q={EISENHOWER[2]} value={value} onPick={escolher} />
+            <CelulaMatriz q={EISENHOWER[3]} value={value} onPick={escolher} />
+          </div>
+          {value ? (
+            <button
+              type="button"
+              onClick={() => {
+                onChange("");
+                close();
+              }}
+              className="mt-2 w-full text-center text-xs text-fysi-muted hover:text-fysi-deep py-1"
+            >
+              Tirar da matriz
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function EixoVertical({ texto }: { texto: string }) {
+  return (
+    <span className="grid place-items-center px-0.5">
+      <span className="text-[0.62rem] uppercase tracking-[0.08em] text-fysi-muted [writing-mode:vertical-rl] rotate-180 whitespace-nowrap">
+        {texto}
+      </span>
+    </span>
+  );
+}
+
+function CelulaMatriz({
+  q,
+  value,
+  onPick,
+}: {
+  q: Quadrante;
+  value: string;
+  onPick: (v: string) => void;
+}) {
+  const ativa = q.value === value;
+  return (
+    <button
+      type="button"
+      role="menuitemradio"
+      aria-checked={ativa}
+      onClick={() => onPick(q.value)}
+      className={`rounded-[10px] border p-2 text-left transition ${q.tom} ${
+        ativa
+          ? "ring-2 ring-fysi-deep/40"
+          : "opacity-80 hover:opacity-100 hover:ring-1 hover:ring-fysi-deep/20"
+      }`}
+    >
+      <span className="block text-xs font-semibold leading-tight">
+        {q.label}
+      </span>
+      <span className="block text-[0.65rem] leading-snug mt-0.5 opacity-80">
+        {q.acao}
+      </span>
+    </button>
+  );
+}
+
+/** Quatro quadrados — a matriz, reconhecível sem texto. */
+function IconeMatriz() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true" className="shrink-0">
+      <rect x="0.5" y="0.5" width="4.4" height="4.4" rx="1" fill="currentColor" opacity="0.85" />
+      <rect x="7.1" y="0.5" width="4.4" height="4.4" rx="1" fill="currentColor" opacity="0.45" />
+      <rect x="0.5" y="7.1" width="4.4" height="4.4" rx="1" fill="currentColor" opacity="0.45" />
+      <rect x="7.1" y="7.1" width="4.4" height="4.4" rx="1" fill="currentColor" opacity="0.25" />
+    </svg>
+  );
+}
+
+/**
+ * Tamanho da tarefa. Fica ao lado do prazo de propósito: "quando vence" e
+ * "quanto tempo leva" são a mesma pergunta vista de dois lados, e é o par
+ * que responde "dá pra fechar isso antes da reunião?".
+ */
+export function EsforcoPicker({
+  value,
+  onChange,
+  disabled,
+  showLabel = false,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  showLabel?: boolean;
+}) {
+  const { open, toggle, close, triggerRef, panelRef, panelStyle } =
+    usePopover();
+  const atual = esforcoDe(value);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={atual ? `Tamanho: ${atual.label}` : "Quanto tempo leva"}
+        className={`${CHIP_CLASS} ${atual ? atual.tom : "text-fysi-muted"}`}
+      >
+        <IconeAmpulheta />
+        {atual ? atual.curto : showLabel ? "Tempo" : null}
+      </button>
+      {open ? (
+        <div
+          ref={panelRef}
+          role="menu"
+          style={panelStyle}
+          className={`${PANEL_CLASS} w-60`}
+        >
+          <MenuItem
+            active={!value}
+            onClick={() => {
+              onChange("");
+              close();
+            }}
+          >
+            <span className="h-2 w-2 rounded-full bg-fysi-line-strong shrink-0" />
+            Sem estimativa
+          </MenuItem>
+          {ESFORCOS.map((e) => (
+            <MenuItem
+              key={e.value}
+              active={e.value === value}
+              onClick={() => {
+                onChange(e.value === value ? "" : e.value);
+                close();
+              }}
+            >
+              <span
+                className={`inline-flex items-center justify-center rounded-full border px-1.5 text-[0.62rem] font-semibold shrink-0 w-14 ${e.tom}`}
+              >
+                {e.curto}
+              </span>
+              <span className="truncate">{e.label.split(" — ")[1]}</span>
+            </MenuItem>
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function IconeAmpulheta() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="shrink-0"
+    >
+      <path d="M6 2h12M6 22h12M6 2c0 4 6 6 6 10 0-4 6-6 6-10M6 22c0-4 6-6 6-10 0 4 6 6 6 10" />
+    </svg>
   );
 }

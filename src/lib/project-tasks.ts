@@ -136,6 +136,126 @@ export function statusOptionsInternos(
   return TASK_STATUS_OPTIONS.filter((o) => valores.has(o.value));
 }
 
+/**
+ * Matriz de Eisenhower — urgente × importante.
+ *
+ * Pedido da Karine (2026-09-22). Não substitui `prioridade`, que é a
+ * bandeira do ClickUp e é um eixo só: aqui a pergunta não é "o que vem
+ * primeiro" e sim "isso é pra fazer, planejar, delegar ou apagar".
+ * "Responder e-mail" costuma ser urgente E não importante ao mesmo tempo —
+ * é esse cruzamento que a matriz serve pra deixar visível.
+ *
+ * `urgente` e `importante` ficam guardados porque a tela desenha a matriz
+ * 2×2 de verdade: escolher numa grade é mais rápido e mais fiel do que ler
+ * quatro rótulos numa lista.
+ */
+export interface Quadrante {
+  value: string;
+  label: string;
+  /** O que fazer com uma tarefa desse quadrante. */
+  acao: string;
+  urgente: boolean;
+  importante: boolean;
+  tom: string;
+  /** Cor do pontinho na linha da tarefa. */
+  ponto: string;
+}
+
+export const EISENHOWER: Quadrante[] = [
+  {
+    value: "fazer",
+    label: "Fazer agora",
+    acao: "Crise, prazo estourando, o que não pode esperar",
+    urgente: true,
+    importante: true,
+    tom: "bg-red-50 text-red-800 border-red-200",
+    ponto: "bg-red-500",
+  },
+  {
+    value: "planejar",
+    label: "Planejar",
+    acao: "Importante e sem pressa — é aqui que o trabalho bom acontece",
+    urgente: false,
+    importante: true,
+    tom: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    ponto: "bg-emerald-500",
+  },
+  {
+    value: "delegar",
+    label: "Delegar",
+    acao: "Pressiona mas não precisa ser você — passe adiante",
+    urgente: true,
+    importante: false,
+    tom: "bg-amber-50 text-amber-800 border-amber-200",
+    ponto: "bg-amber-500",
+  },
+  {
+    value: "eliminar",
+    label: "Eliminar",
+    acao: "Nem urgente nem importante — tire da lista",
+    urgente: false,
+    importante: false,
+    tom: "bg-fysi-cream text-fysi-muted border-fysi-line",
+    ponto: "bg-fysi-line-strong",
+  },
+];
+
+export const EISENHOWER_VALUES: string[] = EISENHOWER.map((q) => q.value);
+
+export function quadranteDe(v: string | null | undefined): Quadrante | null {
+  if (!v) return null;
+  return EISENHOWER.find((q) => q.value === v) ?? null;
+}
+
+/**
+ * Tamanho da tarefa — "o que é rápido e demorado de fazer" (Karine).
+ *
+ * Eixo diferente de prioridade e de quadrante: serve pra escolher o que dá
+ * pra fechar AGORA, no vão entre duas reuniões. Hoje uma tarefa de cinco
+ * minutos e uma de um dia inteiro têm exatamente a mesma cara na lista.
+ */
+export interface Esforco {
+  value: string;
+  label: string;
+  /** Rótulo curto pro chip da linha. */
+  curto: string;
+  tom: string;
+}
+
+export const ESFORCOS: Esforco[] = [
+  {
+    value: "rapido",
+    label: "Rápido — até 5 minutos",
+    curto: "5 min",
+    tom: "bg-emerald-50 text-emerald-800 border-emerald-200",
+  },
+  {
+    value: "curto",
+    label: "Curto — até 30 minutos",
+    curto: "30 min",
+    tom: "bg-sky-50 text-sky-800 border-sky-200",
+  },
+  {
+    value: "medio",
+    label: "Médio — algumas horas",
+    curto: "horas",
+    tom: "bg-amber-50 text-amber-800 border-amber-200",
+  },
+  {
+    value: "longo",
+    label: "Longo — um dia ou mais",
+    curto: "1 dia+",
+    tom: "bg-violet-50 text-violet-800 border-violet-200",
+  },
+];
+
+export const ESFORCO_VALUES: string[] = ESFORCOS.map((e) => e.value);
+
+export function esforcoDe(v: string | null | undefined): Esforco | null {
+  if (!v) return null;
+  return ESFORCOS.find((e) => e.value === v) ?? null;
+}
+
 /** Vazio ("") = sem prioridade — vira `null` no banco. */
 export const TASK_PRIORITY_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "Sem prioridade" },
@@ -267,6 +387,10 @@ export interface ProjectTask {
   ordem: number;
   status: TaskStatus;
   prioridade: string | null;
+  /** Quadrante da matriz de Eisenhower (ver EISENHOWER). null = não classificada. */
+  eisenhower: string | null;
+  /** Tamanho da tarefa (ver ESFORCOS). null = não estimada. */
+  esforco: string | null;
   responsavel: string | null;
   data_inicial: string | null;
   data_vencimento: string | null;

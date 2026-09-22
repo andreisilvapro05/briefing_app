@@ -13,7 +13,14 @@ import {
 } from "@/lib/project-tasks";
 import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
 import { TaskComposer } from "./task-composer";
-import { AreaPicker, AssigneePicker, DueDatePicker, hojeISO } from "./task-pickers";
+import {
+  AreaPicker,
+  AssigneePicker,
+  DueDatePicker,
+  EisenhowerPicker,
+  EsforcoPicker,
+  hojeISO,
+} from "./task-pickers";
 
 /**
  * Demandas internas da agência, agrupadas por área.
@@ -224,6 +231,8 @@ function LinhaDemanda({
   const [responsavel, setResponsavel] = useState(task.responsavel ?? "");
   const [prazo, setPrazo] = useState(task.data_vencimento ?? "");
   const [area, setArea] = useState(task.area ?? "");
+  const [eisenhower, setEisenhower] = useState(task.eisenhower ?? "");
+  const [esforco, setEsforco] = useState(task.esforco ?? "");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(false);
 
@@ -313,6 +322,28 @@ function LinhaDemanda({
           const anterior = prazo;
           setPrazo(v);
           void salvar("dataVencimento", v, () => setPrazo(anterior));
+        }}
+      />
+
+      {/* Tamanho ao lado do prazo de propósito: "quando vence" e "quanto
+          tempo leva" são a mesma pergunta vista de dois lados. */}
+      <EsforcoPicker
+        value={esforco}
+        disabled={salvando}
+        onChange={(v) => {
+          const anterior = esforco;
+          setEsforco(v);
+          void salvar("esforco", v, () => setEsforco(anterior));
+        }}
+      />
+
+      <EisenhowerPicker
+        value={eisenhower}
+        disabled={salvando}
+        onChange={(v) => {
+          const anterior = eisenhower;
+          setEisenhower(v);
+          void salvar("eisenhower", v, () => setEisenhower(anterior));
         }}
       />
 

@@ -24,6 +24,8 @@ import {
 import { TaskNotes, extrairLinks } from "./task-notes";
 import { TaskLinks } from "./task-links-row";
 import {
+  esforcoDe,
+  quadranteDe,
   TASK_STATUS_OPTIONS,
   TASK_STATUS_TONE,
   TASK_STATUS_GROUP,
@@ -34,6 +36,8 @@ import type { ProjectType } from "@/lib/types";
 import {
   AssigneePicker,
   DueDatePicker,
+  EisenhowerPicker,
+  EsforcoPicker,
   PriorityPicker,
   hojeISO,
 } from "./task-pickers";
@@ -350,6 +354,8 @@ export function TaskRow({
     task.data_vencimento ?? ""
   );
   const [observacoes, setObservacoes] = useState(task.observacoes ?? "");
+  const [eisenhower, setEisenhower] = useState(task.eisenhower ?? "");
+  const [esforco, setEsforco] = useState(task.esforco ?? "");
   const [titulo, setTitulo] = useState(task.titulo);
   const [renomeando, setRenomeando] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -475,6 +481,7 @@ export function TaskRow({
                 >
                   {titulo}
                 </button>
+                <MarcadoresDaTarefa eisenhower={eisenhower} esforco={esforco} />
                 {readOnly ? null : (
                   <button
                     type="button"
@@ -581,6 +588,35 @@ export function TaskRow({
                   Estrutura Inicial, e o briefing do cliente ficava a um
                   passeio pelo menu de distância. */}
               <TaskLinks clientId={task.client_id} urlKey={urlKey} />
+
+              {/* Eisenhower e tamanho ficam AQUI, não numa coluna da tabela:
+                  a linha já tem sete colunas e os dois são opcionais — a
+                  maioria das tarefas não tem nenhum dos dois. Na linha
+                  fechada aparecem como marcador discreto, só quando
+                  preenchidos. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs uppercase tracking-[0.08em] text-fysi-muted font-medium w-full">
+                  Como decidir
+                </span>
+                <EisenhowerPicker
+                  value={eisenhower}
+                  disabled={locked}
+                  showLabel
+                  onChange={(v) => {
+                    setEisenhower(v);
+                    saveField("eisenhower", v);
+                  }}
+                />
+                <EsforcoPicker
+                  value={esforco}
+                  disabled={locked}
+                  showLabel
+                  onChange={(v) => {
+                    setEsforco(v);
+                    saveField("esforco", v);
+                  }}
+                />
+              </div>
 
               <div>
                 <label className="block text-xs uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
@@ -931,5 +967,42 @@ export function TasksBoard({
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Marcadores da linha fechada: quadrante e tamanho, só quando preenchidos.
+ *
+ * Não viram coluna porque a maioria das tarefas não tem nenhum dos dois —
+ * uma coluna vazia em 90% das linhas rouba largura de quem precisa dela.
+ * Aqui eles ficam colados no nome, e a linha sem marcador não muda de cara.
+ */
+function MarcadoresDaTarefa({
+  eisenhower,
+  esforco,
+}: {
+  eisenhower: string;
+  esforco: string;
+}) {
+  const q = quadranteDe(eisenhower);
+  const e = esforcoDe(esforco);
+  if (!q && !e) return null;
+  return (
+    <span className="flex items-center gap-1 shrink-0">
+      {q ? (
+        <span
+          className={`h-2 w-2 rounded-full ${q.ponto}`}
+          title={`${q.label} — ${q.acao}`}
+        />
+      ) : null}
+      {e ? (
+        <span
+          className={`rounded-full border px-1.5 text-[0.6rem] font-semibold leading-[1.15rem] ${e.tom}`}
+          title={e.label}
+        >
+          {e.curto}
+        </span>
+      ) : null}
+    </span>
   );
 }

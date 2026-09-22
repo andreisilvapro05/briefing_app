@@ -29,6 +29,8 @@ import { listTaskLinkTargets, type LinkTarget } from "@/lib/task-links";
 import type { EntregaDocumento } from "@/lib/entrega";
 import type { Moodboard } from "@/lib/moodboard";
 import {
+  EISENHOWER_VALUES,
+  ESFORCO_VALUES,
   DEFAULT_PROJECT_TASKS,
   DEFAULT_TASK_STATUS,
   TASK_STATUS_OPTIONS,
@@ -1146,6 +1148,16 @@ export async function addProjectTaskAction(
     return { ok: false, erro: "Data de vencimento inválida." };
   }
 
+  // Matriz de Eisenhower e tamanho da tarefa — os dois opcionais.
+  const eisenhower = String(formData.get("eisenhower") ?? "").trim();
+  if (eisenhower && !EISENHOWER_VALUES.includes(eisenhower)) {
+    return { ok: false, erro: "Quadrante inválido." };
+  }
+  const esforco = String(formData.get("esforco") ?? "").trim();
+  if (esforco && !ESFORCO_VALUES.includes(esforco)) {
+    return { ok: false, erro: "Tamanho de tarefa inválido." };
+  }
+
   // Área só existe pra demanda INTERNA. Numa demanda de cliente ela seria
   // uma segunda classificação concorrendo com o próprio cliente.
   const area = String(formData.get("area") ?? "").trim();
@@ -1183,6 +1195,8 @@ export async function addProjectTaskAction(
       prioridade: prioridade || null,
       data_vencimento: dataVencimento || null,
       area: clientId ? null : area || null,
+      eisenhower: eisenhower || null,
+      esforco: esforco || null,
     })
     .select("id")
     .single();
@@ -1360,6 +1374,18 @@ export async function updateProjectTaskAction(formData: FormData) {
     // Nunca deixa uma demanda de cliente ganhar área (ver addProjectTaskAction).
     if (area && antes?.client_id) return;
     update.area = area || null;
+  }
+
+  if (formData.has("eisenhower")) {
+    const q = String(formData.get("eisenhower") ?? "").trim();
+    if (q && !EISENHOWER_VALUES.includes(q)) return;
+    update.eisenhower = q || null;
+  }
+
+  if (formData.has("esforco")) {
+    const e = String(formData.get("esforco") ?? "").trim();
+    if (e && !ESFORCO_VALUES.includes(e)) return;
+    update.esforco = e || null;
   }
 
   if (formData.has("observacoes")) {

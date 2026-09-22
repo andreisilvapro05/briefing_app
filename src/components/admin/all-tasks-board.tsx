@@ -11,6 +11,8 @@ import {
   type EditRestriction,
 } from "./tasks-board";
 import {
+  EISENHOWER,
+  ESFORCOS,
   TASK_STATUS_GROUP,
   TASK_STATUS_OPTIONS,
   TASK_STATUS_TONE,
@@ -193,6 +195,8 @@ export function AllTasksBoard({
               <option value="status">Status</option>
               <option value="responsavel">Responsável</option>
               <option value="cliente">Cliente</option>
+              <option value="eisenhower">Matriz (urgente × importante)</option>
+              <option value="esforco">Tempo que leva</option>
               <option value="nenhum">Nada</option>
             </select>
           </label>
@@ -381,7 +385,13 @@ function ClienteLink({
   );
 }
 
-type Agrupamento = "status" | "responsavel" | "cliente" | "nenhum";
+type Agrupamento =
+  | "status"
+  | "responsavel"
+  | "cliente"
+  | "eisenhower"
+  | "esforco"
+  | "nenhum";
 
 interface Grupo {
   chave: string;
@@ -409,7 +419,11 @@ function agrupar(tarefas: Task[], por: Agrupamento): Grupo[] {
         ? t.status
         : por === "responsavel"
           ? (t.responsavel ?? "")
-          : t.client_id;
+          : por === "eisenhower"
+            ? (t.eisenhower ?? "")
+            : por === "esforco"
+              ? (t.esforco ?? "")
+              : t.client_id;
     const arr = mapa.get(k);
     if (arr) arr.push(t);
     else mapa.set(k, [t]);
@@ -427,6 +441,37 @@ function agrupar(tarefas: Task[], por: Agrupamento): Grupo[] {
           tarefas: arr,
         });
       }
+    }
+    return grupos;
+  }
+
+  // Matriz: a ordem dos grupos é a da urgência — "Fazer agora" primeiro,
+  // "Eliminar" no fim. É a leitura que a matriz existe pra dar.
+  if (por === "eisenhower" || por === "esforco") {
+    const escala: { value: string; label: string; tom: string | null }[] =
+      por === "eisenhower"
+        ? EISENHOWER.map((q) => ({ value: q.value, label: q.label, tom: q.tom }))
+        : ESFORCOS.map((e) => ({ value: e.value, label: e.label, tom: e.tom }));
+    for (const item of escala) {
+      const arr = mapa.get(item.value);
+      if (arr?.length) {
+        grupos.push({
+          chave: item.value,
+          titulo: item.label,
+          tom: item.tom,
+          tarefas: arr,
+        });
+      }
+    }
+    const semClassificacao = mapa.get("");
+    if (semClassificacao?.length) {
+      grupos.push({
+        chave: "sem-classificacao",
+        titulo:
+          por === "eisenhower" ? "Fora da matriz" : "Sem estimativa de tempo",
+        tom: null,
+        tarefas: semClassificacao,
+      });
     }
     return grupos;
   }
