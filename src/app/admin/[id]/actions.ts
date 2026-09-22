@@ -1630,7 +1630,16 @@ export async function updateProjectTaskAction(
  * e realoca a `ordem` de cada uma pro slot correspondente dentro do próprio
  * subconjunto — preserva a posição relativa de tarefas fora da lista.
  */
-export async function reorderProjectTasksAction(formData: FormData) {
+/**
+ * Reordena as tarefas de um cliente. Devolve resultado: a tela mantém uma
+ * ordem otimista enquanto salva, e recusa em silêncio deixava a lista
+ * mentindo pelo resto da sessão (só um recarregamento desfazia).
+ */
+export type ReorderResult = { ok: true } | { ok: false; erro: string };
+
+export async function reorderProjectTasksAction(
+  formData: FormData
+): Promise<ReorderResult> {
   const urlKey = String(formData.get("key") ?? "") || null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
@@ -1640,7 +1649,7 @@ export async function reorderProjectTasksAction(formData: FormData) {
     .getAll("taskId")
     .map((v) => String(v))
     .filter(Boolean);
-  if (!clientId || orderedIds.length < 2) return;
+  if (!clientId || orderedIds.length < 2) return { ok: true };
 
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
@@ -1653,7 +1662,9 @@ export async function reorderProjectTasksAction(formData: FormData) {
     ordem: number;
     responsavel: string | null;
   }[];
-  if (rows.length !== orderedIds.length) return;
+  if (rows.length !== orderedIds.length) {
+    return { ok: false, erro: "A lista mudou enquanto você arrastava. Recarregue." };
+  }
   // "basico" só reordena entre tarefas que são todas dele — misturar com
   // tarefa de outra pessoa no mesmo arrasto é rejeitado inteiro (mais
   // simples e seguro do que reordenar parcialmente).
@@ -1661,7 +1672,7 @@ export async function reorderProjectTasksAction(formData: FormData) {
     hasTaskScopedRole(member) &&
     (!member.taskValue || rows.some((r) => r.responsavel !== member.taskValue))
   ) {
-    return;
+    return { ok: false, erro: "Você só reordena entre tarefas suas." };
   }
 
   const slots = rows.map((r) => r.ordem).sort((a, b) => a - b);
@@ -1682,6 +1693,8 @@ export async function reorderProjectTasksAction(formData: FormData) {
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
   revalidatePath("/admin/tarefas");
+
+  return { ok: true };
 }
 
 export interface ProjectTaskComment {

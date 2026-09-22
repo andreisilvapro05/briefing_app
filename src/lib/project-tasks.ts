@@ -609,7 +609,12 @@ export const DONO_PADRAO_POR_TAREFA: Record<string, string> = {
   "Ajustes v1": "valeria",
   "Ajustes v2": "valeria",
   "Ajustes v3": "valeria",
-  Implementação: "andrei",
+  // "Daniel — desenvolvedor, ele que faz as implementações" (Karine,
+  // 22/09). Vale pra tarefa NOVA: `preencherDonosPadrao` só toca linha com
+  // responsável nulo, então as 21 implementações abertas continuam com o
+  // Andrei até alguém mover na mão.
+  Implementação: "daniel",
+  // DEP é o documento de entrega, não implementação — segue com o Andrei.
   "DEP + Otimização": "andrei",
   "Envio Contrato": "andrei",
   Pagamento: "andrei",

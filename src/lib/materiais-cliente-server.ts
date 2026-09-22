@@ -146,7 +146,7 @@ export async function criarMaterial(
   clientId: string,
   titulo: string,
   instrucao: string | null
-): Promise<void> {
+): Promise<boolean> {
   const service = createSupabaseServiceRoleClient();
   // Última ordem + 1 (e não count): remover um item deixa buraco na numeração,
   // e o count colocaria o novo item no meio da lista.
@@ -168,7 +168,11 @@ export async function criarMaterial(
     ordem,
     status: "pendente",
   });
-  if (error) logServerError("materiais.criar", error);
+  if (error) {
+    logServerError("materiais.criar", error);
+    return false;
+  }
+  return true;
 }
 
 /** Edita título e instrução (não mexe no estado de envio). */
@@ -177,7 +181,7 @@ export async function editarMaterial(
   itemId: string,
   titulo: string,
   instrucao: string | null
-): Promise<void> {
+): Promise<boolean> {
   const service = createSupabaseServiceRoleClient();
   const { error } = await service
     .from("client_materials")
@@ -186,20 +190,28 @@ export async function editarMaterial(
     // O escopo por cliente também na escrita: o id sozinho permitiria mexer
     // num item de outro cliente.
     .eq("client_id", clientId);
-  if (error) logServerError("materiais.editar", error);
+  if (error) {
+    logServerError("materiais.editar", error);
+    return false;
+  }
+  return true;
 }
 
 export async function removerMaterial(
   clientId: string,
   itemId: string
-): Promise<void> {
+): Promise<boolean> {
   const service = createSupabaseServiceRoleClient();
   const { error } = await service
     .from("client_materials")
     .delete()
     .eq("id", itemId)
     .eq("client_id", clientId);
-  if (error) logServerError("materiais.remover", error);
+  if (error) {
+    logServerError("materiais.remover", error);
+    return false;
+  }
+  return true;
 }
 
 /** Sobe/desce um item, renumerando a lista inteira (mesma lógica das perguntas). */
@@ -207,7 +219,7 @@ export async function moverMaterial(
   clientId: string,
   itemId: string,
   direcao: "up" | "down"
-): Promise<void> {
+): Promise<boolean> {
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("client_materials")
@@ -218,9 +230,11 @@ export async function moverMaterial(
 
   const lista = (data as { id: string; ordem: number }[] | null) ?? [];
   const idx = lista.findIndex((m) => m.id === itemId);
-  if (idx === -1) return;
+  // Item que não está na lista, ou já no topo/fim: nada a fazer, e isso não
+  // é falha — o botão só não tem pra onde mover.
+  if (idx === -1) return false;
   const destino = direcao === "up" ? idx - 1 : idx + 1;
-  if (destino < 0 || destino >= lista.length) return;
+  if (destino < 0 || destino >= lista.length) return true;
 
   const reordenada = [...lista];
   [reordenada[idx], reordenada[destino]] = [reordenada[destino], reordenada[idx]];
@@ -231,8 +245,12 @@ export async function moverMaterial(
       .from("client_materials")
       .update({ ordem: i })
       .eq("id", reordenada[i].id);
-    if (error) logServerError("materiais.mover", error);
+    if (error) {
+      logServerError("materiais.mover", error);
+      return false;
+    }
   }
+  return true;
 }
 
 /**
@@ -244,7 +262,7 @@ export async function marcarPelaEquipe(
   itemId: string,
   status: MaterialStatus,
   quem: string
-): Promise<void> {
+): Promise<boolean> {
   const service = createSupabaseServiceRoleClient();
   const agora = new Date().toISOString();
   const { error } = await service
@@ -261,7 +279,11 @@ export async function marcarPelaEquipe(
     })
     .eq("id", itemId)
     .eq("client_id", clientId);
-  if (error) logServerError("materiais.marcar-equipe", error);
+  if (error) {
+    logServerError("materiais.marcar-equipe", error);
+    return false;
+  }
+  return true;
 }
 
 /** A equipe confirma que o material que o cliente disse ter mandado chegou. */
@@ -269,7 +291,7 @@ export async function conferirMaterial(
   clientId: string,
   itemId: string,
   quem: string
-): Promise<void> {
+): Promise<boolean> {
   const service = createSupabaseServiceRoleClient();
   const { error } = await service
     .from("client_materials")
@@ -280,7 +302,11 @@ export async function conferirMaterial(
     })
     .eq("id", itemId)
     .eq("client_id", clientId);
-  if (error) logServerError("materiais.conferir", error);
+  if (error) {
+    logServerError("materiais.conferir", error);
+    return false;
+  }
+  return true;
 }
 
 /**

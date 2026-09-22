@@ -285,6 +285,7 @@ export function useTaskDrag(
       : tasks;
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [erroOrdem, setErroOrdem] = useState<string | null>(null);
 
   function dragProps(t: ProjectTask): DragHandlers {
     return {
@@ -311,9 +312,22 @@ export function useTaskDrag(
         next.forEach((x) => fd.append("taskId", x.id));
         // Se o servidor recusar (ex: "basico" tentando reordenar tarefa que
         // não é dele), reverte a ordem otimista em vez de deixar a UI mentir.
+        // A recusa volta como { ok: false }, não como exceção — só o
+        // `.catch` deixava a lista mentindo pelo resto da sessão.
         reorderProjectTasksAction(fd)
-          .then(() => router.refresh())
-          .catch(() => setOptimistic(null));
+          .then((r) => {
+            if (!r.ok) {
+              setOptimistic(null);
+              setErroOrdem(r.erro);
+              return;
+            }
+            setErroOrdem(null);
+            router.refresh();
+          })
+          .catch(() => {
+            setOptimistic(null);
+            setErroOrdem("Não consegui salvar a ordem. Confira a conexão.");
+          });
       },
       onDragEnd: () => {
         setDragId(null);
@@ -324,7 +338,7 @@ export function useTaskDrag(
     };
   }
 
-  return { order, dragProps };
+  return { order, dragProps, erroOrdem };
 }
 
 export function TaskRow({
@@ -873,7 +887,7 @@ export function TasksBoard({
   const fechadasSource = tasks.filter(
     (t) => TASK_STATUS_GROUP[t.status] === "fechado"
   );
-  const { order: abertas, dragProps: dragAbertas } = useTaskDrag(
+  const { order: abertas, dragProps: dragAbertas, erroOrdem } = useTaskDrag(
     abertasSource,
     clientId,
     urlKey
@@ -908,6 +922,11 @@ export function TasksBoard({
           {tasks.length > 0 ? (
             <p className="text-sm text-fysi-muted mt-1">
               {fechadasSource.length}/{tasks.length} fechadas
+            </p>
+          ) : null}
+          {erroOrdem ? (
+            <p role="alert" className="text-xs text-red-700 mt-1">
+              {erroOrdem} A ordem voltou ao que estava.
             </p>
           ) : null}
         </div>

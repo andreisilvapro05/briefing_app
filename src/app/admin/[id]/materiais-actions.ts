@@ -64,6 +64,19 @@ async function requireClientAccess(
   return member;
 }
 
+/**
+ * As sete ações devolvem resultado em vez de void: erro de banco virava
+ * log e a tela anunciava sucesso. A lista é relida do banco no revalidate,
+ * então o estado final não mentia — mas o "Salvo ✓" mentia, e quem some
+ * com um item e vê "removido" espera que tenha removido.
+ */
+export type ResultadoMaterial = { ok: true } | { ok: false; erro: string };
+
+const FALHOU: ResultadoMaterial = {
+  ok: false,
+  erro: "Não consegui salvar. Confira a conexão e tente de novo.",
+};
+
 /** Revalida as duas telas que mostram a lista + o hub que mostra o resumo. */
 function revalidar(clientId: string, docId: string | null) {
   revalidatePath(`/admin/${clientId}`);
@@ -80,66 +93,89 @@ function campos(formData: FormData) {
 }
 
 /** Cria a lista padrão sugerida (8 itens) pra não começar do zero. */
-export async function semearMateriaisAction(formData: FormData) {
+export async function semearMateriaisAction(
+  formData: FormData
+): Promise<ResultadoMaterial> {
   const { clientId, docId } = campos(formData);
-  if (!clientId) return;
+  if (!clientId) return { ok: false, erro: "Cliente não identificado." };
   await requireClientAccess(formData, clientId);
-  await semearMateriaisPadrao(clientId);
+  if (!(await semearMateriaisPadrao(clientId))) return FALHOU;
   revalidar(clientId, docId);
+  return { ok: true };
 }
 
-export async function adicionarMaterialAction(formData: FormData) {
+export async function adicionarMaterialAction(
+  formData: FormData
+): Promise<ResultadoMaterial> {
   const { clientId, docId } = campos(formData);
   const titulo = String(formData.get("titulo") ?? "").trim();
   const instrucao = String(formData.get("instrucao") ?? "").trim();
-  if (!clientId || !titulo) return;
+  if (!clientId || !titulo) return { ok: false, erro: "Dê um nome ao item." };
   await requireClientAccess(formData, clientId);
-  await criarMaterial(clientId, titulo, instrucao || null);
+  if (!(await criarMaterial(clientId, titulo, instrucao || null))) return FALHOU;
   revalidar(clientId, docId);
+  return { ok: true };
 }
 
-export async function editarMaterialAction(formData: FormData) {
+export async function editarMaterialAction(
+  formData: FormData
+): Promise<ResultadoMaterial> {
   const { clientId, itemId, docId } = campos(formData);
   const titulo = String(formData.get("titulo") ?? "").trim();
   const instrucao = String(formData.get("instrucao") ?? "").trim();
-  if (!clientId || !itemId || !titulo) return;
+  if (!clientId || !itemId || !titulo) return { ok: false, erro: "Dê um nome ao item." };
   await requireClientAccess(formData, clientId);
-  await editarMaterial(clientId, itemId, titulo, instrucao || null);
+  if (!(await editarMaterial(clientId, itemId, titulo, instrucao || null))) return FALHOU;
   revalidar(clientId, docId);
+  return { ok: true };
 }
 
-export async function removerMaterialAction(formData: FormData) {
+export async function removerMaterialAction(
+  formData: FormData
+): Promise<ResultadoMaterial> {
   const { clientId, itemId, docId } = campos(formData);
-  if (!clientId || !itemId) return;
+  if (!clientId || !itemId) return { ok: false, erro: "Item não identificado." };
   await requireClientAccess(formData, clientId);
-  await removerMaterial(clientId, itemId);
+  if (!(await removerMaterial(clientId, itemId))) return FALHOU;
   revalidar(clientId, docId);
+  return { ok: true };
 }
 
-export async function moverMaterialAction(formData: FormData) {
+export async function moverMaterialAction(
+  formData: FormData
+): Promise<ResultadoMaterial> {
   const { clientId, itemId, docId } = campos(formData);
   const direcao = String(formData.get("direcao") ?? "");
-  if (!clientId || !itemId || (direcao !== "up" && direcao !== "down")) return;
+  if (!clientId || !itemId || (direcao !== "up" && direcao !== "down")) {
+    return { ok: false, erro: "Movimento inválido." };
+  }
   await requireClientAccess(formData, clientId);
-  await moverMaterial(clientId, itemId, direcao);
+  if (!(await moverMaterial(clientId, itemId, direcao))) return FALHOU;
   revalidar(clientId, docId);
+  return { ok: true };
 }
 
 /** Equipe marca pendente / enviado / não se aplica. */
-export async function marcarMaterialAction(formData: FormData) {
+export async function marcarMaterialAction(
+  formData: FormData
+): Promise<ResultadoMaterial> {
   const { clientId, itemId, docId } = campos(formData);
-  if (!clientId || !itemId) return;
+  if (!clientId || !itemId) return { ok: false, erro: "Item não identificado." };
   const member = await requireClientAccess(formData, clientId);
   const status = normalizeStatus(formData.get("status"));
-  await marcarPelaEquipe(clientId, itemId, status, member.name);
+  if (!(await marcarPelaEquipe(clientId, itemId, status, member.name))) return FALHOU;
   revalidar(clientId, docId);
+  return { ok: true };
 }
 
 /** Equipe confirma que o que o cliente disse ter mandado realmente chegou. */
-export async function conferirMaterialAction(formData: FormData) {
+export async function conferirMaterialAction(
+  formData: FormData
+): Promise<ResultadoMaterial> {
   const { clientId, itemId, docId } = campos(formData);
-  if (!clientId || !itemId) return;
+  if (!clientId || !itemId) return { ok: false, erro: "Item não identificado." };
   const member = await requireClientAccess(formData, clientId);
-  await conferirMaterial(clientId, itemId, member.name);
+  if (!(await conferirMaterial(clientId, itemId, member.name))) return FALHOU;
   revalidar(clientId, docId);
+  return { ok: true };
 }

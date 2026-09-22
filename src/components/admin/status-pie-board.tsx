@@ -14,7 +14,12 @@ import {
 } from "./tasks-board";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
-import { DEFAULT_TASK_STATUS, type ProjectTask } from "@/lib/project-tasks";
+import {
+  DEFAULT_TASK_STATUS,
+  TASK_STATUS_GROUP,
+  type ProjectTask,
+  type TaskStatus,
+} from "@/lib/project-tasks";
 import {
   faltasEmTexto,
   pendenciasDoProjeto,
@@ -88,19 +93,42 @@ function annularPath(a0: number, a1: number): string {
   return `M ${ox0} ${oy0} A ${R} ${R} 0 ${large} 1 ${ox1} ${oy1} L ${ix1} ${iy1} A ${R_IN} ${R_IN} 0 ${large} 0 ${ix0} ${iy0} Z`;
 }
 
-type PeriodoFiltro = "todos" | Periodo;
+/**
+ * O que a pizza mostra.
+ *
+ * "Esta semana" foi removido a pedido da Karine (2026-09-02) — projeto de
+ * agência não abre/fecha na semana, o filtro quase sempre ficava vazio.
+ *
+ * "Em andamento" nasceu de um contorno: em 22/09 ela pediu que a tela
+ * abrisse em "Este mês" porque 19 dos 43 projetos estão concluídos ou
+ * entregues e a pizza ficava 44% verde de trabalho que já acabou. Mas
+ * "este mês" filtra por data de ENTRADA do cliente, o que esconde projeto
+ * antigo que ainda está andando — justamente o que ela quer ver. O corte
+ * certo é por status, não por data, e é ele que abre.
+ */
+type PeriodoFiltro = "andamento" | "todos" | Periodo;
 
-// "Esta semana" removido a pedido da Karine (2026-09-02) — projeto de
-// agência não abre/fecha na semana, o filtro quase sempre ficava vazio.
-const PERIODO_OPTIONS: { value: PeriodoFiltro; label: string }[] = [
-  { value: "todos", label: "Todo o período" },
-  { value: "mes", label: "Este mês" },
+const PERIODO_OPTIONS: { value: PeriodoFiltro; label: string; title: string }[] = [
+  {
+    value: "andamento",
+    label: "Em andamento",
+    title: "Só o que não foi concluído nem entregue",
+  },
+  {
+    value: "mes",
+    label: "Entraram este mês",
+    title: "Clientes que entraram desde o dia 1º — inclusive os já entregues",
+  },
+  { value: "todos", label: "Tudo", title: "Todos os projetos, de todo o período" },
 ];
 
-/** Cliente entrou dentro do período (por created_at). "todos" nunca filtra. */
-function withinPeriod(createdAt: string, periodo: PeriodoFiltro): boolean {
+/** Passa no recorte atual. "todos" nunca filtra. */
+function noRecorte(c: LaneClient, periodo: PeriodoFiltro): boolean {
   if (periodo === "todos") return true;
-  const created = new Date(createdAt).getTime();
+  if (periodo === "andamento") {
+    return TASK_STATUS_GROUP[c.status as TaskStatus] !== "fechado";
+  }
+  const created = new Date(c.created_at).getTime();
   if (Number.isNaN(created)) return true;
   return created >= inicioDoPeriodo(periodo).getTime();
 }
@@ -118,10 +146,7 @@ export function StatusPieBoard({
   novoHref: string;
   restrictToResponsavel?: EditRestriction;
 }) {
-  // Abre no mês corrente: "todo o período" soma 3 anos de projeto entregue,
-  // e a pizza ficava 44% verde de trabalho que já acabou — o que está em
-  // andamento agora virava uma fatia fininha. Pedido da Karine (22/09).
-  const [periodo, setPeriodo] = useState<PeriodoFiltro>("mes");
+  const [periodo, setPeriodo] = useState<PeriodoFiltro>("andamento");
   const [selected, setSelected] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const grupos = useGruposColapsados("fysi-grupos-lista");
@@ -140,7 +165,7 @@ export function StatusPieBoard({
       ? groups
       : groups.map((g) => ({
           ...g,
-          clients: g.clients.filter((c) => withinPeriod(c.created_at, periodo)),
+          clients: g.clients.filter((c) => noRecorte(c, periodo)),
         }));
 
   const withCount = periodGroups.filter((g) => g.clients.length > 0);
@@ -189,6 +214,7 @@ export function StatusPieBoard({
                   key={opt.value}
                   type="button"
                   onClick={() => setPeriodo(opt.value)}
+                  title={opt.title}
                   className={`px-2.5 py-1 rounded-full font-medium transition ${
                     periodo === opt.value
                       ? "bg-fysi-deep text-fysi-cream"
@@ -216,16 +242,18 @@ export function StatusPieBoard({
                 .
               </>
             ) : (
-              // Com o filtro de mês ligado (que é o padrão desde 22/09),
-              // "nenhum projeto ainda" mentia com a agência cheia de projeto.
+              // "Nenhum projeto ainda" mentia com a agência cheia de
+              // projeto — o recorte é que estava vazio, não o banco.
               <>
-                Nenhum projeto entrou este mês.{" "}
+                {periodo === "andamento"
+                  ? "Nenhum projeto em andamento — tudo concluído ou entregue."
+                  : "Nenhum cliente entrou este mês."}{" "}
                 <button
                   type="button"
                   onClick={() => setPeriodo("todos")}
                   className="text-fysi-deep underline"
                 >
-                  Ver todo o período
+                  Ver tudo
                 </button>
                 .
               </>

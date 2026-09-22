@@ -1,5 +1,6 @@
 import { Eyebrow } from "@/components/ui/pill";
 import { SubmitTextButton } from "@/components/admin/submit-button";
+import { FormMaterial } from "@/components/admin/form-material";
 import {
   dataCurtaDoMomento,
   fraseResumo,
@@ -128,7 +129,7 @@ export function MateriaisChecklist({
             fotos, textos, depoimentos, acesso ao domínio e à hospedagem, CNPJ
             pro rodapé e links das redes. Dá pra editar tudo depois.
           </p>
-          <form action={semearMateriaisAction} className="mt-3">
+          <FormMaterial acao={semearMateriaisAction} className="mt-3">
             <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
             <SubmitTextButton
               className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90 disabled:opacity-50"
@@ -136,7 +137,7 @@ export function MateriaisChecklist({
             >
               Usar a lista padrão
             </SubmitTextButton>
-          </form>
+          </FormMaterial>
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -180,7 +181,7 @@ export function MateriaisChecklist({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
                 {/* Confirmar recebimento: o passo que fecha o item de verdade. */}
                 {item.status === "enviado" && !item.conferidoEm ? (
-                  <form action={conferirMaterialAction}>
+                  <FormMaterial acao={conferirMaterialAction}>
                     <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
                     <input type="hidden" name="itemId" value={item.id} />
                     <SubmitTextButton
@@ -189,46 +190,46 @@ export function MateriaisChecklist({
                     >
                       Confirmar que chegou
                     </SubmitTextButton>
-                  </form>
+                  </FormMaterial>
                 ) : null}
 
                 {item.status !== "enviado" ? (
-                  <form action={marcarMaterialAction}>
+                  <FormMaterial acao={marcarMaterialAction}>
                     <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
                     <input type="hidden" name="itemId" value={item.id} />
                     <input type="hidden" name="status" value="enviado" />
                     <SubmitTextButton className={BOTAO_DISCRETO} pendingLabel="…">
                       Já recebemos
                     </SubmitTextButton>
-                  </form>
+                  </FormMaterial>
                 ) : null}
 
                 {item.status !== "pendente" ? (
-                  <form action={marcarMaterialAction}>
+                  <FormMaterial acao={marcarMaterialAction}>
                     <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
                     <input type="hidden" name="itemId" value={item.id} />
                     <input type="hidden" name="status" value="pendente" />
                     <SubmitTextButton className={BOTAO_DISCRETO} pendingLabel="…">
                       Voltar pra pendente
                     </SubmitTextButton>
-                  </form>
+                  </FormMaterial>
                 ) : null}
 
                 {item.status !== "nao_se_aplica" ? (
-                  <form action={marcarMaterialAction}>
+                  <FormMaterial acao={marcarMaterialAction}>
                     <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
                     <input type="hidden" name="itemId" value={item.id} />
                     <input type="hidden" name="status" value="nao_se_aplica" />
                     <SubmitTextButton className={BOTAO_DISCRETO} pendingLabel="…">
                       Não se aplica
                     </SubmitTextButton>
-                  </form>
+                  </FormMaterial>
                 ) : null}
 
                 {/* div, e não span: <form> é conteúdo de fluxo e o parser do
                     navegador não aceita dentro de conteúdo de frase. */}
                 <div className="flex items-center gap-2 ml-auto">
-                  <form action={moverMaterialAction}>
+                  <FormMaterial acao={moverMaterialAction}>
                     <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
                     <input type="hidden" name="itemId" value={item.id} />
                     <input type="hidden" name="direcao" value="up" />
@@ -241,8 +242,8 @@ export function MateriaisChecklist({
                     >
                       ↑
                     </button>
-                  </form>
-                  <form action={moverMaterialAction}>
+                  </FormMaterial>
+                  <FormMaterial acao={moverMaterialAction}>
                     <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
                     <input type="hidden" name="itemId" value={item.id} />
                     <input type="hidden" name="direcao" value="down" />
@@ -255,9 +256,9 @@ export function MateriaisChecklist({
                     >
                       ↓
                     </button>
-                  </form>
+                  </FormMaterial>
                 </div>
-                <form action={removerMaterialAction}>
+                <FormMaterial acao={removerMaterialAction}>
                   <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
                   <input type="hidden" name="itemId" value={item.id} />
                   <SubmitTextButton
@@ -267,15 +268,15 @@ export function MateriaisChecklist({
                   >
                     Remover
                   </SubmitTextButton>
-                </form>
+                </FormMaterial>
               </div>
 
               <details className="mt-2">
                 <summary className="cursor-pointer text-xs text-fysi-muted hover:text-fysi-deep">
                   Editar texto do item
                 </summary>
-                <form
-                  action={editarMaterialAction}
+                <FormMaterial
+                  acao={editarMaterialAction}
                   className="flex flex-col gap-2 mt-2"
                 >
                   <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
@@ -301,7 +302,7 @@ export function MateriaisChecklist({
                   >
                     Salvar
                   </SubmitTextButton>
-                </form>
+                </FormMaterial>
               </details>
             </li>
           ))}
@@ -313,8 +314,8 @@ export function MateriaisChecklist({
           <summary className="cursor-pointer text-xs font-medium text-fysi-deep hover:underline">
             + Adicionar item
           </summary>
-          <form
-            action={adicionarMaterialAction}
+          <FormMaterial
+            acao={adicionarMaterialAction}
             className="flex flex-col gap-2 mt-2 bg-fysi-cream/40 border border-fysi-line rounded-[12px] p-3"
           >
             <Contexto clientId={clientId} urlKey={urlKey} docId={docId} />
@@ -338,7 +339,7 @@ export function MateriaisChecklist({
             >
               Adicionar
             </SubmitTextButton>
-          </form>
+          </FormMaterial>
         </details>
       ) : null}
     </div>
