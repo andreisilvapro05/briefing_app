@@ -59,9 +59,17 @@ export function AreasBoard({
     return t;
   }, [tasks, filtroPessoa, mostrarFeitas]);
 
-  /** Uma gaveta por área, sempre nesta ordem — inclusive as vazias, pra
-   *  deixar claro onde uma demanda nova pode entrar. E "Sem área" no fim,
-   *  só quando existe algo lá. */
+  /**
+   * Uma gaveta por área, nesta ordem. Área SEM nada no recorte atual não
+   * ganha cartão: com seis áreas e um filtro por pessoa, cinco cartões de
+   * "nada aqui" empurravam a única gaveta com trabalho pra fora da tela
+   * (Karine, 22/09).
+   *
+   * Elas não somem de vez, viram uma linha só no fim — clicar no nome abre
+   * a barra de criar ali. Esconder por completo tiraria o único caminho de
+   * lançar demanda numa área vazia, que é justamente quando ela precisa da
+   * primeira. "Sem área" continua no fim, só quando existe algo lá.
+   */
   const grupos = useMemo(() => {
     const porArea = new Map<string, ProjectTask[]>();
     for (const t of visiveis) {
@@ -83,9 +91,23 @@ export function AreasBoard({
     return { out, semArea: ordenar(semArea) };
   }, [visiveis]);
 
+  /** Áreas sem nada no recorte atual — viram a linha compacta do rodapé. */
+  const vazias = grupos.out
+    .filter(({ area, tarefas }) => tarefas.length === 0 && criandoEm !== area.value)
+    .map(({ area }) => area);
+
   const totalAbertas = tasks.filter(
     (t) => TASK_STATUS_GROUP[t.status] === "ativo"
   ).length;
+  /**
+   * Quantas o recorte atual mostra. O contador exibia o total da agência
+   * mesmo com filtro de pessoa ligado — dizia "6 abertas" e a tela tinha
+   * uma. Agora conta o que está à vista, e o total vira complemento.
+   */
+  const abertasNaVista = visiveis.filter(
+    (t) => TASK_STATUS_GROUP[t.status] === "ativo"
+  ).length;
+  const nomeDoFiltro = TEAM_MEMBERS.find((m) => m.value === filtroPessoa)?.label;
 
   return (
     <div className="flex flex-col gap-4">
@@ -93,10 +115,20 @@ export function AreasBoard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-fysi-muted">
             <strong className="font-semibold text-fysi-deep">
-              {totalAbertas}
+              {abertasNaVista}
             </strong>{" "}
-            aberta{totalAbertas === 1 ? "" : "s"} · trabalho da agência, fora
-            dos projetos de cliente
+            aberta{abertasNaVista === 1 ? "" : "s"}
+            {nomeDoFiltro ? (
+              <>
+                {" "}
+                com {nomeDoFiltro}
+                {totalAbertas !== abertasNaVista ? (
+                  <> · {totalAbertas} no total da agência</>
+                ) : null}
+              </>
+            ) : (
+              <> · trabalho da agência, fora dos projetos de cliente</>
+            )}
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -124,7 +156,9 @@ export function AreasBoard({
         </div>
       </section>
 
-      {grupos.out.map(({ area, tarefas }) => (
+      {grupos.out
+        .filter(({ area, tarefas }) => tarefas.length > 0 || criandoEm === area.value)
+        .map(({ area, tarefas }) => (
         <section
           key={area.value}
           className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-hidden"
@@ -166,13 +200,7 @@ export function AreasBoard({
             </div>
           ) : null}
 
-          {tarefas.length === 0 ? (
-            criandoEm === area.value ? null : (
-              <p className="px-5 py-5 text-sm text-fysi-muted">
-                Nenhuma demanda de {area.label.toLowerCase()} no momento.
-              </p>
-            )
-          ) : (
+          {tarefas.length === 0 ? null : (
             <ul className="divide-y divide-fysi-line">
               {tarefas.map((t) => (
                 <LinhaDemanda
@@ -187,6 +215,36 @@ export function AreasBoard({
           )}
         </section>
       ))}
+
+      {abertasNaVista === 0 && grupos.semArea.length === 0 && !criandoEm ? (
+        <p className="text-sm text-fysi-muted px-1">
+          {nomeDoFiltro
+            ? `Nenhuma demanda interna com ${nomeDoFiltro} agora. Escolha uma área abaixo pra lançar a primeira.`
+            : "Nenhuma demanda interna aberta. Escolha uma área abaixo pra lançar a primeira."}
+        </p>
+      ) : null}
+
+      {/* As áreas sem nada agora — uma linha, não cinco cartões. Clicar no
+          nome abre a barra de criar naquela área. */}
+      {vazias.length > 0 ? (
+        <section className="rounded-[16px] border border-dashed border-fysi-line px-5 py-3">
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-fysi-muted">
+            <span>Sem nada agora{filtroPessoa ? " pra essa pessoa" : ""}:</span>
+            {vazias.map((a) => (
+              <button
+                key={a.value}
+                type="button"
+                onClick={() => setCriandoEm(a.value)}
+                title={`Lançar uma demanda de ${a.label.toLowerCase()}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-fysi-line bg-white px-2.5 py-1 text-fysi-deep hover:border-fysi-deep/40 transition"
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${a.barra}`} aria-hidden />
+                {a.label}
+              </button>
+            ))}
+          </p>
+        </section>
+      ) : null}
 
       {grupos.semArea.length > 0 ? (
         <section className="bg-white border border-dashed border-fysi-line-strong rounded-[20px] overflow-hidden">
