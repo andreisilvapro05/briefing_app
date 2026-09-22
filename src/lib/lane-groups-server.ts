@@ -82,6 +82,10 @@ export async function getLaneGroups(
         tipo: c.project_type
           ? PROJECT_TYPE_LABELS[c.project_type] ?? c.project_type
           : "—",
+        // O valor cru (não o rótulo) vai junto porque a tela precisa saber
+        // se o projeto está SEM tipo pra marcá-lo como incompleto — e o
+        // <select> de ajuste precisa do value.
+        projectType: c.project_type ?? null,
         status: c.status || DEFAULT_TASK_STATUS,
         pagamento: total > 0 ? `${Math.round((pago / total) * 100)}%` : "—",
         created_at: c.created_at,

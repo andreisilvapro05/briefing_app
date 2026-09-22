@@ -15,6 +15,12 @@ import {
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import { DEFAULT_TASK_STATUS, type ProjectTask } from "@/lib/project-tasks";
+import {
+  faltasEmTexto,
+  pendenciasDoProjeto,
+  projetoIncompleto,
+} from "@/lib/projetos-incompletos";
+import type { ProjectType } from "@/lib/types";
 
 /**
  * Pizza (donut) interativa de projetos por status + lista embaixo.
@@ -30,7 +36,10 @@ export interface LaneClient {
   id: string;
   nome: string;
   empresa: string | null;
+  /** Rótulo do tipo pra exibir — "—" quando não há tipo definido. */
   tipo: string;
+  /** Valor cru de `clients.project_type` (null = projeto sem tipo). */
+  projectType: ProjectType | null;
   status: string;
   pagamento: string;
   created_at: string;
@@ -401,6 +410,14 @@ function ClientAccordionRow({
   restrictToResponsavel?: EditRestriction;
 }) {
   const hasTarefas = (c.progresso?.total ?? 0) > 0;
+  // Marcador discreto de projeto que nasceu pela metade (sem tipo e/ou sem
+  // o checklist do modelo). Fica na própria linha pra não ter que caçar —
+  // o painel "Projetos incompletos" no topo da Lista é que resolve.
+  const pendencias = pendenciasDoProjeto({
+    projectType: c.projectType,
+    totalTarefas: c.progresso?.total ?? 0,
+  });
+  const incompleto = projetoIncompleto(pendencias);
   const [carregadas, setCarregadas] = useState<LaneClientTask[] | null>(null);
   const [erroCarga, setErroCarga] = useState(false);
 
@@ -479,8 +496,25 @@ function ClientAccordionRow({
               Parado
             </span>
           ) : null}
+          {incompleto ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200 px-1.5 py-0.5 text-xs uppercase tracking-[0.08em] text-sky-700 font-medium shrink-0"
+              title={`Projeto incompleto — falta: ${faltasEmTexto(pendencias).join(" · ")}`}
+            >
+              <span className="h-1 w-1 rounded-full bg-sky-500" />
+              Incompleto
+            </span>
+          ) : null}
         </span>
-        <span className="text-fysi-muted truncate">{c.tipo}</span>
+        <span
+          className={
+            c.projectType
+              ? "text-fysi-muted truncate"
+              : "text-sky-700 truncate"
+          }
+        >
+          {c.tipo}
+        </span>
         <span className="flex items-center gap-2 min-w-0">
           <StatusChanger
             clientId={c.id}

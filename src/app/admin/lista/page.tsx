@@ -11,6 +11,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { getLaneGroups } from "@/lib/lane-groups-server";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
 import { ClickUpSyncButton } from "@/components/admin/clickup-sync-button";
+import { ProjetosIncompletos } from "@/components/admin/projetos-incompletos";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,15 @@ export default async function AdminListaPage({
           </Link>
         </div>
       </header>
+
+      {/* Antes da pizza: projeto sem tipo/sem checklist não é uma etapa do
+          fluxo, é um projeto que não dá pra tocar — precisa aparecer antes
+          da distribuição por status, não escondido dentro dela. */}
+      <ProjetosIncompletos
+        groups={groups}
+        keyParam={keyParam}
+        urlKey={urlKey ?? undefined}
+      />
 
       <StatusPieBoard
         groups={groups}
