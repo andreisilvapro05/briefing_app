@@ -177,7 +177,7 @@ export default async function CustosPage({
       {reajustes.length > 0 ? (
         <section className="rounded-[16px] border border-amber-200 bg-amber-50 p-5 mb-6">
           <p className="text-sm font-semibold text-amber-900 mb-2">
-            ⚠ Subiu de preço desde {competenciaLabel(anterior)}
+            Subiu de preço desde {competenciaLabel(anterior)}
           </p>
           <ul className="flex flex-col gap-1.5">
             {reajustes.map((r) => (

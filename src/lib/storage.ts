@@ -16,11 +16,39 @@ function isBrowser() {
   return typeof window !== "undefined";
 }
 
+/**
+ * Grava no localStorage sem deixar a exceção subir.
+ *
+ * Navegador com dados de site bloqueados — aba anônima, cookies negados,
+ * cota estourada — faz o próprio `setItem` lançar. Sem esta guarda, o
+ * cliente que abre o link num navegador assim não conseguia passar do
+ * primeiro passo do onboarding: a tela quebrava, e não havia como saber
+ * por quê.
+ *
+ * Devolve `false` quando não deu, pra quem chama poder avisar. O dado vale
+ * só enquanto a aba estiver aberta — o que é pior do que guardar, mas é
+ * muito melhor do que travar.
+ */
+function gravarLocal(chave: string, valor: string): boolean {
+  try {
+    window.localStorage.setItem(chave, valor);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function loadCliente(): Cliente | null {
   if (!isBrowser()) return null;
-  const raw = window.localStorage.getItem(KEY);
-  if (!raw) return null;
   try {
+    // O `getItem` estava FORA do try. Não era só zelo: esta função virou o
+    // getSnapshot de um useSyncExternalStore (src/app/_hooks/dados-locais.ts),
+    // e getSnapshot roda a cada render. Navegador com dados de site
+    // bloqueados — aba anônima, cookies negados — faz o próprio `getItem`
+    // lançar, e aí a tela do CLIENTE quebrava inteira em vez de se comportar
+    // como quem não tem nada guardado.
+    const raw = window.localStorage.getItem(KEY);
+    if (!raw) return null;
     return JSON.parse(raw) as Cliente;
   } catch {
     return null;
@@ -40,7 +68,7 @@ export function saveCliente(
         createdAt: now,
         updatedAt: now,
       };
-  window.localStorage.setItem(KEY, JSON.stringify(cliente));
+  gravarLocal(KEY, JSON.stringify(cliente));
   return cliente;
 }
 
@@ -52,7 +80,7 @@ export function setProjectType(projectType: ProjectType): Cliente | null {
     projectType,
     updatedAt: new Date().toISOString(),
   };
-  window.localStorage.setItem(KEY, JSON.stringify(updated));
+  gravarLocal(KEY, JSON.stringify(updated));
   return updated;
 }
 
@@ -70,7 +98,7 @@ export function setClientId(serverId: string): Cliente | null {
     id: serverId,
     updatedAt: new Date().toISOString(),
   };
-  window.localStorage.setItem(KEY, JSON.stringify(updated));
+  gravarLocal(KEY, JSON.stringify(updated));
   return updated;
 }
 
@@ -97,11 +125,15 @@ export function hydrateCliente(data: {
     createdAt: now,
     updatedAt: now,
   };
-  if (isBrowser()) window.localStorage.setItem(KEY, JSON.stringify(cliente));
+  if (isBrowser()) gravarLocal(KEY, JSON.stringify(cliente));
   return cliente;
 }
 
 export function clearCliente() {
   if (!isBrowser()) return;
-  window.localStorage.removeItem(KEY);
+  try {
+    window.localStorage.removeItem(KEY);
+  } catch {
+    /* mesma história do gravarLocal. */
+  }
 }

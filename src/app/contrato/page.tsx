@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { OrigemPicker } from "@/components/ui/origem-picker";
-import { loadCliente, hydrateCliente } from "@/lib/storage";
+import { hydrateCliente } from "@/lib/storage";
 import type { ProjectType } from "@/lib/types";
+import { useClienteLocal } from "../_hooks/dados-locais";
 
 interface FormState {
   nome: string;
@@ -26,46 +27,56 @@ interface FormState {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const FORM_VAZIO: FormState = {
+  nome: "",
+  whatsapp: "",
+  email: "",
+  empresa: "",
+  endereco: "",
+  cep: "",
+  rg: "",
+  cpf: "",
+  cnpj: "",
+  razao_social: "",
+  como_conheceu: "",
+};
+
 export default function ContratoPage() {
   const router = useRouter();
-  const [clientId, setClientId] = useState<string | null>(null);
+  const cliente = useClienteLocal();
+  const clientId = cliente?.id ?? null;
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [values, setValues] = useState<FormState>({
-    nome: "",
-    whatsapp: "",
-    email: "",
-    empresa: "",
-    endereco: "",
-    cep: "",
-    rg: "",
-    cpf: "",
-    cnpj: "",
-    razao_social: "",
-    como_conheceu: "",
-  });
 
-  useEffect(() => {
-    // Pré-preenche com dados do localStorage se o cliente já entrou
-    // pelo /painel. Mas /contrato também funciona standalone — quem chega
-    // direto preenche nome+whatsapp aqui mesmo e cria o cadastro.
-    const c = loadCliente();
-    if (c) {
-      setClientId(c.id);
-      setValues((v) => ({
-        ...v,
-        nome: c.nome ?? v.nome,
-        whatsapp: c.whatsapp ?? v.whatsapp,
-        email: c.email ?? v.email,
-        empresa: c.empresa ?? v.empresa,
-      }));
-    }
-  }, [router]);
+  // O formulário é a soma de duas camadas: o que já se sabe do cliente
+  // (pré-preenchido do que está guardado no navegador, pra quem entrou pelo
+  // /painel) e o que a pessoa digitou aqui, que sempre vence — inclusive
+  // quando ela apaga um campo de propósito.
+  //
+  // Guardar só as edições, em vez de copiar o cliente pro estado dentro de
+  // um efeito, evita o quadro intermediário com o formulário vazio.
+  const [edicoes, setEdicoes] = useState<Partial<FormState>>({});
+  const preenchido = useMemo<FormState>(
+    () => ({
+      ...FORM_VAZIO,
+      nome: cliente?.nome ?? "",
+      whatsapp: cliente?.whatsapp ?? "",
+      email: cliente?.email ?? "",
+      empresa: cliente?.empresa ?? "",
+    }),
+    [cliente]
+  );
+  const values = useMemo<FormState>(
+    () => ({ ...preenchido, ...edicoes }),
+    [preenchido, edicoes]
+  );
 
+  // /contrato também funciona standalone — quem chega direto preenche
+  // nome+whatsapp aqui mesmo e cria o cadastro.
   const standalone = clientId === null;
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setValues((v) => ({ ...v, [key]: value }));
+    setEdicoes((e) => ({ ...e, [key]: value }));
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -158,7 +169,7 @@ export default function ContratoPage() {
     <Shell tone="cream" sectionLabel="Contrato · Dados">
       <ContentFrame size="lg">
         <div className="flex items-center gap-2 mb-3">
-          <Pill tone="yellow">⚡ Importante</Pill>
+          <Pill tone="yellow">Importante</Pill>
           <span className="text-xs text-fysi-muted uppercase tracking-[0.1em] font-medium">
             Etapa 01 do projeto
           </span>

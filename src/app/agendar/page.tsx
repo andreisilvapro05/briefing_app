@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Eyebrow, Pill } from "@/components/ui/pill";
-import { loadCliente } from "@/lib/storage";
+import { useClienteLocal } from "../_hooks/dados-locais";
 
 const CALENDLY_URL = "https://calendly.com/karinesackt/briefing";
 
@@ -17,18 +17,16 @@ interface CalendlyEventDetail {
 
 export default function AgendarPage() {
   const router = useRouter();
-  const [clientId, setClientId] = useState<string | null>(null);
+  const cliente = useClienteLocal();
+  const clientId = cliente?.id ?? null;
   const [submitting, setSubmitting] = useState(false);
   const [scheduled, setScheduled] = useState(false);
 
   useEffect(() => {
-    const c = loadCliente();
-    if (!c) {
-      router.replace("/");
-      return;
-    }
-    setClientId(c.id);
-  }, [router]);
+    // `undefined` = ainda hidratando; só mandamos pra "/" depois de olhar
+    // de verdade o navegador e não achar cliente nenhum.
+    if (cliente === null) router.replace("/");
+  }, [cliente, router]);
 
   async function markAsScheduled() {
     if (!clientId) return;

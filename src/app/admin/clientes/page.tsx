@@ -185,6 +185,11 @@ export default async function AdminPage({
 
   // Indicador de "parado": cliente em-andamento sem atividade há > 7 dias
   const STUCK_DAYS = 7;
+  // "Agora" lido uma vez, e daysSince/isStuck abaixo usam esse valor.
+  // Esta página é Server Component async: roda uma vez por requisição, não
+  // re-renderiza no navegador. Não existe a instabilidade que a regra evita
+  // nem risco de hidratação — o HTML já sai pronto do servidor.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now();
   function daysSince(iso: string | null): number {
     if (!iso) return 0;

@@ -42,9 +42,24 @@ export default async function MoodboardPublicPage({
           <MoodboardView moodboard={moodboard} />
         ) : (
           <div className="flex flex-col items-center text-center gap-4 py-20">
-            <span className="text-4xl" aria-hidden>
-              🎨
-            </span>
+            {/* Paleta: as referências visuais ainda estão sendo montadas. */}
+            <svg
+              width="44"
+              height="44"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+              className="text-fysi-deep/70"
+            >
+              <path d="M12 3a9 9 0 1 0 0 18c.9 0 1.5-.7 1.5-1.5 0-.4-.15-.75-.4-1-.25-.26-.4-.6-.4-1 0-.83.67-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.42-4.03-8-9-8z" />
+              <circle cx="7.5" cy="11.5" r="1.1" />
+              <circle cx="11" cy="7.5" r="1.1" />
+              <circle cx="15.5" cy="8.5" r="1.1" />
+            </svg>
             <h1 className="text-2xl font-semibold tracking-[-0.02em] text-fysi-deep">
               Moodboard ainda não disponível
             </h1>

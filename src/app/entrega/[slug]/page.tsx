@@ -105,8 +105,24 @@ export default async function EntregaPage({
 function EmptyState({ nome }: { nome?: string }) {
   return (
     <div className="mx-auto max-w-lg text-center py-10">
-      <div className="text-5xl mb-5" aria-hidden>
-        🎁
+      <div className="flex justify-center mb-5 text-fysi-deep/70">
+        {/* Caixa fechada: a entrega existe, só não abriu ainda. */}
+        <svg
+          width="52"
+          height="52"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M3 9h18v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z" />
+          <rect x="2" y="5" width="20" height="4" rx="1" />
+          <path d="M12 5v16" />
+          <path d="M12 5S10.5 2 8.5 2a2 2 0 1 0 0 4M12 5s1.5-3 3.5-3a2 2 0 1 1 0 4" />
+        </svg>
       </div>
       <h1 className="fysi-display text-3xl md:text-4xl text-fysi-deep">
         Sua entrega está a caminho
@@ -118,8 +134,7 @@ function EmptyState({ nome }: { nome?: string }) {
         os acessos, tutoriais e a garantia do seu projeto.
       </p>
       <div className="mt-6 inline-flex items-center gap-2 rounded-full bg-fysi-mint border border-fysi-mint-vivid/30 px-4 py-2 text-xs font-medium text-fysi-deep">
-        <span aria-hidden>💚</span> Qualquer dúvida, fala com a gente no
-        WhatsApp
+        Qualquer dúvida, fala com a gente no WhatsApp
       </div>
     </div>
   );

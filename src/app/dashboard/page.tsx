@@ -275,9 +275,10 @@ export default function DashboardPage() {
                   href={fysiDriveLink}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
                 >
-                  🗂️ Abrir pasta no Drive →
+                  <IconePasta />
+                  Abrir pasta no Drive →
                 </a>
               ) : null}
               <button
@@ -290,7 +291,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* 📦 Documento de entrega — quando projeto finalizado, isso vira o topo */}
+          {/* Documento de entrega — quando projeto finalizado, isso vira o topo */}
           {entregaFinalizadaAt && entregaDoc ? (
             <div className="mb-8">
               <EntregaViewer
@@ -303,17 +304,17 @@ export default function DashboardPage() {
             </div>
           ) : null}
 
-          {/* ⚡ Atenção no topo — contrato pendente + pagamento */}
+          {/* Atenção no topo — contrato pendente + pagamento */}
           {contratoStatus === "pendente" ? (
             <section className="bg-fysi-yellow/30 border-2 border-fysi-yellow rounded-[24px] p-6 mb-8">
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-xl">⚡</span>
                 <Eyebrow>Atenção · contrato e pagamento</Eyebrow>
               </div>
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="bg-white rounded-[16px] p-5">
-                  <h3 className="font-medium text-fysi-deep mb-2">
-                    📝 Contrato pra assinar
+                  <h3 className="font-medium text-fysi-deep mb-2 flex items-center gap-1.5">
+                    <IconeContrato />
+                    Contrato pra assinar
                   </h3>
                   <p className="text-sm text-fysi-deep/80 leading-relaxed">
                     Você recebeu um e-mail do <strong>Autentique</strong> com o
@@ -328,13 +329,14 @@ export default function DashboardPage() {
                       rel="noopener noreferrer"
                       className="inline-flex items-center rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 mt-3 hover:brightness-95 transition"
                     >
-                      ✍ Assinar contrato agora →
+                      Assinar contrato agora →
                     </a>
                   ) : null}
                 </div>
                 <div className="bg-white rounded-[16px] p-5">
-                  <h3 className="font-medium text-fysi-deep mb-2">
-                    💳 Pagamento via Pix
+                  <h3 className="font-medium text-fysi-deep mb-2 flex items-center gap-1.5">
+                    <IconeCartao />
+                    Pagamento via Pix
                   </h3>
                   <p className="text-xs text-fysi-muted mb-2">
                     CNPJ da Fysi pra pagamento:
@@ -489,9 +491,10 @@ export default function DashboardPage() {
                 href={fysiDriveLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
+                className="inline-flex items-center gap-1.5 rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90"
               >
-                🗂️ Abrir pasta no Drive →
+                <IconePasta />
+                Abrir pasta no Drive →
               </a>
             ) : null}
             <button
@@ -504,7 +507,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 📦 Entrega finalizada — vira o destaque número 1 do painel */}
+        {/* Entrega finalizada — vira o destaque número 1 do painel */}
         {entregaFinalizadaAt && entregaDoc ? (
           <div className="mb-8">
             <EntregaViewer
@@ -517,17 +520,17 @@ export default function DashboardPage() {
           </div>
         ) : null}
 
-        {/* ⚡ Ponto de atenção no topo — contrato pendente + dados de pagamento */}
+        {/* Ponto de atenção no topo — contrato pendente + dados de pagamento */}
         {contratoStatus === "pendente" ? (
           <section className="bg-fysi-yellow/30 border-2 border-fysi-yellow rounded-[24px] p-6 mb-8">
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-xl">⚡</span>
               <Eyebrow>Atenção · contrato e pagamento</Eyebrow>
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div className="bg-white rounded-[16px] p-5">
-                <h3 className="font-medium text-fysi-deep mb-2">
-                  📝 Contrato pra assinar
+                <h3 className="font-medium text-fysi-deep mb-2 flex items-center gap-1.5">
+                  <IconeContrato />
+                  Contrato pra assinar
                 </h3>
                 <p className="text-sm text-fysi-deep/80 leading-relaxed">
                   Você recebeu um e-mail do <strong>Autentique</strong> com o
@@ -542,13 +545,14 @@ export default function DashboardPage() {
                     rel="noopener noreferrer"
                     className="inline-flex items-center rounded-full bg-fysi-mint-vivid text-fysi-deep text-sm font-semibold px-4 py-2 mt-3 hover:brightness-95 transition"
                   >
-                    ✍ Assinar contrato agora →
+                    Assinar contrato agora →
                   </a>
                 ) : null}
               </div>
               <div className="bg-white rounded-[16px] p-5">
-                <h3 className="font-medium text-fysi-deep mb-2">
-                  💳 Pagamento via Pix
+                <h3 className="font-medium text-fysi-deep mb-2 flex items-center gap-1.5">
+                  <IconeCartao />
+                  Pagamento via Pix
                 </h3>
                 <p className="text-xs text-fysi-muted mb-2">
                   CNPJ da Fysi pra pagamento:
@@ -890,7 +894,7 @@ function PhaseCard({
           </span>
         ) : important ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-fysi-yellow text-fysi-deep px-2 py-0.5 text-[0.65rem] uppercase tracking-[0.1em] font-semibold">
-            ⚡ Importante
+            Importante
           </span>
         ) : null}
       </div>
@@ -1049,7 +1053,7 @@ function PaymentCard({
       {!quitado ? (
         <div>
           <p className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium mb-1.5">
-            💳 Pix · CNPJ Fysi
+            Pix · CNPJ Fysi
           </p>
           <CopyableValue value="53.470.438/0001-08" label="CNPJ" />
           <p className="text-[0.7rem] text-fysi-muted mt-2 leading-relaxed">
@@ -1070,4 +1074,43 @@ function formatBRL(value: number): string {
     style: "currency",
     currency: "BRL",
   }).format(value);
+}
+
+/** Traço padrão dos ícones do app — mesmo peso dos do painel interno. */
+const TRACO = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  "aria-hidden": true,
+};
+
+/** Pasta — o atalho pro Drive do projeto. */
+function IconePasta() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" className="shrink-0" {...TRACO}>
+      <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+    </svg>
+  );
+}
+
+/** Folha com linhas de texto — o contrato. */
+function IconeContrato() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" className="shrink-0" {...TRACO}>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5M9 13h6M9 17h4" />
+    </svg>
+  );
+}
+
+/** Cartão — o bloco de pagamento. */
+function IconeCartao() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" className="shrink-0" {...TRACO}>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20" />
+    </svg>
+  );
 }

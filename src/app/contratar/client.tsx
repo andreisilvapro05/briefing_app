@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import {
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type FormEvent,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
@@ -85,14 +90,47 @@ function clearDraft() {
   } catch {
     // ignora
   }
+  rascunhoCache = null;
+  for (const avisar of rascunhoOuvintes) avisar();
 }
+
+// ── Rascunho como fonte da verdade ───────────────────────────────────────
+// O rascunho já era gravado no localStorage a cada tecla, então ele é a
+// fonte da verdade e não um espelho do estado do React. Lendo com
+// `useSyncExternalStore` — o padrão do projeto, ver
+// `use-grupos-colapsados.tsx` — o servidor rende o formulário vazio e o
+// navegador troca pelo rascunho salvo no mesmo commit da hidratação, sem o
+// par useState+useEffect que mostrava um quadro vazio antes.
+let rascunhoCache: DraftState | null = null;
+const rascunhoOuvintes = new Set<() => void>();
+
+/** Mesma referência enquanto o rascunho não muda — exigência do hook. */
+function lerRascunho(): DraftState {
+  if (!rascunhoCache) rascunhoCache = loadDraft();
+  return rascunhoCache;
+}
+
+function gravarRascunho(d: DraftState) {
+  rascunhoCache = d;
+  saveDraft(d);
+  for (const avisar of rascunhoOuvintes) avisar();
+}
+
+function assinarRascunho(avisar: () => void) {
+  rascunhoOuvintes.add(avisar);
+  return () => {
+    rascunhoOuvintes.delete(avisar);
+  };
+}
+
+const rascunhoNoServidor = () => emptyDraft;
 
 type TabId = "plano" | "dados" | "revisao";
 
-const TABS: Array<{ id: TabId; label: string; emoji: string }> = [
-  { id: "plano", label: "Plano", emoji: "🎯" },
-  { id: "dados", label: "Seus dados", emoji: "📋" },
-  { id: "revisao", label: "Revisão", emoji: "✓" },
+const TABS: Array<{ id: TabId; label: string }> = [
+  { id: "plano", label: "Plano" },
+  { id: "dados", label: "Seus dados" },
+  { id: "revisao", label: "Revisão" },
 ];
 
 function planoComplete(d: DraftState): boolean {
@@ -119,22 +157,16 @@ export function ContratarWizard() {
   const tab: TabId =
     tabParam && TABS.some((t) => t.id === tabParam) ? tabParam : "plano";
 
-  const [draft, setDraft] = useState<DraftState>(emptyDraft);
-  const [loaded, setLoaded] = useState(false);
+  const draft = useSyncExternalStore(
+    assinarRascunho,
+    lerRascunho,
+    rascunhoNoServidor
+  );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setDraft(loadDraft());
-    setLoaded(true);
-  }, []);
-
-  useEffect(() => {
-    if (loaded) saveDraft(draft);
-  }, [draft, loaded]);
-
   function update<K extends keyof DraftState>(key: K, value: DraftState[K]) {
-    setDraft((d) => ({ ...d, [key]: value }));
+    gravarRascunho({ ...lerRascunho(), [key]: value });
   }
 
   function goTab(t: TabId) {
@@ -429,7 +461,7 @@ function PanelPlano({
               <p className="text-[0.65rem] text-fysi-muted border-t border-fysi-line pt-2 mt-auto">
                 {opt.hasCopyStep
                   ? "✓ Inclui criação da copy"
-                  : "📝 Você envia textos prontos"}
+                  : "Você envia textos prontos"}
               </p>
             </button>
           );
@@ -562,7 +594,7 @@ function PanelRevisao({ draft }: { draft: DraftState }) {
         só voltar pra editar.
       </p>
 
-      <ReviewCard titulo="🎯 Plano">
+      <ReviewCard titulo="Plano">
         {planoInfo ? (
           <div className="flex items-baseline justify-between gap-3 flex-wrap">
             <div>
@@ -575,25 +607,25 @@ function PanelRevisao({ draft }: { draft: DraftState }) {
           </div>
         ) : (
           <p className="text-sm text-amber-700">
-            ⚠ Plano não selecionado — volta na aba Plano.
+            Plano não selecionado — volta na aba Plano.
           </p>
         )}
       </ReviewCard>
 
-      <ReviewCard titulo="📋 Contato">
+      <ReviewCard titulo="Contato">
         <ReviewRow label="Nome" value={draft.nome} />
         <ReviewRow label="WhatsApp" value={draft.whatsapp} />
         <ReviewRow label="E-mail" value={draft.email} />
         <ReviewRow label="Empresa" value={draft.empresa} />
       </ReviewCard>
 
-      <ReviewCard titulo="🏠 Endereço">
+      <ReviewCard titulo="Endereço">
         <ReviewRow label="Endereço" value={draft.endereco} />
         <ReviewRow label="CEP" value={draft.cep} />
         <ReviewRow label="Como conheceu" value={draft.como_conheceu} />
       </ReviewCard>
 
-      <ReviewCard titulo="📄 Documentos">
+      <ReviewCard titulo="Documentos">
         <ReviewRow label="CPF" value={draft.cpf} />
         {draft.rg ? <ReviewRow label="RG" value={draft.rg} /> : null}
         {draft.cnpj ? <ReviewRow label="CNPJ" value={draft.cnpj} /> : null}
@@ -604,7 +636,7 @@ function PanelRevisao({ draft }: { draft: DraftState }) {
 
       <div className="rounded-[14px] bg-fysi-mint border border-fysi-mint-vivid/30 px-4 py-3">
         <p className="text-sm text-fysi-deep leading-relaxed">
-          📅 <strong>Próximo passo</strong>: depois de confirmar, você vai pra
+          <strong>Próximo passo</strong>: depois de confirmar, você vai pra
           tela de agendar a chamada de alinhamento — 30 minutos com a Karine
           pra fechar moodboard e cronograma.
         </p>

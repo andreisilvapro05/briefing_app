@@ -1,21 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { FysiMark } from "@/components/brand/fysi-mark";
-import { loadCliente } from "@/lib/storage";
+import { useClienteLocal } from "../../_hooks/dados-locais";
 
 export default function ConcluidoPage() {
   const router = useRouter();
-  const [nome, setNome] = useState<string>("");
-
-  useEffect(() => {
-    const c = loadCliente();
-    if (c) setNome(c.nome.split(" ")[0]);
-  }, []);
+  const cliente = useClienteLocal();
+  const nome = cliente?.nome.split(" ")[0] ?? "";
 
   return (
     <Shell tone="deep" sectionLabel="Briefing concluído">

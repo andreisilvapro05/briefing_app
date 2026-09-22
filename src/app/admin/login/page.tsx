@@ -270,7 +270,7 @@ function SenhaLoginForm() {
       // admin mesmo quando o cookie é descartado pelo navegador (Brave,
       // Safari ITP, extensões de privacidade). Os links internos do admin
       // preservam o ?key= em toda a navegação.
-      // ⚠️ A senha fica visível na URL — não compartilhe o link.
+      // Atenção: a senha fica visível na URL — não compartilhe o link.
       window.location.href = `/admin?key=${encodeURIComponent(password)}`;
     } catch (err) {
       setStatus("error");

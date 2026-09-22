@@ -35,7 +35,14 @@ function readAll(): ResponsesMap {
 
 function writeAll(map: ResponsesMap) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+  try {
+    // Aba anônima / cota cheia fazem o próprio setItem lançar. A resposta
+    // vale só nesta sessão, o que é ruim — mas travar o briefing no meio,
+    // pro cliente, é pior.
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+  } catch {
+    /* segue sem persistir. */
+  }
 }
 
 export function getResponse<T>(fieldId: string, fallback: T): T {
@@ -49,7 +56,11 @@ export function getAllResponses(): ResponsesMap {
 
 export function clearAllResponses() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(STORAGE_KEY);
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* idem. */
+  }
 }
 
 /**

@@ -272,7 +272,7 @@ export default async function CobrancasPage({
           </div>
           {projetosPendentes.length === 0 ? (
             <p className="text-sm text-fysi-muted">
-              Nenhum projeto com saldo em aberto. 🎉
+              Nenhum projeto com saldo em aberto.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -342,7 +342,7 @@ export default async function CobrancasPage({
         {/* Form adicionar — collapse */}
         <details className="mb-6 bg-white border border-fysi-line rounded-[16px] shadow-fysi-card">
           <summary className="cursor-pointer px-4 py-3 text-sm font-medium text-fysi-deep select-none">
-            ➕ Adicionar cobrança
+            Adicionar cobrança
           </summary>
           <form
             action={addCobrancaAction}
@@ -361,11 +361,17 @@ export default async function CobrancasPage({
                     value="mensal"
                     defaultChecked
                   />
-                  <span>🔁 Mensal (recorrente)</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <IconeTipoCobranca pontual={false} />
+                    Mensal (recorrente)
+                  </span>
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer ml-4">
                   <input type="radio" name="tipo" value="pontual" />
-                  <span>📌 Pontual (uma vez)</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <IconeTipoCobranca pontual />
+                    Pontual (uma vez)
+                  </span>
                 </label>
               </div>
             </FieldLabel>
@@ -575,7 +581,8 @@ function CobrancaCard({
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <Pill tone={cobranca.tipo === "pontual" ? "yellow" : "outline"}>
-              {cobranca.tipo === "pontual" ? "📌 Pontual" : "🔁 Mensal"}
+              <IconeTipoCobranca pontual={cobranca.tipo === "pontual"} />
+              {cobranca.tipo === "pontual" ? "Pontual" : "Mensal"}
             </Pill>
             <h3 className="text-base font-semibold text-fysi-deep">
               {cobranca.nome}
@@ -587,7 +594,7 @@ function CobrancaCard({
                 {cobranca.tipo === "pontual" ? "✓ pago" : "✓ pago este mês"}
               </Pill>
             ) : status === "atrasado" ? (
-              <Pill tone="yellow">⚠ atrasado</Pill>
+              <Pill tone="yellow">atrasado</Pill>
             ) : (
               <Pill tone="outline">
                 {cobranca.tipo === "pontual"
@@ -654,7 +661,7 @@ function CobrancaCard({
 
         <details className="text-xs">
           <summary className="cursor-pointer inline-flex items-center rounded-full border border-fysi-line bg-white px-3 py-1.5 text-fysi-deep hover:border-fysi-deep/40">
-            💰 Registrar pagamento avulso
+            Registrar pagamento avulso
           </summary>
           <form
             action={registrarPagamentoAction}
@@ -690,7 +697,7 @@ function CobrancaCard({
 
         <details className="text-xs">
           <summary className="cursor-pointer inline-flex items-center rounded-full border border-fysi-line bg-white px-3 py-1.5 text-fysi-deep hover:border-fysi-deep/40">
-            📋 Histórico ({cobranca.historico.length})
+            Histórico ({cobranca.historico.length})
           </summary>
           <div className="mt-2 bg-fysi-cream/30 rounded-md p-3 flex flex-col gap-1">
             {cobranca.historico.length === 0 ? (
@@ -733,7 +740,7 @@ function CobrancaCard({
 
         <details className="text-xs ml-auto">
           <summary className="cursor-pointer inline-flex items-center rounded-full border border-fysi-line bg-white px-3 py-1.5 text-fysi-muted hover:text-fysi-deep">
-            ⚙️ Editar / inativar
+            Editar / inativar
           </summary>
           <form
             action={updateCobrancaAction}
@@ -813,6 +820,41 @@ function CobrancaCard({
         </details>
       </div>
     </div>
+  );
+}
+
+/** Traço padrão dos ícones do painel. */
+const TRACO = {
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 2,
+  strokeLinecap: "round" as const,
+  strokeLinejoin: "round" as const,
+  "aria-hidden": true,
+  className: "shrink-0",
+};
+
+/**
+ * Marca do tipo da cobrança. É a única distinção que se repete em toda
+ * linha da lista, então aqui o ícone paga o próprio espaço: setas em volta
+ * pra mensal (volta todo mês), um ponto só pra pontual (acontece uma vez).
+ */
+function IconeTipoCobranca({ pontual }: { pontual: boolean }) {
+  if (pontual) {
+    return (
+      <svg width="12" height="12" viewBox="0 0 24 24" {...TRACO}>
+        <circle cx="12" cy="12" r="9" />
+        <circle cx="12" cy="12" r="2.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" {...TRACO}>
+      <path d="M17 2l4 4-4 4" />
+      <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
+      <path d="M7 22l-4-4 4-4" />
+      <path d="M21 13v1a4 4 0 0 1-4 4H3" />
+    </svg>
   );
 }
 

@@ -88,12 +88,12 @@ export default async function MembrosPage({
 
       <div className="mb-6 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3">
         <p className="text-sm text-amber-900 font-medium mb-1">
-          ⚠ O envio de e-mail está em modo de teste
+          O envio de e-mail está em modo de teste
         </p>
         <p className="text-xs text-amber-800 leading-relaxed">
           O Resend só entrega e-mail pra conta dona (fysilabdigital@gmail.com)
           até um domínio ser verificado em resend.com/domains. Enquanto isso,
-          use o botão <strong>&quot;🔗 Gerar link de acesso&quot;</strong> em
+          use o botão <strong>&quot;Gerar link de acesso&quot;</strong> em
           cada membro pra mandar o link direto por WhatsApp — funciona em
           qualquer aparelho, sem depender do e-mail.
         </p>

@@ -55,6 +55,14 @@ export default async function AdminRelatoriosPage({
   }
   const stats = computeStats(clients);
 
+  // "Agora" lido uma vez por render, em vez de uma chamada por item dentro do
+  // .map() dos parados.
+  // Esta página é Server Component async: roda uma vez por requisição, não
+  // re-renderiza no navegador. Não existe a instabilidade que a regra evita
+  // nem risco de hidratação — o HTML já sai pronto do servidor.
+  // eslint-disable-next-line react-hooks/purity
+  const agora = Date.now();
+
   // Cobranças mensais — pra mostrar MRR + receita recorrente no relatório.
   // Cobrança sem client_id é "externa" (fora de projeto) — não entra pra
   // quem tem visão restrita, já que não dá pra saber se é dela.
@@ -134,7 +142,7 @@ export default async function AdminRelatoriosPage({
         {cobrancasStats.total > 0 ? (
           <section className="bg-white rounded-[20px] border border-fysi-line p-5 mb-6">
             <div className="flex items-baseline justify-between mb-4 flex-wrap gap-2">
-              <Eyebrow>💚 Receita recorrente (MRR)</Eyebrow>
+              <Eyebrow>Receita recorrente (MRR)</Eyebrow>
               <a
                 href={`/admin/cobrancas${keyParamFirst}`}
                 className="text-xs text-fysi-deep hover:underline font-medium"
@@ -195,7 +203,7 @@ export default async function AdminRelatoriosPage({
             {cobrancasStats.atrasados.length > 0 ? (
               <div className="mt-4 pt-4 border-t border-fysi-line">
                 <p className="text-[0.7rem] uppercase tracking-[0.1em] text-amber-800 font-semibold mb-2">
-                  ⚠ Atrasadas este mês:
+                  Atrasadas este mês:
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {cobrancasStats.atrasados.slice(0, 8).map((c) => (
@@ -213,7 +221,7 @@ export default async function AdminRelatoriosPage({
           </section>
         ) : (
           <section className="bg-white rounded-[20px] border border-fysi-line p-5 mb-6 text-center">
-            <Eyebrow>💚 Receita recorrente (MRR)</Eyebrow>
+            <Eyebrow>Receita recorrente (MRR)</Eyebrow>
             <p className="text-sm text-fysi-muted mt-2 mb-3">
               Nenhuma cobrança mensal cadastrada ainda. Use a aba Cobranças pra
               adicionar clientes recorrentes (SEO, manutenção, hosting).
@@ -452,7 +460,7 @@ export default async function AdminRelatoriosPage({
         {stats.parados.length > 0 ? (
           <section className="bg-fysi-yellow/20 rounded-[20px] border-2 border-fysi-yellow p-5 mb-6">
             <div className="flex items-baseline justify-between mb-3">
-              <Eyebrow>⚠️ Parados há +14 dias</Eyebrow>
+              <Eyebrow>Parados há +14 dias</Eyebrow>
               <span className="text-[0.7rem] text-fysi-deep font-medium">
                 {stats.parados.length} cliente(s)
               </span>
@@ -461,7 +469,7 @@ export default async function AdminRelatoriosPage({
               {stats.parados.slice(0, 10).map((c) => {
                 const ref = c.last_client_activity_at ?? c.created_at;
                 const days = Math.floor(
-                  (Date.now() - new Date(ref).getTime()) / 86_400_000
+                  (agora - new Date(ref).getTime()) / 86_400_000
                 );
                 return (
                   <a

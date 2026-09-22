@@ -13,8 +13,7 @@ import { BlocoCopy } from "@/components/briefing/bloco-copy";
 import { BlocoTextosProntos } from "@/components/briefing/bloco-textos-prontos";
 import { BlocoCustom, CUSTOM_BLOCO_ID } from "@/components/briefing/bloco-custom";
 import { blocosForProject } from "@/lib/briefing-schema";
-import { loadCliente } from "@/lib/storage";
-import type { Cliente } from "@/lib/types";
+import { useClienteLocal } from "../../_hooks/dados-locais";
 
 const BLOCO_COMPONENTS: Record<string, React.ComponentType> = {
   materiais: BlocoMateriais,
@@ -30,33 +29,39 @@ const BLOCO_COMPONENTS: Record<string, React.ComponentType> = {
 export default function BlocoPage() {
   const router = useRouter();
   const params = useParams<{ bloco: string }>();
-  const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const cliente = useClienteLocal();
   const [hasCustom, setHasCustom] = useState(false);
 
+  // `undefined` = ainda hidratando, e aí não dá pra decidir nada: só depois
+  // de olhar o navegador de verdade é que mandamos a pessoa pro lugar certo.
+  const loaded = cliente != null && !!cliente.projectType;
+
   useEffect(() => {
-    const c = loadCliente();
-    if (!c) {
+    if (cliente === undefined) return;
+    if (!cliente) {
       router.replace("/");
       return;
     }
-    if (!c.projectType) {
-      router.replace("/projeto");
-      return;
-    }
-    setCliente(c);
-    setLoaded(true);
+    if (!cliente.projectType) router.replace("/projeto");
+  }, [cliente, router]);
 
-    // Descobre se este cliente tem perguntas específicas → bloco extra no fim.
-    if (c.id) {
-      fetch(
-        `/api/cliente/custom-questions?clientId=${encodeURIComponent(c.id)}`
-      )
-        .then((r) => (r.ok ? r.json() : { questions: [] }))
-        .then((d) => setHasCustom((d.questions ?? []).length > 0))
-        .catch(() => {});
-    }
-  }, [router]);
+  // Descobre se este cliente tem perguntas específicas → bloco extra no fim.
+  // Só quando a tela realmente vai ser mostrada: sem `loaded` a busca sairia
+  // no meio do redirecionamento de quem ainda não escolheu o tipo de projeto.
+  const clientId = loaded ? cliente.id : null;
+  useEffect(() => {
+    if (!clientId) return;
+    let ativo = true;
+    fetch(`/api/cliente/custom-questions?clientId=${encodeURIComponent(clientId)}`)
+      .then((r) => (r.ok ? r.json() : { questions: [] }))
+      .then((d) => {
+        if (ativo) setHasCustom((d.questions ?? []).length > 0);
+      })
+      .catch(() => {});
+    return () => {
+      ativo = false;
+    };
+  }, [clientId]);
 
   const blocos = useMemo(() => {
     if (!cliente?.projectType) return [];

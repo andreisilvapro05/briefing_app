@@ -7,24 +7,26 @@ import { Button } from "@/components/ui/button";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { cn } from "@/lib/cn";
 import { PROJECT_TYPE_OPTIONS } from "@/lib/project-types";
-import { loadCliente, setProjectType } from "@/lib/storage";
+import { setProjectType } from "@/lib/storage";
 import type { ProjectType } from "@/lib/types";
+import { useClienteLocal } from "../_hooks/dados-locais";
 
 export default function EscolhaFluxoPage() {
   const router = useRouter();
-  const [selected, setSelected] = useState<ProjectType | null>(null);
-  const [nome, setNome] = useState<string>("");
+  const cliente = useClienteLocal();
+  // A escolha só vira estado quando a pessoa clica. Antes disso vale o que
+  // já estava salvo — assim quem volta pra esta tela vê o próprio cartão
+  // marcado sem precisar de um efeito pra copiar o valor pro estado.
+  const [escolhaManual, setEscolhaManual] = useState<ProjectType | null>(null);
+  const selected = escolhaManual ?? cliente?.projectType ?? null;
+  const nome = cliente?.nome.split(" ")[0] ?? "";
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const cliente = loadCliente();
-    if (!cliente) {
-      router.replace("/");
-      return;
-    }
-    setNome(cliente.nome.split(" ")[0] ?? "");
-    if (cliente.projectType) setSelected(cliente.projectType);
-  }, [router]);
+    // `undefined` = ainda hidratando; só manda pra "/" depois de olhar de
+    // verdade o que está guardado no navegador.
+    if (cliente === null) router.replace("/");
+  }, [cliente, router]);
 
   function handleContinue() {
     if (!selected) return;
@@ -65,7 +67,7 @@ export default function EscolhaFluxoPage() {
               <button
                 key={option.id}
                 type="button"
-                onClick={() => setSelected(option.id)}
+                onClick={() => setEscolhaManual(option.id)}
                 aria-pressed={isActive}
                 className={cn(
                   "group text-left rounded-[20px] border p-6 flex flex-col gap-3 transition",

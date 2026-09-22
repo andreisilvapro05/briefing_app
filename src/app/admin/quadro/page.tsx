@@ -52,6 +52,15 @@ export default async function AdminQuadroPage({
     clients = (data as ClientForLane[]) ?? [];
   }
 
+  // "Agora" lido uma vez por render da página: os cartões recebem o número
+  // pronto, em vez de cada um chamar Date.now() dentro do map.
+  // Esta página é Server Component async: roda uma vez por requisição, não
+  // re-renderiza no navegador. Não existe a instabilidade que a regra evita
+  // (mesmo componente dando resultados diferentes entre renders) nem risco de
+  // hidratação — o HTML já sai pronto do servidor.
+  // eslint-disable-next-line react-hooks/purity
+  const agora = Date.now();
+
   // Agrupa por lane
   const byLane = new Map<string, ClientForLane[]>();
   GENERAL_LANES.forEach((l) => byLane.set(l.id, []));
@@ -165,6 +174,7 @@ export default async function AdminQuadroPage({
                         key={c.id}
                         client={c}
                         keyParam={keyParamFirst}
+                        agora={agora}
                       />
                     ))}
                     {items.length === 0 ? (
@@ -185,14 +195,17 @@ export default async function AdminQuadroPage({
 function ClientCard({
   client,
   keyParam,
+  agora,
 }: {
   client: ClientForLane;
   keyParam: string;
+  /** Instante calculado uma vez pela página — ver comentário lá em cima. */
+  agora: number;
 }) {
   const total = Number(client.pagamento_total ?? 0);
   const pago = Number(client.pagamento_pago ?? 0);
   const ref = client.last_client_activity_at ?? client.created_at;
-  const days = Math.floor((Date.now() - new Date(ref).getTime()) / 86_400_000);
+  const days = Math.floor((agora - new Date(ref).getTime()) / 86_400_000);
   const tipo = client.project_type
     ? PROJECT_TYPE_LABELS[client.project_type] ?? client.project_type
     : null;

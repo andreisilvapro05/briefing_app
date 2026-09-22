@@ -6,31 +6,29 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Button } from "@/components/ui/button";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { FysiMark } from "@/components/brand/fysi-mark";
-import { loadCliente } from "@/lib/storage";
-import { getAllResponses } from "@/lib/briefing-store";
 import { blocosForProject } from "@/lib/briefing-schema";
-import type { Cliente } from "@/lib/types";
+import {
+  useClienteLocal,
+  useRespostasBriefing,
+} from "../../_hooks/dados-locais";
 
 export default function RevisaoPage() {
   const router = useRouter();
-  const [cliente, setCliente] = useState<Cliente | null>(null);
-  const [responses, setResponses] = useState<Record<string, unknown>>({});
+  const cliente = useClienteLocal();
+  const responses = useRespostasBriefing();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const c = loadCliente();
-    if (!c) {
+    // `undefined` = ainda hidratando; só redireciona depois de olhar de
+    // verdade o que está guardado no navegador.
+    if (cliente === undefined) return;
+    if (!cliente) {
       router.replace("/");
       return;
     }
-    if (!c.projectType) {
-      router.replace("/projeto");
-      return;
-    }
-    setCliente(c);
-    setResponses(getAllResponses());
-  }, [router]);
+    if (!cliente.projectType) router.replace("/projeto");
+  }, [cliente, router]);
 
   const blocos = useMemo(
     () => (cliente?.projectType ? blocosForProject(cliente.projectType) : []),

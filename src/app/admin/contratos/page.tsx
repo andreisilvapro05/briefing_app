@@ -358,7 +358,7 @@ export default async function ContractsPage({
                               className="text-xs font-medium text-fysi-deep hover:underline"
                               title="Abrir o PDF assinado"
                             >
-                              ⬇ Assinado
+                              ↓ Assinado
                             </a>
                           ) : null}
                           <Link
