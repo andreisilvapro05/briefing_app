@@ -236,7 +236,7 @@ export function AllTasksBoard({
               type="button"
               onClick={() =>
                 todosFechados
-                  ? colapso.abrirTodos()
+                  ? colapso.abrirTodos(chavesGrupos)
                   : colapso.fecharTodos(chavesGrupos)
               }
               className="rounded-[8px] border border-fysi-line text-sm text-fysi-muted hover:text-fysi-deep px-2.5 py-1.5 transition"

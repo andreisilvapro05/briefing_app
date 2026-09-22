@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worktrees de agente: é cópia do próprio repo, com os mesmos erros
+    // contados duas vezes.
+    ".claude/**",
   ]),
 ]);
 

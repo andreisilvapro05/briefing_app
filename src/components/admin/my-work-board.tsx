@@ -17,6 +17,7 @@ import { TaskComposer } from "./task-composer";
 import { TaskComments } from "./tasks-board";
 import { hojeISO, type ClientOption } from "./task-pickers";
 import { formatDataCurta } from "@/lib/datas";
+import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 
 /** `client: null` = demanda interna da agência (ex.: vinda da lista de
  * gestão do ClickUp), que não pertence a nenhuma ficha de cliente. */
@@ -518,18 +519,22 @@ function GroupSection({
   onOpenTask: (id: string) => void;
   onSave: (task: Task, field: string, value: string) => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  // O grupo fechado continua fechado depois de recarregar: era estado de
+  // componente, e "sem data" com 40 itens reabria a cada visita.
+  const colapso = useGruposColapsados("fysi-grupos-meu-trabalho");
+  const open = !colapso.fechado(grupo, !defaultOpen);
   if (tasks.length === 0) return null;
 
   return (
     <div className="border-t border-fysi-line first:border-t-0">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => colapso.alternar(grupo, !defaultOpen)}
+        aria-expanded={open}
         className="flex items-center gap-2 w-full px-3 py-2.5 text-left hover:bg-fysi-cream/40 transition"
       >
-        <span className={`text-fysi-muted transition-transform ${open ? "rotate-90" : ""}`}>
-          ▸
+        <span className="text-fysi-muted">
+          <Caret aberto={open} />
         </span>
         <span className="text-sm font-semibold text-fysi-deep">{GRUPO_LABEL[grupo]}</span>
         <span className="text-xs text-fysi-muted">{tasks.length}</span>

@@ -5,6 +5,7 @@ import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
 import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
+import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -63,8 +64,17 @@ export default async function AdminTarefasPage({
         }
         // Cada aba tem seu endereço (?resp=valeria), como as views do
         // ClickUp: recarregar mantém a lista, e o link pode ser mandado.
-        viewInicial={params.resp ?? ""}
+        // Valor desconhecido na URL cai em "Todos" — um ?resp= errado
+        // mostrava uma lista vazia sem aba acesa, que parece defeito.
+        viewInicial={abaValida(params.resp)}
       />
     </AdminShell>
   );
+}
+
+/** Só abas que existem: as da equipe e a das tarefas sem responsável. */
+function abaValida(valor: string | undefined): string {
+  if (!valor) return "";
+  if (valor === "__sem__") return valor;
+  return TEAM_MEMBERS.some((m) => m.value === valor) ? valor : "";
 }

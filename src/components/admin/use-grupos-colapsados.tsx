@@ -22,20 +22,37 @@ import { useCallback, useMemo, useSyncExternalStore } from "react";
  * "tudo aberto" e o cliente troca no mesmo commit da hidratação.
  */
 
-const cache = new Map<string, Set<string>>();
-const ouvintes = new Set<() => void>();
-/** Set vazio estável: getServerSnapshot precisa devolver sempre a mesma ref. */
-const VAZIO: ReadonlySet<string> = new Set<string>();
+/**
+ * Guardamos a ESCOLHA de cada grupo (`true` = fechado), não só o conjunto
+ * dos fechados. É a diferença entre "nunca mexeram nisso" e "mandaram
+ * fechar": sem ela, um grupo que nasce fechado por padrão (as tarefas sem
+ * data, que são dezenas) não teria como ser mantido aberto.
+ */
+type Escolhas = Record<string, boolean>;
 
-function ler(chave: string): Set<string> {
+const cache = new Map<string, Escolhas>();
+const ouvintes = new Set<() => void>();
+/** Objeto vazio estável: getServerSnapshot precisa da mesma referência. */
+const VAZIO: Escolhas = {};
+
+function ler(chave: string): Escolhas {
   const emCache = cache.get(chave);
   if (emCache) return emCache;
-  let valor = new Set<string>();
+  let valor: Escolhas = {};
   try {
     const cru = localStorage.getItem(chave);
     if (cru) {
-      const arr: unknown = JSON.parse(cru);
-      if (Array.isArray(arr)) valor = new Set(arr.filter((v) => typeof v === "string"));
+      const bruto: unknown = JSON.parse(cru);
+      if (bruto && typeof bruto === "object" && !Array.isArray(bruto)) {
+        for (const [k, v] of Object.entries(bruto as Record<string, unknown>)) {
+          if (typeof v === "boolean") valor[k] = v;
+        }
+      } else if (Array.isArray(bruto)) {
+        // Formato antigo (lista dos fechados) — migra sem perder a escolha.
+        valor = Object.fromEntries(
+          bruto.filter((v) => typeof v === "string").map((v) => [v as string, true])
+        );
+      }
     }
   } catch {
     /* localStorage bloqueado (aba anônima): vale só esta sessão. */
@@ -44,10 +61,10 @@ function ler(chave: string): Set<string> {
   return valor;
 }
 
-function gravar(chave: string, valor: Set<string>) {
+function gravar(chave: string, valor: Escolhas) {
   cache.set(chave, valor);
   try {
-    localStorage.setItem(chave, JSON.stringify([...valor]));
+    localStorage.setItem(chave, JSON.stringify(valor));
   } catch {
     /* idem. */
   }
@@ -62,35 +79,46 @@ function subscribe(cb: () => void) {
 }
 
 export interface GruposColapsados {
-  /** true = grupo recolhido (só o cabeçalho aparece). */
-  fechado: (id: string) => boolean;
-  alternar: (id: string) => void;
-  abrirTodos: () => void;
+  /**
+   * true = grupo recolhido. `padraoFechado` vale enquanto ninguém tiver
+   * mexido naquele grupo.
+   */
+  fechado: (id: string, padraoFechado?: boolean) => boolean;
+  alternar: (id: string, padraoFechado?: boolean) => void;
+  abrirTodos: (ids: string[]) => void;
   fecharTodos: (ids: string[]) => void;
-  /** Quantos dos grupos visíveis estão fechados — pro botão dizer o que faz. */
+  /** Quantos dos grupos dados estão fechados — pro botão dizer o que faz. */
   totalFechados: (ids: string[]) => number;
 }
 
 export function useGruposColapsados(storageKey: string): GruposColapsados {
   const getSnapshot = useCallback(() => ler(storageKey), [storageKey]);
-  const getServerSnapshot = useCallback(() => VAZIO as Set<string>, []);
-  const set = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const getServerSnapshot = useCallback(() => VAZIO, []);
+  const escolhas = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  return useMemo(
-    () => ({
-      fechado: (id: string) => set.has(id),
-      alternar: (id: string) => {
-        const proximo = new Set(ler(storageKey));
-        if (proximo.has(id)) proximo.delete(id);
-        else proximo.add(id);
+  return useMemo(() => {
+    const fechado = (id: string, padraoFechado = false) =>
+      id in escolhas ? escolhas[id] : padraoFechado;
+    return {
+      fechado,
+      alternar: (id: string, padraoFechado = false) => {
+        const atual = ler(storageKey);
+        const estava = id in atual ? atual[id] : padraoFechado;
+        gravar(storageKey, { ...atual, [id]: !estava });
+      },
+      abrirTodos: (ids: string[]) => {
+        const proximo = { ...ler(storageKey) };
+        for (const id of ids) proximo[id] = false;
         gravar(storageKey, proximo);
       },
-      abrirTodos: () => gravar(storageKey, new Set()),
-      fecharTodos: (ids: string[]) => gravar(storageKey, new Set(ids)),
-      totalFechados: (ids: string[]) => ids.filter((id) => set.has(id)).length,
-    }),
-    [set, storageKey]
-  );
+      fecharTodos: (ids: string[]) => {
+        const proximo = { ...ler(storageKey) };
+        for (const id of ids) proximo[id] = true;
+        gravar(storageKey, proximo);
+      },
+      totalFechados: (ids: string[]) => ids.filter((id) => fechado(id)).length,
+    };
+  }, [escolhas, storageKey]);
 }
 
 /** Triângulo do cabeçalho — aponta pra baixo quando aberto, como no ClickUp. */
