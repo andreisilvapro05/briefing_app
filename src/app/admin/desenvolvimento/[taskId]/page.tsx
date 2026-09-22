@@ -23,7 +23,7 @@ import {
   TASK_STATUS_TONE,
 } from "@/lib/project-tasks";
 import { formatDataCompleta } from "@/lib/datas";
-import { atualizarMinhaTarefaAction } from "../actions";
+import { MinhaTarefaForm } from "@/components/admin/minha-tarefa-form";
 
 export const dynamic = "force-dynamic";
 
@@ -164,9 +164,7 @@ export default async function TarefaDeImplementacaoPage({
             Minha tarefa
           </h2>
 
-          <form action={atualizarMinhaTarefaAction} className="mt-3">
-            <input type="hidden" name="taskId" value={taskId} />
-            {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+          <MinhaTarefaForm taskId={taskId} urlKey={urlKey} className="mt-3">
             <label className="block text-xs text-fysi-muted mb-1">Status</label>
             <AutoSubmitSelect
               name="status"
@@ -179,11 +177,9 @@ export default async function TarefaDeImplementacaoPage({
                 </option>
               ))}
             </AutoSubmitSelect>
-          </form>
+          </MinhaTarefaForm>
 
-          <form action={atualizarMinhaTarefaAction} className="mt-4">
-            <input type="hidden" name="taskId" value={taskId} />
-            {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+          <MinhaTarefaForm taskId={taskId} urlKey={urlKey} className="mt-4">
             <label
               htmlFor="observacoes"
               className="block text-xs text-fysi-muted mb-1"
@@ -201,7 +197,7 @@ export default async function TarefaDeImplementacaoPage({
             <div className="mt-2">
               <SubmitButton size="sm">Salvar observações</SubmitButton>
             </div>
-          </form>
+          </MinhaTarefaForm>
 
           {isDeveloper(member) ? (
             <p className="text-[0.7rem] text-fysi-muted mt-4 border-t border-fysi-line pt-3">

@@ -18,7 +18,8 @@ import {
   TEAM_MEMBERS,
   type TaskStatus,
 } from "@/lib/project-tasks";
-import { formatDiaMes } from "@/lib/datas";
+import {
+  hojeEmBrasilia, formatDiaMes } from "@/lib/datas";
 
 export const dynamic = "force-dynamic";
 
@@ -201,7 +202,9 @@ function ListaTarefas({
     );
   }
 
-  const hoje = new Date().toISOString().slice(0, 10);
+  // Em Brasília, não em UTC: das 21h à meia-noite a data UTC já é amanhã e
+  // tarefa que vence hoje aparecia atrasada. Achado da revisão de 22/09.
+  const hoje = hojeEmBrasilia();
 
   return (
     <section>

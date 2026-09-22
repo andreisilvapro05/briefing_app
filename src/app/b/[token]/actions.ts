@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { clienteDoBriefingPorToken } from "@/lib/briefings-server";
 import { marcarPeloCliente, normalizeStatus } from "@/lib/materiais-cliente-server";
 import { createAdminNotification } from "@/lib/notifications";
@@ -30,7 +31,12 @@ export async function marcarMaterialClienteAction(formData: FormData) {
   if (!token || !itemId) return;
 
   const alvo = await clienteDoBriefingPorToken(token);
-  if (!alvo) return;
+  // Link revogado ou expirado: antes isto era um `return` seco e o botão do
+  // cliente dizia "Marcado ✓" sem nada gravado. A página pública já
+  // responde 404 pra token inválido (não conta ao visitante qual dos três
+  // motivos), então o certo é mandá-lo pra lá — ele vê que o link não vale
+  // mais, em vez de uma confirmação falsa. Achado da revisão de 22/09.
+  if (!alvo) redirect(`/b/${encodeURIComponent(token)}`);
 
   const status = normalizeStatus(formData.get("status"));
   // Recado curto de propósito: é "mandei no WhatsApp" ou um link de pasta,

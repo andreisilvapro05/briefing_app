@@ -18,7 +18,7 @@ import {
   normalizarPixels,
 } from "@/lib/ficha-implementacao";
 import { salvarFicha } from "@/lib/ficha-implementacao-server";
-import { TASK_STATUS_VALUES, type TaskStatus } from "@/lib/project-tasks";
+import { TASK_STATUS_GROUP, TASK_STATUS_VALUES, type TaskStatus } from "@/lib/project-tasks";
 
 /**
  * Escrita da ficha de implementação (Figma, links de botão, pixel, acessos).
@@ -77,7 +77,11 @@ async function autorizarEscrita(
  * navegador, e mandar `botoes[0][rotulo]` no FormData reinventaria o
  * serializador por nada.
  */
-export async function salvarFichaAction(formData: FormData) {
+export type ResultadoFicha = { ok: true } | { ok: false; erro: string };
+
+export async function salvarFichaAction(
+  formData: FormData
+): Promise<ResultadoFicha> {
   const urlKey = String(formData.get("key") ?? "") || null;
   const docId = String(formData.get("docId") ?? "").trim();
   const voltarPara = String(formData.get("voltarPara") ?? "").trim();
@@ -109,7 +113,10 @@ export async function salvarFichaAction(formData: FormData) {
   const pixelsCru = lista("pixels");
   const acessosCru = lista("acessos");
 
-  await salvarFicha(docId, {
+  // `salvarFicha` devolve false quando o banco recusa. Antes o resultado
+  // era ignorado e o botão dizia "Salvo ✓" com os acessos só no navegador
+  // — quem fechasse a aba perdia tudo. Achado da revisão de 22/09.
+  const gravou = await salvarFicha(docId, {
     figmaUrl: cortar(formData.get("figmaUrl")) || null,
     ...(botoesCru === null
       ? {}
@@ -139,9 +146,14 @@ export async function salvarFichaAction(formData: FormData) {
         }),
   });
 
+  if (!gravou) {
+    return { ok: false, erro: "Não consegui salvar a ficha. Confira a conexão e tente de novo." };
+  }
+
   revalidatePath("/admin/desenvolvimento");
   if (voltarPara.startsWith("/admin/")) revalidatePath(voltarPara);
   revalidatePath(`/admin/estruturas-iniciais/${docId}`);
+  return { ok: true };
 }
 
 /**
@@ -154,12 +166,16 @@ export async function salvarFichaAction(formData: FormData) {
  * acesso total. Aqui a regra é dita pelo que o papel É (hasTaskScopedRole),
  * não pelo nome de um papel específico.
  */
-export async function atualizarMinhaTarefaAction(formData: FormData) {
+export type ResultadoMinhaTarefa = { ok: true } | { ok: false; erro: string };
+
+export async function atualizarMinhaTarefaAction(
+  formData: FormData
+): Promise<ResultadoMinhaTarefa> {
   const urlKey = String(formData.get("key") ?? "") || null;
   const taskId = String(formData.get("taskId") ?? "").trim();
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
-  if (!taskId) return;
+  if (!taskId) return { ok: false, erro: "Tarefa não identificada." };
 
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
@@ -171,39 +187,54 @@ export async function atualizarMinhaTarefaAction(formData: FormData) {
     client_id: string | null;
     responsavel: string | null;
   } | null;
-  if (!tarefa) return;
+  if (!tarefa) return { ok: false, erro: "Tarefa não encontrada." };
 
   // Papel restrito por tarefa (basico/desenvolvedor): só a tarefa dele, e só
   // se o cliente estiver no escopo. As duas condições, não uma ou outra —
   // `responsavel` é um texto ("daniel") que o sync do ClickUp também grava,
   // então sozinho ele não é um dono de dados confiável.
+  const semAcesso = { ok: false as const, erro: "Essa tarefa não é sua." };
   if (hasTaskScopedRole(member)) {
-    if (!member.taskValue || tarefa.responsavel !== member.taskValue) return;
+    if (!member.taskValue || tarefa.responsavel !== member.taskValue) return semAcesso;
     const visiveis = await getVisibleClientIds(member);
     if (visiveis && (!tarefa.client_id || !visiveis.has(tarefa.client_id))) {
-      return;
+      return semAcesso;
     }
   } else if (!hasFullAccess(member)) {
-    return;
+    return semAcesso;
   }
 
   const update: Record<string, unknown> = {};
   if (formData.has("status")) {
     const status = String(formData.get("status") ?? "");
-    if (!TASK_STATUS_VALUES.includes(status as TaskStatus)) return;
+    if (!TASK_STATUS_VALUES.includes(status as TaskStatus)) {
+      return { ok: false, erro: "Status inválido." };
+    }
     update.status = status;
+    // Mesma regra de updateProjectTaskAction: fechar marca concluida_em,
+    // reabrir limpa. Sem isso a tarefa concluída daqui ficava sem data de
+    // conclusão — e o resto do app (Meu Trabalho, relatórios) conta por
+    // ela. Achado da revisão de 22/09.
+    update.concluida_em =
+      TASK_STATUS_GROUP[status as TaskStatus] === "fechado"
+        ? new Date().toISOString()
+        : null;
   }
   if (formData.has("observacoes")) {
     update.observacoes = cortar(formData.get("observacoes")) || null;
   }
-  if (Object.keys(update).length === 0) return;
+  if (Object.keys(update).length === 0) return { ok: true };
 
   const { error } = await service
     .from("project_tasks")
     .update(update)
     .eq("id", taskId);
-  if (error) logServerError("desenvolvimento.atualizarTarefa", error);
+  if (error) {
+    logServerError("desenvolvimento.atualizarTarefa", error);
+    return { ok: false, erro: "Não consegui salvar. Confira a conexão e tente de novo." };
+  }
 
   revalidatePath(`/admin/desenvolvimento/${taskId}`);
   revalidatePath("/admin/desenvolvimento");
+  return { ok: true };
 }

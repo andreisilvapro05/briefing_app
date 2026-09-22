@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { TEAM_MEMBERS_INTERNOS } from "@/lib/project-tasks";
 import { SubmitButton, SubmitTextButton } from "./submit-button";
 import { AutoSubmitSelect } from "./auto-submit-select";
@@ -20,6 +20,7 @@ import {
 } from "@/lib/prioridades";
 import {
   criarIniciativaAction,
+  type ResultadoCriar,
   moverIniciativaAction,
   removerIniciativaAction,
   salvarIniciativaAction,
@@ -880,9 +881,21 @@ function FormNova({
   urlKey: string | null;
   onPronto: () => void;
 }) {
+  // Depois de criar, o formulário FECHA. Antes ficava aberto com tudo
+  // preenchido, e um segundo Enter criava a mesma iniciativa de novo.
+  // Achado da revisão de 22/09. E o erro do servidor aparece aqui, em vez
+  // de um "Salvo ✓" sem nada gravado.
+  const [resultado, agir] = useActionState(
+    async (_anterior: ResultadoCriar, fd: FormData) => criarIniciativaAction(fd),
+    { ok: true, criada: false } as ResultadoCriar
+  );
+  useEffect(() => {
+    if (resultado.ok && resultado.criada) onPronto();
+  }, [resultado, onPronto]);
+
   return (
     <form
-      action={criarIniciativaAction}
+      action={agir}
       className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-5 flex flex-col gap-3"
     >
       <Contexto urlKey={urlKey} />
@@ -954,7 +967,7 @@ function FormNova({
           className={CAMPO}
         />
       </label>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <SubmitButton size="sm">Adicionar ao mapa</SubmitButton>
         <button
           type="button"
@@ -963,6 +976,11 @@ function FormNova({
         >
           fechar
         </button>
+        {!resultado.ok ? (
+          <p role="alert" className="text-xs text-red-700">
+            {resultado.erro}
+          </p>
+        ) : null}
       </div>
     </form>
   );

@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useActionState, useState } from "react";
 import { CopyButton } from "./copy-button";
 import { SubmitButton } from "./submit-button";
-import { salvarFichaAction } from "@/app/admin/desenvolvimento/actions";
+import {
+  salvarFichaAction,
+  type ResultadoFicha,
+} from "@/app/admin/desenvolvimento/actions";
 import {
   hostDe,
   type BotaoPagina,
@@ -225,9 +229,15 @@ function FichaEditor({
   const [botoes, setBotoes] = useState<BotaoPagina[]>(ficha.botoes);
   const [pixels, setPixels] = useState<PixelPagina[]>(ficha.pixels);
   const [acessos, setAcessos] = useState<CredencialItem[]>(ficha.acessos);
+  // O erro do servidor precisa chegar à tela: a ficha carrega SENHA de
+  // cliente, e "Salvo ✓" com o dado só no navegador era o pior dos mundos.
+  const [resultado, agir] = useActionState(
+    async (_anterior: ResultadoFicha, fd: FormData) => salvarFichaAction(fd),
+    { ok: true } as ResultadoFicha
+  );
 
   return (
-    <form action={salvarFichaAction}>
+    <form action={agir}>
       <input type="hidden" name="docId" value={ficha.docId} />
       <input type="hidden" name="voltarPara" value={voltarPara} />
       {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
@@ -406,8 +416,13 @@ function FichaEditor({
         </button>
       </Secao>
 
-      <div className="mt-5">
+      <div className="mt-5 flex flex-wrap items-center gap-3">
         <SubmitButton>Salvar ficha</SubmitButton>
+        {!resultado.ok ? (
+          <p role="alert" className="text-xs text-red-700">
+            Não salvou: {resultado.erro}
+          </p>
+        ) : null}
       </div>
     </form>
   );

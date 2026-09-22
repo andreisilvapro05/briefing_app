@@ -64,3 +64,21 @@ export function formatDataCompleta(iso: string): string {
   if (!d) return iso;
   return d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
+
+/**
+ * Hoje (YYYY-MM-DD) no fuso de Brasília — pro SERVIDOR, que roda em UTC.
+ *
+ * `new Date().toISOString().slice(0, 10)` dá a data em UTC: das 21h à
+ * meia-noite em Brasília, "hoje" já é amanhã, e uma tarefa que vence hoje
+ * aparece como atrasada. A versão de navegador é `hojeISO` em
+ * task-pickers.tsx; esta é a mesma conta, sem React.
+ */
+const FMT_HOJE_BRASILIA = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+export function hojeEmBrasilia(): string {
+  return FMT_HOJE_BRASILIA.format(new Date());
+}

@@ -48,7 +48,7 @@ import {
   type TaskStatus,
 } from "@/lib/project-tasks";
 import type { ProjectType } from "@/lib/types";
-import { formatDiaMesCurto } from "@/lib/datas";
+import { formatDiaMesCurto, hojeEmBrasilia } from "@/lib/datas";
 
 function keyParamOf(formData: FormData): string | null {
   return String(formData.get("key") ?? "") || null;
@@ -1331,21 +1331,6 @@ export async function removeProjectTaskAction(formData: FormData) {
  * achando que tinha salvado; só descobria no próximo carregamento, quando o
  * valor antigo voltava. Agora a recusa tem nome e a tela desfaz.
  */
-/**
- * Hoje (YYYY-MM-DD) no fuso de Brasília. O servidor roda em UTC: depois das
- * 21h "hoje" já seria amanhã, e a próxima ocorrência de uma demanda diária
- * nasceria um dia à frente do que a pessoa vê na tela.
- */
-const FMT_HOJE_SP = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/Sao_Paulo",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-function hojeEmSaoPaulo(): string {
-  return FMT_HOJE_SP.format(new Date());
-}
-
 export type UpdateTaskResult =
   /** `proximaEm` vem preenchido quando concluir gerou a próxima ocorrência. */
   | { ok: true; proximaEm?: string }
@@ -1518,7 +1503,7 @@ export async function updateProjectTaskAction(
     const proxima = proximaOcorrencia(
       antes.recorrencia,
       antes.data_vencimento,
-      hojeEmSaoPaulo()
+      hojeEmBrasilia()
     );
     if (proxima) {
       // A série aponta sempre pra PRIMEIRA demanda: seguir a corrente elo a

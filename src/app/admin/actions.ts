@@ -26,17 +26,30 @@ import {
  */
 export async function dismissNotificationAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  // O mural é da agência e o "lido" é global: quem dispensa, dispensa pra
-  // todo mundo. Estar logado não basta — papel restrito por tarefa nem vê
-  // esse mural (ver getUnreadAdminNotificationsAction).
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
-  if (!hasFullAccess(member)) return;
+  // Mesma regra de quem VÊ o mural (getUnreadAdminNotificationsAction):
+  // desenvolvedor não vê, então não dispensa; "basico" vê os avisos dos
+  // clientes em que está marcado, então dispensa esses — e só esses.
+  // Exigir acesso completo aqui virou regressão em 22/09: o designer
+  // continuava vendo o aviso no sino e não tinha como fazê-lo sumir.
+  if (isDeveloper(member)) return;
 
   const notificationId = String(formData.get("notificationId") ?? "");
   if (!notificationId) return;
 
   const service = createSupabaseServiceRoleClient();
+  if (!hasFullAccess(member)) {
+    const { data } = await service
+      .from("admin_notifications")
+      .select("client_id")
+      .eq("id", notificationId)
+      .maybeSingle();
+    const clientId = (data as { client_id: string | null } | null)?.client_id;
+    const visiveis = await getVisibleClientIds(member);
+    if (visiveis && (!clientId || !visiveis.has(clientId))) return;
+  }
+
   await service
     .from("admin_notifications")
     .update({ read_at: new Date().toISOString() })
@@ -53,13 +66,22 @@ export async function dismissAllNotificationsAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
-  if (!hasFullAccess(member)) return;
+  if (isDeveloper(member)) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service
+  // "Marcar tudo como lido" só marca o que a pessoa vê: pro papel restrito,
+  // os avisos dos clientes dela. Marcar o mural inteiro seria apagar aviso
+  // que ela nem sabe que existe.
+  let consulta = service
     .from("admin_notifications")
     .update({ read_at: new Date().toISOString() })
     .is("read_at", null);
+  if (!hasFullAccess(member)) {
+    const visiveis = await getVisibleClientIds(member);
+    if (visiveis && visiveis.size === 0) return;
+    if (visiveis) consulta = consulta.in("client_id", [...visiveis]);
+  }
+  await consulta;
 
   revalidatePath("/admin");
 }

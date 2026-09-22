@@ -466,7 +466,9 @@ function agrupar(tarefas: Task[], por: Agrupamento): Grupo[] {
     const semClassificacao = mapa.get("");
     if (semClassificacao?.length) {
       grupos.push({
-        chave: "sem-classificacao",
+        // Chave por agrupamento: com uma só, recolher "Fora da matriz"
+        // recolhia também "Sem estimativa" ao trocar o agrupar por.
+        chave: `sem-${por}`,
         titulo:
           por === "eisenhower" ? "Fora da matriz" : "Sem estimativa de tempo",
         tom: null,

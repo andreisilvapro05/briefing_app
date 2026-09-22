@@ -129,19 +129,34 @@ function usePopover() {
     const trigger = triggerRef.current;
     const panel = panelRef.current;
     if (!trigger || !panel) return;
-    const t = trigger.getBoundingClientRect();
-    const p = panel.getBoundingClientRect();
-    const margem = 8;
-    // Abre pra cima quando não cabe embaixo (última linha da lista).
-    const cabeEmbaixo = t.bottom + 4 + p.height <= window.innerHeight - margem;
-    const top = cabeEmbaixo
-      ? t.bottom + 4
-      : Math.max(margem, t.top - 4 - p.height);
-    const left = Math.max(
-      margem,
-      Math.min(t.left, window.innerWidth - p.width - margem)
-    );
-    setPos({ top, left });
+
+    function posicionar() {
+      if (!trigger || !panel) return;
+      const t = trigger.getBoundingClientRect();
+      const p = panel.getBoundingClientRect();
+      const margem = 8;
+      // Abre pra cima quando não cabe embaixo (última linha da lista).
+      const cabeEmbaixo = t.bottom + 4 + p.height <= window.innerHeight - margem;
+      const top = cabeEmbaixo
+        ? t.bottom + 4
+        : Math.max(margem, t.top - 4 - p.height);
+      const left = Math.max(
+        margem,
+        Math.min(t.left, window.innerWidth - p.width - margem)
+      );
+      setPos((atual) =>
+        atual && atual.top === top && atual.left === left ? atual : { top, left }
+      );
+    }
+    posicionar();
+
+    // O painel muda de tamanho enquanto aberto: filtrar a busca do
+    // ClientPicker encolhe a lista. Quando ele abriu PRA CIMA, a posição
+    // foi calculada com a altura inicial — encolher deixava um vão entre o
+    // menu e o botão. Reposiciona a cada mudança de tamanho.
+    const observador = new ResizeObserver(() => posicionar());
+    observador.observe(panel);
+    return () => observador.disconnect();
   }, [open]);
 
   useEffect(() => {

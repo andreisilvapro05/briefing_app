@@ -51,10 +51,14 @@ function responsavel(formData: FormData): string | null {
   return TEAM_MEMBERS_INTERNOS.some((m) => m.value === v) ? v : null;
 }
 
-export async function criarIniciativaAction(formData: FormData) {
+export type ResultadoCriar = { ok: true; criada: boolean } | { ok: false; erro: string };
+
+export async function criarIniciativaAction(
+  formData: FormData
+): Promise<ResultadoCriar> {
   await exigirAcessoCompleto(formData);
   const titulo = String(formData.get("titulo") ?? "").trim();
-  if (!titulo) return;
+  if (!titulo) return { ok: false, erro: "Dê um título à iniciativa." };
 
   const service = createSupabaseServiceRoleClient();
   // Entra no fim da fila. `ordem` só é comparada dentro do grupo da tela, e
@@ -78,9 +82,13 @@ export async function criarIniciativaAction(formData: FormData) {
     status: normalizarStatus(formData.get("status")),
     ordem,
   });
-  if (error) logServerError("prioridades.criar", error);
+  if (error) {
+    logServerError("prioridades.criar", error);
+    return { ok: false, erro: "Não consegui salvar. Confira a conexão e tente de novo." };
+  }
 
   revalidatePath(TELA);
+  return { ok: true, criada: true };
 }
 
 /**
