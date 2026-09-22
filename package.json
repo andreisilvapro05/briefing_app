@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "node --test --experimental-strip-types --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --import ./testes/resolvedor.mjs 'testes/**/*.test.ts'"
   },
   "dependencies": {
     "@blocknote/core": "^0.54.0",

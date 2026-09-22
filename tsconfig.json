@@ -10,6 +10,10 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    // Os testes (testes/*.test.ts) rodam no runner nativo do Node, que
+    // resolve por caminho de arquivo e exige a extensão no import. O app
+    // continua importando sem extensão, como o bundler do Next espera.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,

@@ -21,7 +21,8 @@ import {
   deleteProjectTaskCommentAction,
   type ProjectTaskComment,
 } from "@/app/admin/[id]/actions";
-import { TaskNotes, extrairLinks } from "./task-notes";
+import { TaskNotes } from "./task-notes";
+import { extrairLinks } from "@/lib/links-de-nota";
 import { TaskLinks } from "./task-links-row";
 import {
   esforcoDe,
