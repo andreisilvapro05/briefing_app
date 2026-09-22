@@ -1,7 +1,7 @@
 import type { ProjectType } from "./types";
 import {
   DEFAULT_TASK_STATUS,
-  TASK_STATUS_OPTIONS,
+  PROJECT_STATUS_OPTIONS,
   TASK_STATUS_VALUES,
   type TaskStatus,
 } from "./project-tasks";
@@ -81,7 +81,7 @@ const STATUS_TONE: Record<TaskStatus, Lane["tone"]> = {
 };
 
 /** Uma lane por valor de `clients.status` — ver header do arquivo. */
-const PRODUCTION_LANES: Lane[] = TASK_STATUS_OPTIONS.map((opt) => ({
+const PRODUCTION_LANES: Lane[] = PROJECT_STATUS_OPTIONS.map((opt) => ({
   id: statusLaneId(opt.value),
   label: opt.label.toUpperCase(),
   tone: STATUS_TONE[opt.value],

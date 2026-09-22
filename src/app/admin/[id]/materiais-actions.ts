@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
+  isDeveloper,
+  telaInicialDe,
   getCurrentMember,
   getVisibleClientIds,
   hasFullAccess,
@@ -46,6 +48,13 @@ async function requireClientAccess(
   const urlKey = keyParamOf(formData);
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  // Desenvolvedor: tem tarefa no cliente e passaria no escopo, mas escrever
+  // aqui não é dele. A tela ele não vê; a Server Action é POST direto.
+  if (isDeveloper(member)) {
+    redirect(
+      `${telaInicialDe(member)}${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`
+    );
+  }
   if (!hasFullAccess(member)) {
     const visible = await getVisibleClientIds(member);
     if (visible && !visible.has(clientId)) {

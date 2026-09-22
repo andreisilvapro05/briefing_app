@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFullAccess } from "@/lib/member";
 import { errorResponse } from "@/lib/api-helpers";
 import { driveStatus, createClientFolders } from "@/lib/google-drive";
 
@@ -9,10 +9,23 @@ import { driveStatus, createClientFolders } from "@/lib/google-drive";
  *   POST /api/admin/drive/status?key=<admin> → cria uma pasta de teste
  */
 
-export async function GET(request: NextRequest) {
+/**
+ * getAdminUser aceitava qualquer membro logado, inclusive "basico" e
+ * "desenvolvedor". Diagnóstico da integração e criação de pasta de teste no
+ * Drive da agência é coisa de quem tem acesso completo — mesmo par que as
+ * outras rotas de /api/admin ganharam em 22/09.
+ */
+async function exigirAcessoCompleto(request: NextRequest) {
   const url = new URL(request.url);
-  const admin = await getAdminUser({ urlKey: url.searchParams.get("key") });
-  if (!admin) return errorResponse("unauthenticated", 401);
+  const member = await getCurrentMember({ urlKey: url.searchParams.get("key") });
+  if (!member) return { erro: errorResponse("unauthenticated", 401) };
+  if (!hasFullAccess(member)) return { erro: errorResponse("forbidden", 403) };
+  return { erro: null };
+}
+
+export async function GET(request: NextRequest) {
+  const { erro } = await exigirAcessoCompleto(request);
+  if (erro) return erro;
 
   const status = driveStatus();
   return NextResponse.json({
@@ -25,9 +38,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const url = new URL(request.url);
-  const admin = await getAdminUser({ urlKey: url.searchParams.get("key") });
-  if (!admin) return errorResponse("unauthenticated", 401);
+  const { erro } = await exigirAcessoCompleto(request);
+  if (erro) return erro;
 
   const status = driveStatus();
   if (!status.configured) {

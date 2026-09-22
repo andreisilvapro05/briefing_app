@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, isDeveloper } from "@/lib/member";
 import { listProjectTasks } from "@/lib/project-tasks-server";
 import { errorResponse } from "@/lib/api-helpers";
 
@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const member = await getCurrentMember({ urlKey: url.searchParams.get("key") });
   if (!member) return errorResponse("unauthenticated", 401);
+  // O desenvolvedor passa no escopo (tem tarefa no cliente), mas esta rota
+  // alimenta telas que ele não vê. Seção nova nasce fechada pra ele.
+  if (isDeveloper(member)) return errorResponse("forbidden", 403);
 
   const clientId = url.searchParams.get("clientId");
   if (!clientId) return errorResponse("client-id-missing", 400);

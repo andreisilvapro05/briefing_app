@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, isDeveloper } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 
@@ -21,6 +21,10 @@ async function podeVer(
 ): Promise<boolean> {
   const member = await getCurrentMember({ urlKey });
   if (!member) return false;
+  // O mapeamento de problemas é da operação, não da implementação: o
+  // desenvolvedor tem tarefa no cliente e passaria no escopo, mas essa aba
+  // não é dele (a ficha de implementação não a inclui de propósito).
+  if (isDeveloper(member)) return false;
   const visiveis = await getVisibleClientIds(member);
   return !visiveis || visiveis.has(clientId);
 }

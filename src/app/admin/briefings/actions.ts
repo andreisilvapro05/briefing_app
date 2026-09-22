@@ -157,21 +157,19 @@ export async function deleteBriefingTemplateAction(formData: FormData) {
  */
 export async function applyTemplateToClientAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
+  // requireAcessoTotal já exige sessão E acesso completo. O escopo por
+  // cliente abaixo é redundante pra quem passa dali (acesso completo vê
+  // tudo), mas fica como cinto e suspensório — e sem o `if (quem)` de
+  // antes, que parecia deixar passar sem sessão e confundia quem lia.
   const member = await requireAcessoTotal(urlKey);
-  void member;
 
   const templateId = String(formData.get("templateId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
   if (!templateId || !clientId) return;
 
-  // Escopo por papel, como nas ações da ficha: ninguém injeta perguntas na
-  // ficha de um cliente que não enxerga.
-  const quem = await getCurrentMember({ urlKey });
-  if (quem) {
-    const visiveis = await getVisibleClientIds(quem);
-    if (visiveis && !visiveis.has(clientId)) {
-      redirect(`/admin/briefings${keySuffix(urlKey)}`);
-    }
+  const visiveis = await getVisibleClientIds(member);
+  if (visiveis && !visiveis.has(clientId)) {
+    redirect(`/admin/briefings${keySuffix(urlKey)}`);
   }
 
   const template = await getBriefingTemplate(templateId);

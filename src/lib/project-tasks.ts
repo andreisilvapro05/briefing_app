@@ -107,6 +107,21 @@ export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
 };
 
 /**
+ * Status que existem SÓ pra demanda interna e não são etapa de projeto.
+ *
+ * "Em andamento" entrou na taxonomia geral em 22/09 pra as demandas da
+ * Tainá, mas `clients.status` tem CHECK com os 15 valores de etapa e não o
+ * aceita — o seletor de projeto oferecia a opção, o banco recusava e a
+ * tela ficava mostrando um status que não salvou. Achado da revisão.
+ */
+export const STATUS_SO_DE_DEMANDA: TaskStatus[] = ["em-andamento"];
+
+/** Opções de status de PROJETO (clients.status): as etapas, nada mais. */
+export const PROJECT_STATUS_OPTIONS = TASK_STATUS_OPTIONS.filter(
+  (o) => !STATUS_SO_DE_DEMANDA.includes(o.value)
+);
+
+/**
  * Status oferecidos numa DEMANDA INTERNA (a que tem `area` e não tem
  * cliente).
  *

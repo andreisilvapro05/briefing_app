@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { setClientStatusAction } from "@/app/admin/[id]/actions";
 import {
   DEFAULT_TASK_STATUS,
-  TASK_STATUS_OPTIONS,
+  PROJECT_STATUS_OPTIONS,
   TASK_STATUS_TONE,
   type TaskStatus,
 } from "@/lib/project-tasks";
@@ -46,7 +46,7 @@ export function StatusChanger({
   }
 
   const rotulo =
-    TASK_STATUS_OPTIONS.find((o) => o.value === current)?.label ?? current;
+    PROJECT_STATUS_OPTIONS.find((o) => o.value === current)?.label ?? current;
 
   return (
     // max-w-full/min-w-0: a largura natural de um <select> é a da opção mais
@@ -62,7 +62,7 @@ export function StatusChanger({
           TASK_STATUS_TONE[current as TaskStatus] ?? TASK_STATUS_TONE[DEFAULT_TASK_STATUS]
         }`}
       >
-        {TASK_STATUS_OPTIONS.map((o) => (
+        {PROJECT_STATUS_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>

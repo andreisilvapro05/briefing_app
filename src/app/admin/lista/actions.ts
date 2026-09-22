@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import {
   getCurrentMember,
-  getVisibleClientIds,
   hasFullAccess,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -176,13 +175,13 @@ export async function ajustarProjetoAction(
 
   const member = await getCurrentMember({ urlKey });
   if (!member) return falhar("Faça login de novo.");
-  // getCurrentMember é autenticação, não autorização: "basico" só mexe nos
-  // projetos em que está marcado (mesma regra de requireClientAccess).
+  // Definir o tipo do projeto e semear o checklist é decisão de OPERAÇÃO,
+  // não de quem está marcado numa tarefa. Antes o escopo por cliente
+  // deixava passar o desenvolvedor: com uma tarefa no cliente, ele podia
+  // trocar o tipo e recuar a etapa que o próprio cliente vê no painel.
+  // Achado da revisão de 22/09.
   if (!hasFullAccess(member)) {
-    const visiveis = await getVisibleClientIds(member);
-    if (visiveis && !visiveis.has(clientId)) {
-      return falhar("Você não tem acesso a este projeto.");
-    }
+    return falhar("Só quem tem acesso completo ajusta o projeto.");
   }
 
   const tipoEscolhido = String(formData.get("projectType") ?? "").trim();

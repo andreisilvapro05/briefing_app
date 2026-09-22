@@ -231,7 +231,13 @@ export async function getClientDocument(
     .select(SELECT_FULL)
     .eq("client_id", clientId)
     .eq("kind", kind)
-    .order("created_at", { ascending: true })
+    // Desde 22/09 um cliente pode ter VÁRIAS EIs (as importadas do ClickUp,
+    // versões antigas no arquivo). A ficha abre a que está em uso: ativa
+    // antes de arquivada, e a mais recente entre as ativas. Antes era
+    // `created_at asc` — abria e EDITAVA a mais antiga, inclusive arquivada.
+    .order("arquivado", { ascending: true })
+    .order("referencia_em", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
   return data ? normalize(data as unknown as RawRow) : null;
@@ -241,14 +247,15 @@ export async function getOrCreateClientDocument(
   clientId: string,
   kind: EIDocumentKind
 ): Promise<EIDocument | null> {
+  // Reusa a mesma escolha de getClientDocument. O `.maybeSingle()` sem
+  // `limit` que havia aqui era uma armadilha: com mais de uma linha o
+  // PostgREST devolve erro, `existing` vinha nulo e a função CRIAVA um
+  // documento novo a cada abertura da ficha — exatamente o vazamento de
+  // clones que o comentário acima conta ter sido caçado em 21/09.
+  const existing = await getClientDocument(clientId, kind);
+  if (existing) return existing;
+
   const service = createSupabaseServiceRoleClient();
-  const { data: existing } = await service
-    .from("ei_documents")
-    .select(SELECT_FULL)
-    .eq("client_id", clientId)
-    .eq("kind", kind)
-    .maybeSingle();
-  if (existing) return normalize(existing as unknown as RawRow);
 
   const template = await getTemplateDocument(kind);
   const { data: created, error } = await service

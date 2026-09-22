@@ -10,6 +10,8 @@ import {
   hasFinanceAccess,
   hasFullAccess,
   hasTaskScopedRole,
+  isDeveloper,
+  telaInicialDe,
   type Member,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -36,6 +38,7 @@ import {
   proximaOcorrencia,
   DEFAULT_PROJECT_TASKS,
   DEFAULT_TASK_STATUS,
+  PROJECT_STATUS_OPTIONS,
   TASK_STATUS_OPTIONS,
   TASK_STATUS_GROUP,
   TASK_PRIORITY_OPTIONS,
@@ -65,6 +68,15 @@ async function requireClientAccess(
   const urlKey = keyParamOf(formData);
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  // O desenvolvedor tem tarefa no cliente, então passaria no escopo — mas
+  // moodboard, entrega, etapa do projeto e Drive não são dele. A tela ele
+  // nunca vê (AdminShell barra a seção); a Server Action, porém, é um POST
+  // próprio que não passa pelo shell. Achado da revisão de 22/09.
+  if (isDeveloper(member)) {
+    redirect(
+      `${telaInicialDe(member)}${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`
+    );
+  }
   if (!hasFullAccess(member)) {
     const visible = await getVisibleClientIds(member);
     if (visible && !visible.has(clientId)) {
@@ -857,7 +869,9 @@ export async function setCopyReviewLinkAction(formData: FormData) {
 export async function setClientStatusAction(formData: FormData) {
   const clientId = String(formData.get("clientId") ?? "");
   const status = String(formData.get("status") ?? "");
-  if (!clientId || !TASK_STATUS_VALUES.includes(status as TaskStatus)) return;
+  // Lista de PROJETO, não a geral: "em-andamento" é só de demanda interna e
+  // o CHECK de clients.status o recusa.
+  if (!clientId || !PROJECT_STATUS_VALUES.includes(status as TaskStatus)) return;
   await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
@@ -1031,6 +1045,7 @@ export async function deleteCustomQuestionAction(formData: FormData) {
 }
 
 const TASK_STATUS_VALUES = TASK_STATUS_OPTIONS.map((o) => o.value);
+const PROJECT_STATUS_VALUES = PROJECT_STATUS_OPTIONS.map((o) => o.value);
 const TASK_PRIORITY_VALUES = TASK_PRIORITY_OPTIONS.map((o) => o.value).filter(
   Boolean
 );

@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
+  isDeveloper,
+  telaInicialDe,
   getCurrentMember,
   getVisibleClientIds,
   hasFullAccess,
@@ -24,6 +26,13 @@ export async function createEIDocumentAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  // Desenvolvedor: tem tarefa no cliente e passaria no escopo, mas escrever
+  // aqui não é dele. A tela ele não vê; a Server Action é POST direto.
+  if (isDeveloper(member)) {
+    redirect(
+      `${telaInicialDe(member)}${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`
+    );
+  }
 
   const clientId = String(formData.get("clientId") ?? "");
   // `kind` permite reaproveitar esta action pro documento de Briefing: o
@@ -81,6 +90,13 @@ export async function updateEIDocumentAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
+  // Desenvolvedor: tem tarefa no cliente e passaria no escopo, mas escrever
+  // aqui não é dele. A tela ele não vê; a Server Action é POST direto.
+  if (isDeveloper(member)) {
+    redirect(
+      `${telaInicialDe(member)}${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`
+    );
+  }
 
   const docId = String(formData.get("docId") ?? "");
   if (!docId) return;

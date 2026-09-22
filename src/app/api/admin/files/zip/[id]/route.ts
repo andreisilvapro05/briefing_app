@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import JSZip from "jszip";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import { getCurrentMember, getVisibleClientIds, isDeveloper } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 import { CATEGORY_BY_ID, categorizeFile } from "@/lib/file-categories";
@@ -44,6 +44,9 @@ export async function GET(
   // bastava estar logado e conhecer o UUID — o escopo do papel não valia.
   const member = await getCurrentMember({ urlKey: url.searchParams.get("key") });
   if (!member) return errorResponse("unauthenticated", 401);
+  // O desenvolvedor passa no escopo (tem tarefa no cliente), mas esta rota
+  // alimenta telas que ele não vê. Seção nova nasce fechada pra ele.
+  if (isDeveloper(member)) return errorResponse("forbidden", 403);
   const visiveis = await getVisibleClientIds(member);
   if (visiveis && !visiveis.has(id)) {
     return errorResponse("unauthenticated", 401);
