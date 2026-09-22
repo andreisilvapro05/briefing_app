@@ -76,6 +76,14 @@ export default async function MembrosPage({
           Iniciais) aos projetos em que a pessoa está marcada — configure o
           vínculo de tarefas abaixo.
         </p>
+        <p className="text-[0.7rem] text-fysi-muted mt-2 max-w-2xl">
+          O papel <strong>Desenvolvedor</strong> é mais fechado ainda: ele vê
+          uma tela só, <strong>Desenvolvimento</strong>, com as tarefas dele e,
+          em cada uma, o que precisa pra montar a página — acessos do cliente,
+          Figma, links de botão e pixel. Nada de financeiro, contratos,
+          briefings, lista de clientes ou demandas internas. Sem o vínculo de
+          tarefas abaixo ele não enxerga projeto nenhum.
+        </p>
       </header>
 
       <div className="mb-6 rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3">

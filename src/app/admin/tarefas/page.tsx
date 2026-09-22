@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+import {
+  hasTaskScopedRole, getCurrentMember, getVisibleClientIds, hasFinanceAccess,
   isAdmin,
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -60,7 +61,7 @@ export default async function AdminTarefasPage({
         urlKey={urlKey ?? undefined}
         clients={clientOptions}
         restrictToResponsavel={
-          member.role === "basico" ? member.taskValue : undefined
+          hasTaskScopedRole(member) ? member.taskValue : undefined
         }
         // Cada aba tem seu endereço (?resp=valeria), como as views do
         // ClickUp: recarregar mantém a lista, e o link pode ser mandado.

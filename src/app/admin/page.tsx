@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getCurrentMember, isDeveloper } from "@/lib/member";
 
 export const dynamic = "force-dynamic";
 
@@ -18,5 +19,15 @@ export default async function AdminHomePage({
   searchParams: Promise<{ key?: string }>;
 }) {
   const { key } = await searchParams;
-  redirect(`/admin/visao-geral${key ? `?key=${encodeURIComponent(key)}` : ""}`);
+  const keyParam = key ? `?key=${encodeURIComponent(key)}` : "";
+
+  // O papel "desenvolvedor" não alcança a Visão Geral (ela mostra a agência
+  // inteira). Mandá-lo pra lá faria o AdminShell barrar e devolver pra cá —
+  // dois redirects pra chegar no mesmo lugar. Vai direto pro que é dele.
+  const member = await getCurrentMember({ urlKey: key ?? null });
+  if (member && isDeveloper(member)) {
+    redirect(`/admin/desenvolvimento${keyParam}`);
+  }
+
+  redirect(`/admin/visao-geral${keyParam}`);
 }

@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFullAccess } from "@/lib/member";
 import { errorResponse } from "@/lib/api-helpers";
 import { getServerEnv } from "@/lib/env";
 import { sendDashboardWebhook } from "@/lib/dashboard-webhook";
@@ -13,8 +13,12 @@ import { sendDashboardWebhook } from "@/lib/dashboard-webhook";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
-  const admin = await getAdminUser({ urlKey: url.searchParams.get("key") });
-  if (!admin) return errorResponse("unauthenticated", 401);
+  // Dispara integração com o dashboard financeiro: é ação da operação, não
+  // de quem só tem tarefa no app. getCurrentMember diz QUEM É; hasFullAccess
+  // é o que diz se PODE.
+  const member = await getCurrentMember({ urlKey: url.searchParams.get("key") });
+  if (!member) return errorResponse("unauthenticated", 401);
+  if (!hasFullAccess(member)) return errorResponse("forbidden", 403);
 
   let env;
   try {

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
+  hasTaskScopedRole,
   getCurrentMember,
   getVisibleClientIds,
   hasFinanceAccess,
@@ -75,7 +76,7 @@ export default async function AdminListaPage({
         urlKey={urlKey ?? undefined}
         novoHref={novoHref}
         restrictToResponsavel={
-          member.role === "basico" ? member.taskValue : undefined
+          hasTaskScopedRole(member) ? member.taskValue : undefined
         }
       />
     </AdminShell>

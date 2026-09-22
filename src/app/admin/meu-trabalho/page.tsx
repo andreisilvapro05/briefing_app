@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess, hasFullAccess,
+import {
+  hasTaskScopedRole, getCurrentMember, getVisibleClientIds, hasFinanceAccess, hasFullAccess,
   isAdmin,
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -120,7 +121,7 @@ export default async function MeuTrabalhoPage({
           urlKey={urlKey}
           clients={clientOptions}
           meuResponsavel={member.taskValue}
-          lockResponsavel={member.role === "basico"}
+          lockResponsavel={hasTaskScopedRole(member)}
         />
       )}
 

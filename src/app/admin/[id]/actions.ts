@@ -9,6 +9,7 @@ import {
   getVisibleClientIds,
   hasFinanceAccess,
   hasFullAccess,
+  hasTaskScopedRole,
   type Member,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -1124,10 +1125,10 @@ export async function addProjectTaskAction(
   if (responsavel && !TEAM_MEMBER_VALUES.includes(responsavel)) {
     return { ok: false, erro: "Responsável inválido." };
   }
-  // "basico" só edita tarefa em que ELE é o responsável (canEditTask). Criar
-  // pra outra pessoa — ou sem dono — geraria uma tarefa que ele mesmo não
-  // consegue mais mexer.
-  if (member.role === "basico") {
+  // Papel com escopo por tarefa ("basico", "desenvolvedor") só edita tarefa
+  // em que ELE é o responsável (canEditTask). Criar pra outra pessoa — ou
+  // sem dono — geraria uma tarefa que ele mesmo não consegue mais mexer.
+  if (hasTaskScopedRole(member)) {
     if (!member.taskValue) {
       return {
         ok: false,
@@ -1239,10 +1240,10 @@ export async function addProjectTaskAction(
  * admin/avancado/legacy sempre podem editar.
  */
 async function canEditTask(
-  member: { role: string; taskValue: string | null },
+  member: Member,
   taskId: string
 ): Promise<boolean> {
-  if (member.role !== "basico") return true;
+  if (!hasTaskScopedRole(member)) return true;
   if (!member.taskValue) return false;
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
@@ -1499,7 +1500,7 @@ export async function reorderProjectTasksAction(formData: FormData) {
   // tarefa de outra pessoa no mesmo arrasto é rejeitado inteiro (mais
   // simples e seguro do que reordenar parcialmente).
   if (
-    member.role === "basico" &&
+    hasTaskScopedRole(member) &&
     (!member.taskValue || rows.some((r) => r.responsavel !== member.taskValue))
   ) {
     return;

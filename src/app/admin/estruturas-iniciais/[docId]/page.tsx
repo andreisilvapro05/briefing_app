@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
 import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
   isAdmin,
+  isDeveloper,
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { EIDocumentSidebar } from "@/components/admin/ei-document-sidebar";
 import { EIView } from "@/components/admin/ei-view";
+import { FichaImplementacaoPainel } from "@/components/admin/ficha-implementacao";
 import { createEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
+import { getFichaDoDocumento } from "@/lib/ficha-implementacao-server";
 import {
   listEIDocuments,
   getEIDocument,
@@ -45,6 +48,12 @@ export default async function EIDocumentPage({
     redirect(`/admin/estruturas-iniciais${keyParamFirst}`);
   }
 
+  // A ficha de implementação (Figma, links de botão, pixel, acessos) é a
+  // parte da EI que quem implementa enxerga em /admin/desenvolvimento. Fica
+  // aqui, no topo do documento, porque é aqui que a equipe preenche a EI —
+  // ter dois lugares pra digitar a mesma coisa é como um deles fica vazio.
+  const ficha = doc.clientId ? await getFichaDoDocumento(doc.id) : null;
+
   const docs = visibleIds
     ? docsAll.filter((d) => !d.clientId || visibleIds.has(d.clientId))
     : docsAll;
@@ -72,6 +81,24 @@ export default async function EIDocumentPage({
           createAction={createEIDocumentAction}
         />
         <div className="flex-1 overflow-y-auto p-6">
+          {ficha ? (
+            <section className="mb-6">
+              <h2 className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-semibold mb-2">
+                Ficha de implementação
+              </h2>
+              <p className="text-xs text-fysi-muted mb-2 max-w-2xl">
+                É isto que quem implementa a página enxerga em
+                Desenvolvimento — e só isto, nos clientes em que tem tarefa.
+                O resto do documento não sai daqui.
+              </p>
+              <FichaImplementacaoPainel
+                ficha={ficha}
+                podeEditar={!isDeveloper(member)}
+                urlKey={urlKey}
+                voltarPara={`/admin/estruturas-iniciais/${doc.id}`}
+              />
+            </section>
+          ) : null}
           <EIView
             docId={doc.id}
             urlKey={urlKey}

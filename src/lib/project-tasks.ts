@@ -288,6 +288,11 @@ export const TEAM_MEMBERS: TeamMember[] = [
   { value: "valeria", label: "Valéria", iniciais: "VN", cor: "bg-pink-500" },
   { value: "karine", label: "Karine", iniciais: "KS", cor: "bg-violet-500" },
   { value: "andrei", label: "Andrei", iniciais: "A", cor: "bg-indigo-500" },
+  // Implementação das páginas (papel "desenvolvedor" em team_members, ver
+  // lib/member.ts). Precisa estar aqui pra a equipe poder ATRIBUIR tarefa a
+  // ele: `responsavel` guarda este `value`, e é dele que saem tanto a lista
+  // de /admin/desenvolvimento quanto o escopo de clientes que ele enxerga.
+  { value: "daniel", label: "Daniel", iniciais: "D", cor: "bg-teal-600" },
   // Externo: está no workspace do ClickUp, não é equipe interna.
   {
     value: "leonardo",

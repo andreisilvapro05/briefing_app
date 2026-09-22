@@ -6,7 +6,8 @@ import type { ReactNode } from "react";
 import { Shell, ContentFrame } from "@/components/layout/shell";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { Eyebrow } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess, hasFullAccess,
+import {
+  hasTaskScopedRole, getCurrentMember, getVisibleClientIds, hasFinanceAccess, hasFullAccess,
   isAdmin,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
@@ -1544,7 +1545,7 @@ Qualquer dúvida, é só responder por aqui.`;
             projectType={(client.project_type as ProjectType | null) ?? null}
             tasks={tasks}
             restrictToResponsavel={
-              member.role === "basico" ? member.taskValue : undefined
+              hasTaskScopedRole(member) ? member.taskValue : undefined
             }
           />
         ) : null}

@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Eyebrow } from "@/components/ui/pill";
-import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
+import {
+  hasTaskScopedRole, getCurrentMember, getVisibleClientIds, hasFinanceAccess,
   isAdmin,
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
@@ -178,7 +179,7 @@ export default async function VisaoGeralPage({
           urlKey={urlKey ?? undefined}
           novoHref={novoHref}
           restrictToResponsavel={
-            member.role === "basico" ? member.taskValue : undefined
+            hasTaskScopedRole(member) ? member.taskValue : undefined
           }
         />
       </section>

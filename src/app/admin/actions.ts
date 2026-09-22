@@ -2,8 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getAdminUser } from "@/lib/admin";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import {
+  getCurrentMember,
+  getVisibleClientIds,
+  hasFullAccess,
+  isDeveloper,
+} from "@/lib/member";
 import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,
@@ -22,8 +26,12 @@ import {
  */
 export async function dismissNotificationAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  // O mural é da agência e o "lido" é global: quem dispensa, dispensa pra
+  // todo mundo. Estar logado não basta — papel restrito por tarefa nem vê
+  // esse mural (ver getUnreadAdminNotificationsAction).
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) return;
 
   const notificationId = String(formData.get("notificationId") ?? "");
   if (!notificationId) return;
@@ -43,8 +51,9 @@ export async function dismissNotificationAction(formData: FormData) {
  */
 export async function dismissAllNotificationsAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) return;
 
   const service = createSupabaseServiceRoleClient();
   await service
@@ -74,6 +83,11 @@ export async function getUnreadAdminNotificationsAction(
 ): Promise<AdminNotificationRow[]> {
   const member = await getCurrentMember({ urlKey });
   if (!member) return [];
+  // O mural é sobre a relação com o cliente (briefing concluído, contrato
+  // assinado, pagamento). Quem só implementa a página não tem o que fazer
+  // com isso — a caixa dele é member_notifications ("te passaram uma
+  // demanda"), logo abaixo.
+  if (isDeveloper(member)) return [];
 
   const visibleIds = await getVisibleClientIds(member);
   if (visibleIds && visibleIds.size === 0) return [];

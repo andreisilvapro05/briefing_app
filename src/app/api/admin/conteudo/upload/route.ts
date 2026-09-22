@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFullAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { getServerEnv } from "@/lib/env";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
@@ -14,8 +14,12 @@ const MAX_BYTES = 15 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   const url = new URL(request.url);
-  const user = await getAdminUser({ urlKey: url.searchParams.get("key") });
-  if (!user) return errorResponse("unauthenticated", 401);
+  // Escreve no storage da agência e alimenta o quadro de Conteúdo — área
+  // que os papéis restritos por tarefa nem veem no menu. Estar logado não
+  // basta: a rota é alcançável por POST direto.
+  const member = await getCurrentMember({ urlKey: url.searchParams.get("key") });
+  if (!member) return errorResponse("unauthenticated", 401);
+  if (!hasFullAccess(member)) return errorResponse("forbidden", 403);
 
   let env: ReturnType<typeof getServerEnv>;
   try {

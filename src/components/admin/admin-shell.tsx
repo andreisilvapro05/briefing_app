@@ -1,6 +1,13 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import {
+  getCurrentMember,
+  isDeveloper,
+  podeVerSecao,
+  telaInicialDe,
+} from "@/lib/member";
 import { SearchPalette } from "./search-palette";
 import { NotificationsBell } from "./notifications-bell";
 import { ProfileAvatar } from "./profile-avatar";
@@ -12,6 +19,14 @@ import { ProfileNameLink } from "./profile-name-link";
  * e conteúdo full-width (ocupa a tela, sem margem centralizada desperdiçada).
  *
  * Substitui o antigo Shell + ContentFrame + AdminSidebar nas telas de topo.
+ *
+ * Também é onde o papel "desenvolvedor" é BARRADO POR SEÇÃO (ver
+ * podeVerSecao, em lib/member.ts). O lugar é aqui, e não em cada página,
+ * porque toda tela do admin renderiza este componente e toda uma passa
+ * `active` — a única exceção são /admin (só redireciona) e /admin/login. Uma
+ * página nova não tem como esquecer de se proteger: se ela desenha o painel,
+ * passou por esta guarda. Um papel que não alcança a seção leva redirect
+ * antes de o HTML existir, mesmo entrando pela URL na mão.
  */
 
 export type AdminSection =
@@ -24,6 +39,7 @@ export type AdminSection =
   | "briefings"
   | "quadro"
   | "tarefas"
+  | "desenvolvimento"
   | "estruturas-iniciais"
   | "briefing-documentos"
   | "marketing-metas"
@@ -141,6 +157,13 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <path d="M9 17h12" />
     </I>
   ),
+  desenvolvimento: (
+    <I>
+      <path d="m8 16-4-4 4-4" />
+      <path d="m16 8 4 4-4 4" />
+      <path d="M13.5 5 10.5 19" />
+    </I>
+  ),
   "estruturas-iniciais": (
     <I>
       <path d="M12 2 2 7l10 5 10-5-10-5Z" />
@@ -248,6 +271,7 @@ const AREAS: NavArea[] = [
       item("briefing-documentos", "Documentos de Briefing", "/admin/briefing-documentos"),
       item("quadro", "Quadro", "/admin/quadro"),
       item("tarefas", "Tarefas", "/admin/tarefas"),
+      item("desenvolvimento", "Desenvolvimento", "/admin/desenvolvimento"),
       item("estruturas-iniciais", "Estruturas Iniciais", "/admin/estruturas-iniciais"),
     ],
   },
@@ -295,7 +319,7 @@ const LABELS: Record<AdminSection, { area: string; label: string }> = (() => {
   return m as Record<AdminSection, { area: string; label: string }>;
 })();
 
-export function AdminShell({
+export async function AdminShell({
   active,
   keyParam,
   userEmail,
@@ -330,6 +354,21 @@ export function AdminShell({
 }) {
   const crumb = LABELS[active];
   const initials = (userName || userEmail || "F").slice(0, 2).toUpperCase();
+  const urlKey = keyParam ? new URLSearchParams(keyParam).get("key") : null;
+
+  // ---- Autorização por seção (não é autenticação: a página já checou isso) ----
+  // getCurrentMember é memoizada com cache() por renderização, então esta
+  // chamada não custa consulta extra — a página já a fez com a MESMA urlKey
+  // (todas derivam `keyParam` de `urlKey`, então as duas chaves batem).
+  const quem = await getCurrentMember({ urlKey });
+  if (quem && !podeVerSecao(quem, active)) {
+    redirect(`${telaInicialDe(quem)}${keyParam}`);
+  }
+  // `quem` nulo não passa por aqui na prática: toda página do admin manda
+  // pro login antes de renderizar o shell. Se passasse, o menu abreviado é
+  // o lado seguro de errar.
+  const soDesenvolvimento = !!quem && isDeveloper(quem);
+
   // "básico" (mesmo flag do Financeiro) também não vê Marketing e Comercial:
   // metas guardam alvos de faturamento — dado comercial sensível.
   // "Interno" entra no mesmo corte: as gavetas de Demandas são Comercial,
@@ -344,13 +383,23 @@ export function AdminShell({
     : AREAS;
   // "Custos da empresa" some pra quem não é sócio — mostrar um item que só
   // redireciona é pior que não mostrar.
-  const areas = isSocio
+  const areasPorCargo = isSocio
     ? areasVisiveis
     : areasVisiveis.map((a) => ({
         ...a,
         items: a.items.filter((it) => it.id !== "custos"),
       }));
-  const urlKey = keyParam ? new URLSearchParams(keyParam).get("key") : null;
+  // O desenvolvedor vê UM menu com o que ele alcança de fato — a mesma lista
+  // que o servidor usa pra barrar, então não sobra item que só redireciona.
+  const areas =
+    soDesenvolvimento && quem
+      ? areasPorCargo
+          .map((a) => ({
+            ...a,
+            items: a.items.filter((it) => podeVerSecao(quem, it.id)),
+          }))
+          .filter((a) => a.items.length > 0)
+      : areasPorCargo;
 
   return (
     <div className="min-h-screen flex bg-fysi-cream text-fysi-deep">
@@ -424,8 +473,13 @@ export function AdminShell({
             <span className="hidden md:inline text-fysi-muted/50">/</span>
             <span className="font-semibold truncate">{crumb?.label ?? ""}</span>
           </div>
+          {/* A busca abre ficha de cliente, briefing e EI — telas que o
+              desenvolvedor não alcança. Mostrá-la seria oferecer um caminho
+              que só termina em redirect. */}
           <div className="flex-1 flex justify-center px-2 min-w-0">
-            <SearchPalette keyParam={keyParam} urlKey={urlKey} />
+            {soDesenvolvimento ? null : (
+              <SearchPalette keyParam={keyParam} urlKey={urlKey} />
+            )}
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <NotificationsBell keyParam={keyParam} urlKey={urlKey} />

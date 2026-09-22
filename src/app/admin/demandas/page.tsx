@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import {
+  hasTaskScopedRole,
   getCurrentMember,
   hasFinanceAccess,
   hasFullAccess,
@@ -65,7 +66,7 @@ export default async function DemandasPage({
         tasks={tasks}
         urlKey={urlKey}
         meuResponsavel={member.taskValue ?? ""}
-        lockResponsavel={member.role === "basico"}
+        lockResponsavel={hasTaskScopedRole(member)}
       />
     </AdminShell>
   );
