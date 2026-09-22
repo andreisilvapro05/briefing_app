@@ -29,7 +29,40 @@ const RE_CREDENCIAL =
 
 /** Cabeçalhos que definem o "contexto" de credenciais que vêm abaixo. */
 const RE_CONTEXTO =
-  /(dom[íi]nio|hospedagem|servidor|ftp|cpanel|wordpress|painel|e-?mail|registro\.br|godaddy|hostgator|hostinger)/i;
+  /(dom[íi]nio|hospedagem|servidor|ftp|cpanel|wordpress|painel|e-?mail|registro\.br|godaddy|hostgator|hostinger|acessos?)/i;
+
+/** Link que denuncia uma área administrativa — abre um contexto de acesso. */
+const RE_URL_ADMIN =
+  /(wp-admin|wp-login|\/admin\b|cpanel|webmail|painel\.|hostinger|hostgator)/i;
+
+/**
+ * Linha SOLTA que parece credencial — sem o rótulo "Login:"/"Senha:".
+ *
+ * Existe porque briefing real não segue o modelo. Na página da Thais Machado
+ * a equipe colou o link do wp-admin e, embaixo, duas linhas cruas: o usuário
+ * e a senha do WordPress dela. Sem isto, a senha entrava no CORPO do
+ * documento — que pode ganhar link público.
+ *
+ * Só vale DENTRO de um contexto de acesso recém-aberto, e a régua é
+ * deliberadamente frouxa: mandar uma linha inocente pro cofre de Acessos
+ * (onde a equipe continua vendo) incomoda; deixar uma senha escapar pro link
+ * público, não tem volta.
+ */
+function pareceCredencialSolta(t: string): boolean {
+  const linha = t.trim();
+  if (linha.length < 3 || linha.length > 60) return false;
+  if (/^https?:\/\//i.test(linha)) return false;
+  if (/[:：]\s*$/.test(linha)) return false;
+  // Frase tem espaços e palavras; credencial, não.
+  if (linha.split(/\s+/).length > 2) return false;
+  const classes =
+    Number(/[a-z]/.test(linha)) +
+    Number(/[A-Z]/.test(linha)) +
+    Number(/[0-9]/.test(linha)) +
+    Number(/[^A-Za-z0-9\s]/.test(linha));
+  // Cara de senha (3+ classes) ou de usuário (um token só, sem espaço).
+  return classes >= 3 || !/\s/.test(linha);
+}
 
 function ehValorReal(v: string): boolean {
   const t = v.trim();
@@ -58,6 +91,13 @@ export function extrairCredenciais(
   const saida: PartialBlock[] = [];
   let contexto = "Acessos";
   let jaAvisou = false;
+  /**
+   * Quantas linhas ainda podem ser credencial solta depois de um link de
+   * área administrativa. Duas: o usuário e a senha, que é como a equipe
+   * costuma colar. Passou disso, o contexto fecha — não sai varrendo o
+   * documento inteiro.
+   */
+  let janelaSolta = 0;
 
   for (const bloco of blocks) {
     const texto = blockPlainText(bloco);
@@ -65,6 +105,15 @@ export function extrairCredenciais(
     if ((bloco as { type?: string }).type === "heading") {
       const achou = RE_CONTEXTO.exec(texto);
       if (achou) contexto = texto.trim();
+      janelaSolta = 0;
+      saida.push(bloco);
+      continue;
+    }
+
+    // Link de wp-admin/cpanel: o que vem logo abaixo costuma ser o acesso.
+    if (RE_URL_ADMIN.test(texto)) {
+      contexto = texto.trim().slice(0, 80) || contexto;
+      janelaSolta = 2;
       saida.push(bloco);
       continue;
     }
@@ -85,29 +134,50 @@ export function extrairCredenciais(
         valor: m[2].trim(),
       });
       if (!jaAvisou) {
-        saida.push({
-          type: "paragraph",
-          props: {
-            textColor: "default",
-            textAlignment: "left",
-            backgroundColor: "yellow",
-          },
-          content: [
-            {
-              type: "text",
-              text: "Credenciais deste briefing ficam guardadas em Acessos — visíveis só pra equipe com acesso total, nunca no link público.",
-              styles: { italic: true },
-            },
-          ],
-          children: [],
-        } as unknown as PartialBlock);
+        saida.push(avisoDeCofre());
+        jaAvisou = true;
+      }
+      janelaSolta = 0;
+      continue;
+    }
+
+    if (janelaSolta > 0 && pareceCredencialSolta(texto)) {
+      janelaSolta -= 1;
+      credenciais.push({
+        contexto,
+        rotulo: "acesso (sem rótulo no briefing)",
+        valor: texto.trim(),
+      });
+      if (!jaAvisou) {
+        saida.push(avisoDeCofre());
         jaAvisou = true;
       }
       continue;
     }
+    if (texto.trim()) janelaSolta = 0;
 
     saida.push(bloco);
   }
 
   return { blocks: saida, credenciais };
+}
+
+/** Marca no corpo o lugar de onde a credencial saiu. */
+function avisoDeCofre(): PartialBlock {
+  return {
+    type: "paragraph",
+    props: {
+      textColor: "default",
+      textAlignment: "left",
+      backgroundColor: "yellow",
+    },
+    content: [
+      {
+        type: "text",
+        text: "Credenciais deste briefing ficam guardadas em Acessos — visíveis só pra equipe com acesso total, nunca no link público.",
+        styles: { italic: true },
+      },
+    ],
+    children: [],
+  } as unknown as PartialBlock;
 }

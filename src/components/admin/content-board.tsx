@@ -29,6 +29,7 @@ export function ContentBoard({
   urlKey?: string;
 }) {
   const [columns, setColumns] = useState<ContentColumn[]>(initialColumns);
+  const [erro, setErro] = useState<string | null>(null);
   const [newColName, setNewColName] = useState("");
   const [addingCol, setAddingCol] = useState(false);
   const [openCardId, setOpenCardId] = useState<string | null>(null);
@@ -39,6 +40,31 @@ export function ContentBoard({
     if (urlKey) f.append("key", urlKey);
     for (const [k, v] of Object.entries(extra)) f.append(k, v);
     return f;
+  }
+
+  /**
+   * Aplica a mudança na hora e DESFAZ se o servidor recusar.
+   *
+   * Antes a tela mudava e a action ia embora sem retorno: renomear, mover ou
+   * apagar um cartão parecia ter funcionado mesmo quando a gravação falhava,
+   * e só o F5 revelava. Agora a tela volta atrás e diz o que houve.
+   */
+  function otimista(
+    aplicar: (prev: ContentColumn[]) => ContentColumn[],
+    gravar: () => Promise<{ ok: boolean }>
+  ) {
+    const anterior = columns;
+    setColumns(aplicar);
+    setErro(null);
+    startTransition(async () => {
+      try {
+        const r = await gravar();
+        if (!r.ok) throw new Error("recusado");
+      } catch {
+        setColumns(anterior);
+        setErro("Não consegui salvar essa mudança. A tela voltou como estava.");
+      }
+    });
   }
 
   const totalCards = columns.reduce((n, c) => n + c.cards.length, 0);
@@ -65,31 +91,31 @@ export function ContentBoard({
   }
 
   function renameColumn(id: string, titulo: string) {
-    setColumns((prev) => prev.map((c) => (c.id === id ? { ...c, titulo } : c)));
-    startTransition(() => {
-      renameColumnAction(fd({ columnId: id, titulo }));
-    });
+    otimista(
+      (prev) => prev.map((c) => (c.id === id ? { ...c, titulo } : c)),
+      () => renameColumnAction(fd({ columnId: id, titulo }))
+    );
   }
 
   function deleteColumn(id: string) {
-    setColumns((prev) => prev.filter((c) => c.id !== id));
-    startTransition(() => {
-      deleteColumnAction(fd({ columnId: id }));
-    });
+    otimista(
+      (prev) => prev.filter((c) => c.id !== id),
+      () => deleteColumnAction(fd({ columnId: id }))
+    );
   }
 
   function moveColumn(id: string, direction: "left" | "right") {
-    setColumns((prev) => {
-      const idx = prev.findIndex((c) => c.id === id);
-      const swap = direction === "left" ? idx - 1 : idx + 1;
-      if (idx === -1 || swap < 0 || swap >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[swap]] = [next[swap], next[idx]];
-      return next;
-    });
-    startTransition(() => {
-      moveColumnAction(fd({ columnId: id, direction }));
-    });
+    otimista(
+      (prev) => {
+        const idx = prev.findIndex((c) => c.id === id);
+        const swap = direction === "left" ? idx - 1 : idx + 1;
+        if (idx === -1 || swap < 0 || swap >= prev.length) return prev;
+        const next = [...prev];
+        [next[idx], next[swap]] = [next[swap], next[idx]];
+        return next;
+      },
+      () => moveColumnAction(fd({ columnId: id, direction }))
+    );
   }
 
   function addCard(columnId: string, titulo: string) {
@@ -121,55 +147,53 @@ export function ContentBoard({
   }
 
   function updateCard(cardId: string, titulo: string, descricao: string) {
-    setColumns((prev) =>
-      prev.map((c) => ({
-        ...c,
-        cards: c.cards.map((card) =>
-          card.id === cardId
-            ? { ...card, titulo, descricao: descricao || null }
-            : card
-        ),
-      }))
+    otimista(
+      (prev) =>
+        prev.map((c) => ({
+          ...c,
+          cards: c.cards.map((card) =>
+            card.id === cardId
+              ? { ...card, titulo, descricao: descricao || null }
+              : card
+          ),
+        })),
+      () => updateCardAction(fd({ cardId, titulo, descricao }))
     );
-    startTransition(() => {
-      updateCardAction(fd({ cardId, titulo, descricao }));
-    });
   }
 
   function moveCard(cardId: string, targetColumnId: string) {
-    setColumns((prev) => {
-      let moved: ContentCard | undefined;
-      const stripped = prev.map((c) => {
-        const found = c.cards.find((x) => x.id === cardId);
-        if (found) {
-          moved = found;
-          return { ...c, cards: c.cards.filter((x) => x.id !== cardId) };
-        }
-        return c;
-      });
-      if (!moved) return prev;
-      const card = moved;
-      return stripped.map((c) =>
-        c.id === targetColumnId
-          ? { ...c, cards: [...c.cards, { ...card, column_id: targetColumnId }] }
-          : c
-      );
-    });
-    startTransition(() => {
-      moveCardAction(fd({ cardId, targetColumnId }));
-    });
+    otimista(
+      (prev) => {
+        let moved: ContentCard | undefined;
+        const stripped = prev.map((c) => {
+          const found = c.cards.find((x) => x.id === cardId);
+          if (found) {
+            moved = found;
+            return { ...c, cards: c.cards.filter((x) => x.id !== cardId) };
+          }
+          return c;
+        });
+        if (!moved) return prev;
+        const card = moved;
+        return stripped.map((c) =>
+          c.id === targetColumnId
+            ? { ...c, cards: [...c.cards, { ...card, column_id: targetColumnId }] }
+            : c
+        );
+      },
+      () => moveCardAction(fd({ cardId, targetColumnId }))
+    );
   }
 
   function deleteCard(cardId: string) {
-    setColumns((prev) =>
-      prev.map((c) => ({
-        ...c,
-        cards: c.cards.filter((x) => x.id !== cardId),
-      }))
+    otimista(
+      (prev) =>
+        prev.map((c) => ({
+          ...c,
+          cards: c.cards.filter((x) => x.id !== cardId),
+        })),
+      () => deleteCardAction(fd({ cardId }))
     );
-    startTransition(() => {
-      deleteCardAction(fd({ cardId }));
-    });
   }
 
   function updateCardImages(cardId: string, imagens: string[]) {
@@ -246,6 +270,15 @@ export function ContentBoard({
           {totalCards} {totalCards === 1 ? "cartão" : "cartões"}
         </span>
       </div>
+
+      {erro ? (
+        <p
+          role="alert"
+          className="mb-3 rounded-[10px] border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800"
+        >
+          {erro}
+        </p>
+      ) : null}
 
       <div className="flex gap-3 overflow-x-auto kanban-scroll pb-3 items-start">
         {columns.map((col, i) => (

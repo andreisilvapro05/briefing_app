@@ -95,37 +95,53 @@ export async function addColumnAction(
   return (data as { id: string; titulo: string; ordem: number } | null) ?? null;
 }
 
-export async function renameColumnAction(formData: FormData) {
+export async function renameColumnAction(
+  formData: FormData
+): Promise<{ ok: boolean }> {
   const service = await guard(formData);
   const columnId = String(formData.get("columnId") ?? "");
   const titulo = String(formData.get("titulo") ?? "").trim();
-  if (!columnId || !titulo) return;
+  if (!columnId || !titulo) return { ok: false };
 
   const { error: escritaErr3 } = await service
     .from("content_columns")
     .update({ titulo })
     .eq("id", columnId);
-  if (escritaErr3) logServerError("conteudo.escrita", escritaErr3);
+  if (escritaErr3) {
+    logServerError("conteudo.escrita", escritaErr3);
+    return { ok: false };
+  }
   revalidatePath(PATH);
+  return { ok: true };
 }
 
-export async function deleteColumnAction(formData: FormData) {
+export async function deleteColumnAction(
+  formData: FormData
+): Promise<{ ok: boolean }> {
   const service = await guard(formData);
   const columnId = String(formData.get("columnId") ?? "");
-  if (!columnId) return;
+  if (!columnId) return { ok: false };
 
   // Cartões saem junto (ON DELETE CASCADE).
   const { error: escritaErr1 } = await service.from("content_columns").delete().eq("id", columnId);
-  if (escritaErr1) logServerError("conteudo.escrita", escritaErr1);
+  if (escritaErr1) {
+    logServerError("conteudo.escrita", escritaErr1);
+    return { ok: false };
+  }
   revalidatePath(PATH);
+  return { ok: true };
 }
 
 /** Move a coluna pra esquerda/direita (troca ordem com a vizinha). */
-export async function moveColumnAction(formData: FormData) {
+export async function moveColumnAction(
+  formData: FormData
+): Promise<{ ok: boolean }> {
   const service = await guard(formData);
   const columnId = String(formData.get("columnId") ?? "");
   const direction = String(formData.get("direction") ?? "");
-  if (!columnId || (direction !== "left" && direction !== "right")) return;
+  if (!columnId || (direction !== "left" && direction !== "right")) {
+    return { ok: false };
+  }
 
   const { data } = await service
     .from("content_columns")
@@ -134,22 +150,27 @@ export async function moveColumnAction(formData: FormData) {
     .order("created_at", { ascending: true });
   const list = (data as { id: string; ordem: number }[] | null) ?? [];
   const idx = list.findIndex((c) => c.id === columnId);
-  if (idx === -1) return;
+  if (idx === -1) return { ok: false };
   const swap = direction === "left" ? idx - 1 : idx + 1;
-  if (swap < 0 || swap >= list.length) return;
+  if (swap < 0 || swap >= list.length) return { ok: false };
 
   const reordered = [...list];
   [reordered[idx], reordered[swap]] = [reordered[swap], reordered[idx]];
+  let falhou = false;
   for (let i = 0; i < reordered.length; i++) {
     if (reordered[i].ordem !== i) {
       const { error: escritaErr4 } = await service
         .from("content_columns")
         .update({ ordem: i })
         .eq("id", reordered[i].id);
-      if (escritaErr4) logServerError("conteudo.escrita", escritaErr4);
+      if (escritaErr4) {
+        logServerError("conteudo.escrita", escritaErr4);
+        falhou = true;
+      }
     }
   }
   revalidatePath(PATH);
+  return { ok: !falhou };
 }
 
 export async function addCardAction(
@@ -173,12 +194,14 @@ export async function addCardAction(
   return (data as { id: string } | null) ?? null;
 }
 
-export async function updateCardAction(formData: FormData) {
+export async function updateCardAction(
+  formData: FormData
+): Promise<{ ok: boolean }> {
   const service = await guard(formData);
   const cardId = String(formData.get("cardId") ?? "");
   const titulo = String(formData.get("titulo") ?? "").trim();
   const descricao = String(formData.get("descricao") ?? "").trim();
-  if (!cardId || !titulo) return;
+  if (!cardId || !titulo) return { ok: false };
 
   const { error: escritaErr5 } = await service
     .from("content_cards")
@@ -188,16 +211,22 @@ export async function updateCardAction(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", cardId);
-  if (escritaErr5) logServerError("conteudo.escrita", escritaErr5);
+  if (escritaErr5) {
+    logServerError("conteudo.escrita", escritaErr5);
+    return { ok: false };
+  }
   revalidatePath(PATH);
+  return { ok: true };
 }
 
 /** Move o cartão pro fim da coluna de destino. */
-export async function moveCardAction(formData: FormData) {
+export async function moveCardAction(
+  formData: FormData
+): Promise<{ ok: boolean }> {
   const service = await guard(formData);
   const cardId = String(formData.get("cardId") ?? "");
   const targetColumnId = String(formData.get("targetColumnId") ?? "");
-  if (!cardId || !targetColumnId) return;
+  if (!cardId || !targetColumnId) return { ok: false };
 
   const { error: escritaErr6 } = await service
     .from("content_cards")
@@ -207,8 +236,12 @@ export async function moveCardAction(formData: FormData) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", cardId);
-  if (escritaErr6) logServerError("conteudo.escrita", escritaErr6);
+  if (escritaErr6) {
+    logServerError("conteudo.escrita", escritaErr6);
+    return { ok: false };
+  }
   revalidatePath(PATH);
+  return { ok: true };
 }
 
 /** Salva o array de imagens (URLs) de um cartão. */
@@ -239,12 +272,18 @@ export async function setCardImagesAction(formData: FormData) {
   revalidatePath(PATH);
 }
 
-export async function deleteCardAction(formData: FormData) {
+export async function deleteCardAction(
+  formData: FormData
+): Promise<{ ok: boolean }> {
   const service = await guard(formData);
   const cardId = String(formData.get("cardId") ?? "");
-  if (!cardId) return;
+  if (!cardId) return { ok: false };
 
   const { error: escritaErr2 } = await service.from("content_cards").delete().eq("id", cardId);
-  if (escritaErr2) logServerError("conteudo.escrita", escritaErr2);
+  if (escritaErr2) {
+    logServerError("conteudo.escrita", escritaErr2);
+    return { ok: false };
+  }
   revalidatePath(PATH);
+  return { ok: true };
 }
