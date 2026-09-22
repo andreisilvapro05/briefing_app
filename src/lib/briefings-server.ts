@@ -238,12 +238,18 @@ export async function ativarCompartilhamento(
  * Revoga. Troca o token em vez de só desligar a flag: quem já tem o link
  * antigo não volta a entrar se o compartilhamento for religado depois.
  */
-export async function revogarCompartilhamento(id: string): Promise<void> {
+export async function revogarCompartilhamento(
+  id: string
+): Promise<{ erro?: string }> {
   const service = createSupabaseServiceRoleClient();
-  await service
+  // Devolve o erro em vez de void: quem chama redirecionava sempre, e um
+  // link que continuou valendo depois de "Revogar" é um vazamento que a
+  // pessoa acha que fechou.
+  const { error } = await service
     .from("ei_documents")
     .update({ share_token: null, share_enabled: false, share_expires_at: null })
     .eq("id", id);
+  return error ? { erro: error.message } : {};
 }
 
 export interface ResultadoImportacao {
@@ -387,11 +393,12 @@ export async function importarBriefingsDoClickUp(): Promise<ResultadoImportacao>
 export async function vincularBriefingACliente(
   briefingId: string,
   clientId: string | null
-): Promise<void> {
+): Promise<{ erro?: string }> {
   const service = createSupabaseServiceRoleClient();
-  await service
+  const { error } = await service
     .from("ei_documents")
     .update({ client_id: clientId })
     .eq("id", briefingId)
     .eq("kind", "briefing");
+  return error ? { erro: error.message } : {};
 }

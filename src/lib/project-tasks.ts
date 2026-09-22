@@ -154,10 +154,75 @@ export function ehExterno(responsavel: string | null | undefined): boolean {
   return Boolean(TEAM_MEMBERS.find((m) => m.value === responsavel)?.externo);
 }
 
+/**
+ * Áreas internas da agência — o trabalho que NÃO pertence a um cliente.
+ *
+ * Pedido da Karine (2026-09-21): a Tainá recebe demandas que chegam pra ela
+ * e não são de projeto nenhum ("revisar contrato padrão", "post da semana"),
+ * e não havia onde colocá-las sem sujar a lista de um cliente.
+ *
+ * `cor` é a faixa do cartão na tela de Demandas; a área se reconhece de
+ * relance pela cor, sem precisar ler.
+ */
+export interface Area {
+  value: string;
+  label: string;
+  /** Classe de fundo+texto+borda da etiqueta. */
+  tom: string;
+  /** Classe de fundo da barra lateral do grupo. */
+  barra: string;
+}
+
+export const AREAS: Area[] = [
+  {
+    value: "comercial",
+    label: "Comercial",
+    tom: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    barra: "bg-emerald-500",
+  },
+  {
+    value: "curso",
+    label: "Curso",
+    tom: "bg-violet-50 text-violet-800 border-violet-200",
+    barra: "bg-violet-500",
+  },
+  {
+    value: "financeiro",
+    label: "Financeiro / Administrativo",
+    tom: "bg-sky-50 text-sky-800 border-sky-200",
+    barra: "bg-sky-500",
+  },
+  {
+    value: "processos",
+    label: "Processos",
+    tom: "bg-amber-50 text-amber-800 border-amber-200",
+    barra: "bg-amber-500",
+  },
+  {
+    value: "marketing",
+    label: "Marketing",
+    tom: "bg-pink-50 text-pink-800 border-pink-200",
+    barra: "bg-pink-500",
+  },
+];
+
+export const AREA_VALUES: string[] = AREAS.map((a) => a.value);
+
+export function areaDe(value: string | null | undefined): Area | null {
+  if (!value) return null;
+  return AREAS.find((a) => a.value === value) ?? null;
+}
+
+export function areaLabel(value: string | null | undefined): string {
+  return areaDe(value)?.label ?? "Sem área";
+}
+
 export interface ProjectTask {
   id: string;
   /** null = demanda interna da agência, não ligada a nenhum cliente. */
   client_id: string | null;
+  /** Área interna (ver AREAS). null = trabalho de projeto, de um cliente. */
+  area: string | null;
   titulo: string;
   ordem: number;
   status: TaskStatus;
@@ -167,7 +232,7 @@ export interface ProjectTask {
   data_vencimento: string | null;
   concluida_em: string | null;
   observacoes: string | null;
-  origem: "template" | "manual";
+  origem: "template" | "manual" | "clickup";
   created_at: string;
   updated_at: string;
 }

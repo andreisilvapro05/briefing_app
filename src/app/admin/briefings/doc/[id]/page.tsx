@@ -147,7 +147,7 @@ export default async function BriefingDocPage({
               {doc.shareExpiresAt ? (
                 <p className="text-xs text-fysi-muted mt-2">
                   Expira em{" "}
-                  {new Date(doc.shareExpiresAt).toLocaleDateString("pt-BR")}.
+                  {new Date(doc.shareExpiresAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}.
                 </p>
               ) : null}
               <form action={revogarCompartilhamentoAction} className="mt-3">

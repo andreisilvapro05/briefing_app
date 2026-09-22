@@ -52,6 +52,7 @@ export default async function BriefingPublicoPage({
               day: "2-digit",
               month: "long",
               year: "numeric",
+                          timeZone: "America/Sao_Paulo",
             })}
             . Este link abre só este briefing — nada mais da conta do cliente.
           </p>

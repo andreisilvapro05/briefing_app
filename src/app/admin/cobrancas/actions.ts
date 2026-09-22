@@ -56,7 +56,9 @@ export async function addCobrancaAction(formData: FormData) {
   const clientId = String(formData.get("client_id") ?? "").trim();
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("cobrancas_mensais").insert({
+  // Única das 6 ações do arquivo sem checagem: a cobrança "cadastrada" não
+  // aparecia na lista e ninguém era avisado de nada.
+  const { error: novaErr } = await service.from("cobrancas_mensais").insert({
     tipo,
     nome,
     empresa: empresa || null,
@@ -71,6 +73,7 @@ export async function addCobrancaAction(formData: FormData) {
     data_inicio: new Date().toISOString().slice(0, 10),
     historico: [],
   });
+  if (novaErr) logServerError("addCobrancaAction", novaErr);
 
   revalidatePath("/admin/cobrancas");
 }

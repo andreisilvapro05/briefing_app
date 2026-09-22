@@ -244,53 +244,6 @@ export async function inviteMemberAction(formData: FormData) {
   revalidatePath("/admin/membros");
 }
 
-/** Reenvia o convite (magic link) pra um membro que ainda não logou. */
-export async function resendInviteAction(formData: FormData) {
-  const urlKey = String(formData.get("key") ?? "") || null;
-  await requireAdminOrRedirect(urlKey);
-
-  const memberId = String(formData.get("memberId") ?? "");
-  if (!memberId) return;
-
-  const service = createSupabaseServiceRoleClient();
-  const { data } = await service
-    .from("team_members")
-    .select("email")
-    .eq("id", memberId)
-    .maybeSingle();
-  const email = (data as { email: string } | null)?.email;
-  if (!email) return;
-
-  let env: ReturnType<typeof getServerEnv>;
-  try {
-    env = getServerEnv();
-  } catch {
-    return;
-  }
-
-  try {
-    const { error: otpErr } = await service.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${env.appUrl}/auth/callback?next=${encodeURIComponent("/admin")}`,
-        shouldCreateUser: true,
-      },
-    });
-    if (otpErr) {
-      logServerError("membros.resend.otp", otpErr);
-    } else {
-      const { error: escritaErr4 } = await service
-        .from("team_members")
-        .update({ invited_at: new Date().toISOString() })
-        .eq("id", memberId);
-      if (escritaErr4) logServerError("membros.escrita", escritaErr4);
-    }
-  } catch (err) {
-    logServerError("membros.resend.otp.throw", err);
-  }
-
-  revalidatePath("/admin/membros");
-}
 
 /** Muda o papel de um membro. */
 export async function setMemberRoleAction(formData: FormData) {

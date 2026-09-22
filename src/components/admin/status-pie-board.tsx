@@ -533,12 +533,6 @@ function ClientAccordionRow({
                       ? dragProps(t)
                       : undefined
                   }
-                  eiDocId={c.eiDocId}
-                  eiHref={
-                    c.eiDocId
-                      ? `/admin/estruturas-iniciais/${c.eiDocId}${keyParam}`
-                      : `/admin/estruturas-iniciais${keyParam}`
-                  }
                   readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                 />
               ))}

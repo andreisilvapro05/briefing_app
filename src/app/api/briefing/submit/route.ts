@@ -112,13 +112,14 @@ export async function POST(request: NextRequest) {
       if (insertErr) throw new Error(insertErr.message);
       clientId = created?.id;
     } else {
-      await service
+      const { error: updErr } = await service
         .from("clients")
         .update({
           briefing_submitted_at: new Date().toISOString(),
           project_type: parsed.cliente.projectType,
         })
         .eq("id", clientId);
+      if (updErr) throw new Error(updErr.message);
     }
 
     // Persiste todas as respostas
@@ -133,14 +134,23 @@ export async function POST(request: NextRequest) {
         };
       });
       if (rows.length) {
-        await service.from("briefing_responses").upsert(rows, {
-          onConflict: "client_id,field_id",
-        });
+        const { error: respErr } = await service
+          .from("briefing_responses")
+          .upsert(rows, { onConflict: "client_id,field_id" });
+        if (respErr) throw new Error(respErr.message);
       }
     }
   } catch (err) {
+    // As RESPOSTAS são o briefing. Antes este catch só logava ("não
+    // bloqueamos") e a rota seguia pro ClickUp e pro e-mail devolvendo
+    // ok:true — o cliente via "Briefing enviado!", a equipe recebia o
+    // e-mail, e no painel o briefing estava vazio. Ninguém desconfiava.
     logServerError("submit.supabase", err);
-    // Não bloqueamos — seguimos para ClickUp e e-mail.
+    return errorResponse(
+      "save-failed",
+      500,
+      "Não consegui salvar suas respostas. Elas continuam aqui no navegador — tente enviar de novo em instantes."
+    );
   }
 
   // Conta arquivos vinculados a este cliente (usado por ClickUp + e-mail)

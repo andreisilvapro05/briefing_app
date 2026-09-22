@@ -1,14 +1,15 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   useTransition,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   seedProjectTasksAction,
@@ -20,6 +21,8 @@ import {
   deleteProjectTaskCommentAction,
   type ProjectTaskComment,
 } from "@/app/admin/[id]/actions";
+import { TaskNotes, extrairLinks } from "./task-notes";
+import { TaskLinks } from "./task-links-row";
 import {
   TASK_STATUS_OPTIONS,
   TASK_STATUS_TONE,
@@ -57,47 +60,94 @@ function GripIcon() {
 }
 
 /**
- * Larguras de coluna editáveis por arrastar a borda — persistidas por
- * viewer em localStorage (chave por tabela, já que Tarefas do cliente,
- * Tarefas de todos os projetos e o accordion da pizza têm colunas
- * diferentes). Começa nos defaults (server e client renderizam igual, sem
- * mismatch de hidratação) e só troca pro valor salvo depois de montar.
+ * Larguras de coluna, guardadas por viewer no localStorage (uma chave por
+ * tabela: Tarefas do cliente, Tarefas de todos os projetos e o accordion da
+ * pizza têm colunas diferentes).
+ *
+ * `useSyncExternalStore` em vez de `useState` + efeito: o valor salvo só
+ * existe no navegador. Lê-lo durante o render quebraria a hidratação, e
+ * lê-lo num efeito com setState dispara um segundo render em toda tabela da
+ * tela. Aqui o servidor devolve o padrão e o navegador devolve o salvo, que
+ * é exatamente o contrato dessa API.
+ *
+ * O cache por chave existe porque `getSnapshot` precisa devolver a MESMA
+ * referência enquanto nada mudar — devolver um array novo a cada chamada
+ * põe o React em laço infinito.
  */
-export function useColumnWidths(storageKey: string, defaults: number[]) {
-  const [widths, setWidths] = useState<number[]>(defaults);
-  const widthsRef = useRef(widths);
+const larguraOuvintes = new Set<() => void>();
+const larguraCache = new Map<string, number[]>();
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length === defaults.length) {
-          widthsRef.current = parsed;
-          setWidths(parsed);
-        }
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    } catch {}
-  }, [storageKey]);
+function lerLarguraSalva(chave: string, n: number): number[] | null {
+  try {
+    const raw = localStorage.getItem(chave);
+    if (!raw) return null;
+    const p: unknown = JSON.parse(raw);
+    if (
+      Array.isArray(p) &&
+      p.length === n &&
+      p.every((x) => typeof x === "number" && Number.isFinite(x) && x >= 48)
+    ) {
+      return p as number[];
+    }
+  } catch {
+    /* localStorage bloqueado ou JSON corrompido: fica no padrão. */
+  }
+  return null;
+}
+
+function larguraAtual(chave: string, padrao: number[]): number[] {
+  const emCache = larguraCache.get(chave);
+  if (emCache && emCache.length === padrao.length) return emCache;
+  const valor = lerLarguraSalva(chave, padrao.length) ?? padrao;
+  larguraCache.set(chave, valor);
+  return valor;
+}
+
+export function useColumnWidths(storageKey: string, defaults: number[]) {
+  // Fixa a referência do padrão na primeira montagem: quem chama passa um
+  // array literal, que seria novo a cada render.
+  const padraoRef = useRef(defaults);
+
+  const subscribe = useCallback((cb: () => void) => {
+    larguraOuvintes.add(cb);
+    return () => {
+      larguraOuvintes.delete(cb);
+    };
+  }, []);
+  const getSnapshot = useCallback(
+    () => larguraAtual(storageKey, padraoRef.current),
+    [storageKey]
+  );
+  const getServerSnapshot = useCallback(() => padraoRef.current, []);
+
+  const widths = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   function startResize(index: number) {
     return (e: React.MouseEvent) => {
       e.preventDefault();
-      const startX = e.clientX;
-      const startWidth = widthsRef.current[index];
+      const inicioX = e.clientX;
+      const larguraInicial = larguraAtual(storageKey, padraoRef.current)[index];
+
+      function aplicar(proximas: number[]) {
+        larguraCache.set(storageKey, proximas);
+        for (const ouvinte of larguraOuvintes) ouvinte();
+      }
       function onMove(ev: MouseEvent) {
-        const next = widthsRef.current.slice();
-        next[index] = Math.max(48, startWidth + (ev.clientX - startX));
-        widthsRef.current = next;
-        setWidths(next);
+        const proximas = larguraAtual(storageKey, padraoRef.current).slice();
+        proximas[index] = Math.max(48, larguraInicial + (ev.clientX - inicioX));
+        aplicar(proximas);
       }
       function onUp() {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
         try {
-          localStorage.setItem(storageKey, JSON.stringify(widthsRef.current));
-        } catch {}
+          localStorage.setItem(
+            storageKey,
+            JSON.stringify(larguraAtual(storageKey, padraoRef.current))
+          );
+        } catch {
+          /* sem localStorage a largura vale só nesta sessão. */
+        }
       }
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
@@ -279,8 +329,6 @@ export function TaskRow({
   urlKey,
   clienteCell,
   drag,
-  eiDocId,
-  eiHref,
   readOnly,
 }: {
   task: ProjectTask;
@@ -290,9 +338,6 @@ export function TaskRow({
   clienteCell?: ReactNode;
   /** Handlers de drag-and-drop — só faz sentido dentro da lista de um único cliente (ver useTaskDrag). */
   drag?: DragHandlers;
-  /** null = cliente ainda não tem Estrutura Inicial (link leva pro hub em vez do documento). */
-  eiDocId?: string | null;
-  eiHref?: string;
   /** Papel "basico" só vê (não edita) tarefa de outra pessoa — server já rejeita, isso só reflete na UI. */
   readOnly?: boolean;
 }) {
@@ -531,43 +576,39 @@ export function TaskRow({
         <tr className="bg-fysi-cream/30 border-t border-fysi-line">
           <td colSpan={totalCols} className="px-3 py-4">
             <div className="max-w-xl flex flex-col gap-4">
-              {eiHref ? (
-                <Link
-                  href={eiHref}
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-fysi-deep hover:underline w-fit"
-                >
-                  {eiDocId ? "Ver Estrutura Inicial" : "Criar Estrutura Inicial"} →
-                </Link>
-              ) : null}
+              {/* As páginas do app ligadas a esta demanda — o equivalente às
+                  "Páginas" da tarefa no ClickUp. Antes havia só um link de
+                  Estrutura Inicial, e o briefing do cliente ficava a um
+                  passeio pelo menu de distância. */}
+              <TaskLinks clientId={task.client_id} urlKey={urlKey} />
 
               <div>
                 <label className="block text-xs uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
                   Observações da tarefa
                 </label>
-                <textarea
+                <TaskNotes
                   value={observacoes}
                   disabled={locked}
-                  onChange={(e) => setObservacoes(e.target.value)}
+                  onChange={setObservacoes}
                   onBlur={() => {
                     if (observacoes.trim() !== (task.observacoes ?? ""))
                       saveField("observacoes", observacoes);
                   }}
-                  placeholder="Notas, links, contexto pra quem for mexer nessa tarefa…"
-                  rows={3}
-                  className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
+                  clientId={task.client_id}
+                  urlKey={urlKey}
                 />
-                {extractUrls(observacoes).length > 0 ? (
-                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
-                    {extractUrls(observacoes).map((url, i) => (
+                {extrairLinks(observacoes).length > 0 ? (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {extrairLinks(observacoes).map((l, i) => (
                       <a
-                        key={`${url}-${i}`}
-                        href={url}
+                        key={`${l.url}-${i}`}
+                        href={l.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-fysi-deep underline underline-offset-2 hover:text-fysi-green truncate max-w-xs"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-fysi-line bg-white px-2.5 py-1 text-xs text-fysi-deep hover:border-fysi-deep/40 max-w-xs"
                       >
                         <LinkIcon />
-                        <span className="truncate">{url}</span>
+                        <span className="truncate">{l.label}</span>
                       </a>
                     ))}
                   </div>
@@ -713,12 +754,6 @@ function formatCommentDate(iso: string): string {
   }
 }
 
-// Textarea não renderiza link — extrai URLs do texto pra mostrar como
-// chips clicáveis abaixo do campo (pedido do usuário: "link de site clicável").
-const URL_REGEX = /https?:\/\/[^\s<>"']+/g;
-function extractUrls(text: string): string[] {
-  return text.match(URL_REGEX) ?? [];
-}
 
 /**
  * undefined = sem restrição (admin/avancado/legacy). null = "basico" sem
@@ -738,16 +773,12 @@ export function TasksBoard({
   urlKey,
   projectType,
   tasks,
-  eiDocId,
-  eiHref,
   restrictToResponsavel,
 }: {
   clientId: string;
   urlKey?: string;
   projectType: ProjectType | null;
   tasks: ProjectTask[];
-  eiDocId?: string | null;
-  eiHref?: string;
   restrictToResponsavel?: EditRestriction;
 }) {
   const router = useRouter();
@@ -846,8 +877,6 @@ export function TasksBoard({
                       ? dragAbertas(t)
                       : undefined
                   }
-                  eiDocId={eiDocId}
-                  eiHref={eiHref}
                   readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                 />
               ))}
@@ -864,8 +893,6 @@ export function TasksBoard({
                           ? dragFechadas(t)
                           : undefined
                       }
-                      eiDocId={eiDocId}
-                      eiHref={eiHref}
                       readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                     />
                   ))

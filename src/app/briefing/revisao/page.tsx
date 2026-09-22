@@ -58,8 +58,17 @@ export default function RevisaoPage() {
         }),
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Não foi possível enviar o briefing.");
+        // A rota devolve JSON ({error: "save-failed"}); mostrar o corpo cru
+        // deixaria a pessoa olhando pra um código. Aqui vira frase — e a
+        // frase diz o que importa: as respostas não se perderam.
+        const corpo = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(
+          corpo?.error === "save-failed"
+            ? "Não consegui salvar suas respostas agora. Elas continuam guardadas aqui no seu navegador — tente enviar de novo em instantes."
+            : "Não foi possível enviar o briefing. Tente de novo em instantes."
+        );
       }
       router.push("/briefing/concluido");
     } catch (err) {

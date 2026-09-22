@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentMember, hasFinanceAccess,
-  isAdmin,
-} from "@/lib/member";
+  isAdmin, hasFullAccess } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ContentBoard } from "@/components/admin/content-board";
 import { listContentBoard } from "@/lib/content-board-server";
@@ -19,6 +18,9 @@ export default async function ConteudoPage({
   if (!member) redirect("/admin/login");
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+  // Mesmo corte da action: o menu já escondia, faltava fechar a URL.
+  if (!hasFullAccess(member)) redirect(`/admin/meu-trabalho${keyParam}`);
+
   const columns = await listContentBoard();
 
   return (

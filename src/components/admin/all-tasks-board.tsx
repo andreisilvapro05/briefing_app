@@ -34,16 +34,11 @@ type Task = ProjectTask & { client: ProjectTaskClient; client_id: string };
 export function AllTasksBoard({
   tasks,
   urlKey,
-  keyParam = "",
-  eiDocIdByClient = {},
   clients = [],
   restrictToResponsavel,
 }: {
   tasks: Task[];
   urlKey?: string;
-  keyParam?: string;
-  /** client_id -> id do documento de Estrutura Inicial, se existir. */
-  eiDocIdByClient?: Record<string, string>;
   /** Clientes visíveis pra pessoa — opções do "+ Nova tarefa". */
   clients?: ClientOption[];
   restrictToResponsavel?: EditRestriction;
@@ -279,12 +274,6 @@ export function AllTasksBoard({
                       clientId={t.client_id}
                       urlKey={urlKey}
                       clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
-                      eiDocId={eiDocIdByClient[t.client_id] ?? null}
-                      eiHref={
-                        eiDocIdByClient[t.client_id]
-                          ? `/admin/estruturas-iniciais/${eiDocIdByClient[t.client_id]}${keyParam}`
-                          : `/admin/estruturas-iniciais${keyParam}`
-                      }
                       readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                     />
                   ))}
@@ -298,12 +287,6 @@ export function AllTasksBoard({
                       clientId={t.client_id}
                       urlKey={urlKey}
                       clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
-                      eiDocId={eiDocIdByClient[t.client_id] ?? null}
-                      eiHref={
-                        eiDocIdByClient[t.client_id]
-                          ? `/admin/estruturas-iniciais/${eiDocIdByClient[t.client_id]}${keyParam}`
-                          : `/admin/estruturas-iniciais${keyParam}`
-                      }
                       readOnly={isReadOnlyFor(t, restrictToResponsavel)}
                     />
                   ))

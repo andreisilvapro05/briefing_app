@@ -5,7 +5,6 @@ import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
 import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
-import { getEIDocumentIdsForClients } from "@/lib/ei-documents-server";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +36,6 @@ export default async function AdminTarefasPage({
   const tasks = visibleIds
     ? comCliente.filter((t) => visibleIds.has(t.client_id))
     : comCliente;
-  const eiDocIds = await getEIDocumentIdsForClients([
-    ...new Set(tasks.map((t) => t.client_id)),
-  ]);
-  const eiDocIdByClient = Object.fromEntries(eiDocIds);
 
   return (
     <AdminShell active="tarefas" keyParam={keyParamFirst} userEmail={member.email}
@@ -62,8 +57,6 @@ export default async function AdminTarefasPage({
       <AllTasksBoard
         tasks={tasks}
         urlKey={urlKey ?? undefined}
-        keyParam={keyParamFirst}
-        eiDocIdByClient={eiDocIdByClient}
         clients={clientOptions}
         restrictToResponsavel={
           member.role === "basico" ? member.taskValue : undefined

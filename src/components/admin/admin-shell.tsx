@@ -16,6 +16,8 @@ import { ProfileNameLink } from "./profile-name-link";
 
 export type AdminSection =
   | "meu-trabalho"
+  | "demandas"
+  | "equipe"
   | "visao-geral"
   | "clientes"
   | "lista"
@@ -78,6 +80,22 @@ const ICONS: Record<AdminSection, ReactNode> = {
     <I>
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21c0-4 3.5-7 8-7s8 3 8 7" />
+    </I>
+  ),
+  equipe: (
+    <I>
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M2.5 20c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6" />
+      <circle cx="17.5" cy="9.5" r="2.4" />
+      <path d="M16 14.2c3 .3 5.5 2.7 5.5 5.8" />
+    </I>
+  ),
+  demandas: (
+    <I>
+      <rect x="3" y="4" width="7" height="7" rx="1.5" />
+      <rect x="14" y="4" width="7" height="7" rx="1.5" />
+      <rect x="3" y="15" width="7" height="6" rx="1.5" />
+      <rect x="14" y="15" width="7" height="6" rx="1.5" />
     </I>
   ),
   "visao-geral": (
@@ -234,6 +252,13 @@ const AREAS: NavArea[] = [
     ],
   },
   {
+    label: "Interno",
+    items: [
+      item("demandas", "Demandas por área", "/admin/demandas"),
+      item("equipe", "Equipe", "/admin/equipe"),
+    ],
+  },
+  {
     label: "Financeiro",
     items: [
       item("contratos", "Contratos", "/admin/contratos"),
@@ -307,9 +332,14 @@ export function AdminShell({
   const initials = (userName || userEmail || "F").slice(0, 2).toUpperCase();
   // "básico" (mesmo flag do Financeiro) também não vê Marketing e Comercial:
   // metas guardam alvos de faturamento — dado comercial sensível.
+  // "Interno" entra no mesmo corte: as gavetas de Demandas são Comercial,
+  // Curso e Financeiro, e o dashboard de Equipe mostra a carga dos outros.
   const areasVisiveis = hideFinance
     ? AREAS.filter(
-        (a) => a.label !== "Financeiro" && a.label !== "Marketing e Comercial"
+        (a) =>
+          a.label !== "Financeiro" &&
+          a.label !== "Marketing e Comercial" &&
+          a.label !== "Interno"
       )
     : AREAS;
   // "Custos da empresa" some pra quem não é sócio — mostrar um item que só

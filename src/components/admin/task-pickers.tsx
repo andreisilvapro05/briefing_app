@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  AREAS,
   TASK_PRIORITY_OPTIONS,
   TEAM_MEMBERS,
 } from "@/lib/project-tasks";
@@ -687,6 +688,84 @@ export function ClientPicker({
               </p>
             ) : null}
           </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Área da demanda interna (Comercial, Curso, Financeiro/Administrativo,
+ * Processos, Marketing).
+ *
+ * Só aparece quando a demanda NÃO é de cliente: é a classificação do
+ * trabalho da própria agência, o que a Karine pediu pra Tainá conseguir
+ * registrar o que chega e não é de projeto nenhum.
+ */
+export function AreaPicker({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const { open, toggle, close, triggerRef, panelRef, panelStyle } =
+    usePopover();
+  const atual = AREAS.find((a) => a.value === value);
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        disabled={disabled}
+        onClick={toggle}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={atual ? `Área: ${atual.label}` : "Escolher área"}
+        className={`${CHIP_CLASS} max-w-[13rem] ${
+          atual ? atual.tom : "text-fysi-muted"
+        }`}
+      >
+        <span
+          className={`h-2 w-2 rounded-full shrink-0 ${
+            atual ? atual.barra : "bg-fysi-line-strong"
+          }`}
+        />
+        <span className="truncate">{atual ? atual.label : "Área"}</span>
+      </button>
+      {open ? (
+        <div
+          ref={panelRef}
+          role="menu"
+          style={panelStyle}
+          className={`${PANEL_CLASS} w-56`}
+        >
+          <MenuItem
+            active={!value}
+            onClick={() => {
+              onChange("");
+              close();
+            }}
+          >
+            <span className="h-2 w-2 rounded-full bg-fysi-line-strong shrink-0" />
+            Sem área
+          </MenuItem>
+          {AREAS.map((a) => (
+            <MenuItem
+              key={a.value}
+              active={a.value === value}
+              onClick={() => {
+                onChange(a.value);
+                close();
+              }}
+            >
+              <span className={`h-2 w-2 rounded-full shrink-0 ${a.barra}`} />
+              {a.label}
+            </MenuItem>
+          ))}
         </div>
       ) : null}
     </>

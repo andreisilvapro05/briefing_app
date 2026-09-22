@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getAdminUser } from "@/lib/admin";
+import {
+  getCurrentMember,
+  getVisibleClientIds,
+  hasFullAccess,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/api-helpers";
 import type { CustomQuestionTipo } from "@/lib/custom-questions";
@@ -60,10 +64,24 @@ function parsePerguntas(raw: string): TemplateQuestion[] {
 /**
  * Cria um template vazio (só nome) e leva pro builder pra montar as perguntas.
  */
+/**
+ * Modelo de briefing é config GLOBAL da agência: um modelo apagado some da
+ * ficha de todo cliente. `getAdminUser` aceitava qualquer membro logado,
+ * inclusive o papel "basico" (designer) — que não deveria nem ver a tela.
+ */
+async function requireAcessoTotal(urlKey: string | null) {
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) {
+    redirect(`/admin/briefings${keySuffix(urlKey)}`);
+  }
+  return member;
+}
+
 export async function createBriefingTemplateAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await requireAcessoTotal(urlKey);
+  void member;
 
   const nome = String(formData.get("nome") ?? "").trim();
   if (!nome) return;
@@ -87,8 +105,8 @@ export async function createBriefingTemplateAction(formData: FormData) {
  */
 export async function saveBriefingTemplateAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await requireAcessoTotal(urlKey);
+  void member;
 
   const id = String(formData.get("id") ?? "");
   const nome = String(formData.get("nome") ?? "").trim();
@@ -113,8 +131,8 @@ export async function saveBriefingTemplateAction(formData: FormData) {
  */
 export async function deleteBriefingTemplateAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await requireAcessoTotal(urlKey);
+  void member;
 
   const id = String(formData.get("id") ?? "");
   if (!id) return;
@@ -139,12 +157,22 @@ export async function deleteBriefingTemplateAction(formData: FormData) {
  */
 export async function applyTemplateToClientAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await requireAcessoTotal(urlKey);
+  void member;
 
   const templateId = String(formData.get("templateId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
   if (!templateId || !clientId) return;
+
+  // Escopo por papel, como nas ações da ficha: ninguém injeta perguntas na
+  // ficha de um cliente que não enxerga.
+  const quem = await getCurrentMember({ urlKey });
+  if (quem) {
+    const visiveis = await getVisibleClientIds(quem);
+    if (visiveis && !visiveis.has(clientId)) {
+      redirect(`/admin/briefings${keySuffix(urlKey)}`);
+    }
+  }
 
   const template = await getBriefingTemplate(templateId);
   if (!template || template.perguntas.length === 0) {

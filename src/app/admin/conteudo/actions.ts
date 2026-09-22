@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, hasFullAccess } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/api-helpers";
 import { DEFAULT_CONTENT_COLUMNS } from "@/lib/content-board";
@@ -14,10 +14,19 @@ import { DEFAULT_CONTENT_COLUMNS } from "@/lib/content-board";
 
 const PATH = "/admin/conteudo";
 
+/**
+ * O quadro de Conteúdo é da agência, não de um cliente — e apagar uma coluna
+ * leva os cartões junto (CASCADE). `getAdminUser` aceitava qualquer membro
+ * logado: o menu escondia o item do papel "basico", mas a URL direta e a
+ * Server Action continuavam abertas.
+ */
 async function guard(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  const user = await getAdminUser({ urlKey });
-  if (!user) redirect("/admin/login");
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) {
+    redirect(`/admin/meu-trabalho${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
   return createSupabaseServiceRoleClient();
 }
 

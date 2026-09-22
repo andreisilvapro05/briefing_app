@@ -48,6 +48,9 @@ function dataCurta(iso: string): string {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    // Sem fuso, o servidor (UTC na Vercel) mostra o dia seguinte pra tudo
+    // que foi salvo depois das 21h em Brasília.
+    timeZone: "America/Sao_Paulo",
   });
 }
 

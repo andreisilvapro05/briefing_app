@@ -25,6 +25,7 @@ import { createClientFolders } from "@/lib/google-drive";
 import { createAdminNotification } from "@/lib/notifications";
 import { logServerError } from "@/lib/api-helpers";
 import { notifyMember, nomeDoMembro } from "@/lib/member-notifications";
+import { listTaskLinkTargets, type LinkTarget } from "@/lib/task-links";
 import type { EntregaDocumento } from "@/lib/entrega";
 import type { Moodboard } from "@/lib/moodboard";
 import {
@@ -34,6 +35,7 @@ import {
   TASK_STATUS_GROUP,
   TASK_PRIORITY_OPTIONS,
   TEAM_MEMBERS,
+  AREA_VALUES,
   donoPadraoDe,
   type TaskStatus,
 } from "@/lib/project-tasks";
@@ -532,7 +534,18 @@ export async function deleteClientAction(formData: FormData) {
   if (!clientId) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("clients").delete().eq("id", clientId);
+  // Sem checar o erro, um delete barrado por FK/RLS ainda redirecionava pra
+  // lista "como se" tivesse apagado — e o cliente continuava lá.
+  const { error: delErr } = await service
+    .from("clients")
+    .delete()
+    .eq("id", clientId);
+  if (delErr) {
+    logServerError("deleteClientAction", delErr);
+    redirect(
+      `/admin/${clientId}?erro=nao-apagou${urlKey ? `&key=${encodeURIComponent(urlKey)}` : ""}`
+    );
+  }
 
   revalidatePath("/admin");
   redirect(
@@ -796,7 +809,11 @@ export async function setEntregaAction(formData: FormData) {
   if (Object.keys(updates).length === 0) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("clients").update(updates).eq("id", clientId);
+  const { error: entregaErr } = await service
+    .from("clients")
+    .update(updates)
+    .eq("id", clientId);
+  if (entregaErr) logServerError("setEntregaAction", entregaErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -891,14 +908,18 @@ export async function addCustomQuestionAction(formData: FormData) {
       ? Number((maxRow[0] as { ordem: number }).ordem ?? -1)
       : -1) + 1;
 
-  await service.from("client_custom_questions").insert({
-    client_id: clientId,
-    label,
-    hint: hint || null,
-    tipo,
-    opcoes,
-    ordem: nextOrdem,
-  });
+  const { error: perguntaErr } = await service
+    .from("client_custom_questions")
+    .insert({
+      client_id: clientId,
+      label,
+      hint: hint || null,
+      tipo,
+      opcoes,
+      ordem: nextOrdem,
+    });
+  // Pergunta que não entrou nunca chega ao briefing do cliente.
+  if (perguntaErr) logServerError("addCustomQuestionAction", perguntaErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -1047,7 +1068,7 @@ export async function seedProjectTasksAction(formData: FormData) {
   const titulos = DEFAULT_PROJECT_TASKS[projectType] ?? [];
   if (titulos.length === 0) return;
 
-  await service.from("project_tasks").insert(
+  const { error: seedErr } = await service.from("project_tasks").insert(
     titulos.map((titulo, i) => ({
       client_id: clientId,
       titulo,
@@ -1056,6 +1077,9 @@ export async function seedProjectTasksAction(formData: FormData) {
       status: SEED_STATUS_OVERRIDES[titulo] ?? DEFAULT_TASK_STATUS,
     }))
   );
+  // Sem isto, "Gerar tarefas do template" não gerava nada e a tela ficava
+  // igual — dava pra clicar de novo e de novo sem entender.
+  if (seedErr) logServerError("seedProjectTasksAction", seedErr);
 
   revalidatePath(`/admin/${clientId}`);
 }
@@ -1121,6 +1145,19 @@ export async function addProjectTaskAction(
     return { ok: false, erro: "Data de vencimento inválida." };
   }
 
+  // Área só existe pra demanda INTERNA. Numa demanda de cliente ela seria
+  // uma segunda classificação concorrendo com o próprio cliente.
+  const area = String(formData.get("area") ?? "").trim();
+  if (area && !AREA_VALUES.includes(area)) {
+    return { ok: false, erro: "Área inválida." };
+  }
+  if (area && clientId) {
+    return {
+      ok: false,
+      erro: "Demanda de cliente não tem área — a área é do trabalho interno.",
+    };
+  }
+
   const service = createSupabaseServiceRoleClient();
   const ordemQuery = service.from("project_tasks").select("ordem");
   const { data: maxRow } = await (clientId
@@ -1144,6 +1181,7 @@ export async function addProjectTaskAction(
       responsavel: responsavel || null,
       prioridade: prioridade || null,
       data_vencimento: dataVencimento || null,
+      area: clientId ? null : area || null,
     })
     .select("id")
     .single();
@@ -1174,6 +1212,7 @@ export async function addProjectTaskAction(
   revalidatePath("/admin/meu-trabalho");
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
+  revalidatePath("/admin/demandas");
   return { ok: true, id: novaId };
 }
 
@@ -1226,7 +1265,12 @@ export async function removeProjectTaskAction(formData: FormData) {
   if (!(await canEditTask(member, taskId))) return;
 
   const service = createSupabaseServiceRoleClient();
-  await service.from("project_tasks").delete().eq("id", taskId);
+  const { error: remErr } = await service
+    .from("project_tasks")
+    .delete()
+    .eq("id", taskId);
+  // Tarefa "removida" que volta no refresh é pior que erro na cara.
+  if (remErr) logServerError("removeProjectTaskAction", remErr);
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
 }
@@ -1309,6 +1353,14 @@ export async function updateProjectTaskAction(formData: FormData) {
       String(formData.get("dataVencimento") ?? "").trim() || null;
   }
 
+  if (formData.has("area")) {
+    const area = String(formData.get("area") ?? "").trim();
+    if (area && !AREA_VALUES.includes(area)) return;
+    // Nunca deixa uma demanda de cliente ganhar área (ver addProjectTaskAction).
+    if (area && antes?.client_id) return;
+    update.area = area || null;
+  }
+
   if (formData.has("observacoes")) {
     update.observacoes = String(formData.get("observacoes") ?? "").trim() || null;
   }
@@ -1383,6 +1435,7 @@ export async function updateProjectTaskAction(formData: FormData) {
   // tarefa pode mudar a lane do cliente (laneForClient usa a tarefa atual).
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
+  revalidatePath("/admin/demandas");
 }
 
 /**
@@ -1784,4 +1837,26 @@ function formatDiaMesCurto(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+/**
+ * Páginas do app que a demanda pode apontar — alimenta os chips de vínculo e
+ * o menu do atalho "/" no campo de observações.
+ *
+ * Buscado sob demanda (ao abrir a demanda), não no payload da lista: são
+ * duas consultas por cliente, e a tela de Tarefas mostra dezenas de linhas.
+ */
+export async function getTaskLinkTargetsAction(
+  clientId: string | null,
+  urlKey?: string | null
+): Promise<LinkTarget[]> {
+  const member = await getCurrentMember({ urlKey: urlKey ?? null });
+  if (!member) return [];
+  // Escopo por papel: "basico" não recebe atalho pra cliente que não vê.
+  if (clientId) {
+    const visiveis = await getVisibleClientIds(member);
+    if (visiveis && !visiveis.has(clientId)) return [];
+  }
+  const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
+  return listTaskLinkTargets(clientId, keyParam);
 }

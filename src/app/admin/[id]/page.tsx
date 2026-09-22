@@ -55,7 +55,6 @@ import {
   setPaymentAction,
   setProjectTypeAction,
 } from "./actions";
-import { generateMagicSlug } from "@/lib/slug";
 import { ProjectStageControls } from "@/components/admin/project-stage-controls";
 
 import { listProjectTasks } from "@/lib/project-tasks-server";
@@ -168,7 +167,6 @@ export default async function AdminClientPage({
     getClientDocument(id, "ei"),
     getClientDocument(id, "briefing"),
   ]);
-  const eiDocId = eiDoc?.id ?? null;
 
   if (!client) {
     return (
@@ -203,27 +201,14 @@ export default async function AdminClientPage({
   const entrarUrl = `${baseUrl}/entrar`;
   const accessCode = env.clientAccessCode;
 
-  // Lazy backfill do magic_slug pra clientes antigos (criados antes da feature).
-  // Se a migration ainda não foi rodada, o update falha e painelLink fica null
-  // — a UI mostra aviso pra rodar a SQL em vez de um link quebrado.
-  let magicSlug = (client as { magic_slug?: string | null }).magic_slug;
-  let painelLink: string | null = null;
-  if (magicSlug) {
-    painelLink = `${baseUrl}/painel/${magicSlug}`;
-  } else {
-    const slug = generateMagicSlug({
-      nome: client.nome,
-      empresa: client.empresa,
-    });
-    const { error: slugErr } = await service
-      .from("clients")
-      .update({ magic_slug: slug })
-      .eq("id", client.id);
-    if (!slugErr) {
-      magicSlug = slug;
-      painelLink = `${baseUrl}/painel/${slug}`;
-    }
-  }
+  // Só LEITURA aqui. Antes havia um backfill preguiçoso que dava UPDATE no
+  // meio do render: como o <Link> do Next faz prefetch, passar o mouse sobre
+  // a lista de clientes já disparava a escrita, sem ninguém ter aberto a
+  // ficha (ver [[feedback_get_routes_sem_efeito_colateral]]). Virou código
+  // morto de qualquer forma — os três caminhos que criam cliente
+  // (auth/start, cliente/contrato, createClientAction) já geram o slug.
+  const magicSlug = (client as { magic_slug?: string | null }).magic_slug ?? null;
+  const painelLink = magicSlug ? `${baseUrl}/painel/${magicSlug}` : null;
 
   // Resolve stages a partir do project_type. Se project_type estiver nulo,
   // mostra placeholder vazio.
@@ -1542,12 +1527,6 @@ Qualquer dúvida, é só responder por aqui.`;
             urlKey={urlKey ?? undefined}
             projectType={(client.project_type as ProjectType | null) ?? null}
             tasks={tasks}
-            eiDocId={eiDocId}
-            eiHref={
-              eiDocId
-                ? `/admin/estruturas-iniciais/${eiDocId}${keyParam}`
-                : `/admin/estruturas-iniciais${keyParam}`
-            }
             restrictToResponsavel={
               member.role === "basico" ? member.taskValue : undefined
             }

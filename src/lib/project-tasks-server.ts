@@ -11,6 +11,7 @@ function normalizeTask(row: Record<string, unknown>): ProjectTask {
   return {
     id: String(row.id),
     client_id: row.client_id ? String(row.client_id) : null,
+    area: (row.area as string | null) ?? null,
     titulo: String(row.titulo ?? ""),
     ordem: Number(row.ordem ?? 0),
     status: (row.status as TaskStatus) ?? "a-iniciar",
@@ -20,7 +21,10 @@ function normalizeTask(row: Record<string, unknown>): ProjectTask {
     data_vencimento: (row.data_vencimento as string | null) ?? null,
     concluida_em: (row.concluida_em as string | null) ?? null,
     observacoes: (row.observacoes as string | null) ?? null,
-    origem: row.origem === "manual" ? "manual" : "template",
+    origem:
+      row.origem === "manual" || row.origem === "clickup"
+        ? (row.origem as "manual" | "clickup")
+        : "template",
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
   };
@@ -122,4 +126,19 @@ export async function listClientOptions(
     .filter((c) => !visibleIds || visibleIds.has(c.id))
     .map((c) => ({ id: c.id, label: c.empresa || c.nome || "Sem nome" }))
     .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+}
+
+/**
+ * Demandas INTERNAS da agência — as que não pertencem a cliente nenhum.
+ * Alimenta /admin/demandas, que as agrupa por área.
+ */
+export async function listInternalTasks(): Promise<ProjectTask[]> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("project_tasks")
+    .select("*")
+    .is("client_id", null)
+    .order("data_vencimento", { ascending: true, nullsFirst: false })
+    .order("created_at", { ascending: true });
+  return ((data as Record<string, unknown>[]) ?? []).map(normalizeTask);
 }

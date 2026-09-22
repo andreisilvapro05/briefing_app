@@ -1,5 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAdminUser } from "@/lib/admin";
+import {
+  getCurrentMember,
+  getVisibleClientIds,
+  hasFinanceAccess,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 
@@ -16,12 +20,17 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const url = new URL(request.url);
-  const admin = await getAdminUser({
-    urlKey: url.searchParams.get("key"),
-  });
-  if (!admin) return errorResponse("unauthenticated", 401);
-
   const { id } = await ctx.params;
+
+  // Alimenta o "Ver como cliente", que abre o painel DELE (contrato, valores
+  // e entrega). Mesmo corte do botão na ficha: acesso financeiro + escopo.
+  const member = await getCurrentMember({ urlKey: url.searchParams.get("key") });
+  if (!member) return errorResponse("unauthenticated", 401);
+  if (!hasFinanceAccess(member)) return errorResponse("forbidden", 403);
+  const visiveis = await getVisibleClientIds(member);
+  if (visiveis && !visiveis.has(id)) {
+    return errorResponse("forbidden", 403);
+  }
   const service = createSupabaseServiceRoleClient();
 
   const { data, error } = await service

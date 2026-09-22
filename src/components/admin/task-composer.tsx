@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addProjectTaskAction } from "@/app/admin/[id]/actions";
 import {
+  AreaPicker,
   AssigneePicker,
   ClientPicker,
   DueDatePicker,
@@ -32,6 +33,9 @@ export function TaskComposer({
   autoFocus = false,
   onClose,
   notaInterno,
+  defaultArea = "",
+  areaFixa = false,
+  placeholder = "Nova tarefa (Enter adiciona)",
 }: {
   /** Cliente fixo (dentro da ficha). Sem ele, a pessoa escolhe em `clients`. */
   clientId?: string;
@@ -48,6 +52,12 @@ export function TaskComposer({
    * listam (Tarefas é por cliente): sem isso ela parecia não ter salvado.
    */
   notaInterno?: string;
+  /** Área pré-escolhida — a tela de Demandas abre o composer já na área. */
+  defaultArea?: string;
+  /** Na tela de uma área específica, não faz sentido poder trocar. */
+  areaFixa?: boolean;
+  /** "demanda" em Demandas internas, "tarefa" nas telas de projeto. */
+  placeholder?: string;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +66,7 @@ export function TaskComposer({
   const [responsavel, setResponsavel] = useState(defaultResponsavel);
   const [prazo, setPrazo] = useState("");
   const [prioridade, setPrioridade] = useState("");
+  const [area, setArea] = useState(defaultArea);
   const [erro, setErro] = useState<string | null>(null);
   const [criada, setCriada] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -85,6 +96,8 @@ export function TaskComposer({
     fd.append("responsavel", responsavel);
     fd.append("dataVencimento", prazo);
     fd.append("prioridade", prioridade);
+    // Área só acompanha demanda interna (o servidor recusa nas de cliente).
+    if (cliente === "") fd.append("area", area);
     if (urlKey) fd.append("key", urlKey);
 
     startTransition(async () => {
@@ -143,7 +156,7 @@ export function TaskComposer({
               onClose();
             }
           }}
-          placeholder="Nova tarefa (Enter adiciona)"
+          placeholder={placeholder}
           aria-label="Nome da nova tarefa"
           className="flex-1 min-w-[12rem] bg-transparent text-sm text-fysi-deep placeholder:text-fysi-muted focus:outline-none focus-visible:shadow-none py-1"
         />
@@ -158,6 +171,9 @@ export function TaskComposer({
               }}
               disabled={pending}
             />
+          ) : null}
+          {cliente === "" && !areaFixa ? (
+            <AreaPicker value={area} onChange={setArea} disabled={pending} />
           ) : null}
           <AssigneePicker
             value={responsavel}

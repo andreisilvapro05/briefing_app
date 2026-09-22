@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import JSZip from "jszip";
-import { getAdminUser } from "@/lib/admin";
+import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 import { CATEGORY_BY_ID, categorizeFile } from "@/lib/file-categories";
@@ -40,8 +40,14 @@ export async function GET(
 ) {
   const { id } = await ctx.params;
   const url = new URL(request.url);
-  const admin = await getAdminUser({ urlKey: url.searchParams.get("key") });
-  if (!admin) return errorResponse("unauthenticated", 401);
+  // O ZIP leva TODOS os arquivos que o cliente enviou no briefing. Antes
+  // bastava estar logado e conhecer o UUID — o escopo do papel não valia.
+  const member = await getCurrentMember({ urlKey: url.searchParams.get("key") });
+  if (!member) return errorResponse("unauthenticated", 401);
+  const visiveis = await getVisibleClientIds(member);
+  if (visiveis && !visiveis.has(id)) {
+    return errorResponse("unauthenticated", 401);
+  }
 
   const service = createSupabaseServiceRoleClient();
 

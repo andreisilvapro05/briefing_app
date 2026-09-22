@@ -1,5 +1,6 @@
 import type { PartialBlock } from "@blocknote/core";
 import { createSupabaseServiceRoleClient } from "./supabase/server";
+import { logServerError } from "./api-helpers";
 import {
   eiDocumentTitle,
   type EIDocument,
@@ -250,7 +251,7 @@ export async function getOrCreateClientDocument(
   if (existing) return normalize(existing as unknown as RawRow);
 
   const template = await getTemplateDocument(kind);
-  const { data: created } = await service
+  const { data: created, error } = await service
     .from("ei_documents")
     .insert({
       client_id: clientId,
@@ -259,6 +260,9 @@ export async function getOrCreateClientDocument(
     })
     .select(SELECT_FULL)
     .maybeSingle();
+  // Sem o log, um insert barrado virava `null` — indistinguível de
+  // "o cliente ainda não tem documento", e a tela mostrava o estado vazio.
+  if (error) logServerError("documento.criar", error);
   if (!created) return null;
   return normalize(created as unknown as RawRow);
 }
