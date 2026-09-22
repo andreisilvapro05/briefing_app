@@ -11,8 +11,12 @@ import {
   type ProjectTask,
   type TaskStatus,
 } from "@/lib/project-tasks";
-import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
+import {
+  removeProjectTaskAction,
+  updateProjectTaskAction,
+} from "@/app/admin/[id]/actions";
 import { formatDiaMes } from "@/lib/datas";
+import { TrashIcon } from "./tasks-board";
 import { TaskComposer } from "./task-composer";
 import {
   AreaPicker,
@@ -323,11 +327,45 @@ function LinhaDemanda({
   const [eisenhower, setEisenhower] = useState(task.eisenhower ?? "");
   const [esforco, setEsforco] = useState(task.esforco ?? "");
   const [recorrencia, setRecorrencia] = useState(task.recorrencia ?? "");
+  const [erroTexto, setErroTexto] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(false);
 
   const atrasada =
     !!prazo && prazo < hoje && TASK_STATUS_GROUP[status] === "ativo";
+
+  /**
+   * Apagar demanda errada. Confirmação nativa de propósito: é destrutivo e
+   * sem volta, e um modal bonito aqui só atrasaria quem está limpando a
+   * lista. Comentários e ocorrências futuras (se recorrente) vão junto.
+   */
+  async function apagar() {
+    const aviso = task.recorrencia
+      ? `Apagar "${task.titulo}"? Ela se repete — apagar esta NÃO cancela a série: a próxima já pode ter nascido. Não dá pra desfazer.`
+      : `Apagar "${task.titulo}"? Comentários vão junto. Não dá pra desfazer.`;
+    if (!window.confirm(aviso)) return;
+    setSalvando(true);
+    setErro(false);
+    setErroTexto(null);
+    const fd = new FormData();
+    fd.append("taskId", task.id);
+    fd.append("clientId", "");
+    if (urlKey) fd.append("key", urlKey);
+    try {
+      const r = await removeProjectTaskAction(fd);
+      if (!r.ok) {
+        setErro(true);
+        setErroTexto(r.erro);
+        return;
+      }
+      onSalvo();
+    } catch {
+      setErro(true);
+      setErroTexto("Não consegui apagar. Confira a conexão.");
+    } finally {
+      setSalvando(false);
+    }
+  }
 
   async function salvar(campo: string, valor: string, reverter: () => void) {
     setSalvando(true);
@@ -458,9 +496,20 @@ function LinhaDemanda({
         }}
       />
 
+      <button
+        type="button"
+        disabled={salvando}
+        onClick={apagar}
+        aria-label={`Apagar "${task.titulo}"`}
+        title="Apagar demanda"
+        className="w-7 h-7 inline-grid place-items-center rounded-md text-fysi-muted/60 hover:text-red-700 hover:bg-red-50 transition disabled:opacity-50"
+      >
+        <TrashIcon />
+      </button>
+
       {erro ? (
         <span className="text-xs text-red-700" role="alert">
-          não salvou
+          {erroTexto ?? "não salvou"}
         </span>
       ) : null}
     </li>

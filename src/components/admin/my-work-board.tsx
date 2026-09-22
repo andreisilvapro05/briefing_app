@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   TASK_STATUS_OPTIONS,
   TASK_STATUS_GROUP,
@@ -11,10 +12,13 @@ import {
   type TaskStatus,
 } from "@/lib/project-tasks";
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
-import { updateProjectTaskAction } from "@/app/admin/[id]/actions";
+import {
+  removeProjectTaskAction,
+  updateProjectTaskAction,
+} from "@/app/admin/[id]/actions";
 import { useFocusTrap } from "./use-focus-trap";
 import { TaskComposer } from "./task-composer";
-import { TaskComments } from "./tasks-board";
+import { TaskComments, TrashIcon } from "./tasks-board";
 import { hojeISO, type ClientOption } from "./task-pickers";
 import { formatDataCurta } from "@/lib/datas";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
@@ -296,6 +300,7 @@ function TaskCardModal({
   saving,
   onClose,
   onSave,
+  onRemove,
 }: {
   task: Task;
   keyParam: string;
@@ -303,6 +308,7 @@ function TaskCardModal({
   saving: boolean;
   onClose: () => void;
   onSave: (field: string, value: string) => void;
+  onRemove: () => void;
 }) {
   const trapRef = useFocusTrap<HTMLDivElement>(true);
   const [titulo, setTitulo] = useState(task.titulo);
@@ -367,6 +373,16 @@ function TaskCardModal({
             {saving ? (
               <span className="text-xs text-fysi-muted">Salvando…</span>
             ) : null}
+            <button
+              type="button"
+              onClick={onRemove}
+              disabled={saving}
+              aria-label={`Apagar "${task.titulo}"`}
+              title="Apagar demanda"
+              className="w-8 h-8 grid place-items-center rounded-full text-fysi-muted hover:bg-red-50 hover:text-red-700 transition disabled:opacity-50"
+            >
+              <TrashIcon />
+            </button>
             <button
               type="button"
               onClick={onClose}
@@ -634,11 +650,18 @@ export function MyWorkBoard({
   const [patches, setPatches] = useState<Record<string, Partial<Task>>>({});
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
   const [saving, startTransition] = useTransition();
+  /** Apagadas nesta sessão — somem já, e voltam se o servidor recusar. */
+  const [removidas, setRemovidas] = useState<Set<string>>(() => new Set());
+  const [avisoRemocao, setAvisoRemocao] = useState<string | null>(null);
+  const router = useRouter();
   const hoje = todayStr();
 
   const merged = useMemo(
-    () => tasks.map((t) => ({ ...t, ...patches[t.id] })),
-    [tasks, patches]
+    () =>
+      tasks
+        .filter((t) => !removidas.has(t.id))
+        .map((t) => ({ ...t, ...patches[t.id] })),
+    [tasks, patches, removidas]
   );
 
   const openTask = useMemo(() => {
@@ -685,6 +708,44 @@ export function MyWorkBoard({
         // sem esta checagem o valor recusado ficava na tela até recarregar.
         const r = await updateProjectTaskAction(fd);
         if (!r.ok) desfazer();
+      } catch {
+        desfazer();
+      }
+    });
+  }
+
+  /**
+   * Apagar demanda errada, do cartão. Pedido da Karine (22/09). A linha
+   * some na hora (patch local) e volta se o servidor recusar — o mesmo
+   * contrato de saveField, no sentido inverso.
+   */
+  function removeTask(task: Task) {
+    const aviso = task.recorrencia
+      ? `Apagar "${task.titulo}"? Ela se repete — apagar esta NÃO cancela a série. Não dá pra desfazer.`
+      : `Apagar "${task.titulo}"? Comentários vão junto. Não dá pra desfazer.`;
+    if (!window.confirm(aviso)) return;
+    const fd = new FormData();
+    fd.append("taskId", task.id);
+    fd.append("clientId", task.client_id ?? "");
+    if (urlKey) fd.append("key", urlKey);
+    setOpenTaskId(null);
+    setRemovidas((r) => new Set(r).add(task.id));
+    startTransition(async () => {
+      function desfazer() {
+        setRemovidas((r) => {
+          const n = new Set(r);
+          n.delete(task.id);
+          return n;
+        });
+        setAvisoRemocao("Não consegui apagar. A demanda continua na lista.");
+      }
+      try {
+        const r = await removeProjectTaskAction(fd);
+        if (!r.ok) {
+          desfazer();
+          return;
+        }
+        router.refresh();
       } catch {
         desfazer();
       }
@@ -880,6 +941,22 @@ export function MyWorkBoard({
         )
       ) : null}
 
+      {avisoRemocao ? (
+        <p
+          role="alert"
+          className="mb-3 flex items-center justify-between gap-3 rounded-[12px] border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800"
+        >
+          <span>{avisoRemocao}</span>
+          <button
+            type="button"
+            onClick={() => setAvisoRemocao(null)}
+            className="text-xs font-semibold text-red-800/70 hover:text-red-800"
+          >
+            fechar
+          </button>
+        </p>
+      ) : null}
+
       {openTask ? (
         <TaskCardModal
           // key: o estado local (título, observações) é por demanda.
@@ -890,6 +967,7 @@ export function MyWorkBoard({
           saving={saving}
           onClose={() => setOpenTaskId(null)}
           onSave={(field, value) => saveField(openTask, field, value)}
+          onRemove={() => removeTask(openTask)}
         />
       ) : null}
     </section>

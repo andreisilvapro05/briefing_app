@@ -1296,25 +1296,47 @@ async function nomeDoCliente(clientId: string | null): Promise<string> {
 /**
  * Remove uma tarefa.
  */
-export async function removeProjectTaskAction(formData: FormData) {
+export type RemoveTaskResult = { ok: true } | { ok: false; erro: string };
+
+/**
+ * Apaga uma tarefa. Pedido da Karine (22/09): "poder excluir tarefas
+ * erradas" — o botão existia só na tabela de Tarefas; Demandas internas e
+ * Meu Trabalho não tinham como.
+ *
+ * Devolve resultado em vez de void: recusa de permissão e erro de banco
+ * voltavam em silêncio, e a linha sumia da tela pra reaparecer no
+ * próximo carregamento.
+ */
+export async function removeProjectTaskAction(
+  formData: FormData
+): Promise<RemoveTaskResult> {
   const urlKey = String(formData.get("key") ?? "") || null;
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
 
   const taskId = String(formData.get("taskId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
-  if (!taskId) return;
-  if (!(await canEditTask(member, taskId))) return;
+  if (!taskId) return { ok: false, erro: "Tarefa não identificada." };
+  if (!(await canEditTask(member, taskId))) {
+    return { ok: false, erro: "Você só apaga tarefa em que é o responsável." };
+  }
 
   const service = createSupabaseServiceRoleClient();
   const { error: remErr } = await service
     .from("project_tasks")
     .delete()
     .eq("id", taskId);
-  // Tarefa "removida" que volta no refresh é pior que erro na cara.
-  if (remErr) logServerError("removeProjectTaskAction", remErr);
+  if (remErr) {
+    logServerError("removeProjectTaskAction", remErr);
+    return { ok: false, erro: "Não consegui apagar. Confira a conexão e tente de novo." };
+  }
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
+  // Demanda interna não tem cliente — mora nestas telas.
+  revalidatePath("/admin/demandas");
+  revalidatePath("/admin/meu-trabalho");
+  revalidatePath("/admin/tarefas");
+  return { ok: true };
 }
 
 /**
