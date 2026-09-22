@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AREAS,
   TASK_STATUS_GROUP,
-  TASK_STATUS_OPTIONS,
+  statusOptionsInternos,
   TASK_STATUS_TONE,
   TEAM_MEMBERS,
   type ProjectTask,
@@ -275,7 +275,9 @@ function LinhaDemanda({
         aria-label={`Status de ${task.titulo}`}
         className={`rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[status]}`}
       >
-        {TASK_STATUS_OPTIONS.map((o) => (
+        {/* Lista curta: numa demanda administrativa, "Onboarding" e "Design
+            da página" não são escolha — são ruído. Ver TASK_STATUS_INTERNO. */}
+        {statusOptionsInternos(status).map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>

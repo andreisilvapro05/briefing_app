@@ -18,6 +18,7 @@ export type TaskStatus =
   | "parado"
   | "nem-comecou-nada"
   | "a-iniciar"
+  | "em-andamento"
   | "onboarding"
   | "envio-informacoes"
   | "redacao-copy"
@@ -37,6 +38,7 @@ export const TASK_STATUS_GROUP: Record<TaskStatus, TaskStatusGroup> = {
   parado: "ativo",
   "nem-comecou-nada": "ativo",
   "a-iniciar": "ativo",
+  "em-andamento": "ativo",
   onboarding: "ativo",
   "envio-informacoes": "ativo",
   "redacao-copy": "ativo",
@@ -55,6 +57,7 @@ export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: "parado", label: "Parado" },
   { value: "nem-comecou-nada", label: "Nem começou nada" },
   { value: "a-iniciar", label: "A iniciar" },
+  { value: "em-andamento", label: "Em andamento" },
   { value: "onboarding", label: "Onboarding" },
   { value: "envio-informacoes", label: "Envio de informações" },
   { value: "redacao-copy", label: "Redação/Copy" },
@@ -88,6 +91,7 @@ export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
   parado: "bg-red-50 text-red-700 border-red-200",
   "nem-comecou-nada": "bg-fysi-cream text-fysi-muted border-fysi-line",
   "a-iniciar": "bg-white text-fysi-deep border-fysi-line",
+  "em-andamento": "bg-sky-50 text-sky-700 border-sky-200",
   onboarding: "bg-indigo-50 text-indigo-700 border-indigo-200",
   "envio-informacoes": "bg-cyan-50 text-cyan-700 border-cyan-200",
   "redacao-copy": "bg-pink-50 text-pink-700 border-pink-200",
@@ -101,6 +105,36 @@ export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
   concluido: "bg-emerald-50 text-emerald-700 border-emerald-200",
   "completo-entregue": "bg-fysi-mint/40 text-fysi-deep border-fysi-mint/60",
 };
+
+/**
+ * Status oferecidos numa DEMANDA INTERNA (a que tem `area` e não tem
+ * cliente).
+ *
+ * Os outros 11 são etapas de projeto de cliente — "Onboarding",
+ * "Redação/Copy", "Design da página". Numa demanda como "realizar pagamento
+ * da contabilidade" nenhum deles cabe, e por não caber a demanda ficava
+ * parada em "A iniciar" mesmo depois de começada (Karine, 22/09). Uma lista
+ * de 15 opções em que 11 são absurdas também não é uma escolha: é ruído.
+ *
+ * O valor gravado é o mesmo da taxonomia geral — muda só o que a tela
+ * oferece. Demanda que já esteja num status de projeto continua mostrando
+ * o dela, pra não sumir com o dado.
+ */
+export const TASK_STATUS_INTERNO: TaskStatus[] = [
+  "a-iniciar",
+  "em-andamento",
+  "parado",
+  "concluido",
+];
+
+/** Opções do select numa demanda interna, sem perder o valor atual. */
+export function statusOptionsInternos(
+  atual: string
+): { value: TaskStatus; label: string }[] {
+  const valores = new Set<string>(TASK_STATUS_INTERNO);
+  if (atual) valores.add(atual);
+  return TASK_STATUS_OPTIONS.filter((o) => valores.has(o.value));
+}
 
 /** Vazio ("") = sem prioridade — vira `null` no banco. */
 export const TASK_PRIORITY_OPTIONS: { value: string; label: string }[] = [

@@ -14,6 +14,8 @@ import {
   isClosedTaskStatus,
 } from "@/lib/project-tasks";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
+import { ViewTabs, type ViewTabItem } from "@/components/admin/view-tabs";
+import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 /**
  * Visão Geral — dashboard pros gestores: pizza selecionável, tarefas
@@ -21,9 +23,12 @@ import { StatusPieBoard } from "@/components/admin/status-pie-board";
  * "isso é essencial".
  *
  * Filtrada por getVisibleClientIds() (Caixa 0) — um membro "basico" só vê
- * a pizza/tarefas dos clientes em que está marcado. Ainda mostra tarefas
- * de TODA a equipe visível (não só as atribuídas à pessoa logada) — falta
- * granularidade por responsável dentro do próprio escopo visível.
+ * a pizza/tarefas dos clientes em que está marcado.
+ *
+ * Dentro desse escopo, a barra de abas recorta por pessoa (?resp=karine):
+ * a pizza mostra só os projetos em que ela tem tarefa aberta, e a lista
+ * embaixo só as tarefas dela. O recorte tem endereço próprio, então
+ * recarrega e pode ser mandado — como as views do ClickUp.
  */
 
 export const dynamic = "force-dynamic";
@@ -33,7 +38,7 @@ const TAREFAS_LIMIT = 8;
 export default async function VisaoGeralPage({
   searchParams,
 }: {
-  searchParams: Promise<{ key?: string }>;
+  searchParams: Promise<{ key?: string; resp?: string }>;
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
@@ -44,19 +49,73 @@ export default async function VisaoGeralPage({
   const novoHref = `/admin/novo${keyParam}`;
 
   const visibleIds = await getVisibleClientIds(member);
-  const [allTasks, laneGroups] = await Promise.all([
+  const [allTasks, laneGroupsTodos] = await Promise.all([
     listAllProjectTasks(),
     getLaneGroups(visibleIds),
   ]);
 
+  /**
+   * Recorte por pessoa — a "Lista Karine", "Lista Andrei" do ClickUp, agora
+   * também aqui. Sem isso a Visão Geral era sempre o painel da agência
+   * inteira: quem quisesse ver o próprio quadro tinha que ler 43 projetos
+   * e achar os seus no meio.
+   *
+   * Um projeto entra no recorte de alguém quando tem pelo menos UMA tarefa
+   * aberta dessa pessoa. Projeto não tem responsável próprio — quem tem
+   * dono é a tarefa, e é por ela que se sabe quem está tocando o quê.
+   */
+  const resp = TEAM_MEMBERS.some((m) => m.value === params.resp)
+    ? (params.resp as string)
+    : "";
+
+  const abertasVisiveis = allTasks
+    .filter((t) => !isClosedTaskStatus(t.status))
+    .filter((t) => t.client !== null && t.client_id !== null)
+    .filter((t) => !visibleIds || visibleIds.has(t.client_id as string));
+
+  const abas: ViewTabItem[] = [
+    {
+      value: "",
+      label: "Todos",
+      count: abertasVisiveis.length,
+      href: `/admin/visao-geral${keyParam}`,
+    },
+  ];
+  for (const m of TEAM_MEMBERS) {
+    const count = abertasVisiveis.filter((t) => t.responsavel === m.value).length;
+    // Pessoa sem nada em aberto não vira aba — a barra mostra quem está
+    // com trabalho agora, não o quadro de funcionários.
+    if (count === 0 && resp !== m.value) continue;
+    const sep = keyParam ? "&" : "?";
+    abas.push({
+      value: m.value,
+      label: m.label,
+      iniciais: m.iniciais,
+      cor: m.cor,
+      count,
+      href: `/admin/visao-geral${keyParam}${sep}resp=${encodeURIComponent(m.value)}`,
+    });
+  }
+
+  const clientesDaPessoa = resp
+    ? new Set(
+        abertasVisiveis
+          .filter((t) => t.responsavel === resp)
+          .map((t) => t.client_id as string)
+      )
+    : null;
+
+  const laneGroups = clientesDaPessoa
+    ? laneGroupsTodos.map((g) => ({
+        ...g,
+        clients: g.clients.filter((c) => clientesDaPessoa.has(c.id)),
+      }))
+    : laneGroupsTodos;
+
   // Tarefas pendentes de toda a equipe visível a este membro, mais urgentes
   // primeiro (vencimento mais próximo/atrasado; sem vencimento vai pro fim).
-  const tarefasPendentes = allTasks
-    .filter((t) => !isClosedTaskStatus(t.status))
-    // Demanda interna (sem cliente) fica fora: esta lista mostra o cliente
-    // ao lado de cada tarefa e o escopo do papel é por cliente.
-    .filter((t) => t.client !== null && t.client_id !== null)
-    .filter((t) => !visibleIds || visibleIds.has(t.client_id as string))
+  const tarefasPendentes = abertasVisiveis
+    .filter((t) => !resp || t.responsavel === resp)
     .sort((a, b) => {
       if (!a.data_vencimento && !b.data_vencimento) return 0;
       if (!a.data_vencimento) return 1;
@@ -82,6 +141,12 @@ export default async function VisaoGeralPage({
           Painel de gestão — o que precisa da sua atenção agora.
         </p>
       </header>
+
+      {/* Abas por responsável — o mesmo recorte das listas do ClickUp.
+          Aqui a aba é link (navegação): a pizza vem montada do servidor. */}
+      <div className="mb-6">
+        <ViewTabs items={abas} ativo={resp} />
+      </div>
 
       {/* Atalhos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
@@ -121,7 +186,11 @@ export default async function VisaoGeralPage({
       {/* Tarefas pendentes */}
       <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
         <div className="flex items-baseline justify-between mb-4">
-          <Eyebrow>Tarefas pendentes da equipe</Eyebrow>
+          <Eyebrow>
+            {resp
+              ? `Tarefas pendentes — ${TEAM_MEMBERS.find((m) => m.value === resp)?.label ?? ""}`
+              : "Tarefas pendentes da equipe"}
+          </Eyebrow>
           <Link
             href={`/admin/tarefas${keyParam}`}
             className="text-xs text-fysi-deep hover:underline font-medium"
@@ -130,8 +199,9 @@ export default async function VisaoGeralPage({
           </Link>
         </div>
         <p className="text-[0.7rem] text-fysi-muted -mt-2 mb-3">
-          Login ainda é compartilhado — mostrando as mais urgentes de toda a
-          equipe, não só as suas.
+          {resp
+            ? "Só as desta pessoa, das mais urgentes pras menos."
+            : "De toda a equipe, das mais urgentes pras menos. Escolha um nome acima pra ver só as dele."}
         </p>
         {tarefasPendentes.length === 0 ? (
           <p className="text-sm text-fysi-muted py-6 text-center">

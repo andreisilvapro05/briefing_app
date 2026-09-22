@@ -21,6 +21,7 @@ import {
 import type { ProjectTaskClient } from "@/lib/project-tasks-server";
 import { TaskComposer } from "./task-composer";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
+import { ViewTabs, type ViewTabItem } from "./view-tabs";
 import type { ClientOption } from "./task-pickers";
 
 /** Esta tela agrupa POR cliente, então demanda interna (client null) é
@@ -93,13 +94,9 @@ export function AllTasksBoard({
    * escolhida fica mesmo zerada, senão a aba some debaixo do clique.
    */
   const viewsDisponiveis = useMemo(() => {
-    const lista: {
-      value: string;
-      label: string;
-      iniciais?: string;
-      cor?: string;
-      count: number;
-    }[] = [{ value: "", label: "Todos", count: abertasTotal.length }];
+    const lista: ViewTabItem[] = [
+      { value: "", label: "Todos", count: abertasTotal.length },
+    ];
     for (const m of TEAM_MEMBERS) {
       const count = abertasTotal.filter((t) => t.responsavel === m.value).length;
       if (count === 0 && responsavel !== m.value) continue;
@@ -160,44 +157,12 @@ export function AllTasksBoard({
           do ClickUp. Antes isto era um <select> mais uma fileira de pílulas
           fazendo a mesma coisa em dois lugares; a aba diz de relance em qual
           lista você está e quantas tarefas cada pessoa tem em aberto. */}
-      <div
-        role="tablist"
-        aria-label="Lista por responsável"
-        className="flex items-end gap-1 overflow-x-auto -mx-6 px-6 mb-5 border-b border-fysi-line"
-      >
-        {viewsDisponiveis.map((v) => {
-          const ativa = responsavel === v.value;
-          return (
-            <button
-              key={v.value || "todos"}
-              type="button"
-              role="tab"
-              aria-selected={ativa}
-              onClick={() => escolherView(v.value)}
-              className={`flex items-center gap-2 shrink-0 whitespace-nowrap px-3 py-2 text-sm border-b-2 -mb-px transition ${
-                ativa
-                  ? "border-fysi-deep text-fysi-deep font-semibold"
-                  : "border-transparent text-fysi-muted hover:text-fysi-deep hover:border-fysi-line-strong"
-              }`}
-            >
-              {v.iniciais ? (
-                <span
-                  className={`w-5 h-5 rounded-full grid place-items-center text-[0.6rem] font-bold text-white shrink-0 ${v.cor}`}
-                >
-                  {v.iniciais}
-                </span>
-              ) : null}
-              {v.label}
-              <span
-                className={`tabular-nums text-xs ${
-                  ativa ? "text-fysi-deep/60" : "text-fysi-muted"
-                }`}
-              >
-                {v.count}
-              </span>
-            </button>
-          );
-        })}
+      <div className="-mx-6 px-6 mb-5">
+        <ViewTabs
+          items={viewsDisponiveis}
+          ativo={responsavel}
+          onSelect={escolherView}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">

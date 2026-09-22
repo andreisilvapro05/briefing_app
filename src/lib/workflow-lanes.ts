@@ -65,6 +65,7 @@ const STATUS_TONE: Record<TaskStatus, Lane["tone"]> = {
   parado: "red",
   "nem-comecou-nada": "slate",
   "a-iniciar": "slate",
+  "em-andamento": "cyan",
   onboarding: "indigo",
   "envio-informacoes": "cyan",
   "redacao-copy": "pink",
