@@ -26,15 +26,20 @@ export interface CredencialItem {
 /**
  * `Senha:`, `Login:`, `Usuário:`, `Senha do painel:` …
  *
- * O prefixo tolerante não é capricho: a âncora `^\s*` deixava passar
+ * O prefixo tolerante não é capricho. A âncora `^\s*` deixava passar
  * `* Senha: …` e `- Login: …`, que é como o marcador de lista do ClickUp
- * chega quando a página vira markdown. Uma página real (EI - Gustavo
- * Vicelli) começava com `"* "` e a senha ia inteira pro corpo do documento.
- * Aqui só se tolera lixo de formatação — bullet, traço, citação, negrito —
- * nunca texto, senão "combinei a senha: depois eu mando" viraria credencial.
+ * chega quando a página vira markdown; e uma lista fechada de símbolos
+ * ainda deixava passar `‼️ Senha: …` — uma página real (EI - Cury Vendas)
+ * tinha a senha do cliente atrás de um emoji, e ela foi parar no CORPO do
+ * documento, que pode ganhar link público.
+ *
+ * Então a régua virou: até 8 caracteres que NÃO são letra nem número antes
+ * do rótulo. Emoji, bullet, seta, traço e aspas passam; texto não, porque
+ * texto tem letra — "combinei a senha: depois eu mando" continua sendo
+ * frase, não credencial.
  */
 const RE_CREDENCIAL =
-  /^[\s*\-•·>#|]*(?:\*\*)?\s*(senha|pass(?:word|wd)?|login|usu[áa]rio|user\s?name|user|e-?mail de acesso|acesso)(?:\*\*)?\s*[:：]\s*(.*)$/i;
+  /^[^\p{L}\p{N}\n]{0,8}(?:\*\*)?[^\p{L}\p{N}\n]{0,4}(senha|pass(?:word|wd)?|login|usu[áa]rio|user\s?name|user|e-?mail de acesso|acesso)[^\p{L}\p{N}\n]{0,4}[:：]\s*(.*)$/iu;
 
 /**
  * Linha no formato "Rótulo: valor" que NÃO é credencial — um campo do

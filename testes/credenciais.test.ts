@@ -180,3 +180,17 @@ test("prosa curta fora de bloco de acesso fica no corpo", () => {
   assert.equal(r.credenciais.length, 0);
   assert.equal((r.blocks as never[]).length, 4);
 });
+
+test("emoji ou pontuação antes do rótulo não escondem a senha", () => {
+  // Uma página real (EI - Cury Vendas) tinha "‼️ Senha: …" e a senha do
+  // cliente foi parar no CORPO do documento, que pode ganhar link público.
+  // A régua passou a ser "até 8 caracteres que não são letra nem número".
+  const r = extrairCredenciais([
+    p("‼️ Senha: Zz9!falsa-exemplo"),
+    p("⚠️ Login: user.fake"),
+    p("→ Senha: Aa1!falsa"),
+    p('"Login": bb.fake'),
+  ] as never);
+  assert.equal(r.credenciais.length, 4);
+  assert.ok(!corpoTem(r.blocks as never[], "Zz9!falsa-exemplo"));
+});
