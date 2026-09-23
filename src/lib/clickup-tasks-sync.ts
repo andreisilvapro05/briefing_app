@@ -110,10 +110,25 @@ function tituloDe(name: string | undefined): string {
   return (name ?? "").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Fuso da agência. O ClickUp guarda prazo como instante (ms desde 1970), e
+ * a data que a pessoa VÊ lá é a do fuso dela — não a de Greenwich.
+ */
+const FMT_DATA_SP = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function dataDe(ms: unknown): string | null {
   const n = typeof ms === "string" ? Number(ms) : typeof ms === "number" ? ms : NaN;
   if (!Number.isFinite(n) || n <= 0) return null;
-  return new Date(n).toISOString().slice(0, 10);
+  // Em Brasília, não em UTC. `toISOString()` devolve a data de Greenwich:
+  // tarefa marcada no ClickUp pra depois das 21h chegava aqui com o dia
+  // seguinte, e o app dizia que ela vencia amanhã. Achado ao investigar
+  // "puxe certo do ClickUp" (Karine, 23/09).
+  return FMT_DATA_SP.format(new Date(n));
 }
 
 /** Pagina o folder inteiro (100 por vez) — a v2 não devolve tudo de uma vez. */
