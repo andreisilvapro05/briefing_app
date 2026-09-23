@@ -68,6 +68,11 @@ export interface LaneGroup {
   clients: LaneClient[];
 }
 
+/** O grupo é o do status "parado"? O id da raia é `status-parado`. */
+function ehParado(g: { id: string }): boolean {
+  return g.id.endsWith("-parado");
+}
+
 const R = 96;
 const R_IN = 56;
 const CX = 100;
@@ -168,7 +173,19 @@ export function StatusPieBoard({
           clients: g.clients.filter((c) => noRecorte(c, periodo)),
         }));
 
-  const withCount = periodGroups.filter((g) => g.clients.length > 0);
+  /**
+   * "Parado" vai pro FIM da lista, mesmo sendo o primeiro na ordem canônica
+   * das etapas.
+   *
+   * Pedido da Karine (22/09): "deixe o parado lá pra baixo". E a razão é
+   * boa — parado não é uma etapa do projeto, é o projeto travado. Abrir a
+   * tela por ele coloca o que está emperrado na frente do que está andando,
+   * que é o contrário do que a Visão Geral serve pra mostrar. Continua
+   * visível, com a cor de alerta, só que depois do trabalho vivo.
+   */
+  const withCount = periodGroups
+    .filter((g) => g.clients.length > 0)
+    .sort((a, b) => Number(ehParado(a)) - Number(ehParado(b)));
   const total = withCount.reduce((s, g) => s + g.clients.length, 0);
 
   // Segmentos do donut (começa no topo, -90°).

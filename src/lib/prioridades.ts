@@ -119,6 +119,12 @@ export function normalizarStatus(v: unknown): StatusIniciativa {
 
 /** Garante inteiro 0–10 — os dois eixos do gráfico. */
 export function normalizarNota(v: unknown): number {
+  // Campo apagado é AUSÊNCIA de nota, não nota zero. O input é type=number
+  // e não é obrigatório: dá pra limpar e enviar, e `Number("")` é 0 — a
+  // iniciativa nasceria em (0,0), o canto morto do gráfico, quando a tela
+  // mostrava 5 como padrão. Achado por teste em 22/09.
+  if (v === null || v === undefined) return 5;
+  if (typeof v === "string" && v.trim() === "") return 5;
   const n = Math.round(Number(v));
   if (!Number.isFinite(n)) return 5;
   return Math.min(10, Math.max(0, n));

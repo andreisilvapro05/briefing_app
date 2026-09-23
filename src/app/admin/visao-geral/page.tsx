@@ -69,10 +69,25 @@ export default async function VisaoGeralPage({
     ? (params.resp as string)
     : "";
 
-  const abertasVisiveis = allTasks
+  const ativasVisiveis = allTasks
     .filter((t) => !isClosedTaskStatus(t.status))
     .filter((t) => t.client !== null && t.client_id !== null)
     .filter((t) => !visibleIds || visibleIds.has(t.client_id as string));
+
+  /**
+   * As abas contam e listam só o que tem PRAZO.
+   *
+   * Pedido da Karine (22/09): "tem muitas tarefas que estão ali, mas são sem
+   * datas por user — deixe só as com datas". A conta de "Todos" batia 260
+   * porque toda tarefa de todo projeto entrava, inclusive as que ninguém
+   * agendou; nesse tamanho o número não informa nada.
+   *
+   * As sem data NÃO somem de vista: viram um contador ao lado, com link pra
+   * tela de Tarefas. Tarefa sem prazo é justamente a que se esquece — não
+   * pode desaparecer em silêncio.
+   */
+  const abertasVisiveis = ativasVisiveis.filter((t) => Boolean(t.data_vencimento));
+  const semPrazo = ativasVisiveis.length - abertasVisiveis.length;
 
   const abas: ViewTabItem[] = [
     {
@@ -143,12 +158,6 @@ export default async function VisaoGeralPage({
         </p>
       </header>
 
-      {/* Abas por responsável — o mesmo recorte das listas do ClickUp.
-          Aqui a aba é link (navegação): a pizza vem montada do servidor. */}
-      <div className="mb-6">
-        <ViewTabs items={abas} ativo={resp} />
-      </div>
-
       {/* Atalhos */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         <ShortcutCard href={`/admin${keyParam}`} label="Clientes" icon={<ClientesIcon />} />
@@ -183,6 +192,14 @@ export default async function VisaoGeralPage({
           }
         />
       </section>
+
+      {/* Abas por responsável — o mesmo recorte das listas do ClickUp.
+          Ficam coladas na lista que elas recortam: no topo da página, acima
+          dos atalhos, a barra parecia filtrar a tela inteira (Karine, 22/09).
+          Aqui a aba é link (navegação): a pizza vem montada do servidor. */}
+      <div className="mb-3">
+        <ViewTabs items={abas} ativo={resp} />
+      </div>
 
       {/* Tarefas pendentes */}
       <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">

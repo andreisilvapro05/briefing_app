@@ -140,6 +140,14 @@ export function dataCurtaDoMomento(iso: string | null): string {
 
 /** "faltam 3 de 8" — a frase que a Karine pediu pra bater o olho e entender. */
 export function fraseResumo(r: ResumoMateriais): string {
+  // `total` exclui os "não se aplica", então uma lista inteira marcada
+  // assim zerava o total e era anunciada como "Sem itens na lista" — logo
+  // acima dos itens desenhados na tela. Achado por teste em 22/09.
+  if (r.total === 0 && r.naoSeAplica > 0) {
+    return r.naoSeAplica === 1
+      ? "1 item, nenhum se aplica"
+      : `${r.naoSeAplica} itens, nenhum se aplica`;
+  }
   if (r.total === 0) return "Sem itens na lista";
   if (r.faltam === 0) return `Tudo enviado (${r.enviados} de ${r.total})`;
   return `${r.faltam === 1 ? "falta 1" : `faltam ${r.faltam}`} de ${r.total}`;

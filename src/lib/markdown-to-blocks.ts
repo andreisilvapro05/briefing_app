@@ -76,7 +76,17 @@ function parseInline(raw: string): Inline[] {
 function parseStyled(raw: string, herdado: Styles = {}): InlineText[] {
   const out: InlineText[] = [];
   // Ordem importa: ** antes de *, __ antes de _.
-  const re = /(\*\*\*|___)([\s\S]+?)\1|(\*\*|__)([\s\S]+?)\3|(\*|_)([\s\S]+?)\5|`([^`]+)`/g;
+  // O `_` só abre ênfase quando NÃO está grudado em letra ou número dos dois
+  // lados — é a regra do markdown de verdade, e existe exatamente por isto:
+  // `arquivo_final_v2.pdf` virava `arquivofinalv2.pdf`, e `drive\_link ...
+  // outro\_link` (dois escapes do ClickUp na mesma linha) saía em itálico
+  // com as barras à mostra. Nome de arquivo e URL do Drive combinados com o
+  // cliente chegavam quebrados no documento. Achado por teste, 22/09.
+  //
+  // O `*` continua valendo em qualquer posição: quem escreve *assim* quer
+  // ênfase, e não existe nome de arquivo com asterisco no meio.
+  const re =
+    /(\*\*\*)([\s\S]+?)\1|(?<![A-Za-zÀ-ÿ0-9])(___)([\s\S]+?)\3(?![A-Za-zÀ-ÿ0-9])|(\*\*)([\s\S]+?)\5|(?<![A-Za-zÀ-ÿ0-9])(__)([\s\S]+?)\7(?![A-Za-zÀ-ÿ0-9])|(\*)([\s\S]+?)\9|(?<![A-Za-zÀ-ÿ0-9\\])(_)([\s\S]+?)\11(?![A-Za-zÀ-ÿ0-9])|`([^`]+)`/g;
   let last = 0;
   let m: RegExpExecArray | null;
 
@@ -89,13 +99,16 @@ function parseStyled(raw: string, herdado: Styles = {}): InlineText[] {
     if (m.index > last) push(raw.slice(last, m.index), {});
     // Recursivo: o ClickUp escreve `**_é mais para..._**` (negrito por fora,
     // itálico por dentro). Sem recursão o marcador interno vazava como texto.
-    if (m[2] !== undefined)
-      out.push(...parseStyled(m[2], { ...herdado, bold: true, italic: true }));
-    else if (m[4] !== undefined)
-      out.push(...parseStyled(m[4], { ...herdado, bold: true }));
-    else if (m[6] !== undefined)
-      out.push(...parseStyled(m[6], { ...herdado, italic: true }));
-    else if (m[7] !== undefined) push(m[7], { code: true });
+    const negritoItalico = m[2] ?? m[4];
+    const negrito = m[6] ?? m[8];
+    const italico = m[10] ?? m[12];
+    if (negritoItalico !== undefined)
+      out.push(...parseStyled(negritoItalico, { ...herdado, bold: true, italic: true }));
+    else if (negrito !== undefined)
+      out.push(...parseStyled(negrito, { ...herdado, bold: true }));
+    else if (italico !== undefined)
+      out.push(...parseStyled(italico, { ...herdado, italic: true }));
+    else if (m[13] !== undefined) push(m[13], { code: true });
     last = m.index + m[0].length;
   }
   if (last < raw.length) push(raw.slice(last), {});
@@ -132,9 +145,12 @@ const RE_HEADING = /^(#{1,6})\s+(.*)$/;
 const RE_CHECK = /^[-*+]\s+\[([ xX])\]\s*(.*)$/;
 // ClickUp usa `*   `, `- `, e também o bullet literal `•⁠ ⁠` (com U+2060).
 const RE_BULLET = /^(?:[-*+]|•)[\s⁠ ]+(.*)$/;
-// `\s*` e não `\s+`: o modelo do ClickUp deixa "1.", "2.", "3." em branco
-// como espaço a preencher. Virar parágrafo solto perderia a lista.
-const RE_NUMBER = /^(\d+)[.)]\s*(.*)$/;
+// `\s*` e não `\s+` no fim: o modelo do ClickUp deixa "1.", "2.", "3." em
+// branco como espaço a preencher, e virar parágrafo solto perderia a lista.
+// Mas o ponto NÃO pode ser seguido de dígito: "1.500 reais de investimento"
+// casava com a regra e o valor combinado com o cliente virava "500".
+// Achado por teste, 22/09.
+const RE_NUMBER = /^(\d+)[.)](?!\d)\s*(.*)$/;
 const RE_DIVIDER = /^\s*(?:\*\s*\*\s*\*|-{3,}|_{3,})\s*$/;
 const RE_IMAGE = /^!\[([^\]]*)\]\(([^)\s]+)\)\s*$/;
 const RE_QUOTE = /^>\s?(.*)$/;
@@ -235,6 +251,23 @@ export function markdownToBlocks(md: string): PartialBlock[] {
   if (blocks.length === 0) {
     blocks.push(textBlock("paragraph", ""));
   }
+
+  // Cerca ``` aberta e nunca fechada: acontece quando alguém cola um trecho
+  // no ClickUp e esquece o par. Antes, TODO o conteúdo seguinte ficava
+  // preso em `codeBuf` e sumia do documento, sem erro nenhum. Agora o que
+  // sobrou vira um bloco de código — melhor um bloco com formatação torta
+  // do que uma página que perde metade do conteúdo. Achado por teste, 22/09.
+  if (inCode && codeBuf.length > 0) {
+    blocks.push({
+      type: "codeBlock",
+      props: { language: "text" },
+      content: [
+        { type: "text", text: codeBuf.join("\n"), styles: {} },
+      ] as PartialBlock["content"],
+      children: [],
+    } as unknown as PartialBlock);
+  }
+
   return blocks;
 }
 

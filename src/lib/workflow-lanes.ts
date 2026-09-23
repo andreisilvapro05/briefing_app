@@ -2,7 +2,7 @@ import type { ProjectType } from "./types";
 import {
   DEFAULT_TASK_STATUS,
   PROJECT_STATUS_OPTIONS,
-  TASK_STATUS_VALUES,
+  TASK_STATUS_GROUP,
   type TaskStatus,
 } from "./project-tasks";
 
@@ -103,8 +103,18 @@ const STUCK_DAYS = 14;
  * clareza sobre em que etapa está cada projeto).
  */
 export function isClientStuck(c: ClientForLane, now: number = Date.now()): boolean {
+  // Projeto entregue não está "parado", está pronto. Antes isto olhava só a
+  // data da última atividade: um projeto em "Completo | Entregue" há 90 dias
+  // voltava true pra sempre — e em /admin/relatorios a conta é
+  // `ativos = total - entregues - parados`, então o mesmo cliente era
+  // subtraído DUAS vezes e o número de ativos saía menor do que é.
+  // Achado por teste em 22/09.
+  if (TASK_STATUS_GROUP[c.status as TaskStatus] === "fechado") return false;
   const ref = c.last_client_activity_at ?? c.created_at;
-  const days = Math.floor((now - new Date(ref).getTime()) / 86_400_000);
+  const quando = new Date(ref).getTime();
+  // Data ausente ou malformada não vira "parado há 57 anos".
+  if (!Number.isFinite(quando)) return false;
+  const days = Math.floor((now - quando) / 86_400_000);
   return days >= STUCK_DAYS;
 }
 
@@ -117,11 +127,17 @@ export function isClientStuck(c: ClientForLane, now: number = Date.now()): boole
  * do admin. Determinístico, sem efeitos colaterais. Inatividade não empurra
  * o cliente pra uma lane "parado" à parte (ver isClientStuck).
  */
+const LANES_EXISTENTES = new Set(GENERAL_LANES.map((l) => l.id));
+
 export function laneForClient(c: ClientForLane): string {
-  const status = TASK_STATUS_VALUES.includes(c.status as TaskStatus)
-    ? (c.status as TaskStatus)
-    : DEFAULT_TASK_STATUS;
-  return statusLaneId(status);
+  // Valida contra as raias que EXISTEM, não contra a taxonomia de tarefas.
+  // As duas divergiram em 22/09, quando "em-andamento" entrou nos status de
+  // tarefa mas não nos de projeto: o cliente ganhava a raia
+  // `status-em-andamento`, que nenhum quadro tem, e o `byLane.get(...)?.push`
+  // de quem consome engolia ele em SILÊNCIO — some da tela, sem erro.
+  // Achado por teste em 22/09.
+  const alvo = statusLaneId(c.status as TaskStatus);
+  return LANES_EXISTENTES.has(alvo) ? alvo : statusLaneId(DEFAULT_TASK_STATUS);
 }
 
 /**
