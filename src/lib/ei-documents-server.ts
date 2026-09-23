@@ -64,21 +64,34 @@ export async function listEIDocuments(
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("ei_documents")
-    .select(`id, client_id, nome, is_template, kind, updated_at, clients(${CLIENT_COLS})`)
+    .select(
+      `id, client_id, nome, is_template, kind, updated_at, arquivado, referencia_em, clients(${CLIENT_COLS})`
+    )
     .eq("kind", kind);
 
-  const rows = ((data as unknown as RawRow[]) ?? []).map((r) => ({
+  type Linha = RawRow & { arquivado: boolean | null; referencia_em: string | null };
+  const rows = ((data as unknown as Linha[]) ?? []).map((r) => ({
     id: r.id,
     title: eiDocumentTitle({ isTemplate: r.is_template, nome: r.nome, client: clientInfo(r) }),
     isTemplate: r.is_template,
     clientId: r.client_id,
     kind: r.kind,
     updatedAt: r.updated_at,
+    arquivado: Boolean(r.arquivado),
+    referenciaEm: r.referencia_em,
   }));
 
+  // Modelo primeiro, depois os ativos, depois o arquivo — cada bloco em
+  // ordem alfabética, que é como se procura um nome. Dentro do mesmo título
+  // (cliente com várias EIs), a mais recente vem antes.
   rows.sort((a, b) => {
     if (a.isTemplate !== b.isTemplate) return a.isTemplate ? -1 : 1;
-    return a.title.localeCompare(b.title, "pt-BR");
+    if (a.arquivado !== b.arquivado) return a.arquivado ? 1 : -1;
+    const porTitulo = a.title.localeCompare(b.title, "pt-BR");
+    if (porTitulo !== 0) return porTitulo;
+    return (b.referenciaEm ?? b.updatedAt).localeCompare(
+      a.referenciaEm ?? a.updatedAt
+    );
   });
 
   return rows;
@@ -191,6 +204,9 @@ export async function listClientsWithoutEIDocument(
     .from("ei_documents")
     .select("client_id")
     .eq("kind", kind)
+    // Só o que está ATIVO conta como "já tem": cliente que voltou e só tem a
+    // Estrutura Inicial antiga no arquivo precisa poder abrir uma nova.
+    .eq("arquivado", false)
     .not("client_id", "is", null);
   const usedIds = new Set(
     ((docs as { client_id: string }[]) ?? []).map((d) => d.client_id)

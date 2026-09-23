@@ -33,6 +33,15 @@ export interface EIDocumentSummary {
   clientId: string | null;
   kind: EIDocumentKind;
   updatedAt: string;
+  /**
+   * true = material histórico importado do ClickUp (ex-cliente ou versão
+   * antiga do mesmo projeto). A barra lateral separa "ativos" de "arquivo":
+   * com centenas de Estruturas Iniciais numa lista só, achar a do cliente
+   * de amanhã ficaria pior do que era antes de importar.
+   */
+  arquivado: boolean;
+  /** Data da página no ClickUp — distingue as várias EIs do mesmo cliente. */
+  referenciaEm: string | null;
 }
 
 /** Documento completo — usado no painel do hub e no editor de blocos. */
