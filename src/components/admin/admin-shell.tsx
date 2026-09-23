@@ -398,17 +398,32 @@ export async function AdminShell({
         ...a,
         items: a.items.filter((it) => it.id !== "custos"),
       }));
+  // "Desenvolvimento" é a tela DELE. Pedido da Karine (23/09): "a parte do
+  // Daniel pode ficar junto com os outros projetos também, só que na tela
+  // dele só aparece pra ele". Pra equipe, o trabalho de implementação já
+  // está onde o trabalho está — nas Tarefas, na ficha do cliente e na
+  // Estrutura Inicial, onde a ficha de implementação é preenchida. Um item
+  // de menu só pra isso era um quarto lugar pra procurar a mesma coisa.
+  // A URL continua aberta pra quem tem acesso completo, se precisar.
+  const areasPorPapel = soDesenvolvimento
+    ? areasPorCargo
+    : areasPorCargo
+        .map((a) => ({
+          ...a,
+          items: a.items.filter((it) => it.id !== "desenvolvimento"),
+        }))
+        .filter((a) => a.items.length > 0);
   // O desenvolvedor vê UM menu com o que ele alcança de fato — a mesma lista
   // que o servidor usa pra barrar, então não sobra item que só redireciona.
   const areas =
     soDesenvolvimento && quem
-      ? areasPorCargo
+      ? areasPorPapel
           .map((a) => ({
             ...a,
             items: a.items.filter((it) => podeVerSecao(quem, it.id)),
           }))
           .filter((a) => a.items.length > 0)
-      : areasPorCargo;
+      : areasPorPapel;
 
   return (
     <div className="min-h-screen flex bg-fysi-cream text-fysi-deep">

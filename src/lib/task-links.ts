@@ -108,6 +108,19 @@ export async function listTaskLinkTargets(
       grupo: "cliente",
     },
     {
+      id: "implementacao",
+      label: `Ficha de implementação — ${quem}`,
+      // Acessos, Figma, links de botão e pixel. Fica na Estrutura Inicial,
+      // que é onde a equipe preenche; o chip aqui é o caminho curto de
+      // quem está com a tarefa na mão. Pedido da Karine (23/09): o trabalho
+      // de implementação mora junto do projeto, não numa tela à parte.
+      href: ei
+        ? comKey(`/admin/estruturas-iniciais/${ei.id}`, keyParam)
+        : comKey("/admin/estruturas-iniciais", keyParam),
+      existe: Boolean(ei),
+      grupo: "cliente",
+    },
+    {
       id: "ficha",
       label: `Ficha de ${quem}`,
       href: comKey(`/admin/${clientId}`, keyParam),
