@@ -3,12 +3,7 @@ import { cache } from "react";
 // testadas fora do Next — este arquivo puxa o Supabase, que puxa
 // next/headers. Reexportadas aqui pra quem já importava daqui não mudar.
 export * from "./permissoes";
-import {
-  hasFullAccess,
-  isDeveloper,
-  type Member,
-  type MemberRole,
-} from "./permissoes";
+import { hasFullAccess, type Member, type MemberRole } from "./permissoes";
 import {
   createSupabaseServerClient,
   createSupabaseServiceRoleClient,

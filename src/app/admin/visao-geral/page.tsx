@@ -220,6 +220,18 @@ export default async function VisaoGeralPage({
           {resp
             ? "Só as desta pessoa, das mais urgentes pras menos."
             : "De toda a equipe, das mais urgentes pras menos. Escolha um nome acima pra ver só as dele."}
+          {semPrazo > 0 ? (
+            <>
+              {" · "}
+              <Link
+                href={`/admin/tarefas${keyParam}`}
+                className="text-fysi-deep underline underline-offset-2"
+              >
+                {semPrazo} sem prazo
+              </Link>{" "}
+              não entram nesta conta
+            </>
+          ) : null}
         </p>
         {tarefasPendentes.length === 0 ? (
           <p className="text-sm text-fysi-muted py-6 text-center">

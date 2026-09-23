@@ -105,8 +105,94 @@ const GRUPO_LABEL: Record<Grupo, string> = {
   "sem-data": "Não programado",
 };
 
-const GRUPO_ORDER: Grupo[] = ["hoje", "atraso", "proximo", "sem-data"];
+// "Em atraso" ANTES de "Hoje": o que venceu ontem precisa de decisão hoje,
+// e enterrá-lo abaixo do dia corrente é como ele some. Pedido da Karine
+// (22/09): "o que for urgente para hoje apareça em cima".
+const GRUPO_ORDER: Grupo[] = ["atraso", "hoje", "proximo", "sem-data"];
 
+/** Por onde ordenar a lista pendente, dentro de cada grupo. */
+type Ordem = "prazo" | "prioridade" | "matriz" | "tempo" | "cliente";
+
+const ORDENS: { value: Ordem; label: string }[] = [
+  { value: "prazo", label: "Prazo" },
+  { value: "prioridade", label: "Prioridade" },
+  { value: "matriz", label: "Matriz (urgente × importante)" },
+  { value: "tempo", label: "Tempo que leva" },
+  { value: "cliente", label: "Cliente" },
+];
+
+/** Posição na escala — quanto menor, mais pra cima. */
+const PESO_PRIORIDADE: Record<string, number> = {
+  urgente: 0,
+  alta: 1,
+  normal: 2,
+  baixa: 3,
+  "": 4,
+};
+const PESO_QUADRANTE: Record<string, number> = {
+  fazer: 0,
+  planejar: 1,
+  delegar: 2,
+  eliminar: 3,
+  "": 4,
+};
+const PESO_ESFORCO: Record<string, number> = {
+  rapido: 0,
+  curto: 1,
+  medio: 2,
+  longo: 3,
+  "": 4,
+};
+
+function ordenar(tarefas: Task[], por: Ordem): Task[] {
+  const porPrazo = (a: Task, b: Task) =>
+    (a.data_vencimento ?? "9999").localeCompare(b.data_vencimento ?? "9999");
+  const lista = tarefas.slice();
+  switch (por) {
+    case "prioridade":
+      return lista.sort(
+        (a, b) =>
+          (PESO_PRIORIDADE[a.prioridade ?? ""] ?? 9) -
+            (PESO_PRIORIDADE[b.prioridade ?? ""] ?? 9) || porPrazo(a, b)
+      );
+    case "matriz":
+      return lista.sort(
+        (a, b) =>
+          (PESO_QUADRANTE[a.eisenhower ?? ""] ?? 9) -
+            (PESO_QUADRANTE[b.eisenhower ?? ""] ?? 9) || porPrazo(a, b)
+      );
+    case "tempo":
+      // Do mais rápido pro mais longo: a pergunta que esta ordem responde é
+      // "o que dá pra fechar agora", não "o que é maior".
+      return lista.sort(
+        (a, b) =>
+          (PESO_ESFORCO[a.esforco ?? ""] ?? 9) -
+            (PESO_ESFORCO[b.esforco ?? ""] ?? 9) || porPrazo(a, b)
+      );
+    case "cliente":
+      return lista.sort(
+        (a, b) =>
+          (a.client?.empresa || a.client?.nome || "zzz").localeCompare(
+            b.client?.empresa || b.client?.nome || "zzz",
+            "pt-BR"
+          ) || porPrazo(a, b)
+      );
+    default:
+      return lista.sort(porPrazo);
+  }
+}
+
+
+/** "1 dia", "3 dias" — o quanto passou do prazo, como a pessoa lê. */
+function diasDeAtraso(venc: string | null, hoje: string): string {
+  if (!venc) return "";
+  const a = new Date(`${venc}T12:00:00Z`).getTime();
+  const b = new Date(`${hoje}T12:00:00Z`).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return "";
+  const dias = Math.round((b - a) / 86_400_000);
+  if (dias <= 0) return "hoje";
+  return dias === 1 ? "1 dia" : `${dias} dias`;
+}
 
 function statusLabelOf(status: string): string {
   return TASK_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
@@ -646,6 +732,7 @@ export function MyWorkBoard({
   lockResponsavel?: boolean;
 }) {
   const [tab, setTab] = useState<TabId>("pendente");
+  const [ordem, setOrdem] = useState<Ordem>("prazo");
   const [criando, setCriando] = useState(false);
   const [patches, setPatches] = useState<Record<string, Partial<Task>>>({});
   const [openTaskId, setOpenTaskId] = useState<string | null>(null);
@@ -769,8 +856,21 @@ export function MyWorkBoard({
       "sem-data": [],
     };
     for (const t of pendentes) map[grupoDe(t, hoje)].push(t);
+    for (const g of GRUPO_ORDER) map[g] = ordenar(map[g], ordem);
     return map;
-  }, [pendentes, hoje]);
+  }, [pendentes, hoje, ordem]);
+
+  /**
+   * O que precisa de decisão HOJE: vencidas e vencendo hoje, juntas e no
+   * topo da tela. Pedido da Karine (22/09), com um print de outro app ao
+   * lado: lá as atrasadas ficam num painel âmbar em pílulas, antes de
+   * qualquer lista. Aqui elas estavam espalhadas em dois grupos no meio da
+   * página — quem abre o painel pra decidir o dia tinha que procurar.
+   */
+  const precisaDeVoce = useMemo(
+    () => [...grupos.atraso, ...grupos.hoje],
+    [grupos]
+  );
 
   // Aba "Delegado" — só tarefas ativas, agrupadas por pessoa, quem tem mais
   // atrasadas primeiro (é o que precisa de cobrança).
@@ -843,7 +943,66 @@ export function MyWorkBoard({
             />
           </div>
         ) : null}
-        <div className="flex gap-1 border-b border-fysi-line -mb-px">
+        {/* O que precisa de decisão hoje, antes de qualquer lista. */}
+        {tab === "pendente" && precisaDeVoce.length > 0 ? (
+          <div className="mb-3 rounded-[14px] border border-amber-200 bg-amber-50/60 px-4 py-3">
+            <p className="flex flex-wrap items-baseline gap-x-2 mb-2">
+              <span className="text-sm font-semibold text-amber-900">
+                Precisa de você
+              </span>
+              <span className="text-xs text-amber-800/80">
+                {grupos.atraso.length > 0
+                  ? `${grupos.atraso.length} atrasada${grupos.atraso.length === 1 ? "" : "s"}`
+                  : null}
+                {grupos.atraso.length > 0 && grupos.hoje.length > 0 ? " · " : null}
+                {grupos.hoje.length > 0
+                  ? `${grupos.hoje.length} para hoje`
+                  : null}
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {precisaDeVoce.map((t) => {
+                const atrasada = Boolean(
+                  t.data_vencimento && t.data_vencimento < hoje
+                );
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setOpenTaskId(t.id)}
+                    title={
+                      t.client
+                        ? `${t.client.empresa || t.client.nome} — abrir`
+                        : "Demanda interna — abrir"
+                    }
+                    className={`inline-flex items-center gap-2 max-w-full rounded-full border bg-white px-3 py-1.5 text-sm transition hover:shadow-fysi-card ${
+                      atrasada
+                        ? "border-orange-300 text-orange-900"
+                        : "border-fysi-line text-fysi-deep"
+                    }`}
+                  >
+                    <span
+                      className={`h-3.5 w-3.5 rounded-full border-2 shrink-0 ${
+                        atrasada ? "border-orange-500" : "border-fysi-green"
+                      }`}
+                      aria-hidden
+                    />
+                    <span className="truncate">{t.titulo}</span>
+                    <span
+                      className={`shrink-0 text-xs ${
+                        atrasada ? "text-orange-600 font-medium" : "text-fysi-muted"
+                      }`}
+                    >
+                      {atrasada ? diasDeAtraso(t.data_vencimento, hoje) : "hoje"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-1 border-b border-fysi-line -mb-px">
           {(
             [
               { id: "pendente", label: "Pendente" },
@@ -864,6 +1023,22 @@ export function MyWorkBoard({
               {t.label}
             </button>
           ))}
+          {tab === "pendente" ? (
+            <label className="ml-auto inline-flex items-center gap-1.5 pb-1 text-xs text-fysi-muted">
+              Ordenar por
+              <select
+                value={ordem}
+                onChange={(e) => setOrdem(e.target.value as Ordem)}
+                className="rounded-[8px] border border-fysi-line bg-white px-2 py-1 text-fysi-deep"
+              >
+                {ORDENS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
         </div>
       </div>
 
