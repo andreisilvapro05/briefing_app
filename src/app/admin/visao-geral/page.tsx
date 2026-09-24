@@ -75,31 +75,50 @@ export default async function VisaoGeralPage({
     .filter((t) => !visibleIds || visibleIds.has(t.client_id as string));
 
   /**
-   * As abas contam e listam só o que tem PRAZO.
+   * As abas só levam em conta tarefa com PRAZO.
    *
    * Pedido da Karine (22/09): "tem muitas tarefas que estão ali, mas são sem
-   * datas por user — deixe só as com datas". A conta de "Todos" batia 260
-   * porque toda tarefa de todo projeto entrava, inclusive as que ninguém
-   * agendou; nesse tamanho o número não informa nada.
+   * datas por user — deixe só as com datas". Sem esse corte, toda tarefa do
+   * checklist entrava, inclusive as etapas futuras que ninguém agendou.
    *
    * As sem data NÃO somem de vista: viram um contador ao lado, com link pra
-   * tela de Tarefas. Tarefa sem prazo é justamente a que se esquece — não
-   * pode desaparecer em silêncio.
+   * tela de Tarefas. Tarefa sem prazo é justamente a que se esquece.
    */
   const abertasVisiveis = ativasVisiveis.filter((t) => Boolean(t.data_vencimento));
   const semPrazo = ativasVisiveis.length - abertasVisiveis.length;
+
+  /**
+   * A aba conta PROJETOS, não tarefas — é o que a "Lista Valéria" do ClickUp
+   * mostra (Karine, 23/09: "filtrar da forma certa como no ClickUp, filtro
+   * por status, o que aparece").
+   *
+   * Contar tarefa dava "Valéria 123", número que não responde nada: ninguém
+   * decide o dia olhando 123. Contando projeto, a aba diz quantos clientes
+   * aquela pessoa está tocando agora, e a lista embaixo mostra exatamente
+   * esses, agrupados por status — que é o recorte do ClickUp.
+   */
+  const projetosDe = (pessoa: string) =>
+    new Set(
+      abertasVisiveis
+        .filter((t) => t.responsavel === pessoa)
+        .map((t) => t.client_id as string)
+    );
+
+  const todosOsProjetos = new Set(
+    abertasVisiveis.map((t) => t.client_id as string)
+  );
 
   const abas: ViewTabItem[] = [
     {
       value: "",
       label: "Todos",
-      count: abertasVisiveis.length,
+      count: todosOsProjetos.size,
       href: `/admin/visao-geral${keyParam}`,
     },
   ];
   for (const m of TEAM_MEMBERS) {
-    const count = abertasVisiveis.filter((t) => t.responsavel === m.value).length;
-    // Pessoa sem nada em aberto não vira aba — a barra mostra quem está
+    const count = projetosDe(m.value).size;
+    // Pessoa sem projeto em aberto não vira aba — a barra mostra quem está
     // com trabalho agora, não o quadro de funcionários.
     if (count === 0 && resp !== m.value) continue;
     const sep = keyParam ? "&" : "?";
@@ -113,13 +132,7 @@ export default async function VisaoGeralPage({
     });
   }
 
-  const clientesDaPessoa = resp
-    ? new Set(
-        abertasVisiveis
-          .filter((t) => t.responsavel === resp)
-          .map((t) => t.client_id as string)
-      )
-    : null;
+  const clientesDaPessoa = resp ? projetosDe(resp) : null;
 
   const laneGroups = clientesDaPessoa
     ? laneGroupsTodos.map((g) => ({
@@ -193,13 +206,20 @@ export default async function VisaoGeralPage({
         />
       </section>
 
-      {/* Abas por responsável — o mesmo recorte das listas do ClickUp.
+      {/* Abas por responsável — o mesmo recorte das "Lista Karine" / "Lista
+          Valéria" do ClickUp: escolher uma pessoa mostra OS PROJETOS dela,
+          agrupados por status. O número é de projetos, não de tarefas.
           Ficam coladas na lista que elas recortam: no topo da página, acima
           dos atalhos, a barra parecia filtrar a tela inteira (Karine, 22/09).
           Aqui a aba é link (navegação): a pizza vem montada do servidor. */}
-      <div className="mb-3">
-        <ViewTabs items={abas} ativo={resp} />
+      <div className="mb-1">
+        <ViewTabs items={abas} ativo={resp} ariaLabel="Projetos por responsável" />
       </div>
+      <p className="text-[0.7rem] text-fysi-muted mb-4">
+        {resp
+          ? `Projetos em que ${TEAM_MEMBERS.find((m) => m.value === resp)?.label ?? "essa pessoa"} tem tarefa com prazo em aberto — agrupados por status, abaixo.`
+          : "O número é de projetos, não de tarefas. Escolha um nome pra ver só os projetos daquela pessoa."}
+      </p>
 
       {/* Tarefas pendentes */}
       <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
