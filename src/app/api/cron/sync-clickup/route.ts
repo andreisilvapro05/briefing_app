@@ -25,8 +25,12 @@ import {
  *    token esta rota não faz nada** e devolve o motivo — é o que acontece
  *    hoje (ver memory/limitacao_vercel_briefing_app.md).
  * 2. `CRON_SECRET` na Vercel (a Vercel Cron manda como Bearer).
- * 3. `vercel.json` já traz o agendamento: 9h e 15h no horário de Brasília
- *    (12h e 18h UTC), dias úteis. Duas vezes ao dia, como ela pediu.
+ * 3. `vercel.json` já traz o agendamento: 12h UTC = 9h em Brasília, todo
+ *    dia. Ela pediu "uma ou duas vezes por dia"; é UMA porque o plano
+ *    Hobby da Vercel só aceita cron diário — um `0 12,18 * * 1-5` faz a
+ *    Vercel recusar o vercel.json e PARAR de construir a cada push, sem
+ *    sequer registrar um deploy com erro. Foi o que travou o deploy por
+ *    12h em 24/09. Se um dia o projeto virar Pro, dá pra voltar a duas.
  *
  * ## Segurança
  *

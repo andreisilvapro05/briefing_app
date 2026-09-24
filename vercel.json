@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/sync-clickup",
-      "schedule": "0 12,18 * * 1-5"
+      "schedule": "0 12 * * *"
     }
   ]
 }
