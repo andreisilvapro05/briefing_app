@@ -382,7 +382,12 @@ export function StatusPieBoard({
       </section>
 
       {abasPessoa && abasPessoa.length > 1 ? (
-        <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-4 pt-2 pb-3 mb-4">
+        <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-4 pt-3 pb-3 mb-4">
+          {/* O rótulo existe porque sem ele a barra parecia mais uma linha
+              de navegação entre telas — e não o filtro do quadro. */}
+          <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-fysi-muted mb-1">
+            Filtrar por responsável
+          </p>
           <ViewTabs
             items={abasPessoa}
             ativo={pessoaAtiva}

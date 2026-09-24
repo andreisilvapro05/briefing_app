@@ -15,7 +15,7 @@ import {
   isClosedTaskStatus,
 } from "@/lib/project-tasks";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
-import { abasPorPessoa, projetosDaPessoa } from "@/lib/abas-pessoa";
+import { abasPorPessoa, projetosDaPessoa, respValido } from "@/lib/abas-pessoa";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 /**
@@ -65,9 +65,7 @@ export default async function VisaoGeralPage({
    * aberta dessa pessoa. Projeto não tem responsável próprio — quem tem
    * dono é a tarefa, e é por ela que se sabe quem está tocando o quê.
    */
-  const resp = TEAM_MEMBERS.some((m) => m.value === params.resp)
-    ? (params.resp as string)
-    : "";
+  const resp = respValido(params.resp) ? params.resp : "";
 
   const ativasVisiveis = allTasks
     .filter((t) => !isClosedTaskStatus(t.status))

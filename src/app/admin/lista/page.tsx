@@ -13,9 +13,8 @@ import { getLaneGroups } from "@/lib/lane-groups-server";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
 import { ClickUpSyncButton } from "@/components/admin/clickup-sync-button";
 import { ProjetosIncompletos } from "@/components/admin/projetos-incompletos";
-import { abasPorPessoa, projetosDaPessoa } from "@/lib/abas-pessoa";
+import { abasPorPessoa, projetosDaPessoa, respValido } from "@/lib/abas-pessoa";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
-import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
 
@@ -44,9 +43,7 @@ export default async function AdminListaPage({
   const visiveis = todasAsTarefas.filter(
     (t) => !visibleIds || (t.client_id && visibleIds.has(t.client_id))
   );
-  const resp = TEAM_MEMBERS.some((m) => m.value === params.resp)
-    ? (params.resp as string)
-    : "";
+  const resp = respValido(params.resp) ? params.resp : "";
   const abas = abasPorPessoa(visiveis, "/admin/lista", keyParam, resp);
   const daPessoa = resp ? projetosDaPessoa(visiveis, resp) : null;
   const groups = daPessoa
