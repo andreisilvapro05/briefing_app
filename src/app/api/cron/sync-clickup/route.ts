@@ -41,10 +41,11 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Sem `maxDuration` de propósito: o valor tem teto por plano na Vercel e
-// declarar acima dele derruba o BUILD inteiro, não só esta rota. Fica o
-// padrão da conta. Se o sync começar a estourar tempo, o caminho é paginar
-// em lotes menores, não subir o teto.
+// Sem `maxDuration` por ora. Eu tinha posto 60 e, quando um build falhou,
+// culpei esse valor — era falso: o erro era espaço em branco no
+// CRON_SECRET. Fica de fora até existir um deploy verde e uma execução
+// observada; se o sync estourar o tempo padrão, aí sim se decide entre
+// subir o teto (respeitando o limite do plano) ou paginar em lotes.
 
 export async function GET(request: NextRequest) {
   try {
