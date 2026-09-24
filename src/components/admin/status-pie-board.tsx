@@ -14,6 +14,7 @@ import {
 } from "./tasks-board";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
+import { ViewTabs, type ViewTabItem } from "./view-tabs";
 import {
   DEFAULT_TASK_STATUS,
   TASK_STATUS_GROUP,
@@ -144,12 +145,23 @@ export function StatusPieBoard({
   urlKey,
   novoHref,
   restrictToResponsavel,
+  abasPessoa,
+  pessoaAtiva = "",
 }: {
   groups: LaneGroup[];
   keyParam: string;
   urlKey?: string;
   novoHref: string;
   restrictToResponsavel?: EditRestriction;
+  /**
+   * Filtro por pessoa, quando a tela tem um. Fica DENTRO deste componente,
+   * entre a pizza e as listas — pedido da Karine (23/09): "o filtro deve
+   * ficar aqui e servir para as listas, e não ser uma coisa separada".
+   * Antes ele morava no topo da página, longe do que filtrava, e numa tela
+   * ficava até ABAIXO das listas que recortava.
+   */
+  abasPessoa?: ViewTabItem[];
+  pessoaAtiva?: string;
 }) {
   const [periodo, setPeriodo] = useState<PeriodoFiltro>("andamento");
   const [selected, setSelected] = useState<string | null>(null);
@@ -368,6 +380,21 @@ export function StatusPieBoard({
           </div>
         )}
       </section>
+
+      {abasPessoa && abasPessoa.length > 1 ? (
+        <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-4 pt-2 pb-3 mb-4">
+          <ViewTabs
+            items={abasPessoa}
+            ativo={pessoaAtiva}
+            ariaLabel="Projetos por responsável"
+          />
+          <p className="text-[0.7rem] text-fysi-muted mt-2">
+            {pessoaAtiva
+              ? "Os projetos desta pessoa, agrupados por status — a pizza acima e as listas abaixo seguem este recorte."
+              : "O número é de projetos, não de tarefas. Escolha um nome pra ver só os projetos daquela pessoa."}
+          </p>
+        </div>
+      ) : null}
 
       {/* Barra de filtro ativo */}
       {selectedGroup ? (

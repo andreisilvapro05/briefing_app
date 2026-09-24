@@ -13,13 +13,16 @@ import { getLaneGroups } from "@/lib/lane-groups-server";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
 import { ClickUpSyncButton } from "@/components/admin/clickup-sync-button";
 import { ProjetosIncompletos } from "@/components/admin/projetos-incompletos";
+import { abasPorPessoa, projetosDaPessoa } from "@/lib/abas-pessoa";
+import { listAllProjectTasks } from "@/lib/project-tasks-server";
+import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminListaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ key?: string }>;
+  searchParams: Promise<{ key?: string; resp?: string }>;
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
@@ -30,7 +33,28 @@ export default async function AdminListaPage({
   const novoHref = `/admin/novo${keyParam}`;
 
   const visibleIds = await getVisibleClientIds(member);
-  const groups = await getLaneGroups(visibleIds);
+  const [todosOsGrupos, todasAsTarefas] = await Promise.all([
+    getLaneGroups(visibleIds),
+    listAllProjectTasks(),
+  ]);
+
+  // O mesmo filtro por pessoa da Visão Geral — pedido da Karine (23/09):
+  // "o filtro deve ficar aqui e servir para as listas, e não ser uma coisa
+  // separada". Vale nas duas telas que mostram projeto agrupado por status.
+  const visiveis = todasAsTarefas.filter(
+    (t) => !visibleIds || (t.client_id && visibleIds.has(t.client_id))
+  );
+  const resp = TEAM_MEMBERS.some((m) => m.value === params.resp)
+    ? (params.resp as string)
+    : "";
+  const abas = abasPorPessoa(visiveis, "/admin/lista", keyParam, resp);
+  const daPessoa = resp ? projetosDaPessoa(visiveis, resp) : null;
+  const groups = daPessoa
+    ? todosOsGrupos.map((g) => ({
+        ...g,
+        clients: g.clients.filter((c) => daPessoa.has(c.id)),
+      }))
+    : todosOsGrupos;
 
   return (
     <AdminShell active="lista" keyParam={keyParam} userEmail={member.email}
@@ -75,6 +99,8 @@ export default async function AdminListaPage({
         keyParam={keyParam}
         urlKey={urlKey ?? undefined}
         novoHref={novoHref}
+        abasPessoa={abas}
+        pessoaAtiva={resp}
         restrictToResponsavel={
           hasTaskScopedRole(member) ? member.taskValue : undefined
         }
