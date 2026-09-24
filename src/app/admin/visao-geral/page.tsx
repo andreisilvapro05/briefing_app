@@ -16,6 +16,9 @@ import {
 } from "@/lib/project-tasks";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
 import { abasPorPessoa, projetosDaPessoa, respValido } from "@/lib/abas-pessoa";
+import { ProjetosAVencer } from "@/components/admin/projetos-a-vencer";
+import { montarProjetosAVencer } from "@/lib/projetos-a-vencer";
+import { hojeEmBrasilia } from "@/lib/datas";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 /**
@@ -35,6 +38,11 @@ import { TEAM_MEMBERS } from "@/lib/project-tasks";
 export const dynamic = "force-dynamic";
 
 const TAREFAS_LIMIT = 8;
+
+/** Quantos dias à frente entram em "Projetos a vencer". */
+const JANELA_A_VENCER = 14;
+/** Quantas linhas cabem antes de virar rolagem — o resto fica em "Ver todos". */
+const A_VENCER_LIMIT = 8;
 
 export default async function VisaoGeralPage({
   searchParams,
@@ -88,6 +96,22 @@ export default async function VisaoGeralPage({
         clients: g.clients.filter((c) => clientesDaPessoa.has(c.id)),
       }))
     : laneGroupsTodos;
+
+  /**
+   * Projetos a vencer — pedido da Karine (24/09). A unidade é o projeto, e o
+   * prazo dele é o da tarefa aberta que vence primeiro. Usa `laneGroups`, que
+   * já vem recortado pela pessoa escolhida nas abas.
+   */
+  const aVencerTodos = montarProjetosAVencer(
+    laneGroups,
+    ativasVisiveis,
+    hojeEmBrasilia(),
+    { janelaDias: JANELA_A_VENCER }
+  );
+  const aVencer = {
+    ...aVencerTodos,
+    itens: aVencerTodos.itens.slice(0, A_VENCER_LIMIT),
+  };
 
   // Tarefas pendentes de toda a equipe visível a este membro, mais urgentes
   // primeiro (vencimento mais próximo/atrasado; sem vencimento vai pro fim).
@@ -155,6 +179,13 @@ export default async function VisaoGeralPage({
           }
         />
       </section>
+
+      <ProjetosAVencer
+        resumo={aVencer}
+        keyParam={keyParam}
+        janelaDias={JANELA_A_VENCER}
+        totalNaJanela={aVencerTodos.itens.length}
+      />
 
       {/* Tarefas pendentes */}
       <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
