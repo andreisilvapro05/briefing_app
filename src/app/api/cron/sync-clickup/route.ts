@@ -41,8 +41,10 @@ import {
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// O sync pagina o folder inteiro do ClickUp; o padrão de 10s não basta.
-export const maxDuration = 60;
+// Sem `maxDuration` de propósito: o valor tem teto por plano na Vercel e
+// declarar acima dele derruba o BUILD inteiro, não só esta rota. Fica o
+// padrão da conta. Se o sync começar a estourar tempo, o caminho é paginar
+// em lotes menores, não subir o teto.
 
 export async function GET(request: NextRequest) {
   try {
