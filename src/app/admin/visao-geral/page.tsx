@@ -156,41 +156,6 @@ export default async function VisaoGeralPage({
         />
       </section>
 
-      {/* Atalhos */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <ShortcutCard href={`/admin${keyParam}`} label="Clientes" icon={<ClientesIcon />} />
-        <ShortcutCard
-          href={`/admin/contratos${keyParam}`}
-          label="Contratos"
-          icon={<ContratosIcon />}
-        />
-        <ShortcutCard
-          href={`/admin/estruturas-iniciais${keyParam}`}
-          label="Estruturas Iniciais"
-          icon={<EstruturasIcon />}
-        />
-        <ShortcutCard
-          href={`/admin/briefings${keyParam}`}
-          label="Briefings"
-          icon={<BriefingsIcon />}
-        />
-      </div>
-
-      {/* Projetos por status — pizza selecionável + lista com accordion de
-          subtarefas editável, mesmo componente completo da Lista por
-          status (não uma versão resumida). */}
-      <section className="mb-6">
-        <StatusPieBoard
-          groups={laneGroups}
-          keyParam={keyParam}
-          urlKey={urlKey ?? undefined}
-          novoHref={novoHref}
-          restrictToResponsavel={
-            hasTaskScopedRole(member) ? member.taskValue : undefined
-          }
-        />
-      </section>
-
       {/* Tarefas pendentes */}
       <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
         <div className="flex items-baseline justify-between mb-4">
