@@ -1,0 +1,9 @@
+{
+  "crons": [
+    {
+      "_comment": "ClickUp → app, duas vezes por dia útil. 12h e 18h UTC = 9h e 15h em Brasília. Pedido da Karine (23/09): 'tem coisas desatualizadas, atualize uma ou duas vezes por dia por enquanto'. PRECISA de CLICKUP_API_TOKEN, CLICKUP_PROJECTS_FOLDER_ID e CRON_SECRET nas variáveis da Vercel — sem eles a rota devolve o motivo e não faz nada.",
+      "path": "/api/cron/sync-clickup",
+      "schedule": "0 12,18 * * 1-5"
+    }
+  ]
+}
