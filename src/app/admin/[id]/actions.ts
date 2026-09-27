@@ -471,6 +471,24 @@ export async function setPaymentAction(formData: FormData) {
   const pago = parseMoney(String(formData.get("pagamentoPago") ?? ""));
   const obs = String(formData.get("pagamentoObservacao") ?? "").trim();
 
+  /**
+   * O arranjo como CAMPO, em vez da frase solta na observação — pedido da
+   * Karine (26/09), porque "essas informações são difusas". Valor fora da
+   * lista vira nulo em vez de estourar o CHECK do banco: um select
+   * adulterado não pode derrubar o salvamento do resto do pagamento.
+   */
+  const ARRANJOS = ["avista", "entrada_saldo", "parcelado", "recorrente", "outro"];
+  const FORMAS = ["pix", "cartao", "boleto", "transferencia", "dinheiro", "misto"];
+  const cru = (k: string) => String(formData.get(k) ?? "").trim();
+  const arranjo = ARRANJOS.includes(cru("pagamentoArranjo")) ? cru("pagamentoArranjo") : null;
+  const formaCombinada = FORMAS.includes(cru("pagamentoForma")) ? cru("pagamentoForma") : null;
+  const entrada = parseMoney(cru("pagamentoEntrada"));
+  const parcelasCru = Number(cru("pagamentoParcelas"));
+  const parcelas =
+    Number.isInteger(parcelasCru) && parcelasCru >= 1 && parcelasCru <= 48
+      ? parcelasCru
+      : null;
+
   const service = createSupabaseServiceRoleClient();
   const { error: escritaErr } = await service
     .from("clients")
@@ -478,6 +496,10 @@ export async function setPaymentAction(formData: FormData) {
       pagamento_total: total,
       pagamento_pago: pago ?? 0,
       pagamento_observacao: obs || null,
+      pagamento_arranjo: arranjo,
+      pagamento_forma: formaCombinada,
+      pagamento_entrada: entrada,
+      pagamento_parcelas: parcelas,
       pagamento_atualizado_at: new Date().toISOString(),
     })
     .eq("id", clientId);
@@ -1912,6 +1934,9 @@ export async function addPaymentReceiptAction(
     client_id: clientId,
     valor,
     pago_em: pagoEm,
+    // Vazio = caiu no mesmo dia (pix, boleto). Só o cartão costuma ter as
+    // duas datas diferentes, e é ela que o caixa usa.
+    recebido_em: String(formData.get("recebidoEm") ?? "").trim() || null,
     forma,
     arquivo_path: arquivoPath,
     arquivo_nome: arquivoNome,

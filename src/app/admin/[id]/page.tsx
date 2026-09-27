@@ -1164,6 +1164,77 @@ Qualquer dúvida, é só responder por aqui.`;
                     className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
                   />
                 </div>
+                {/* O arranjo como campo, não como frase. Antes isto vivia
+                    só na observação, escrito de treze jeitos pra três
+                    arranjos reais — e por isso nada somava no fechamento
+                    do mês (Karine, 26/09). A observação continua logo
+                    abaixo, pra o que não couber nos campos. */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                    Como vai pagar
+                  </label>
+                  <select
+                    name="pagamentoArranjo"
+                    defaultValue={client.pagamento_arranjo ?? ""}
+                    className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                  >
+                    <option value="">Não definido</option>
+                    <option value="avista">À vista</option>
+                    <option value="entrada_saldo">Entrada + saldo na entrega</option>
+                    <option value="parcelado">Parcelado</option>
+                    <option value="recorrente">Mensal recorrente</option>
+                    <option value="outro">Outro</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                    Forma combinada
+                  </label>
+                  <select
+                    name="pagamentoForma"
+                    defaultValue={client.pagamento_forma ?? ""}
+                    className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                  >
+                    <option value="">Não definida</option>
+                    <option value="pix">Pix</option>
+                    <option value="cartao">Cartão</option>
+                    <option value="boleto">Boleto</option>
+                    <option value="transferencia">Transferência</option>
+                    <option value="dinheiro">Dinheiro</option>
+                    <option value="misto">Mais de uma</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                    Entrada (R$)
+                  </label>
+                  <input
+                    type="text"
+                    name="pagamentoEntrada"
+                    defaultValue={
+                      client.pagamento_entrada != null
+                        ? Number(client.pagamento_entrada).toFixed(2).replace(".", ",")
+                        : ""
+                    }
+                    inputMode="decimal"
+                    placeholder="1000,00"
+                    className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
+                    Parcelas do saldo
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={48}
+                    name="pagamentoParcelas"
+                    defaultValue={client.pagamento_parcelas ?? ""}
+                    placeholder="8"
+                    className="rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+                  />
+                </div>
                 <div className="flex flex-col gap-1 sm:col-span-2">
                   <label className="text-[0.7rem] uppercase tracking-[0.12em] text-fysi-muted font-medium">
                     Observação (opcional)

@@ -163,6 +163,19 @@ export function PaymentReceipts({
         </label>
 
         <label className="flex flex-col gap-1">
+          {/* Duas datas porque no cartão elas não coincidem — a compra é
+              hoje, o repasse é no mês que vem ("no Asaas começamos a
+              receber só no outro mês quando é cartão"). O caixa em
+              Relatórios conta por ESTA data. Vazio = caiu no mesmo dia,
+              que é o caso de pix e boleto. */}
+          <span className={rotulo}>Caiu na conta em</span>
+          <input name="recebidoEm" type="date" className={campo} />
+          <span className="text-[0.65rem] text-fysi-muted">
+            deixe vazio se caiu no mesmo dia
+          </span>
+        </label>
+
+        <label className="flex flex-col gap-1">
           <span className={rotulo}>Forma</span>
           <select name="forma" defaultValue="pix" className={campo}>
             {FORMAS_PAGAMENTO.map((f) => (
