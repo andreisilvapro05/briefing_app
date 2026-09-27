@@ -50,6 +50,7 @@ import {
 import type { ProjectType } from "@/lib/types";
 import { formatDiaMesCurto, hojeEmBrasilia } from "@/lib/datas";
 import { datasEmSequencia } from "@/lib/agendar-lote";
+import { semearMateriaisPadrao } from "@/lib/materiais-cliente-server";
 
 function keyParamOf(formData: FormData): string | null {
   return String(formData.get("key") ?? "") || null;
@@ -1124,6 +1125,26 @@ export async function seedProjectTasksAction(formData: FormData) {
   // Sem isto, "Gerar tarefas do template" não gerava nada e a tela ficava
   // igual — dava pra clicar de novo e de novo sem entender.
   if (seedErr) logServerError("seedProjectTasksAction", seedErr);
+
+  /**
+   * A lista do que o CLIENTE precisa enviar nasce junto com as tarefas.
+   *
+   * Ela existe desde 22/09 e tinha ZERO linhas em 26/09. Uma das duas
+   * causas era esta: o único jeito de criá-la era clicar em "Usar a lista
+   * padrão" dentro da aba Briefing de UM cliente por vez, sem lembrete e
+   * sem estado vazio em tela nenhuma. Feature que só existe depois de um
+   * clique escondido não acontece.
+   *
+   * Gerar o checklist é o momento em que o projeto vira real — é aqui que
+   * a lista faz sentido. `semearMateriaisPadrao` é idempotente: não mexe
+   * em quem já tem lista, então repetir é inofensivo. Best-effort: um erro
+   * aqui não pode impedir as tarefas de nascerem.
+   */
+  try {
+    await semearMateriaisPadrao(clientId);
+  } catch (err) {
+    logServerError("seedProjectTasksAction.materiais", err);
+  }
 
   revalidatePath(`/admin/${clientId}`);
 }
