@@ -61,6 +61,15 @@ interface NavItem {
   label: string;
   href: (k: string) => string;
   icon: ReactNode;
+  /**
+   * Subabas. Pedido da Karine (26/09): "unificar em uma aba principal com
+   * subaba", apontando pra "Documentos de Briefing" solto ao lado de
+   * "Briefings". O menu tinha 22 itens no mesmo nível, e itens que são
+   * duas faces da mesma coisa competiam como se fossem assuntos
+   * diferentes. A subaba só aparece quando a família está aberta — fechada,
+   * o menu encolhe.
+   */
+  filhos?: NavItem[];
 }
 
 interface NavArea {
@@ -257,14 +266,21 @@ const ICONS: Record<AdminSection, ReactNode> = {
 function item(
   id: AdminSection,
   label: string,
-  path: string
+  path: string,
+  filhos?: NavItem[]
 ): NavItem {
   return {
     id,
     label,
     href: (k) => `${path}${k}`,
     icon: ICONS[id],
+    ...(filhos?.length ? { filhos } : {}),
   };
+}
+
+/** Todos os itens de uma área, pais e filhos, em lista plana. */
+function planos(items: NavItem[]): NavItem[] {
+  return items.flatMap((it) => [it, ...(it.filhos ?? [])]);
 }
 
 const AREAS: NavArea[] = [
@@ -275,8 +291,13 @@ const AREAS: NavArea[] = [
       item("visao-geral", "Visão Geral", "/admin/visao-geral"),
       item("clientes", "Clientes", "/admin/clientes"),
       item("lista", "Lista por status", "/admin/lista"),
-      item("briefings", "Briefings", "/admin/briefings"),
-      item("briefing-documentos", "Documentos de Briefing", "/admin/briefing-documentos"),
+      item("briefings", "Briefings", "/admin/briefings", [
+        item(
+          "briefing-documentos",
+          "Documentos",
+          "/admin/briefing-documentos"
+        ),
+      ]),
       item("quadro", "Quadro", "/admin/quadro"),
       item("tarefas", "Tarefas", "/admin/tarefas"),
       item("desenvolvimento", "Desenvolvimento", "/admin/desenvolvimento"),
@@ -323,7 +344,7 @@ const AREAS: NavArea[] = [
 const LABELS: Record<AdminSection, { area: string; label: string }> = (() => {
   const m: Record<string, { area: string; label: string }> = {};
   for (const area of AREAS) {
-    for (const it of area.items) m[it.id] = { area: area.label, label: it.label };
+    for (const it of planos(area.items)) m[it.id] = { area: area.label, label: it.label };
   }
   return m as Record<AdminSection, { area: string; label: string }>;
 })();
@@ -420,7 +441,15 @@ export async function AdminShell({
       ? areasPorPapel
           .map((a) => ({
             ...a,
-            items: a.items.filter((it) => podeVerSecao(quem, it.id)),
+            items: a.items
+              .filter((it) => podeVerSecao(quem, it.id))
+              // O filho herda a mesma régua: um pai visível não pode
+              // carregar pra dentro uma tela que o servidor barra.
+              .map((it) =>
+                it.filhos
+                  ? { ...it, filhos: it.filhos.filter((f) => podeVerSecao(quem, f.id)) }
+                  : it
+              ),
           }))
           .filter((a) => a.items.length > 0)
       : areasPorPapel;
@@ -476,6 +505,32 @@ export async function AdminShell({
                         </span>
                         {it.label}
                       </Link>
+                      {/* A subaba só aparece com a família aberta: fechada,
+                          o menu encolhe e o assunto ocupa uma linha só. */}
+                      {it.filhos?.length &&
+                      (isActive || it.filhos.some((f) => f.id === active)) ? (
+                        <ul className="mt-0.5 ml-[18px] pl-3 border-l border-fysi-line flex flex-col gap-0.5">
+                          {it.filhos.map((f) => {
+                            const filhoAtivo = f.id === active;
+                            return (
+                              <li key={f.id}>
+                                <Link
+                                  href={f.href(keyParam)}
+                                  aria-current={filhoAtivo ? "page" : undefined}
+                                  className={cn(
+                                    "block px-2.5 py-1.5 rounded-[8px] text-[0.8rem] transition",
+                                    filhoAtivo
+                                      ? "bg-fysi-cream text-fysi-deep font-semibold"
+                                      : "text-fysi-muted hover:bg-fysi-cream hover:text-fysi-deep"
+                                  )}
+                                >
+                                  {f.label}
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : null}
                     </li>
                   );
                 })}
@@ -535,7 +590,7 @@ export async function AdminShell({
         {/* Nav horizontal no mobile */}
         <nav className="md:hidden border-b border-fysi-line bg-white overflow-x-auto">
           <ul className="flex gap-1 px-3 py-2 w-max">
-            {areas.flatMap((a) => a.items).map((it) => {
+            {areas.flatMap((a) => planos(a.items)).map((it) => {
               const isActive = it.id === active;
               return (
                 <li key={it.id}>
