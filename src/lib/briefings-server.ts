@@ -260,6 +260,8 @@ export interface ResultadoImportacao {
   semCliente: number;
   credenciaisProtegidas: number;
   ignorados: number;
+  /** Já importados que a equipe editou aqui depois — corpo NÃO sobrescrito. */
+  preservados: number;
   detalhes: { pagina: string; acao: string; motivo: string }[];
 }
 
@@ -279,6 +281,7 @@ export async function importarBriefingsDoClickUp(): Promise<ResultadoImportacao>
     semCliente: 0,
     credenciaisProtegidas: 0,
     ignorados: 0,
+    preservados: 0,
     detalhes: [],
   };
 
@@ -305,16 +308,17 @@ export async function importarBriefingsDoClickUp(): Promise<ResultadoImportacao>
     service.from("clients").select("id, nome, empresa"),
     service
       .from("ei_documents")
-      .select("id, clickup_page_id, client_id")
+      .select("id, clickup_page_id, client_id, updated_at")
       .eq("kind", "briefing")
       .not("clickup_page_id", "is", null),
   ]);
 
   const clientes = (clientesData as ClienteRef[] | null) ?? [];
-  const jaImportado = new Map<string, string>();
-  for (const r of (existentesData as { id: string; clickup_page_id: string }[] | null) ??
-    []) {
-    jaImportado.set(r.clickup_page_id, r.id);
+  const jaImportado = new Map<string, { id: string; updatedAt: string | null }>();
+  for (const r of (existentesData as
+    | { id: string; clickup_page_id: string; updated_at: string | null }[]
+    | null) ?? []) {
+    jaImportado.set(r.clickup_page_id, { id: r.id, updatedAt: r.updated_at });
   }
 
   const res: ResultadoImportacao = { ...vazio, ok: true, detalhes: [] };
@@ -350,13 +354,37 @@ export async function importarBriefingsDoClickUp(): Promise<ResultadoImportacao>
       updated_at: page.dateUpdated ?? new Date().toISOString(),
     };
 
-    const existenteId = jaImportado.get(page.id);
-    if (existenteId) {
+    const existente = jaImportado.get(page.id);
+    if (existente) {
+      /**
+       * Editado AQUI depois da última alteração lá: o corpo local vence.
+       *
+       * Antes, reimportar sobrescrevia `ei_data` de toda página já
+       * importada — e 34 dos 35 briefings vieram do ClickUp. Quem
+       * corrigisse um briefing no app perdia o trabalho na próxima
+       * importação, em silêncio. Como o app é o destino da migração e o
+       * ClickUp a origem histórica, na dúvida quem manda é o app.
+       *
+       * Sem data dos dois lados não dá pra comparar: aí atualiza, que é o
+       * comportamento antigo.
+       */
+      const nossa = existente.updatedAt ? Date.parse(existente.updatedAt) : NaN;
+      const deLa = page.dateUpdated ? Date.parse(page.dateUpdated) : NaN;
+      if (Number.isFinite(nossa) && Number.isFinite(deLa) && nossa > deLa) {
+        res.preservados += 1;
+        res.detalhes.push({
+          pagina: page.name,
+          acao: "preservado",
+          motivo: "editado no app depois da última mudança no ClickUp",
+        });
+        continue;
+      }
+
       // Não sobrescreve um vínculo que a equipe já ajustou na mão.
       const { error } = await service
         .from("ei_documents")
         .update(payload)
-        .eq("id", existenteId);
+        .eq("id", existente.id);
       if (error) {
         res.detalhes.push({ pagina: page.name, acao: "erro", motivo: error.message });
         continue;

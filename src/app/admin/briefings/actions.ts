@@ -242,7 +242,7 @@ export async function importarBriefingsAction(formData: FormData) {
     sp.set("imp", "ok");
     sp.set(
       "res",
-      [r.criados, r.atualizados, r.semCliente, r.credenciaisProtegidas].join("-")
+      [r.criados, r.atualizados, r.semCliente, r.credenciaisProtegidas, r.preservados].join("-")
     );
   }
   revalidatePath("/admin/briefings");

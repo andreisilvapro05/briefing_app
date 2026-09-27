@@ -266,6 +266,11 @@ export default async function BriefingsPage({
                   {n[3] > 0
                     ? ` ${n[3]} credencia${n[3] === 1 ? "l foi retirada" : "is foram retiradas"} do corpo e guardada${n[3] === 1 ? "" : "s"} em Acessos.`
                     : ""}
+                  {/* Sem esta linha, o briefing preservado sumiria da conta
+                      e pareceria que a importação o ignorou por erro. */}
+                  {n[4] > 0
+                    ? ` ${n[4]} não ${n[4] === 1 ? "foi tocado" : "foram tocados"} porque ${n[4] === 1 ? "tinha" : "tinham"} edição mais nova aqui no app.`
+                    : ""}
                 </p>
               );
             })()
