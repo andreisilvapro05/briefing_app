@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { TaskNotes } from "./task-notes";
 import { useRouter } from "next/navigation";
 import {
   AREAS,
@@ -327,6 +328,10 @@ function LinhaDemanda({
   const [eisenhower, setEisenhower] = useState(task.eisenhower ?? "");
   const [esforco, setEsforco] = useState(task.esforco ?? "");
   const [recorrencia, setRecorrencia] = useState(task.recorrencia ?? "");
+  const [titulo, setTitulo] = useState(task.titulo);
+  const [renomeando, setRenomeando] = useState(false);
+  const [aberta, setAberta] = useState(false);
+  const [descricao, setDescricao] = useState(task.observacoes ?? "");
   const [erroTexto, setErroTexto] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState(false);
@@ -401,15 +406,93 @@ function LinhaDemanda({
 
   const feita = TASK_STATUS_GROUP[status] === "fechado";
 
+  /**
+   * Renomear e descrever a demanda — pedido da Karine (26/09): "na parte de
+   * demandas internas, poder editar demanda e ter parte para colocar
+   * descrição".
+   *
+   * O servidor já aceitava os dois campos (`titulo` e `observacoes` em
+   * updateProjectTaskAction); só esta tela não os expunha. Quem errasse o
+   * nome de uma demanda tinha que apagar e criar outra — perdendo data,
+   * responsável e a série, se fosse recorrente.
+   *
+   * Mesmo gesto da tela de Tarefas: lápis ou duplo clique renomeia, clique
+   * no nome abre a descrição.
+   */
+  function salvarTitulo() {
+    const novo = titulo.trim();
+    setRenomeando(false);
+    // Vazio ou igual: volta ao que estava, sem ir ao servidor.
+    if (!novo || novo === task.titulo) {
+      setTitulo(task.titulo);
+      return;
+    }
+    setTitulo(novo);
+    void salvar("titulo", novo, () => setTitulo(task.titulo));
+  }
+
   return (
-    <li className="flex flex-wrap items-center gap-2.5 px-5 py-3 hover:bg-fysi-cream/30 transition-colors">
-      <span
-        className={`flex-1 min-w-[12rem] text-sm ${
-          feita ? "text-fysi-muted line-through" : "text-fysi-deep"
-        }`}
-      >
-        {task.titulo}
-      </span>
+    <li className="px-5 py-3 hover:bg-fysi-cream/30 transition-colors">
+      <div className="flex flex-wrap items-center gap-2.5">
+      {renomeando ? (
+        <input
+          type="text"
+          value={titulo}
+          autoFocus
+          maxLength={200}
+          onChange={(e) => setTitulo(e.target.value)}
+          onFocus={(e) => e.currentTarget.select()}
+          onBlur={salvarTitulo}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              e.currentTarget.blur();
+            } else if (e.key === "Escape") {
+              setTitulo(task.titulo);
+              setRenomeando(false);
+            }
+          }}
+          aria-label="Nome da demanda"
+          className="flex-1 min-w-[12rem] rounded-[6px] border border-fysi-deep/40 bg-white text-sm text-fysi-deep px-1.5 py-0.5 focus:outline-none"
+        />
+      ) : (
+        <span className="flex-1 min-w-[12rem] flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setAberta((v) => !v)}
+            onDoubleClick={() => setRenomeando(true)}
+            aria-expanded={aberta}
+            title={`${titulo} — clique pra ver a descrição`}
+            className={`text-left text-sm truncate min-w-0 hover:underline underline-offset-2 ${
+              feita ? "text-fysi-muted line-through" : "text-fysi-deep"
+            }`}
+          >
+            {titulo}
+          </button>
+          {/* Um ponto discreto avisa que há descrição escrita — sem ele, a
+              descrição ficaria invisível com a linha fechada. */}
+          {descricao.trim() ? (
+            <span
+              className="h-1.5 w-1.5 rounded-full bg-fysi-line-strong shrink-0"
+              title="Tem descrição"
+              aria-label="Tem descrição"
+            />
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setRenomeando(true)}
+            disabled={salvando}
+            aria-label={`Renomear "${titulo}"`}
+            title="Renomear"
+            className="shrink-0 w-6 h-6 grid place-items-center rounded-md text-fysi-muted hover:text-fysi-deep hover:bg-fysi-cream transition"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M12 20h9" strokeLinecap="round" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </span>
+      )}
 
       <select
         value={status}
@@ -511,6 +594,29 @@ function LinhaDemanda({
         <span className="text-xs text-red-700" role="alert">
           {erroTexto ?? "não salvou"}
         </span>
+      ) : null}
+      </div>
+
+      {aberta ? (
+        <div className="mt-2 ml-1">
+          <label className="block text-[0.7rem] uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
+            Descrição
+          </label>
+          <TaskNotes
+            value={descricao}
+            disabled={salvando}
+            onChange={setDescricao}
+            onBlur={() => {
+              if (descricao.trim() !== (task.observacoes ?? "")) {
+                void salvar("observacoes", descricao, () =>
+                  setDescricao(task.observacoes ?? "")
+                );
+              }
+            }}
+            clientId={null}
+            urlKey={urlKey}
+          />
+        </div>
       ) : null}
     </li>
   );
