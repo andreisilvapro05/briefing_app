@@ -74,6 +74,23 @@ export function AllTasksBoard({
   /** "" = todos; SEM_DONO = as órfãs; senão o `value` da pessoa. */
   const [responsavel, setResponsavel] = useState(viewInicial);
   const [mostrarFechados, setMostrarFechados] = useState(false);
+  /**
+   * Tarefa sem prazo fica fora da lista de trabalho até alguém agendar.
+   *
+   * Decisão da Karine (26/09): "as que não têm data não devem ter
+   * importância igual às que têm" e "essa parte de filtro deve ser só em
+   * tarefas com data, para aparecer o que está de fato ativo; os projetos
+   * sem datas o Andrei mesmo coloca datas".
+   *
+   * Não é enfeite: 247 das 286 tarefas abertas não têm prazo, porque o
+   * checklist gera as ~10 etapas do fluxo na criação do projeto e nove são
+   * futuras. Sem esse corte, a tela mostra 286 linhas em que nada salta e
+   * as 39 que estão de fato em jogo somem no meio.
+   *
+   * Elas não desaparecem: viram um bloco próprio, com contagem, pro Andrei
+   * agendar. Escondê-las de vez seria trocar um problema por outro.
+   */
+  const [mostrarSemData, setMostrarSemData] = useState(false);
   const colapso = useGruposColapsados("fysi-grupos-tarefas");
 
   /**
@@ -96,8 +113,12 @@ export function AllTasksBoard({
     );
   }
 
+  // As abas contam só o que tem prazo — é o "o que está de fato ativo".
   const abertasTotal = useMemo(
-    () => tasks.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo"),
+    () =>
+      tasks.filter(
+        (t) => TASK_STATUS_GROUP[t.status] === "ativo" && Boolean(t.data_vencimento)
+      ),
     [tasks]
   );
   /**
@@ -156,7 +177,9 @@ export function AllTasksBoard({
     });
   }, [tasks, query, responsavel]);
 
-  const abertas = filtered.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo");
+  const ativas = filtered.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo");
+  const abertas = ativas.filter((t) => Boolean(t.data_vencimento));
+  const semData = ativas.filter((t) => !t.data_vencimento);
   const grupos = useMemo(
     () => agrupar(abertas, agruparPor),
     // `abertas` é derivado de `filtered`, que já é memoizado.
@@ -191,8 +214,20 @@ export function AllTasksBoard({
             Tarefas de todos os projetos
           </h3>
           <p className="text-sm text-fysi-muted mt-1">
-            {abertas.length} aberta{abertas.length === 1 ? "" : "s"} · ordenado por
-            vencimento
+            {abertas.length} com prazo · ordenado por vencimento
+            {semData.length > 0 ? (
+              <>
+                {" · "}
+                <button
+                  type="button"
+                  onClick={() => setMostrarSemData((v) => !v)}
+                  className="underline underline-offset-2 hover:text-fysi-deep"
+                  title="Tarefas abertas que ninguém agendou — o checklist cria as etapas futuras sem data"
+                >
+                  {semData.length} sem prazo
+                </button>
+              </>
+            ) : null}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -368,6 +403,47 @@ export function AllTasksBoard({
                 : null}
             </tbody>
           </table>
+          {semData.length > 0 ? (
+            <div className="mt-4 rounded-[12px] border border-dashed border-fysi-line px-4 py-3">
+              <button
+                type="button"
+                onClick={() => setMostrarSemData((v) => !v)}
+                className="flex items-center gap-2 text-sm text-fysi-deep font-medium"
+                aria-expanded={mostrarSemData}
+              >
+                <Caret aberto={mostrarSemData} />
+                Sem prazo
+                <span className="text-fysi-muted tabular-nums font-normal">
+                  {semData.length}
+                </span>
+              </button>
+              <p className="text-[0.7rem] text-fysi-muted mt-1 ml-[18px]">
+                Etapas que o checklist criou junto com o projeto e ninguém agendou.
+                Não entram na conta das abas nem na lista acima — dê uma data pra
+                que ela volte pro trabalho.
+              </p>
+              {mostrarSemData ? (
+                <table
+                  className="mt-3 text-sm border-separate border-spacing-0"
+                  style={{ width: colTotal, tableLayout: "fixed" }}
+                >
+                  <ColGroup widths={colWidths} />
+                  <tbody>
+                    {semData.map((t) => (
+                      <TaskRow
+                        key={t.id}
+                        task={t}
+                        clientId={t.client_id}
+                        urlKey={urlKey}
+                        clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
+                        readOnly={isReadOnlyFor(t, restrictToResponsavel)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
+            </div>
+          ) : null}
           {fechadas.length > 0 ? (
             <button
               type="button"
