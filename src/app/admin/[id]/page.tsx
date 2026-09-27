@@ -44,6 +44,8 @@ import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
+import { AbrirWhatsAppButton } from "@/components/admin/abrir-whatsapp-button";
+import { waLink } from "@/lib/cobranca-message";
 import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
 import { StatusChanger } from "@/components/admin/status-changer";
 import { OrigemEditor } from "@/components/admin/origem-editor";
@@ -288,6 +290,26 @@ Seu painel está pronto. Acesse direto:
 ${painelLink ?? `${entrarUrl} (WhatsApp ${client.whatsapp} + código ${accessCode})`}
 
 Qualquer dúvida, é só responder por aqui.`;
+
+  /**
+   * Pedido de briefing, pronto pra mandar.
+   *
+   * É a explicação mais direta dos 7 em 44: o link do CONTRATO tem botão
+   * de WhatsApp com mensagem pronta e o do BRIEFING só tinha "Copiar".
+   * Preencher briefing não acontece sozinho — alguém precisa pedir.
+   */
+  const mensagemBriefing = painelLink
+    ? `Oi ${client.nome?.split(" ")[0] ?? ""}! Aqui é da Fysi.
+
+Pra começar a produção do seu projeto, preciso que você preencha o briefing — é onde você nos conta do seu negócio, do seu público e do que você quer na página.
+
+${painelLink}?ir=briefing
+
+Pode ir salvando aos poucos, não precisa terminar de uma vez.`
+    : null;
+  const linkWhatsBriefing = mensagemBriefing
+    ? waLink(client.whatsapp, mensagemBriefing)
+    : null;
 
   // Resumo de tarefas pra Visão geral.
   const keySuffix = keyParam ? `&${keyParam.slice(1)}` : "";
@@ -703,9 +725,15 @@ Qualquer dúvida, é só responder por aqui.`;
                     value={`${painelLink}?ir=briefing`}
                     label="Copiar"
                   />
+                  <AbrirWhatsAppButton
+                    href={linkWhatsBriefing}
+                    label="Pedir"
+                    title="Abrir a conversa com o cliente já pedindo o briefing"
+                  />
                 </div>
                 <p className="text-[0.74rem] text-fysi-muted mt-1.5">
-                  Cliente cai direto no briefing dele.
+                  Cliente cai direto no briefing dele. &quot;Pedir&quot; abre a
+                  conversa dele no WhatsApp com a mensagem pronta.
                 </p>
               </div>
             ) : null}

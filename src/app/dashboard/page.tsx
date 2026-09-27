@@ -638,12 +638,19 @@ export default function DashboardPage() {
                     ? "Briefing concluído. A equipe Fysi já está trabalhando."
                     : blocosPreenchidos === blocosTotal && blocosTotal > 0
                       ? "Briefing completo. Aguarde retorno do time Fysi."
-                      : !contratoPreenchido || !chamadaAgendada
-                        ? `Disponível após contrato + chamada. ${blocosPreenchidos > 0 ? `${blocosPreenchidos}/${blocosTotal} já preenchidos.` : ""}`
+                      : !contratoPreenchido
+                        ? `Você já pode começar. ${blocosPreenchidos > 0 ? `${blocosPreenchidos}/${blocosTotal} preenchidos.` : "Pode ir salvando aos poucos."}`
                         : `${blocosPreenchidos} de ${blocosTotal} blocos preenchidos.`
                 }
                 done={briefingSubmetido || (blocosPreenchidos === blocosTotal && blocosTotal > 0)}
-                active={!briefingSubmetido && contratoPreenchido && chamadaAgendada && blocosPreenchidos < blocosTotal}
+                /* A chamada deixou de ser pré-requisito. O cartão dizia
+                   "Disponível após contrato + chamada" e ficava apagado —
+                   e só 18 dos 44 clientes têm chamada agendada, então pros
+                   outros 26 o próprio app mandava esperar. O clique sempre
+                   funcionou; ninguém clica no que parece desligado. O
+                   resultado está no banco: 7 briefings respondidos em 44
+                   clientes. Nada no briefing depende da chamada. */
+                active={!briefingSubmetido && blocosPreenchidos < blocosTotal}
                 actionLabel={
                   blocosPreenchidos === 0
                     ? "Iniciar briefing →"
