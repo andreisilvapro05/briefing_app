@@ -73,23 +73,13 @@ export function isDeveloper(member: Member): boolean {
  * Existe como função própria porque o código checava `role === "basico"`
  * em uma dúzia de lugares: cada um desses pontos teria de ganhar um `||
  * role === "desenvolvedor"` na mão, e o esquecido falharia ABERTO — o
- * desenvolvedor passaria pelo caminho de quem tem acesso total.
+ * papel mais restrito passando pela guarda.
  *
- * PENDENTE (2026-09-22): três guardas em `src/app/admin/[id]/actions.ts`
- * ainda comparam com a string "basico" e por isso deixam o desenvolvedor
- * passar como se tivesse acesso completo. Esse arquivo estava sendo editado
- * por outro agente quando este papel foi implementado, então a troca ficou
- * pra depois. As telas dele não usam essas ações (a escrita da tarefa dele
- * é `atualizarMinhaTarefaAction`, em admin/desenvolvimento/actions.ts), mas
- * Server Action é alcançável por POST direto — então isto é dívida de
- * segurança, não de estilo:
- *
- *   • canEditTask (~l.1231):        `if (member.role !== "basico") return true;`
- *                                   → `if (!hasTaskScopedRole(member)) return true;`
- *   • addProjectTaskAction (~l.1128): `if (member.role === "basico") {`
- *                                   → `if (hasTaskScopedRole(member)) {`
- *   • reorderProjectTasksAction (~l.1476): `member.role === "basico" &&`
- *                                   → `hasTaskScopedRole(member) &&`
+ * Os três pontos que este comentário listava como PENDENTES já foram
+ * corrigidos (conferido em 26/09/2026): canEditTask, addProjectTaskAction
+ * e reorderProjectTasksAction usam hasTaskScopedRole. O aviso ficou pra
+ * trás e dizia que havia buraco aberto onde não há — pista falsa é pior
+ * que nenhuma.
  */
 export function hasTaskScopedRole(member: Member): boolean {
   if (member.legacy) return false;

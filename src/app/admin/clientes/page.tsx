@@ -200,6 +200,9 @@ export default async function AdminPage({
     return daysSince(c.last_client_activity_at ?? c.created_at) >= STUCK_DAYS;
   }
 
+  const verFinanceiro = hasFinanceAccess(member);
+
+
   return (
     <AdminShell active="clientes" keyParam={keyParamFirst} userEmail={member.email}
       userName={member.name}
@@ -346,8 +349,12 @@ export default async function AdminPage({
               const stuck = isStuck(c);
               const lastActivity = c.last_client_activity_at ?? c.created_at;
               const briefing = briefingCell(c);
-              const contrato = contratoCell(c);
-              const pagamento = pagamentoCell(c);
+              // Designer e desenvolvedor não veem status de contrato nem
+              // percentual pago: o menu já esconde Contratos e Cobranças
+              // pra eles, e a lista imprimia a mesma informação sem
+              // checagem. Achado no mapeamento de 26/09.
+              const contrato = verFinanceiro ? contratoCell(c) : null;
+              const pagamento = verFinanceiro ? pagamentoCell(c) : null;
               return (
                 <div key={c.id} className="px-5 py-4 flex flex-col gap-2.5">
                   <div className="flex items-start justify-between gap-2">
@@ -443,8 +450,8 @@ export default async function AdminPage({
                   const stuck = isStuck(c);
                   const lastActivity = c.last_client_activity_at ?? c.created_at;
                   const briefing = briefingCell(c);
-                  const contrato = contratoCell(c);
-                  const pagamento = pagamentoCell(c);
+                  const contrato = verFinanceiro ? contratoCell(c) : null;
+                  const pagamento = verFinanceiro ? pagamentoCell(c) : null;
                   return (
                     <tr
                       key={c.id}

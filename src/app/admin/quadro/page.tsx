@@ -171,6 +171,7 @@ export default async function AdminQuadroPage({
                   <div className="flex flex-col gap-2 p-2 min-h-[120px]">
                     {items.map((c) => (
                       <ClientCard
+                        mostrarValores={hasFinanceAccess(member)}
                         key={c.id}
                         client={c}
                         keyParam={keyParamFirst}
@@ -196,11 +197,20 @@ function ClientCard({
   client,
   keyParam,
   agora,
+  mostrarValores,
 }: {
   client: ClientForLane;
   keyParam: string;
   /** Instante calculado uma vez pela página — ver comentário lá em cima. */
   agora: number;
+  /**
+   * Mostrar valor em reais no cartão. Falso pra designer ("basico") e
+   * desenvolvedor: o cartão imprimia "R$ 3.000 / R$ 5.000" sem checagem
+   * nenhuma, enquanto o menu escondia Contratos e Cobranças pra eles — o
+   * valor do contrato vazava justamente pela tela mais aberta do app.
+   * Achado no mapeamento de 26/09.
+   */
+  mostrarValores: boolean;
 }) {
   const total = Number(client.pagamento_total ?? 0);
   const pago = Number(client.pagamento_pago ?? 0);
@@ -239,7 +249,7 @@ function ClientCard({
         </span>
       </div>
 
-      {total > 0 ? (
+      {mostrarValores && total > 0 ? (
         <div className="mt-1.5">
           <div className="flex items-center justify-between text-[0.72rem]">
             <span className="text-fysi-muted">Pago</span>
