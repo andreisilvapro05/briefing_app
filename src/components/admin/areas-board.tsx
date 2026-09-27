@@ -5,7 +5,10 @@ import { TaskNotes } from "./task-notes";
 import { useRouter } from "next/navigation";
 import {
   AREAS,
+  EISENHOWER,
   TASK_STATUS_GROUP,
+  TASK_STATUS_INTERNO,
+  TASK_STATUS_OPTIONS,
   statusOptionsInternos,
   TASK_STATUS_TONE,
   TEAM_MEMBERS,
@@ -40,6 +43,42 @@ import {
  * Deliberadamente separado de /admin/tarefas: lá é o trabalho DE PROJETO, que
  * pertence a um cliente. Misturar os dois foi o que ela pediu pra evitar.
  */
+/**
+ * Peso do quadrante de Eisenhower, do mais importante ao menos. Quem não
+ * foi classificado fica antes de "Eliminar": não decidir não é o mesmo que
+ * decidir que não importa.
+ */
+function pesoQuadrante(v: string | null): number {
+  switch (v) {
+    case "fazer":
+      return 0;
+    case "planejar":
+      return 1;
+    case "delegar":
+      return 2;
+    case "eliminar":
+      return 4;
+    default:
+      return 3;
+  }
+}
+
+/** Peso do tamanho da tarefa, do mais rápido ao mais longo. */
+function pesoEsforco(v: string | null): number {
+  switch (v) {
+    case "rapido":
+      return 0;
+    case "curto":
+      return 1;
+    case "medio":
+      return 2;
+    case "longo":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
 export function AreasBoard({
   tasks,
   urlKey,
@@ -55,6 +94,21 @@ export function AreasBoard({
   const [criandoEm, setCriandoEm] = useState<string | null>(null);
   const [mostrarFeitas, setMostrarFeitas] = useState(false);
   const [filtroPessoa, setFiltroPessoa] = useState("");
+  /**
+   * Filtro por status e ordenação por importância — pedido da Karine
+   * (26/09): "poder filtrar por status, poder filtrar por importância...
+   * geralmente mostra o que é mais importante com hierarquia; aqui fica
+   * difícil; poder escolher mesmo, com opções, para facilitar".
+   *
+   * A ordem padrão passa a ser por IMPORTÂNCIA, não por prazo: numa lista
+   * de demandas internas, quase nada tem data, então ordenar por prazo
+   * deixava tudo empatado e a hierarquia sumia.
+   */
+  const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroQuadrante, setFiltroQuadrante] = useState("");
+  const [ordem, setOrdem] = useState<"importancia" | "prazo" | "esforco">(
+    "importancia"
+  );
   /** Data da próxima ocorrência criada ao concluir uma demanda recorrente. */
   const [proximaCriada, setProximaCriada] = useState<string | null>(null);
   const hoje = hojeISO();
@@ -62,11 +116,19 @@ export function AreasBoard({
   const visiveis = useMemo(() => {
     let t = tasks;
     if (filtroPessoa) t = t.filter((x) => x.responsavel === filtroPessoa);
-    if (!mostrarFeitas) {
+    if (filtroStatus) t = t.filter((x) => x.status === filtroStatus);
+    if (filtroQuadrante) {
+      // "Sem classificar" é um recorte útil: é o que ninguém decidiu ainda.
+      t =
+        filtroQuadrante === "__sem__"
+          ? t.filter((x) => !x.eisenhower)
+          : t.filter((x) => x.eisenhower === filtroQuadrante);
+    }
+    if (!mostrarFeitas && !filtroStatus) {
       t = t.filter((x) => TASK_STATUS_GROUP[x.status] === "ativo");
     }
     return t;
-  }, [tasks, filtroPessoa, mostrarFeitas]);
+  }, [tasks, filtroPessoa, filtroStatus, filtroQuadrante, mostrarFeitas]);
 
   /**
    * Uma gaveta por área, nesta ordem. Área SEM nada no recorte atual não
@@ -87,10 +149,21 @@ export function AreasBoard({
       if (arr) arr.push(t);
       else porArea.set(k, [t]);
     }
+    const porPrazo = (a: ProjectTask, b: ProjectTask) =>
+      (a.data_vencimento ?? "9999").localeCompare(b.data_vencimento ?? "9999");
     const ordenar = (arr: ProjectTask[]) =>
-      arr.slice().sort((a, b) =>
-        (a.data_vencimento ?? "9999").localeCompare(b.data_vencimento ?? "9999")
-      );
+      arr.slice().sort((a, b) => {
+        if (ordem === "prazo") return porPrazo(a, b);
+        if (ordem === "esforco") {
+          // Do mais rápido pro mais longo: é a ordem de quem quer limpar a
+          // lista. Não estimado vai pro fim.
+          const d = pesoEsforco(a.esforco) - pesoEsforco(b.esforco);
+          return d !== 0 ? d : porPrazo(a, b);
+        }
+        // Importância: quadrante primeiro, prazo como desempate.
+        const d = pesoQuadrante(a.eisenhower) - pesoQuadrante(b.eisenhower);
+        return d !== 0 ? d : porPrazo(a, b);
+      });
 
     const out = AREAS.map((a) => ({
       area: a,
@@ -98,7 +171,7 @@ export function AreasBoard({
     }));
     const semArea = porArea.get("") ?? [];
     return { out, semArea: ordenar(semArea) };
-  }, [visiveis]);
+  }, [visiveis, ordem]);
 
   /** Áreas sem nada no recorte atual — viram a linha compacta do rodapé. */
   const vazias = grupos.out
@@ -152,6 +225,55 @@ export function AreasBoard({
                 </option>
               ))}
             </select>
+            <select
+              value={filtroStatus}
+              onChange={(e) => setFiltroStatus(e.target.value)}
+              aria-label="Filtrar por status"
+              title="Filtrar por status"
+              className="rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5 text-fysi-deep"
+            >
+              <option value="">Qualquer status</option>
+              {TASK_STATUS_OPTIONS.filter((o) =>
+                TASK_STATUS_INTERNO.includes(o.value)
+              ).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filtroQuadrante}
+              onChange={(e) => setFiltroQuadrante(e.target.value)}
+              aria-label="Filtrar por importância"
+              title="Filtrar por importância — matriz urgente × importante"
+              className="rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5 text-fysi-deep"
+            >
+              <option value="">Qualquer importância</option>
+              {EISENHOWER.map((q) => (
+                <option key={q.value} value={q.value}>
+                  {q.label}
+                </option>
+              ))}
+              <option value="__sem__">Sem classificar</option>
+            </select>
+
+            <label className="inline-flex items-center gap-1.5 text-sm text-fysi-muted">
+              Ordenar
+              <select
+                value={ordem}
+                onChange={(e) =>
+                  setOrdem(e.target.value as "importancia" | "prazo" | "esforco")
+                }
+                aria-label="Ordenar por"
+                className="rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5 text-fysi-deep"
+              >
+                <option value="importancia">Por importância</option>
+                <option value="prazo">Por prazo</option>
+                <option value="esforco">Pelo tempo que leva</option>
+              </select>
+            </label>
+
             <label className="inline-flex items-center gap-1.5 text-sm text-fysi-muted">
               <input
                 type="checkbox"
