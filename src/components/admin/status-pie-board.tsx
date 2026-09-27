@@ -529,6 +529,12 @@ function ClientAccordionRow({
   const pendencias = pendenciasDoProjeto({
     projectType: c.projectType,
     totalTarefas: c.progresso?.total ?? 0,
+    // "Entregue com tarefa aberta" é contradição que torta todo relatório:
+    // a conta de ativos subtrai o cliente e a de tarefas o soma. São 13
+    // projetos assim em 26/09.
+    fechado: TASK_STATUS_GROUP[c.status as TaskStatus] === "fechado",
+    tarefasAbertas:
+      (c.progresso?.total ?? 0) - (c.progresso?.fechadas ?? 0),
   });
   const incompleto = projetoIncompleto(pendencias);
   const [carregadas, setCarregadas] = useState<LaneClientTask[] | null>(null);

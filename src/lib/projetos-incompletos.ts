@@ -113,6 +113,15 @@ export interface PendenciasProjeto {
    * é um modelo com uma etapa a menos.
    */
   checklistParcial: boolean;
+  /**
+   * Marcado como entregue/concluído e ainda com tarefa aberta.
+   *
+   * Achado no mapeamento de 26/09: 13 dos 19 projetos em status fechado
+   * ainda têm tarefa aberta com prazo. Ou o status está errado, ou as
+   * tarefas estão — e nos dois casos qualquer relatório sai torto, porque
+   * a conta de "ativos" subtrai esse cliente e a de tarefas o soma.
+   */
+  entregueComTarefaAberta: boolean;
   totalTarefas: number;
   tamanhoModelo: number;
 }
@@ -120,6 +129,10 @@ export interface PendenciasProjeto {
 export function pendenciasDoProjeto(projeto: {
   projectType: ProjectType | null;
   totalTarefas: number;
+  /** Status do projeto está no grupo "fechado"? */
+  fechado?: boolean;
+  /** Quantas tarefas seguem abertas. */
+  tarefasAbertas?: number;
 }): PendenciasProjeto {
   const tamanhoModelo = tamanhoDoModelo(projeto.projectType);
   const totalTarefas = Math.max(0, projeto.totalTarefas);
@@ -128,13 +141,17 @@ export function pendenciasDoProjeto(projeto: {
     semChecklist: totalTarefas === 0,
     checklistParcial:
       totalTarefas > 0 && tamanhoModelo > 0 && totalTarefas * 2 < tamanhoModelo,
+    entregueComTarefaAberta:
+      Boolean(projeto.fechado) && (projeto.tarefasAbertas ?? 0) > 0,
     totalTarefas,
     tamanhoModelo,
   };
 }
 
 export function projetoIncompleto(p: PendenciasProjeto): boolean {
-  return p.semTipo || p.semChecklist || p.checklistParcial;
+  return (
+    p.semTipo || p.semChecklist || p.checklistParcial || p.entregueComTarefaAberta
+  );
 }
 
 /**
@@ -165,6 +182,9 @@ export function faltasEmTexto(p: PendenciasProjeto): string[] {
     faltas.push(
       `checklist parcial (${p.totalTarefas} de ${p.tamanhoModelo} do modelo)`
     );
+  }
+  if (p.entregueComTarefaAberta) {
+    faltas.push("marcado como entregue, mas com tarefa aberta");
   }
   return faltas;
 }
