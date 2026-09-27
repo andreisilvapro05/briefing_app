@@ -1,5 +1,17 @@
 import { redirect } from "next/navigation";
 import { Eyebrow, Pill } from "@/components/ui/pill";
+import {
+  montarCaixaDoMes,
+  mesesComEntrada,
+  rotuloDoMes,
+} from "@/lib/caixa";
+
+interface Recebimento {
+  valor: number | string | null;
+  pago_em: string | null;
+  forma: string | null;
+  client_id: string | null;
+}
 import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
   isAdmin,
 } from "@/lib/member";
@@ -26,7 +38,7 @@ type ClientWithOrigem = ClientForLane & { como_conheceu: string | null };
 export default async function AdminRelatoriosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ key?: string }>;
+  searchParams: Promise<{ key?: string; mes?: string }>;
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
@@ -75,6 +87,37 @@ export default async function AdminRelatoriosPage({
   }
   const cobrancasStats = statsCobrancas(cobrancas);
 
+  /**
+   * Caixa do mês — o que ENTROU de fato, por forma de pagamento.
+   *
+   * Pedido da Karine (26/09): "precisamos ter clareza todos os meses do que
+   * é pagamento em pix". O dado já estava inteiro em payment_receipts e não
+   * aparecia em tela nenhuma; `pago_em` era lido num lugar só, a ficha do
+   * cliente. Não confundir com a seção "Receita" abaixo, que soma
+   * clients.pagamento_pago — número digitado à mão, que não sabe em que mês
+   * o dinheiro entrou.
+   */
+  let recebimentos: Recebimento[] = [];
+  if (!visibleIds || visibleIds.size > 0) {
+    let q = service.from("payment_receipts").select("valor, pago_em, forma, client_id");
+    if (visibleIds) q = q.in("client_id", Array.from(visibleIds));
+    const { data } = await q;
+    recebimentos = (data as Recebimento[]) ?? [];
+  }
+  const { data: custosData } = await service
+    .from("company_costs")
+    .select("valor, competencia");
+  const custos = (custosData as { valor: number | null; competencia: string | null }[]) ?? [];
+
+  const meses = mesesComEntrada(recebimentos);
+  // Mês da URL só vale se tiver movimento; senão cai no mais recente. Um
+  // ?mes= errado mostrava uma tela zerada que parecia defeito.
+  const mesEscolhido =
+    params.mes && meses.includes(params.mes) ? params.mes : meses[0] ?? null;
+  const caixa = mesEscolhido
+    ? montarCaixaDoMes(recebimentos, custos, mesEscolhido)
+    : null;
+
   const entregueLaneId = statusLaneId("completo-entregue");
   const parados = stats.parados.length;
   const ativos = stats.total - (stats.porLane.get(entregueLaneId)?.length ?? 0) - parados;
@@ -115,6 +158,102 @@ export default async function AdminRelatoriosPage({
             <Pill tone="muted">{stats.total} clientes</Pill>
           </div>
         </header>
+
+        {/* Caixa do mês — o que ENTROU, por forma de pagamento. */}
+        {caixa ? (
+          <section className="bg-white rounded-[20px] border border-fysi-line p-5 mb-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-3 mb-1">
+              <Eyebrow>Caixa — {rotuloDoMes(caixa.mes)}</Eyebrow>
+              {/* Navegação por mês em links: a página é Server Component e o
+                  recorte vem do ?mes=, como nas outras telas com período. */}
+              <div className="flex flex-wrap gap-1.5">
+                {meses.slice(0, 6).map((m) => (
+                  <a
+                    key={m}
+                    href={`/admin/relatorios${keyParamFirst}${keyParamFirst ? "&" : "?"}mes=${m}`}
+                    className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition ${
+                      m === caixa.mes
+                        ? "bg-fysi-deep border-fysi-deep text-fysi-cream"
+                        : "border-fysi-line text-fysi-muted hover:border-fysi-deep/40"
+                    }`}
+                  >
+                    {rotuloDoMes(m)}
+                  </a>
+                ))}
+              </div>
+            </div>
+            <p className="text-[0.7rem] text-fysi-muted mb-4">
+              O que entrou de fato, pelos comprovantes lançados. Não é a mesma
+              conta de &quot;Receita&quot; abaixo, que soma o valor combinado
+              por cliente e não sabe em que mês o dinheiro caiu.
+            </p>
+
+            <div className="flex flex-wrap items-end gap-x-8 gap-y-3 mb-4">
+              <div>
+                <p className="text-[0.7rem] uppercase tracking-[0.08em] text-fysi-muted">
+                  Entrou
+                </p>
+                <p className="text-[1.6rem] leading-tight font-semibold text-fysi-deep tabular-nums">
+                  {formatBRLCobrancas(caixa.entrou)}
+                </p>
+                <p className="text-[0.7rem] text-fysi-muted">
+                  {caixa.quantidade} recebimento{caixa.quantidade === 1 ? "" : "s"}
+                </p>
+              </div>
+              {caixa.saiu > 0 ? (
+                <>
+                  <div>
+                    <p className="text-[0.7rem] uppercase tracking-[0.08em] text-fysi-muted">
+                      Saiu
+                    </p>
+                    <p className="text-[1.6rem] leading-tight font-semibold text-red-700 tabular-nums">
+                      {formatBRLCobrancas(caixa.saiu)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[0.7rem] uppercase tracking-[0.08em] text-fysi-muted">
+                      Sobrou
+                    </p>
+                    <p className="text-[1.6rem] leading-tight font-semibold text-fysi-deep tabular-nums">
+                      {formatBRLCobrancas(caixa.sobrou)}
+                    </p>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {caixa.porForma.map((f) => {
+                const pct = caixa.entrou > 0 ? (f.total / caixa.entrou) * 100 : 0;
+                return (
+                  <div key={f.forma} className="flex items-center gap-3">
+                    <span className="w-28 shrink-0 text-sm text-fysi-deep">
+                      {f.rotulo}
+                    </span>
+                    <span className="flex-1 h-2 rounded-full bg-fysi-line/60 overflow-hidden">
+                      <span
+                        className="block h-full rounded-full bg-fysi-deep"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </span>
+                    <span className="w-32 shrink-0 text-right text-sm text-fysi-deep tabular-nums">
+                      {formatBRLCobrancas(f.total)}
+                    </span>
+                    <span className="w-16 shrink-0 text-right text-xs text-fysi-muted tabular-nums">
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="text-[0.7rem] text-fysi-muted mt-4 border-t border-fysi-line pt-3">
+              O cartão aqui é o que foi COMPRADO no mês, não o que caiu na
+              conta — o app ainda guarda uma data só, e no cartão a compra e o
+              repasse caem em meses diferentes.
+            </p>
+          </section>
+        ) : null}
 
         {/* KPIs */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
