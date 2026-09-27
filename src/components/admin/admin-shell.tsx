@@ -283,6 +283,28 @@ function planos(items: NavItem[]): NavItem[] {
   return items.flatMap((it) => [it, ...(it.filhos ?? [])]);
 }
 
+/**
+ * Telas que existem, funcionam e NUNCA receberam um dado. Somem do menu;
+ * a URL segue aberta pra quem souber o caminho.
+ *
+ * Pedido da Karine (26/09): "remover do app as abas desnecessárias na
+ * lateral por enquanto". Medido no banco no mesmo dia:
+ *   custos                  → company_costs          0 linhas
+ *   marketing-metas         → marketing_goals        0 linhas
+ *   marketing-planejamento  → marketing_plano_itens  0 linhas
+ *   conteudo                → content_cards          2 linhas
+ *
+ * "Por enquanto" é literal: tirar do menu não apaga nada, e basta remover
+ * o id daqui pra a tela voltar. O menu tinha 22 itens disputando atenção
+ * com as 5 ou 6 que se usam todo dia.
+ */
+const SECOES_GUARDADAS: readonly string[] = [
+  "custos",
+  "marketing-metas",
+  "marketing-planejamento",
+  "conteudo",
+];
+
 const AREAS: NavArea[] = [
   {
     label: "Projetos",
@@ -403,14 +425,21 @@ export async function AdminShell({
   // metas guardam alvos de faturamento — dado comercial sensível.
   // "Interno" entra no mesmo corte: as gavetas de Demandas são Comercial,
   // Curso e Financeiro, e o dashboard de Equipe mostra a carga dos outros.
+  // Telas guardadas saem do menu antes de qualquer outro filtro — ver
+  // SECOES_GUARDADAS. Área que fica vazia por causa disso some junto.
+  const areasComUso = AREAS.map((a) => ({
+    ...a,
+    items: a.items.filter((it) => !SECOES_GUARDADAS.includes(it.id)),
+  })).filter((a) => a.items.length > 0);
+
   const areasVisiveis = hideFinance
-    ? AREAS.filter(
+    ? areasComUso.filter(
         (a) =>
           a.label !== "Financeiro" &&
           a.label !== "Marketing e Comercial" &&
           a.label !== "Interno"
       )
-    : AREAS;
+    : areasComUso;
   // "Custos da empresa" some pra quem não é sócio — mostrar um item que só
   // redireciona é pior que não mostrar.
   const areasPorCargo = isSocio
