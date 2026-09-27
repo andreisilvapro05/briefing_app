@@ -23,7 +23,18 @@ export function EIDocumentSidebar({
   docs: EIDocumentSummary[];
   activeId: string;
   urlKey: string | null;
-  clientsWithoutDoc: { id: string; nome: string | null; empresa: string | null }[];
+  /**
+   * TODOS os clientes, com `jaTem` marcando quem já possui documento ativo.
+   * Antes esta lista trazia só quem NÃO tinha — e, com 32 dos 44 clientes
+   * já atendidos, era impossível começar um briefing novo justamente pra
+   * quem mais precisa (cliente antigo, segundo projeto, chamada nova).
+   */
+  clientsWithoutDoc: {
+    id: string;
+    nome: string | null;
+    empresa: string | null;
+    jaTem?: boolean;
+  }[];
   basePath?: string;
   createAction: (formData: FormData) => void | Promise<void>;
   createLabel?: string;
@@ -50,9 +61,11 @@ export function EIDocumentSidebar({
   const arquivados = filtered.filter((d) => d.arquivado);
   const buscando = busca.length > 0;
 
-  function createFor(clientId: string) {
+  function createFor(clientId: string, jaTem?: boolean) {
     const fd = new FormData();
     fd.append("clientId", clientId);
+    // Quem já tem documento ganha um NOVO em vez de ser levado pro antigo.
+    if (jaTem) fd.append("novo", "1");
     if (urlKey) fd.append("key", urlKey);
     startTransition(async () => {
       await createAction(fd);
@@ -105,10 +118,24 @@ export function EIDocumentSidebar({
                 key={c.id}
                 type="button"
                 disabled={pending}
-                onClick={() => createFor(c.id)}
-                className="text-left text-sm text-fysi-deep hover:text-fysi-green disabled:opacity-50 truncate"
+                onClick={() => createFor(c.id, c.jaTem)}
+                title={
+                  c.jaTem
+                    ? "Já tem um documento — isto cria OUTRO, a partir do Modelo"
+                    : "Cria a partir do Modelo"
+                }
+                className="flex items-center gap-1.5 text-left text-sm text-fysi-deep hover:text-fysi-green disabled:opacity-50 min-w-0"
               >
-                {c.empresa || c.nome || "Sem nome"}
+                <span className="truncate min-w-0">
+                  {c.empresa || c.nome || "Sem nome"}
+                </span>
+                {/* Marca quem já tem: sem isso, clicar no nome parecia que
+                    ia abrir o documento existente, não criar outro. */}
+                {c.jaTem ? (
+                  <span className="shrink-0 text-[0.62rem] uppercase tracking-[0.08em] text-fysi-muted border border-fysi-line rounded-full px-1.5">
+                    outro
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>

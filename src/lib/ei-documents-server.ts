@@ -196,6 +196,42 @@ export async function getAllEIDocumentIdsByClient(
 }
 
 /** Clientes que ainda não têm documento desse kind — pra popular o seletor de criação. */
+/**
+ * Todos os clientes, marcando quem já tem documento ATIVO deste tipo.
+ *
+ * Substitui a lista de "só quem não tem" na barra lateral. Pedido da
+ * Karine (26/09): "preciso que fique bom pra mim duplicar o modelo de
+ * briefing e fazer com o cliente em chamada pelo app" — e 32 dos 44
+ * clientes já tinham briefing (vieram da importação do ClickUp), então
+ * eram justamente os que não podiam ganhar um novo. Briefing de chamada
+ * costuma ser com cliente antigo, num segundo projeto.
+ */
+export async function listClientesParaNovoDocumento(
+  kind: EIDocumentKind
+): Promise<
+  { id: string; nome: string | null; empresa: string | null; jaTem: boolean }[]
+> {
+  const service = createSupabaseServiceRoleClient();
+  const { data: docs } = await service
+    .from("ei_documents")
+    .select("client_id")
+    .eq("kind", kind)
+    .eq("arquivado", false)
+    .not("client_id", "is", null);
+  const usados = new Set(
+    ((docs as { client_id: string }[]) ?? []).map((d) => d.client_id)
+  );
+
+  const { data: clients } = await service
+    .from("clients")
+    .select("id, nome, empresa")
+    .order("empresa", { ascending: true });
+
+  return (
+    (clients as { id: string; nome: string | null; empresa: string | null }[]) ?? []
+  ).map((c) => ({ ...c, jaTem: usados.has(c.id) }));
+}
+
 export async function listClientsWithoutEIDocument(
   kind: EIDocumentKind
 ): Promise<{ id: string; nome: string | null; empresa: string | null }[]> {

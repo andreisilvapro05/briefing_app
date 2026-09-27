@@ -12,7 +12,7 @@ import { getFichaDoDocumento } from "@/lib/ficha-implementacao-server";
 import {
   listEIDocuments,
   getEIDocument,
-  listClientsWithoutEIDocument,
+  listClientesParaNovoDocumento,
 } from "@/lib/ei-documents-server";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +36,7 @@ export default async function EIDocumentPage({
   const [docsAll, doc, clientsWithoutDocAll] = await Promise.all([
     listEIDocuments("ei"),
     getEIDocument(docId),
-    listClientsWithoutEIDocument("ei"),
+    listClientesParaNovoDocumento("ei"),
   ]);
 
   if (!doc || doc.kind !== "ei") {

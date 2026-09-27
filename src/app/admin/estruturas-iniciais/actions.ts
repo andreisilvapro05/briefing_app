@@ -50,16 +50,23 @@ export async function createEIDocumentAction(formData: FormData) {
 
   const service = createSupabaseServiceRoleClient();
 
-  const { data: existing } = await service
-    .from("ei_documents")
-    .select("id")
-    .eq("client_id", clientId)
-    .eq("kind", kind)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (existing) {
-    redirect(destino((existing as { id: string }).id));
+  // `novo` = duplicar o Modelo mesmo que o cliente já tenha um documento.
+  // A migration 20260922120000 já tinha liberado vários por cliente no
+  // banco; faltava a tela e esta função permitirem.
+  const novo = String(formData.get("novo") ?? "") === "1";
+
+  if (!novo) {
+    const { data: existing } = await service
+      .from("ei_documents")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("kind", kind)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      redirect(destino((existing as { id: string }).id));
+    }
   }
 
   const template = await getTemplateDocument(kind);

@@ -43,16 +43,35 @@ export async function createBriefingDocumentAction(formData: FormData) {
 
   const service = createSupabaseServiceRoleClient();
 
-  const { data: existing } = await service
-    .from("ei_documents")
-    .select("id")
-    .eq("client_id", clientId)
-    .eq("kind", "briefing")
-    .maybeSingle();
-  if (existing) {
-    redirect(
-      `/admin/briefing-documentos/${(existing as { id: string }).id}${keyParam(urlKey)}`
-    );
+  /**
+   * `novo` = duplicar o Modelo mesmo que o cliente já tenha um briefing.
+   *
+   * Pedido da Karine (26/09): "preciso que fique bom pra mim duplicar o
+   * modelo de briefing e fazer com o cliente em chamada pelo app". Sem
+   * isso, os 32 clientes que já têm briefing (vindos da importação do
+   * ClickUp) não tinham como ganhar um novo — e é justamente com cliente
+   * antigo que uma chamada de briefing novo acontece, num segundo projeto.
+   *
+   * O banco sempre permitiu vários: não há índice único em
+   * (client_id, kind). Quem proibia era esta função.
+   */
+  const novo = String(formData.get("novo") ?? "") === "1";
+
+  if (!novo) {
+    // `.maybeSingle()` ESTOURA com mais de uma linha, e vários clientes já
+    // têm dois briefings (35 documentos para 32 clientes em 26/09). Pega o
+    // mais recente em vez de quebrar.
+    const { data: existing } = await service
+      .from("ei_documents")
+      .select("id")
+      .eq("client_id", clientId)
+      .eq("kind", "briefing")
+      .order("updated_at", { ascending: false })
+      .limit(1);
+    const atual = (existing as { id: string }[] | null)?.[0];
+    if (atual) {
+      redirect(`/admin/briefing-documentos/${atual.id}${keyParam(urlKey)}`);
+    }
   }
 
   const template = await getTemplateDocument("briefing");

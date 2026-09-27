@@ -9,7 +9,7 @@ import { createBriefingDocumentAction } from "@/app/admin/briefing-documentos/ac
 import {
   listEIDocuments,
   getEIDocument,
-  listClientsWithoutEIDocument,
+  listClientesParaNovoDocumento,
 } from "@/lib/ei-documents-server";
 
 export const dynamic = "force-dynamic";
@@ -39,7 +39,7 @@ export default async function BriefingDocumentPage({
   const [docsAll, doc, clientsWithoutDocAll] = await Promise.all([
     listEIDocuments("briefing"),
     getEIDocument(docId),
-    listClientsWithoutEIDocument("briefing"),
+    listClientesParaNovoDocumento("briefing"),
   ]);
 
   if (!doc || doc.kind !== "briefing") {
