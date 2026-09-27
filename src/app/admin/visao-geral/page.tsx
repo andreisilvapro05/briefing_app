@@ -56,11 +56,15 @@ export default async function VisaoGeralPage({
 
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const novoHref = `/admin/novo${keyParam}`;
+  // Lido antes das consultas: entra em getLaneGroups, porque as colunas
+  // Responsável/Início/Vencimento/Prioridade da linha saem da tarefa
+  // daquela pessoa.
+  const respDaUrl = respValido(params.resp) ? params.resp : "";
 
   const visibleIds = await getVisibleClientIds(member);
   const [allTasks, laneGroupsTodos] = await Promise.all([
     listAllProjectTasks(),
-    getLaneGroups(visibleIds),
+    getLaneGroups(visibleIds, respDaUrl || null),
   ]);
 
   /**
@@ -73,7 +77,7 @@ export default async function VisaoGeralPage({
    * aberta dessa pessoa. Projeto não tem responsável próprio — quem tem
    * dono é a tarefa, e é por ela que se sabe quem está tocando o quê.
    */
-  const resp = respValido(params.resp) ? params.resp : "";
+  const resp = respDaUrl;
 
   const ativasVisiveis = allTasks
     .filter((t) => !isClosedTaskStatus(t.status))

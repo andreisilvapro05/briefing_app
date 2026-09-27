@@ -14,8 +14,7 @@ import { StatusPieBoard } from "@/components/admin/status-pie-board";
 import { ClickUpSyncButton } from "@/components/admin/clickup-sync-button";
 import { ProjetosIncompletos } from "@/components/admin/projetos-incompletos";
 import { abasPorPessoa, projetosDaPessoa, respValido } from "@/lib/abas-pessoa";
-import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
-import { AllTasksBoard } from "@/components/admin/all-tasks-board";
+import { listAllProjectTasks } from "@/lib/project-tasks-server";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +31,15 @@ export default async function AdminListaPage({
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   const novoHref = `/admin/novo${keyParam}`;
 
+  const resp = respValido(params.resp) ? params.resp : "";
+
   const visibleIds = await getVisibleClientIds(member);
-  const [todosOsGrupos, todasAsTarefas, clientOptions] = await Promise.all([
-    getLaneGroups(visibleIds),
+  // `resp` entra em getLaneGroups porque as colunas Responsável/Início/
+  // Vencimento/Prioridade da linha saem da tarefa DAQUELA pessoa — é o que
+  // faz a "Lista Andrei" do ClickUp mostrar a data dele.
+  const [todosOsGrupos, todasAsTarefas] = await Promise.all([
+    getLaneGroups(visibleIds, resp || null),
     listAllProjectTasks(),
-    listClientOptions(visibleIds),
   ]);
 
   // O mesmo filtro por pessoa da Visão Geral — pedido da Karine (23/09):
@@ -45,7 +48,6 @@ export default async function AdminListaPage({
   const visiveis = todasAsTarefas.filter(
     (t) => !visibleIds || (t.client_id && visibleIds.has(t.client_id))
   );
-  const resp = respValido(params.resp) ? params.resp : "";
   const abas = abasPorPessoa(visiveis, "/admin/lista", keyParam, resp);
   const daPessoa = resp ? projetosDaPessoa(visiveis, resp) : null;
   const groups = daPessoa
@@ -54,27 +56,6 @@ export default async function AdminListaPage({
         clients: g.clients.filter((c) => daPessoa.has(c.id)),
       }))
     : todosOsGrupos;
-
-  /**
-   * Escolher uma pessoa troca o que a tela mostra: sai a distribuição de
-   * PROJETOS por status, entram as TAREFAS dela agrupadas por status.
-   *
-   * É o que a "Lista Valéria" do ClickUp é de verdade — conferido na API em
-   * 26/09: a pasta Projetos Externos contém as listas Landing Pages e
-   * Recorrente, e o que aparece são tarefas com nome de cliente no título
-   * ("Design LP Pablo", "Bgs Javier"), não projetos. Eu tinha lido "Lista
-   * Valéria" como lista de projetos e feito as abas contarem projeto; a
-   * Karine apontou duas vezes que não era isso.
-   *
-   * "Todos" continua sendo a visão de projetos, que é o que o app tem de
-   * melhor que o ClickUp: lá projeto não existe como entidade.
-   */
-  const tarefasComCliente = visiveis.filter(
-    (t): t is (typeof visiveis)[number] & {
-      client: NonNullable<(typeof visiveis)[number]["client"]>;
-      client_id: string;
-    } => t.client !== null && t.client_id !== null
-  );
 
   return (
     <AdminShell active="lista" keyParam={keyParam} userEmail={member.email}
@@ -114,33 +95,17 @@ export default async function AdminListaPage({
         urlKey={urlKey ?? undefined}
       />
 
-      {resp ? (
-        <AllTasksBoard
-          tasks={tarefasComCliente}
-          urlKey={urlKey ?? undefined}
-          clients={clientOptions}
-          restrictToResponsavel={
-            hasTaskScopedRole(member) ? member.taskValue : undefined
-          }
-          viewInicial={resp}
-          // As abas precisam NAVEGAR aqui: é o servidor que decide entre a
-          // visão de projetos e a de tarefas, e o filtro no cliente só
-          // trocaria a URL sem recarregar — "Todos" nunca voltaria.
-          navegacao={{ base: "/admin/lista", keyParam }}
-        />
-      ) : (
-        <StatusPieBoard
-          groups={groups}
-          keyParam={keyParam}
-          urlKey={urlKey ?? undefined}
-          novoHref={novoHref}
-          abasPessoa={abas}
-          pessoaAtiva={resp}
-          restrictToResponsavel={
-            hasTaskScopedRole(member) ? member.taskValue : undefined
-          }
-        />
-      )}
+      <StatusPieBoard
+        groups={groups}
+        keyParam={keyParam}
+        urlKey={urlKey ?? undefined}
+        novoHref={novoHref}
+        abasPessoa={abas}
+        pessoaAtiva={resp}
+        restrictToResponsavel={
+          hasTaskScopedRole(member) ? member.taskValue : undefined
+        }
+      />
     </AdminShell>
   );
 }

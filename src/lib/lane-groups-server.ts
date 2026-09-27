@@ -8,6 +8,7 @@ import {
   type ClientForLane,
 } from "./workflow-lanes";
 import { getTasksByClient, taskProgress } from "./project-tasks-server";
+import { linhaDoProjeto } from "./linha-do-projeto";
 import { getAllEIDocumentIdsByClient } from "./ei-documents-server";
 import type { LaneGroup } from "@/components/admin/status-pie-board";
 
@@ -31,8 +32,15 @@ const TONE_HEX: Record<string, string> = {
   rose: "#f43f5e",
 };
 
+/**
+ * @param pessoa recorte da barra "Filtrar por responsável". Quando dado, as
+ * colunas Responsável/Início/Vencimento/Prioridade da linha saem da tarefa
+ * DESSA pessoa no projeto — é o que faz a "Lista Andrei" do ClickUp mostrar
+ * a data dele, e não a de quem estiver com a próxima etapa.
+ */
 export async function getLaneGroups(
-  visibleIds?: Set<string> | null
+  visibleIds?: Set<string> | null,
+  pessoa?: string | null
 ): Promise<LaneGroup[]> {
   const service = createSupabaseServiceRoleClient();
 
@@ -90,6 +98,10 @@ export async function getLaneGroups(
         pagamento: total > 0 ? `${Math.round((pago / total) * 100)}%` : "—",
         created_at: c.created_at,
         progresso: tasks ? taskProgress(tasks) : null,
+        // As colunas que o ClickUp mostra na linha do projeto. Derivadas
+        // aqui, no servidor, porque as subtarefas só chegam ao navegador
+        // quando o accordion é aberto — ver o comentário logo abaixo.
+        linha: linhaDoProjeto(tasks ?? [], pessoa),
         // As tarefas NÃO vão no payload: o accordion busca sob demanda em
         // /api/admin/client-tasks quando é aberto. Mandar o array completo
         // de todos os clientes inflava a resposta destas telas (medido:

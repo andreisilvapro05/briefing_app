@@ -15,12 +15,19 @@ import {
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import { ViewTabs, type ViewTabItem } from "./view-tabs";
+import type { LinhaDoProjeto } from "@/lib/linha-do-projeto";
 import {
   DEFAULT_TASK_STATUS,
   TASK_STATUS_GROUP,
+  TEAM_MEMBERS,
   type ProjectTask,
   type TaskStatus,
 } from "@/lib/project-tasks";
+import {
+  formatDataCurta,
+  formatDiaMesCurto,
+  hojeEmBrasilia,
+} from "@/lib/datas";
 import {
   faltasEmTexto,
   pendenciasDoProjeto,
@@ -59,6 +66,8 @@ export interface LaneClient {
   parado: boolean;
   /** Id do documento de Estrutura Inicial do cliente, se existir — vira link no painel de informações da tarefa. */
   eiDocId: string | null;
+  /** Responsável/datas/prioridade da tarefa que manda no projeto agora — as colunas do ClickUp. */
+  linha: LinhaDoProjeto;
 }
 
 export interface LaneGroup {
@@ -558,7 +567,7 @@ function ClientAccordionRow({
 
   return (
     <div className="border-t border-fysi-line/70">
-      <div className="grid grid-cols-2 md:grid-cols-[1fr_160px_150px_90px_64px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-[1fr_44px_76px_76px_72px_150px_52px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
         <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
           {/* O nome é o botão de abrir as subtarefas, não só o triângulo:
               era o que se tentava clicar. Quem quer ABRIR a ficha usa o
@@ -610,15 +619,15 @@ function ClientAccordionRow({
             </span>
           ) : null}
         </span>
-        <span
-          className={
-            c.projectType
-              ? "text-fysi-muted truncate"
-              : "text-sky-700 truncate"
-          }
-        >
-          {c.tipo}
-        </span>
+        {/* As quatro colunas do ClickUp na linha do projeto — Responsável,
+            Data inicial, Data de vencimento, Prioridade (print da Karine,
+            26/09). Saíram TIPO e PAGAMENTO pra caber: os dois continuam na
+            ficha do cliente. Os valores vêm da tarefa que manda no projeto
+            agora, ver src/lib/linha-do-projeto.ts. */}
+        <CelulaResponsavel valor={c.linha.responsavel} tarefa={c.linha.tarefa} />
+        <CelulaData iso={c.linha.dataInicial} rotulo="Início" />
+        <CelulaData iso={c.linha.dataVencimento} rotulo="Vencimento" alertaSeVencida />
+        <CelulaPrioridade valor={c.linha.prioridade} />
         <span className="flex items-center gap-2 min-w-0">
           <StatusChanger
             clientId={c.id}
@@ -636,7 +645,6 @@ function ClientAccordionRow({
             </button>
           ) : null}
         </span>
-        <span className="text-fysi-deep tabular-nums">{c.pagamento}</span>
         <a
           href={`/admin/${c.id}${keyParam}`}
           className="text-right text-fysi-deep font-medium hover:underline shrink-0"
@@ -722,5 +730,75 @@ function ClientAccordionRow({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/* ── As colunas do ClickUp na linha do projeto ───────────────────────────
+   Só leitura: a linha é um PROJETO, e quem se edita é a tarefa — o
+   accordion abaixo já tem os seletores. Editar aqui mudaria uma tarefa
+   escolhida por regra, sem a pessoa ver qual. */
+
+function CelulaResponsavel({
+  valor,
+  tarefa,
+}: {
+  valor: string | null;
+  tarefa: string | null;
+}) {
+  const m = TEAM_MEMBERS.find((x) => x.value === valor);
+  if (!m) {
+    return <span className="text-fysi-muted text-xs" title="Sem responsável">—</span>;
+  }
+  return (
+    <span
+      className={`w-6 h-6 rounded-full grid place-items-center text-[0.6rem] font-bold text-white ${m.cor}`}
+      title={tarefa ? `${m.label} — ${tarefa}` : m.label}
+    >
+      {m.iniciais}
+    </span>
+  );
+}
+
+function CelulaData({
+  iso,
+  rotulo,
+  alertaSeVencida = false,
+}: {
+  iso: string | null;
+  rotulo: string;
+  alertaSeVencida?: boolean;
+}) {
+  if (!iso) return <span className="text-fysi-muted text-xs">—</span>;
+  const vencida = alertaSeVencida && iso < hojeEmBrasilia();
+  return (
+    <span
+      className={`text-xs tabular-nums ${vencida ? "text-red-600 font-medium" : "text-fysi-muted"}`}
+      title={`${rotulo}: ${formatDataCurta(iso)}${vencida ? " — vencida" : ""}`}
+    >
+      {formatDiaMesCurto(iso)}
+    </span>
+  );
+}
+
+const TOM_PRIORIDADE: Record<string, string> = {
+  urgente: "text-red-600",
+  alta: "text-orange-500",
+  normal: "text-sky-500",
+  baixa: "text-fysi-muted",
+};
+
+function CelulaPrioridade({ valor }: { valor: string | null }) {
+  if (!valor) return <span className="text-fysi-muted text-xs">—</span>;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs capitalize ${TOM_PRIORIDADE[valor] ?? "text-fysi-muted"}`}
+      title={`Prioridade: ${valor}`}
+    >
+      <svg width="9" height="11" viewBox="0 0 9 11" aria-hidden="true" className="shrink-0">
+        <path d="M1 0v11" stroke="currentColor" strokeWidth="1.2" />
+        <path d="M1.8 0.6h6l-1.6 2.2 1.6 2.2h-6z" fill="currentColor" />
+      </svg>
+      {valor}
+    </span>
   );
 }
