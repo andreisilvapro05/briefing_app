@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   TaskRow,
@@ -24,6 +25,7 @@ import type { ProjectTaskClient } from "@/lib/project-tasks-server";
 import { TaskComposer } from "./task-composer";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import { ViewTabs, type ViewTabItem } from "./view-tabs";
+import { AgendarLoteBar } from "./agendar-lote-bar";
 import type { ClientOption } from "./task-pickers";
 
 /** Esta tela agrupa POR cliente, então demanda interna (client null) é
@@ -66,6 +68,7 @@ export function AllTasksBoard({
    */
   navegacao?: { base: string; keyParam: string };
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [criando, setCriando] = useState(false);
   // "Agrupar por" é como o ClickUp organiza a lista — sem isso, 130 tarefas
@@ -180,6 +183,28 @@ export function AllTasksBoard({
   const ativas = filtered.filter((t) => TASK_STATUS_GROUP[t.status] === "ativo");
   const abertas = ativas.filter((t) => Boolean(t.data_vencimento));
   const semData = ativas.filter((t) => !t.data_vencimento);
+  /**
+   * As sem-prazo agrupadas por cliente, na ordem das etapas (`ordem`), que
+   * é a ordem em que o lote recebe as datas.
+   */
+  const semDataPorCliente = (() => {
+    const mapa = new Map<string, typeof semData>();
+    for (const t of semData) {
+      const arr = mapa.get(t.client_id);
+      if (arr) arr.push(t);
+      else mapa.set(t.client_id, [t]);
+    }
+    return [...mapa.entries()]
+      .map(([cliente, tarefas]) => ({
+        cliente,
+        nome:
+          tarefas[0].client.empresa?.trim() ||
+          tarefas[0].client.nome ||
+          "Sem nome",
+        tarefas: [...tarefas].sort((a, b) => a.ordem - b.ordem),
+      }))
+      .sort((a, b) => b.tarefas.length - a.tarefas.length || a.nome.localeCompare(b.nome, "pt-BR"));
+  })();
   const grupos = useMemo(
     () => agrupar(abertas, agruparPor),
     // `abertas` é derivado de `filtered`, que já é memoizado.
@@ -423,24 +448,52 @@ export function AllTasksBoard({
                 que ela volte pro trabalho.
               </p>
               {mostrarSemData ? (
-                <table
-                  className="mt-3 text-sm border-separate border-spacing-0"
-                  style={{ width: colTotal, tableLayout: "fixed" }}
-                >
-                  <ColGroup widths={colWidths} />
-                  <tbody>
-                    {semData.map((t) => (
-                      <TaskRow
-                        key={t.id}
-                        task={t}
-                        clientId={t.client_id}
-                        urlKey={urlKey}
-                        clienteCell={<ClienteLink client={t.client} urlKey={urlKey} />}
-                        readOnly={isReadOnlyFor(t, restrictToResponsavel)}
-                      />
-                    ))}
-                  </tbody>
-                </table>
+                <div className="mt-3 flex flex-col gap-4">
+                  {/* Agrupadas por CLIENTE porque o gesto real é agendar um
+                      projeto por vez — é o que o Andrei fazia duplicando a
+                      pasta no ClickUp. Uma lista misturada de 229 linhas
+                      não tem onde encaixar o "agendar estas". */}
+                  {semDataPorCliente.map(({ cliente, nome, tarefas }) => (
+                    <div key={cliente}>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                        <span className="text-sm font-medium text-fysi-deep">
+                          {nome}
+                          <span className="text-fysi-muted font-normal tabular-nums">
+                            {" "}
+                            {tarefas.length}
+                          </span>
+                        </span>
+                        {isReadOnlyFor(tarefas[0], restrictToResponsavel) ? null : (
+                          <AgendarLoteBar
+                            taskIds={tarefas.map((t) => t.id)}
+                            urlKey={urlKey}
+                            onPronto={() => router.refresh()}
+                          />
+                        )}
+                      </div>
+                      <table
+                        className="text-sm border-separate border-spacing-0"
+                        style={{ width: colTotal, tableLayout: "fixed" }}
+                      >
+                        <ColGroup widths={colWidths} />
+                        <tbody>
+                          {tarefas.map((t) => (
+                            <TaskRow
+                              key={t.id}
+                              task={t}
+                              clientId={t.client_id}
+                              urlKey={urlKey}
+                              clienteCell={
+                                <ClienteLink client={t.client} urlKey={urlKey} />
+                              }
+                              readOnly={isReadOnlyFor(t, restrictToResponsavel)}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
               ) : null}
             </div>
           ) : null}

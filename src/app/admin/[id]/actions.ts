@@ -49,6 +49,7 @@ import {
 } from "@/lib/project-tasks";
 import type { ProjectType } from "@/lib/types";
 import { formatDiaMesCurto, hojeEmBrasilia } from "@/lib/datas";
+import { datasEmSequencia } from "@/lib/agendar-lote";
 
 function keyParamOf(formData: FormData): string | null {
   return String(formData.get("key") ?? "") || null;
@@ -2045,4 +2046,83 @@ export async function getTaskLinkTargetsAction(
   }
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   return listTaskLinkTargets(clientId, keyParam);
+}
+
+/**
+ * Dá data a VÁRIAS tarefas de uma vez, em sequência.
+ *
+ * Pedido da Karine (26/09): "os projetos sem datas o Andrei mesmo coloca
+ * datas". São 229 tarefas de cliente sem prazo, criadas pelo checklist na
+ * abertura do projeto. Uma por uma, num seletor por linha, isso não
+ * acontece — e enquanto não acontece, toda tela que filtra por prazo mostra
+ * 39 de 286.
+ *
+ * A ordem em que as tarefas chegam é a ordem em que recebem as datas: quem
+ * chama manda a lista já na sequência que aparece na tela, que é a ordem
+ * das etapas do projeto.
+ */
+export async function agendarTarefasEmLoteAction(
+  formData: FormData
+): Promise<{ ok: true; agendadas: number } | { ok: false; erro: string }> {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+
+  let ids: string[] = [];
+  try {
+    const cru: unknown = JSON.parse(String(formData.get("taskIds") ?? "[]"));
+    if (Array.isArray(cru)) ids = cru.filter((x): x is string => typeof x === "string");
+  } catch {
+    return { ok: false, erro: "Lista de tarefas inválida." };
+  }
+  if (ids.length === 0) return { ok: false, erro: "Escolha ao menos uma tarefa." };
+  // Teto pra uma chamada não virar uma escrita de milhares de linhas por
+  // engano — são ~10 etapas por projeto, 229 no app inteiro.
+  if (ids.length > 200) return { ok: false, erro: "São muitas tarefas de uma vez." };
+
+  const inicio = String(formData.get("inicio") ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(inicio)) {
+    return { ok: false, erro: "Escolha a data de início." };
+  }
+  const intervalo = Number(formData.get("intervalo") ?? 0);
+  if (!Number.isFinite(intervalo) || intervalo < 0 || intervalo > 60) {
+    return { ok: false, erro: "Intervalo inválido." };
+  }
+
+  // Mesma régua das edições de uma linha só: papel de escopo por tarefa só
+  // mexe no que é dele. Checa ANTES de escrever qualquer coisa — agendar
+  // metade e parar no meio deixaria o projeto pior do que estava.
+  if (hasTaskScopedRole(member)) {
+    for (const id of ids) {
+      if (!(await canEditTask(member, id))) {
+        return { ok: false, erro: "Você só edita tarefa em que é o responsável." };
+      }
+    }
+  }
+
+  const datas = datasEmSequencia(inicio, ids.length, intervalo);
+  if (datas.length !== ids.length) {
+    return { ok: false, erro: "Não consegui calcular as datas." };
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  let agendadas = 0;
+  for (let i = 0; i < ids.length; i += 1) {
+    const { error } = await service
+      .from("project_tasks")
+      .update({ data_vencimento: datas[i] })
+      .eq("id", ids[i]);
+    if (error) {
+      logServerError("tarefas.agendar-lote", error);
+      continue;
+    }
+    agendadas += 1;
+  }
+
+  if (agendadas === 0) return { ok: false, erro: "Não consegui salvar as datas." };
+
+  revalidatePath("/admin/tarefas");
+  revalidatePath("/admin/lista");
+  revalidatePath("/admin/visao-geral");
+  return { ok: true, agendadas };
 }
