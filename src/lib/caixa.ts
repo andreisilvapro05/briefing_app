@@ -10,13 +10,23 @@
  * "Receita" é outra conta — a soma de `clients.pagamento_pago`, números
  * digitados à mão, que não sabem em que mês o dinheiro entrou.
  *
- * ATENÇÃO ao que este cálculo ainda NÃO resolve: `pago_em` carrega dois
- * sentidos ao mesmo tempo — quando o cliente pagou e quando a agência
- * recebeu. No cartão os dois não coincidem ("no Asaas começamos a receber
- * só no outro mês quando é cartão, não antecipamos"), e parcela não existe
- * como registro. Então a coluna "cartão" aqui é quanto foi COMPRADO no
- * mês, não quanto caiu na conta. Separar os dois pede coluna nova.
+ * Duas datas, dois sentidos (migration 20260927140000):
+ *   `pago_em`     — quando o CLIENTE pagou
+ *   `recebido_em` — quando CAIU NA CONTA (nulo = no mesmo dia)
+ *
+ * O caixa usa a segunda, com a primeira de reserva. É o que resolve "no
+ * Asaas começamos a receber só no outro mês quando é cartão, não
+ * antecipamos": a compra de setembro que cai em outubro sai do caixa de
+ * setembro e entra no de outubro, sem sumir do mapa — vira `aReceber`.
  */
+
+export interface Recebimento {
+  valor: number | string | null;
+  pago_em: string | null;
+  /** Quando caiu na conta. Ausente/nulo = no mesmo dia de `pago_em`. */
+  recebido_em?: string | null;
+  forma: string | null;
+}
 
 export interface FormaNoMes {
   forma: string;
@@ -27,7 +37,7 @@ export interface FormaNoMes {
 
 export interface CaixaDoMes {
   mes: string;
-  /** Soma de tudo que entrou no mês. */
+  /** Soma do que CAIU NA CONTA no mês (recebido_em, ou pago_em na falta). */
   entrou: number;
   /** Quantos recebimentos. */
   quantidade: number;
@@ -37,6 +47,12 @@ export interface CaixaDoMes {
   saiu: number;
   /** entrou - saiu. */
   sobrou: number;
+  /**
+   * Pago pelo cliente neste mês e com queda marcada pra um mês seguinte —
+   * tipicamente cartão. Não entra em `entrou`: ainda não é caixa.
+   */
+  aReceber: number;
+  quantidadeAReceber: number;
 }
 
 /** Rótulos das formas conhecidas. Forma nova aparece com o valor cru. */
@@ -61,12 +77,32 @@ export function competenciaDe(iso: string | null): string | null {
   return m ? `${m[1]}-${m[2]}` : null;
 }
 
+/** A data que vale pro caixa: quando caiu, ou quando pagou na falta dela. */
+export function dataDeCaixa(r: {
+  pago_em: string | null;
+  recebido_em?: string | null;
+}): string | null {
+  return r.recebido_em ?? r.pago_em;
+}
+
 export function montarCaixaDoMes(
-  recebimentos: { valor: number | string | null; pago_em: string | null; forma: string | null }[],
+  recebimentos: Recebimento[],
   custos: { valor: number | string | null; competencia: string | null }[],
   mes: string
 ): CaixaDoMes {
-  const doMes = recebimentos.filter((r) => competenciaDe(r.pago_em) === mes);
+  const doMes = recebimentos.filter((r) => competenciaDe(dataDeCaixa(r)) === mes);
+
+  // Pago neste mês e com queda marcada pra depois: é venda, não é caixa.
+  let aReceber = 0;
+  let quantidadeAReceber = 0;
+  for (const r of recebimentos) {
+    if (competenciaDe(r.pago_em) !== mes) continue;
+    const queda = competenciaDe(r.recebido_em ?? null);
+    if (queda && queda > mes) {
+      aReceber += Number(r.valor) || 0;
+      quantidadeAReceber += 1;
+    }
+  }
 
   const porFormaMap = new Map<string, { quantidade: number; total: number }>();
   let entrou = 0;
@@ -100,17 +136,23 @@ export function montarCaixaDoMes(
     porForma,
     saiu,
     sobrou: entrou - saiu,
+    aReceber,
+    quantidadeAReceber,
   };
 }
 
-/** Os meses que têm recebimento, do mais novo pro mais antigo. */
+/** Os meses que têm movimento, do mais novo pro mais antigo. */
 export function mesesComEntrada(
-  recebimentos: { pago_em: string | null }[]
+  recebimentos: { pago_em: string | null; recebido_em?: string | null }[]
 ): string[] {
   const s = new Set<string>();
   for (const r of recebimentos) {
-    const m = competenciaDe(r.pago_em);
-    if (m) s.add(m);
+    // Os dois lados entram: um mês pode ter só venda de cartão que cai
+    // depois, e outro só a queda dessa venda.
+    for (const d of [dataDeCaixa(r), r.pago_em]) {
+      const m = competenciaDe(d);
+      if (m) s.add(m);
+    }
   }
   return [...s].sort().reverse();
 }

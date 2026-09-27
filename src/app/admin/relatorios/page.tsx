@@ -9,6 +9,8 @@ import {
 interface Recebimento {
   valor: number | string | null;
   pago_em: string | null;
+  /** Quando caiu na conta. Nulo = mesmo dia de pago_em (pix, boleto). */
+  recebido_em: string | null;
   forma: string | null;
   client_id: string | null;
 }
@@ -99,7 +101,7 @@ export default async function AdminRelatoriosPage({
    */
   let recebimentos: Recebimento[] = [];
   if (!visibleIds || visibleIds.size > 0) {
-    let q = service.from("payment_receipts").select("valor, pago_em, forma, client_id");
+    let q = service.from("payment_receipts").select("valor, pago_em, recebido_em, forma, client_id");
     if (visibleIds) q = q.in("client_id", Array.from(visibleIds));
     const { data } = await q;
     recebimentos = (data as Recebimento[]) ?? [];
@@ -183,9 +185,9 @@ export default async function AdminRelatoriosPage({
               </div>
             </div>
             <p className="text-[0.7rem] text-fysi-muted mb-4">
-              O que entrou de fato, pelos comprovantes lançados. Não é a mesma
+              O que caiu na conta, pelos comprovantes lançados. Não é a mesma
               conta de &quot;Receita&quot; abaixo, que soma o valor combinado
-              por cliente e não sabe em que mês o dinheiro caiu.
+              por cliente e não sabe em que mês o dinheiro entrou.
             </p>
 
             <div className="flex flex-wrap items-end gap-x-8 gap-y-3 mb-4">
@@ -200,6 +202,19 @@ export default async function AdminRelatoriosPage({
                   {caixa.quantidade} recebimento{caixa.quantidade === 1 ? "" : "s"}
                 </p>
               </div>
+              {caixa.aReceber > 0 ? (
+                <div>
+                  <p className="text-[0.7rem] uppercase tracking-[0.08em] text-fysi-muted">
+                    A receber
+                  </p>
+                  <p className="text-[1.6rem] leading-tight font-semibold text-amber-600 tabular-nums">
+                    {formatBRLCobrancas(caixa.aReceber)}
+                  </p>
+                  <p className="text-[0.7rem] text-fysi-muted">
+                    pago neste mês, cai depois
+                  </p>
+                </div>
+              ) : null}
               {caixa.saiu > 0 ? (
                 <>
                   <div>
@@ -248,9 +263,11 @@ export default async function AdminRelatoriosPage({
             </div>
 
             <p className="text-[0.7rem] text-fysi-muted mt-4 border-t border-fysi-line pt-3">
-              O cartão aqui é o que foi COMPRADO no mês, não o que caiu na
-              conta — o app ainda guarda uma data só, e no cartão a compra e o
-              repasse caem em meses diferentes.
+              Cada recebimento tem duas datas: quando o cliente pagou e quando
+              caiu na conta. Esta tela conta pela segunda. Enquanto a data de
+              queda não for preenchida, o cartão aparece no mês da compra —
+              preencha a data de queda no comprovante pra o cartão cair no mês
+              certo.
             </p>
           </section>
         ) : null}

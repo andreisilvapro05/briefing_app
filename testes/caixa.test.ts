@@ -97,3 +97,64 @@ test("rótulos em português", () => {
   assert.equal(rotuloDoMes("2026-13"), "2026-13");
   assert.equal(rotuloDoMes("xx"), "xx");
 });
+
+// ── recebido_em: quando o dinheiro CAI, não quando o cliente paga ──────
+
+const rr = (
+  valor: number,
+  pago_em: string,
+  recebido_em: string | null,
+  forma = "cartao"
+) => ({ valor, pago_em, recebido_em, forma });
+
+test("o caixa conta pela data em que CAIU, não pela da compra", () => {
+  const movs = [rr(1000, "2026-09-20", "2026-10-15")];
+  assert.equal(montarCaixaDoMes(movs, [], "2026-09").entrou, 0);
+  assert.equal(montarCaixaDoMes(movs, [], "2026-10").entrou, 1000);
+});
+
+test("sem recebido_em, vale a data do pagamento — pix e boleto", () => {
+  const c = montarCaixaDoMes([rr(800, "2026-09-05", null, "pix")], [], "2026-09");
+  assert.equal(c.entrou, 800);
+});
+
+test("a compra do mês que cai depois vira 'a receber', e não some", () => {
+  const c = montarCaixaDoMes(
+    [rr(2000, "2026-09-20", "2026-10-15"), rr(500, "2026-09-03", null, "pix")],
+    [],
+    "2026-09"
+  );
+  assert.equal(c.entrou, 500);
+  assert.equal(c.aReceber, 2000);
+  assert.equal(c.quantidadeAReceber, 1);
+});
+
+test("queda no mesmo mês da compra não é 'a receber'", () => {
+  const c = montarCaixaDoMes([rr(700, "2026-09-02", "2026-09-28")], [], "2026-09");
+  assert.equal(c.entrou, 700);
+  assert.equal(c.aReceber, 0);
+});
+
+test("queda ANTES da compra não vira a receber negativo", () => {
+  const c = montarCaixaDoMes([rr(700, "2026-09-20", "2026-09-01")], [], "2026-09");
+  assert.equal(c.aReceber, 0);
+});
+
+test("os meses listados incluem o da compra e o da queda", () => {
+  assert.deepEqual(
+    mesesComEntrada([{ pago_em: "2026-09-20", recebido_em: "2026-11-15" }]),
+    ["2026-11", "2026-09"]
+  );
+});
+
+test("a quebra por forma segue o mês em que caiu", () => {
+  const c = montarCaixaDoMes(
+    [rr(3000, "2026-09-10", "2026-10-10"), rr(1000, "2026-10-02", null, "pix")],
+    [],
+    "2026-10"
+  );
+  assert.deepEqual(
+    c.porForma.map((f) => `${f.rotulo}:${f.total}`),
+    ["Cartão:3000", "Pix:1000"]
+  );
+});
