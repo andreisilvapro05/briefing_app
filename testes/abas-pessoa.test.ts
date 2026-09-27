@@ -78,6 +78,7 @@ test("trabalho com prazo e sem dono ganha aba própria, por último", () => {
   );
   assert.deepEqual(rotulos(abas), ["Todos:2", "Karine:1", "Sem responsável:1"]);
   assert.equal(abas.at(-1)?.value, SEM_RESPONSAVEL);
+  assert.equal(SEM_RESPONSAVEL, "__sem__");
 });
 
 test("sem trabalho órfão, a aba não aparece", () => {

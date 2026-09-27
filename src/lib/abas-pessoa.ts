@@ -17,8 +17,12 @@ import type { ViewTabItem } from "@/components/admin/view-tabs";
  * Sem ela esse trabalho ficava invisível: aparecia em "Todos" e em nenhuma
  * aba de pessoa, então ninguém que abrisse o próprio recorte via que havia
  * projeto com data marcada e sem responsável.
+ *
+ * O valor é o MESMO que /admin/tarefas já usa no `?resp=` (`SEM_DONO`).
+ * Precisa ser: as duas telas compartilham a URL, e um sentinela diferente
+ * em cada uma faria a aba morrer ao navegar de uma pra outra.
  */
-export const SEM_RESPONSAVEL = "sem-responsavel";
+export const SEM_RESPONSAVEL = "__sem__";
 
 type TarefaParaAba = {
   client_id: string | null;

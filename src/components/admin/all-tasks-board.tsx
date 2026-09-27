@@ -44,6 +44,7 @@ export function AllTasksBoard({
   clients = [],
   restrictToResponsavel,
   viewInicial = "",
+  navegacao,
 }: {
   tasks: Task[];
   urlKey?: string;
@@ -55,6 +56,15 @@ export function AllTasksBoard({
    * vez de useSearchParams pra não exigir Suspense nesta árvore.
    */
   viewInicial?: string;
+  /**
+   * Quando presente, as abas viram LINKS de verdade em vez de filtro no
+   * cliente. Necessário em tela onde o SERVIDOR decide o que desenhar a
+   * partir do `?resp=` — o filtro no cliente usa history.replaceState, que
+   * troca a URL sem recarregar, e ali a página nunca voltaria pro outro
+   * modo. Vem como par de strings porque função não atravessa a fronteira
+   * servidor→cliente.
+   */
+  navegacao?: { base: string; keyParam: string };
 }) {
   const [query, setQuery] = useState("");
   const [criando, setCriando] = useState(false);
@@ -114,8 +124,16 @@ export function AllTasksBoard({
     if (orfas > 0 || responsavel === SEM_DONO) {
       lista.push({ value: SEM_DONO, label: "Sem responsável", count: orfas });
     }
-    return lista;
-  }, [abertasTotal, responsavel]);
+    if (!navegacao) return lista;
+    const { base, keyParam } = navegacao;
+    const sep = keyParam ? "&" : "?";
+    return lista.map((i) => ({
+      ...i,
+      href: i.value
+        ? `${base}${keyParam}${sep}resp=${encodeURIComponent(i.value)}`
+        : `${base}${keyParam}`,
+    }));
+  }, [abertasTotal, responsavel, navegacao]);
 
   const { widths: colWidths, total: colTotal, startResize } = useColumnWidths(
     "fysi-cols-alltasks",
@@ -163,7 +181,7 @@ export function AllTasksBoard({
         <ViewTabs
           items={viewsDisponiveis}
           ativo={responsavel}
-          onSelect={escolherView}
+          onSelect={navegacao ? undefined : escolherView}
         />
       </div>
 
