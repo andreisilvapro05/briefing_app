@@ -6,6 +6,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { ProjectTimeline } from "@/components/timeline/project-timeline";
 import { MeusMateriaisCard } from "@/components/meus-materiais-card";
+import { MateriaisPendentesCard } from "@/components/materiais-pendentes-card";
 import { EntregaViewer } from "@/components/entrega-viewer";
 import type { EntregaDocumento } from "@/lib/entrega";
 import {
@@ -399,6 +400,16 @@ export default function DashboardPage() {
             </p>
           </section>
 
+          {/* O que FALTA enviar vem antes do que já foi: é o que pede ação.
+              A lista existia desde 22/09 e tinha zero uso porque só
+              aparecia no link público do briefing, ligado em 1 de 35
+              clientes — o cliente nunca teve como vê-la. */}
+          {cliente.id ? (
+            <div className="mb-8">
+              <MateriaisPendentesCard clientId={cliente.id} />
+            </div>
+          ) : null}
+
           {/* Meus materiais — mesmo sem project_type, cliente pode enviar */}
           {cliente.id ? (
             <div className="mb-8">
@@ -738,6 +749,10 @@ export default function DashboardPage() {
                 })}
               </ul>
             </section>
+
+            {cliente.id ? (
+              <MateriaisPendentesCard clientId={cliente.id} />
+            ) : null}
 
             {/* Meus materiais — visão rápida do que o cliente já enviou */}
             {cliente.id ? (
