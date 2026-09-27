@@ -390,6 +390,21 @@ export function StatusPieBoard({
         )}
       </section>
 
+      {/* "+ Novo projeto" UMA vez. Antes ele se repetia no cabeçalho de
+          cada uma das 14 raias — catorze botões idênticos descendo a
+          página, e "novo projeto" dentro de "Validação implementação" não
+          quer dizer nada. */}
+      {total > 0 ? (
+        <div className="flex justify-end -mt-2 mb-3">
+          <Link
+            href={novoHref}
+            className="text-xs font-medium text-fysi-deep hover:underline"
+          >
+            + Novo projeto
+          </Link>
+        </div>
+      ) : null}
+
       {abasPessoa && abasPessoa.length > 1 ? (
         <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-4 pt-3 pb-3 mb-4">
           {/* O rótulo existe porque sem ele a barra parecia mais uma linha
@@ -464,21 +479,22 @@ export function StatusPieBoard({
                   </span>
                 ) : null}
               </button>
-              <Link
-                href={novoHref}
-                className="ml-auto shrink-0 text-xs font-medium text-fysi-deep hover:underline"
-              >
-                + Novo projeto
-              </Link>
             </div>
 
             {grupos.fechado(g.id) ? null : (
               <>
-                <div className="hidden md:grid grid-cols-[1fr_160px_150px_90px_64px] gap-3 px-5 py-2 bg-fysi-cream/40 text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                {/* A MESMA grade da linha (ClientAccordionRow). Quando as
+                    colunas do ClickUp entraram, só a linha mudou e o
+                    cabeçalho ficou anunciando Cliente/Tipo/Status/Pagamento
+                    por cima de Resp./Início/Vencimento/Prioridade — cada
+                    valor debaixo do rótulo errado. */}
+                <div className="hidden md:grid grid-cols-[1fr_44px_76px_76px_72px_150px_52px] gap-x-3 px-5 py-2 bg-fysi-cream/40 text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   <span>Cliente</span>
-                  <span>Tipo</span>
+                  <span title="Responsável">Resp.</span>
+                  <span>Início</span>
+                  <span>Venc.</span>
+                  <span title="Prioridade">Prior.</span>
                   <span>Status</span>
-                  <span>Pagamento</span>
                   <span className="text-right">Ação</span>
                 </div>
 

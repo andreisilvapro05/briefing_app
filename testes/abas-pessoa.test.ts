@@ -51,9 +51,40 @@ test("status fechado não entra na conta", () => {
   assert.deepEqual(rotulos(abas), ["Todos:0"]);
 });
 
-test("pessoa sem projeto aberto não vira aba", () => {
+test("pessoa sem NENHUM trabalho aberto não vira aba", () => {
   const abas = abasPorPessoa([t("c1", "karine", "2026-10-01")], "/admin/lista", "", "");
   assert.ok(!abas.some((a) => a.label === "Tainá"));
+});
+
+test("quem só tem trabalho SEM prazo aparece, com a nota", () => {
+  // O caso real de 27/09: Andrei com 102 abertas, nenhuma com data.
+  const abas = abasPorPessoa(
+    [t("c1", "valeria", "2026-10-01"), t("c2", "andrei", null), t("c3", "andrei", null)],
+    "/admin/lista",
+    "",
+    ""
+  );
+  const andrei = abas.find((a) => a.value === "andrei");
+  assert.ok(andrei, "Andrei precisa aparecer, senão a barra some com ele");
+  assert.equal(andrei?.count, 0, "o número segue sendo só o que tem prazo");
+  assert.equal(andrei?.nota, "+2 sem prazo");
+});
+
+test("quem tem prazo e também sem prazo mostra os dois", () => {
+  const abas = abasPorPessoa(
+    [t("c1", "valeria", "2026-10-01"), t("c2", "valeria", null)],
+    "/admin/lista",
+    "",
+    ""
+  );
+  const v = abas.find((a) => a.value === "valeria");
+  assert.equal(v?.count, 1);
+  assert.equal(v?.nota, "+1 sem prazo");
+});
+
+test("sem trabalho sem prazo, não há nota", () => {
+  const abas = abasPorPessoa([t("c1", "valeria", "2026-10-01")], "/admin/lista", "", "");
+  assert.equal(abas.find((a) => a.value === "valeria")?.nota, undefined);
 });
 
 test("mas a pessoa escolhida continua na barra mesmo zerada", () => {

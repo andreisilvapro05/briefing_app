@@ -66,15 +66,30 @@ export function abasPorPessoa(
   ];
   for (const m of TEAM_MEMBERS) {
     const count = projetosDe(m.value).size;
-    // Pessoa sem projeto em aberto não vira aba — a barra mostra quem está
-    // com trabalho agora, não o quadro de funcionários.
-    if (count === 0 && ativo !== m.value) continue;
+    const semPrazo = projetosSemPrazoDe(tarefas, m.value).size;
+    /**
+     * Entra na barra quem tem trabalho aberto, COM ou SEM data.
+     *
+     * Antes só entrava quem tinha data, e o resultado era uma barra com
+     * uma pessoa só: em 27/09 apenas a Valéria tinha tarefa com prazo — o
+     * Andrei tem 102 abertas, a Tainá 22, a Karine 7, todas sem data. A
+     * barra ficava tecnicamente certa e mentia na prática, escondendo
+     * justamente quem mais precisa agendar.
+     *
+     * O NÚMERO continua sendo só o que tem prazo, como a Karine decidiu;
+     * o que não tem vira a nota ao lado, em tom menor.
+     */
+    if (count === 0 && semPrazo === 0 && ativo !== m.value) continue;
     out.push({
       value: m.value,
       label: m.label,
       iniciais: m.iniciais,
       cor: m.cor,
       count,
+      // Chave omitida quando não há nota, em vez de `nota: undefined`:
+      // objeto com chave indefinida não é igual a objeto sem a chave, e
+      // isso já quebrou um teste de igualdade profunda.
+      ...(semPrazo > 0 ? { nota: `+${semPrazo} sem prazo` } : {}),
       href: `${base}${keyParam}${sep}resp=${encodeURIComponent(m.value)}`,
     });
   }
@@ -89,6 +104,24 @@ export function abasPorPessoa(
     });
   }
   return out;
+}
+
+/** Clientes em que a pessoa tem tarefa aberta e SEM prazo. */
+export function projetosSemPrazoDe(
+  tarefas: TarefaParaAba[],
+  pessoa: string
+): Set<string> {
+  return new Set(
+    tarefas
+      .filter(
+        (t) =>
+          t.client_id &&
+          !t.data_vencimento &&
+          !isClosedTaskStatus(t.status as TaskStatus) &&
+          ehDe(t, pessoa)
+      )
+      .map((t) => t.client_id as string)
+  );
 }
 
 /** Os clientes em que a pessoa tem tarefa com prazo em aberto. */

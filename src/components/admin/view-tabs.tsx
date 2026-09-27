@@ -22,6 +22,8 @@ export interface ViewTabItem {
   /** Classe de fundo do avatar (bg-violet-500 etc.). */
   cor?: string;
   count: number;
+  /** Complemento em tom menor — ex: "+102 sem prazo". */
+  nota?: string;
   /** Quando presente, a aba navega em vez de filtrar no cliente. */
   href?: string;
 }
@@ -67,6 +69,14 @@ export function ViewTabs({
             >
               {item.count}
             </span>
+            {item.nota ? (
+              <span
+                className="text-[0.62rem] text-fysi-muted/80 tabular-nums"
+                title="Trabalho aberto que ninguém agendou — não entra na conta"
+              >
+                {item.nota}
+              </span>
+            ) : null}
           </>
         );
 
