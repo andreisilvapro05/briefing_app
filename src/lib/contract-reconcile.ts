@@ -6,6 +6,7 @@ import {
   sendDashboardWebhook,
 } from "./dashboard-webhook";
 import { logServerError } from "./api-helpers";
+import { TASK_STATUS_GROUP, type TaskStatus } from "./project-tasks";
 
 /**
  * Reconcilia o status do contrato de um cliente com o Autentique e persiste.
@@ -80,7 +81,25 @@ export async function reconcileContract(
   return { ok: true, status: newStatus, changed };
 }
 
-async function onContractSigned(clientId: string, nome: string | null) {
+/**
+ * Tudo que acontece quando um contrato passa a ASSINADO, num lugar só.
+ *
+ * Existiam três caminhos que marcavam assinado — o cron de reconciliação,
+ * /api/admin/contracts/refresh e /api/admin/contracts/mark-signed — cada um
+ * com o webhook copiado, e só este criava o aviso no sino. Resultado
+ * medido em 26/09: 24 contratos assinados e ZERO avisos, porque o cron
+ * nunca rodou (não estava no vercel.json) e os outros dois nunca avisaram.
+ *
+ * Agora os três chamam aqui. É `export` por isso.
+ *
+ * Também fecha a tarefa "Envio Contrato": ela e "Pagamento" abrem todo
+ * modelo de projeto, e o app sabia que o contrato tinha sido assinado sem
+ * contar isso pra si mesmo — a etapa seguia aberta e o projeto parecia
+ * travado na primeira casa.
+ */
+export async function onContractSigned(clientId: string, nome: string | null) {
+  await fecharTarefaDeContrato(clientId);
+
   // Notificação pro admin (best-effort — nunca propaga erro).
   await createAdminNotification({
     clientId,
@@ -118,4 +137,41 @@ async function onContractSigned(clientId: string, nome: string | null) {
       link_parcelamento: (dados["link_parcelamento"] as string) ?? null,
     },
   });
+}
+
+
+/**
+ * Fecha a tarefa "Envio Contrato" do cliente, se estiver aberta.
+ *
+ * Casa por PREFIXO porque o sync do ClickUp traz o título nomeado ("Envio
+ * Contrato Danielle") enquanto o modelo do app usa o genérico — o mesmo
+ * critério de casamento que clickup-tasks-sync já usa.
+ *
+ * Best-effort: um erro aqui não pode derrubar o reconhecimento do
+ * contrato, que é a informação que importa.
+ */
+async function fecharTarefaDeContrato(clientId: string) {
+  try {
+    const service = createSupabaseServiceRoleClient();
+    const { data } = await service
+      .from("project_tasks")
+      .select("id, titulo, status")
+      .eq("client_id", clientId);
+    const abertas = ((data as { id: string; titulo: string; status: string }[]) ?? [])
+      .filter(
+        (t) =>
+          t.titulo.trim().toLowerCase().startsWith("envio contrato") &&
+          TASK_STATUS_GROUP[t.status as TaskStatus] === "ativo"
+      );
+    if (abertas.length === 0) return;
+    await service
+      .from("project_tasks")
+      .update({ status: "concluido", concluida_em: new Date().toISOString() })
+      .in(
+        "id",
+        abertas.map((t) => t.id)
+      );
+  } catch (err) {
+    logServerError("contrato.fechar-tarefa", err);
+  }
 }
