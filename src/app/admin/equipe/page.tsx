@@ -79,9 +79,12 @@ export default async function EquipePage({
     const clientes = new Set(
       abertas.map((t) => t.client_id).filter(Boolean) as string[]
     );
+    // O que está de fato em jogo: aberto E com data.
+    const comPrazo = abertas.filter((t) => Boolean(t.data_vencimento));
     return {
       membro: m,
       abertas,
+      comPrazo,
       atrasadas,
       hojeVence,
       proximas,
@@ -90,7 +93,7 @@ export default async function EquipePage({
       clientes: clientes.size,
       internas: abertas.filter((t) => !t.client_id).length,
     };
-  }).sort((a, b) => b.atrasadas.length - a.atrasadas.length || b.abertas.length - a.abertas.length);
+  }).sort((a, b) => b.atrasadas.length - a.atrasadas.length || b.comPrazo.length - a.comPrazo.length);
 
   const semDono = todas.filter(
     (t) => !t.responsavel && TASK_STATUS_GROUP[t.status] === "ativo"
@@ -124,7 +127,10 @@ export default async function EquipePage({
             {semDono.length === 1 ? "" : "s"} aberta
             {semDono.length === 1 ? "" : "s"} sem responsável.{" "}
             <Link
-              href={`/admin/tarefas${keyParam}`}
+              // Abre já na lista de quem não tem dono; antes caía em
+              // "Todos" e a pessoa tinha que reencontrar o recorte que o
+              // próprio aviso acabou de descrever.
+              href={`/admin/tarefas${keyParam}${keyParam ? "&" : "?"}resp=__sem__`}
               className="underline underline-offset-2"
             >
               Distribuir
@@ -158,8 +164,18 @@ export default async function EquipePage({
                     </span>
                   ) : null}
                 </p>
+                {/* Conta só o que TEM PRAZO, igual às abas de Tarefas.
+                    Antes somava as sem-prazo junto e a mesma pergunta dava
+                    números diferentes em duas telas do mesmo menu — a
+                    Valéria aparecia com "121 abertas" aqui e outro número
+                    lá. As sem-prazo seguem visíveis, como complemento.
+                    (Karine, 26/09: "as que não têm data não devem ter
+                    importância igual às que têm".) */}
                 <p className="text-xs text-fysi-muted">
-                  {p.abertas.length} aberta{p.abertas.length === 1 ? "" : "s"}
+                  {p.comPrazo.length} com prazo
+                  {p.semPrazo.length > 0
+                    ? ` · ${p.semPrazo.length} sem prazo`
+                    : ""}
                   {p.clientes > 0
                     ? ` · ${p.clientes} cliente${p.clientes === 1 ? "" : "s"}`
                     : ""}
@@ -208,7 +224,8 @@ export default async function EquipePage({
             )}
 
             <Link
-              href={`/admin/tarefas${keyParam}`}
+              // Com ?resp=: "Ver tudo de Valéria" abria a lista de TODOS.
+              href={`/admin/tarefas${keyParam}${keyParam ? "&" : "?"}resp=${encodeURIComponent(p.membro.value)}`}
               className="mt-4 text-xs font-medium text-fysi-deep hover:underline underline-offset-2"
             >
               Ver tudo de {p.membro.label.split(" ")[0]} →
