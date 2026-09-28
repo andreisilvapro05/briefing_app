@@ -24,8 +24,8 @@ import {
   type TaskStatus,
 } from "@/lib/project-tasks";
 import {
+  dataEmLinguagem,
   formatDataCurta,
-  formatDiaMesCurto,
   hojeEmBrasilia,
 } from "@/lib/datas";
 import {
@@ -393,21 +393,6 @@ export function StatusPieBoard({
         )}
       </section>
 
-      {/* "+ Novo projeto" UMA vez. Antes ele se repetia no cabeçalho de
-          cada uma das 14 raias — catorze botões idênticos descendo a
-          página, e "novo projeto" dentro de "Validação implementação" não
-          quer dizer nada. */}
-      {total > 0 ? (
-        <div className="flex justify-end -mt-2 mb-3">
-          <Link
-            href={novoHref}
-            className="text-xs font-medium text-fysi-deep hover:underline"
-          >
-            + Novo projeto
-          </Link>
-        </div>
-      ) : null}
-
       {abasPessoa && abasPessoa.length > 1 ? (
         /* O filtro não é um assunto à parte: é o cabeçalho da lista que ele
            recorta. Ele tinha cartão próprio, sombra própria e um rótulo em
@@ -503,13 +488,16 @@ export function StatusPieBoard({
                     cabeçalho ficou anunciando Cliente/Tipo/Status/Pagamento
                     por cima de Resp./Início/Vencimento/Prioridade — cada
                     valor debaixo do rótulo errado. */}
-                <div className="hidden md:grid grid-cols-[1fr_44px_76px_76px_72px_150px_52px] gap-x-3 px-5 py-2 bg-fysi-cream/40 text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                {/* Mesma ordem do ClickUp (print de 28/09): Nome, Status,
+                    Prioridade, Responsável, Data inicial, Vencimento. Eu
+                    tinha posto responsável e datas antes do status. */}
+                <div className="hidden md:grid grid-cols-[1fr_150px_72px_44px_76px_76px_52px] gap-x-3 px-5 py-2 bg-fysi-cream/40 text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
                   <span>Cliente</span>
+                  <span>Status</span>
+                  <span title="Prioridade">Prior.</span>
                   <span title="Responsável">Resp.</span>
                   <span>Início</span>
                   <span>Venc.</span>
-                  <span title="Prioridade">Prior.</span>
-                  <span>Status</span>
                   <span className="text-right">Ação</span>
                 </div>
 
@@ -524,6 +512,19 @@ export function StatusPieBoard({
                     restrictToResponsavel={restrictToResponsavel}
                   />
                 ))}
+
+                {/* "+ Novo projeto" no FIM do grupo ABERTO, como o
+                    "Adicionar Projeto" do ClickUp. Ele estava no cabeçalho
+                    de todas as catorze raias, inclusive fechadas — catorze
+                    links idênticos descendo a página (Karine, 27/09). Tirei
+                    de vez e errei: o botão faz sentido, o lugar é que
+                    estava errado. */}
+                <Link
+                  href={novoHref}
+                  className="flex items-center gap-1.5 px-5 py-2 text-xs text-fysi-muted hover:text-fysi-deep hover:bg-fysi-cream/40 transition"
+                >
+                  <span aria-hidden="true">+</span> Novo projeto
+                </Link>
               </>
             )}
           </div>
@@ -604,7 +605,7 @@ function ClientAccordionRow({
 
   return (
     <div className="border-t border-fysi-line/70">
-      <div className="grid grid-cols-2 md:grid-cols-[1fr_44px_76px_76px_72px_150px_52px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-[1fr_150px_72px_44px_76px_76px_52px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
         <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
           {/* O nome é o botão de abrir as subtarefas, não só o triângulo:
               era o que se tentava clicar. Quem quer ABRIR a ficha usa o
@@ -661,10 +662,6 @@ function ClientAccordionRow({
             26/09). Saíram TIPO e PAGAMENTO pra caber: os dois continuam na
             ficha do cliente. Os valores vêm da tarefa que manda no projeto
             agora, ver src/lib/linha-do-projeto.ts. */}
-        <CelulaResponsavel valor={c.linha.responsavel} tarefa={c.linha.tarefa} />
-        <CelulaData iso={c.linha.dataInicial} rotulo="Início" />
-        <CelulaData iso={c.linha.dataVencimento} rotulo="Vencimento" alertaSeVencida />
-        <CelulaPrioridade valor={c.linha.prioridade} />
         <span className="flex items-center gap-2 min-w-0">
           <StatusChanger
             clientId={c.id}
@@ -682,6 +679,10 @@ function ClientAccordionRow({
             </button>
           ) : null}
         </span>
+        <CelulaPrioridade valor={c.linha.prioridade} />
+        <CelulaResponsavel valor={c.linha.responsavel} tarefa={c.linha.tarefa} />
+        <CelulaData iso={c.linha.dataInicial} rotulo="Início" />
+        <CelulaData iso={c.linha.dataVencimento} rotulo="Vencimento" alertaSeVencida />
         <a
           href={`/admin/${c.id}${keyParam}`}
           className="text-right text-fysi-deep font-medium hover:underline shrink-0"
@@ -806,13 +807,18 @@ function CelulaData({
   alertaSeVencida?: boolean;
 }) {
   if (!iso) return <span className="text-fysi-muted text-xs">—</span>;
-  const vencida = alertaSeVencida && iso < hojeEmBrasilia();
+  const hoje = hojeEmBrasilia();
+  const vencida = alertaSeVencida && iso < hoje;
   return (
+    /* Data em linguagem, como o ClickUp: "Ontem", "Hoje", "qui". Numa
+       lista longa o que importa é a distância até hoje, não o número do
+       dia — "10/8/26" obriga a calcular, "há 2 dias" já é a resposta. A
+       data exata fica no title, pra quem precisar dela. */
     <span
-      className={`text-xs tabular-nums ${vencida ? "text-red-600 font-medium" : "text-fysi-muted"}`}
+      className={`text-xs ${vencida ? "text-red-600 font-medium" : "text-fysi-muted"}`}
       title={`${rotulo}: ${formatDataCurta(iso)}${vencida ? " — vencida" : ""}`}
     >
-      {formatDiaMesCurto(iso)}
+      {dataEmLinguagem(iso, hoje)}
     </span>
   );
 }

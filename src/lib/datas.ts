@@ -82,3 +82,41 @@ const FMT_HOJE_BRASILIA = new Intl.DateTimeFormat("en-CA", {
 export function hojeEmBrasilia(): string {
   return FMT_HOJE_BRASILIA.format(new Date());
 }
+
+const DIAS_DA_SEMANA = [
+  "domingo",
+  "segunda",
+  "terça",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sábado",
+];
+
+/**
+ * Data em linguagem, como o ClickUp mostra: "há 5 dias", "amanhã", "qua".
+ *
+ * Numa lista longa o que importa é a distância até hoje, não o número do
+ * dia. "23/09" obriga a calcular; "atrasado 5 dias" já é a informação.
+ * Fora da janela de uma semana volta a ser data, que aí é o mais claro.
+ *
+ * @param hoje data de referência em ISO (use hojeEmBrasilia()).
+ */
+export function dataEmLinguagem(iso: string | null, hoje: string): string {
+  if (!iso) return "—";
+  const d = dataValida(iso);
+  const h = dataValida(hoje);
+  if (!d || !h) return iso;
+
+  const dias = Math.round((d.getTime() - h.getTime()) / 86_400_000);
+  if (dias === 0) return "hoje";
+  if (dias === 1) return "amanhã";
+  if (dias === -1) return "ontem";
+  if (dias < 0) {
+    const n = Math.abs(dias);
+    return n <= 30 ? `há ${n} dias` : formatDiaMesCurto(iso);
+  }
+  // Dentro da semana, o nome do dia diz mais que a data.
+  if (dias <= 6) return DIAS_DA_SEMANA[d.getUTCDay()];
+  return formatDiaMesCurto(iso);
+}

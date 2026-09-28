@@ -6,6 +6,7 @@ import {
   formatDataCurta,
   formatDiaMes,
   formatDiaMesCurto,
+  dataEmLinguagem,
 } from "../src/lib/datas.ts";
 
 /**
@@ -45,4 +46,31 @@ test("meio-dia UTC: o último dia do ano não vira o primeiro do seguinte", () =
 test("dataValida separa data de lixo", () => {
   assert.notEqual(dataValida("2026-09-21"), null);
   assert.equal(dataValida("xxx"), null);
+});
+
+// ── data em linguagem ────────────────────────────────────────────────
+// 2026-09-28 é uma segunda-feira.
+test("hoje, amanhã e ontem saem por extenso", () => {
+  assert.equal(dataEmLinguagem("2026-09-28", "2026-09-28"), "hoje");
+  assert.equal(dataEmLinguagem("2026-09-29", "2026-09-28"), "amanhã");
+  assert.equal(dataEmLinguagem("2026-09-27", "2026-09-28"), "ontem");
+});
+
+test("passado recente vira 'há N dias'", () => {
+  assert.equal(dataEmLinguagem("2026-09-23", "2026-09-28"), "há 5 dias");
+});
+
+test("dentro da semana, o nome do dia diz mais que a data", () => {
+  assert.equal(dataEmLinguagem("2026-09-30", "2026-09-28"), "quarta");
+  assert.equal(dataEmLinguagem("2026-10-02", "2026-09-28"), "sexta");
+});
+
+test("longe demais volta a ser data — nome de dia confundiria", () => {
+  assert.equal(dataEmLinguagem("2026-10-20", "2026-09-28"), "20/10");
+  assert.equal(dataEmLinguagem("2026-07-01", "2026-09-28"), "01/07");
+});
+
+test("sem data e data inválida não quebram", () => {
+  assert.equal(dataEmLinguagem(null, "2026-09-28"), "—");
+  assert.equal(dataEmLinguagem("28/09/2026", "2026-09-28"), "28/09/2026");
 });
