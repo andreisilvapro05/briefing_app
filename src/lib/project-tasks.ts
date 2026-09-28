@@ -437,12 +437,6 @@ export interface Area {
 
 export const AREAS: Area[] = [
   {
-    value: "comercial",
-    label: "Comercial",
-    tom: "bg-emerald-50 text-emerald-800 border-emerald-200",
-    barra: "bg-emerald-500",
-  },
-  {
     value: "atendimento",
     label: "Atendimento",
     tom: "bg-teal-50 text-teal-800 border-teal-200",
@@ -471,6 +465,15 @@ export const AREAS: Area[] = [
     label: "Marketing",
     tom: "bg-pink-50 text-pink-800 border-pink-200",
     barra: "bg-pink-500",
+  },
+  // Comercial por último, a pedido da Karine (28/09): é a gaveta mais cheia, e
+  // no topo empurrava para fora da tela justamente as áreas que ela abre menos
+  // — que são as que precisam ser vistas para não sumirem.
+  {
+    value: "comercial",
+    label: "Comercial",
+    tom: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    barra: "bg-emerald-500",
   },
 ];
 

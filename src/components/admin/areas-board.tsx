@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   AREAS,
   EISENHOWER,
+  ESFORCOS,
   TASK_STATUS_GROUP,
   TASK_STATUS_INTERNO,
   TASK_STATUS_OPTIONS,
@@ -20,6 +21,12 @@ import {
   updateProjectTaskAction,
 } from "@/app/admin/[id]/actions";
 import { formatDiaMes } from "@/lib/datas";
+import {
+  AGRUPAMENTOS,
+  SEM_VALOR,
+  agruparDemandas,
+  type Agrupamento,
+} from "@/lib/agrupar-demandas";
 import { TrashIcon } from "./tasks-board";
 import { TaskComposer } from "./task-composer";
 import {
@@ -43,42 +50,6 @@ import {
  * Deliberadamente separado de /admin/tarefas: lá é o trabalho DE PROJETO, que
  * pertence a um cliente. Misturar os dois foi o que ela pediu pra evitar.
  */
-/**
- * Peso do quadrante de Eisenhower, do mais importante ao menos. Quem não
- * foi classificado fica antes de "Eliminar": não decidir não é o mesmo que
- * decidir que não importa.
- */
-function pesoQuadrante(v: string | null): number {
-  switch (v) {
-    case "fazer":
-      return 0;
-    case "planejar":
-      return 1;
-    case "delegar":
-      return 2;
-    case "eliminar":
-      return 4;
-    default:
-      return 3;
-  }
-}
-
-/** Peso do tamanho da tarefa, do mais rápido ao mais longo. */
-function pesoEsforco(v: string | null): number {
-  switch (v) {
-    case "rapido":
-      return 0;
-    case "curto":
-      return 1;
-    case "medio":
-      return 2;
-    case "longo":
-      return 3;
-    default:
-      return 4;
-  }
-}
-
 export function AreasBoard({
   tasks,
   urlKey,
@@ -109,6 +80,41 @@ export function AreasBoard({
   const [ordem, setOrdem] = useState<"importancia" | "prazo" | "esforco">(
     "importancia"
   );
+  const [agruparPor, setAgruparPor] = useState<Agrupamento>("area");
+  const [crescente, setCrescente] = useState(true);
+  /**
+   * As gavetas fechadas, pelo nome do agrupamento + a chave.
+   *
+   * Guardadas por agrupamento: fechar "Comercial" ao ver por área não pode
+   * fechar "Concluído" ao ver por status. Ficam no navegador, senão toda
+   * recarga reabre tudo e o trabalho de arrumar a tela se perde.
+   */
+  const [fechadas, setFechadas] = useState<Set<string>>(() => {
+    if (typeof window === "undefined") return new Set();
+    try {
+      const guardado = window.localStorage.getItem("demandas:gavetas-fechadas");
+      return new Set<string>(guardado ? (JSON.parse(guardado) as string[]) : []);
+    } catch {
+      return new Set();
+    }
+  });
+
+  function alternarGaveta(id: string) {
+    setFechadas((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(id)) proximo.delete(id);
+      else proximo.add(id);
+      try {
+        window.localStorage.setItem(
+          "demandas:gavetas-fechadas",
+          JSON.stringify([...proximo])
+        );
+      } catch {
+        // Janela anônima, armazenamento bloqueado: a tela funciona sem lembrar.
+      }
+      return proximo;
+    });
+  }
   /** Data da próxima ocorrência criada ao concluir uma demanda recorrente. */
   const [proximaCriada, setProximaCriada] = useState<string | null>(null);
   const hoje = hojeISO();
@@ -141,42 +147,35 @@ export function AreasBoard({
    * lançar demanda numa área vazia, que é justamente quando ela precisa da
    * primeira. "Sem área" continua no fim, só quando existe algo lá.
    */
-  const grupos = useMemo(() => {
-    const porArea = new Map<string, ProjectTask[]>();
-    for (const t of visiveis) {
-      const k = t.area ?? "";
-      const arr = porArea.get(k);
-      if (arr) arr.push(t);
-      else porArea.set(k, [t]);
-    }
-    const porPrazo = (a: ProjectTask, b: ProjectTask) =>
-      (a.data_vencimento ?? "9999").localeCompare(b.data_vencimento ?? "9999");
-    const ordenar = (arr: ProjectTask[]) =>
-      arr.slice().sort((a, b) => {
-        if (ordem === "prazo") return porPrazo(a, b);
-        if (ordem === "esforco") {
-          // Do mais rápido pro mais longo: é a ordem de quem quer limpar a
-          // lista. Não estimado vai pro fim.
-          const d = pesoEsforco(a.esforco) - pesoEsforco(b.esforco);
-          return d !== 0 ? d : porPrazo(a, b);
-        }
-        // Importância: quadrante primeiro, prazo como desempate.
-        const d = pesoQuadrante(a.eisenhower) - pesoQuadrante(b.eisenhower);
-        return d !== 0 ? d : porPrazo(a, b);
-      });
+  /**
+   * As gavetas do agrupamento escolhido, cada uma já ordenada por dentro.
+   *
+   * A ordem das gavetas é a canônica de cada eixo (as áreas na ordem da lista,
+   * os status do começo ao fim do trabalho, os quadrantes do mais urgente ao
+   * menos) — e não alfabética, que não diz nada. Quem não tem valor no eixo
+   * fica sempre por último, seja qual for o sentido.
+   */
+  /** As gavetas do eixo escolhido, cada uma já ordenada por dentro. */
+  const gavetas = useMemo(
+    () => agruparDemandas(visiveis, agruparPor, crescente, ordem),
+    [visiveis, agruparPor, crescente, ordem]
+  );
 
-    const out = AREAS.map((a) => ({
-      area: a,
-      tarefas: ordenar(porArea.get(a.value) ?? []),
-    }));
-    const semArea = porArea.get("") ?? [];
-    return { out, semArea: ordenar(semArea) };
-  }, [visiveis, ordem]);
-
-  /** Áreas sem nada no recorte atual — viram a linha compacta do rodapé. */
-  const vazias = grupos.out
-    .filter(({ area, tarefas }) => tarefas.length === 0 && criandoEm !== area.value)
-    .map(({ area }) => area);
+  /**
+   * Áreas sem nada no recorte atual — viram a linha compacta do rodapé.
+   *
+   * Só na visão por área: é ali que "lançar a primeira demanda de Curso" faz
+   * sentido. Agrupado por status ou por pessoa, uma gaveta vazia não é um lugar
+   * onde se cria nada.
+   */
+  const vazias =
+    agruparPor === "area"
+      ? AREAS.filter(
+          (a) =>
+            criandoEm !== a.value &&
+            (gavetas.find((g) => g.chave === a.value)?.tarefas.length ?? 0) === 0
+        )
+      : [];
 
   const totalAbertas = tasks.filter(
     (t) => TASK_STATUS_GROUP[t.status] === "ativo"
@@ -258,6 +257,67 @@ export function AreasBoard({
               <option value="__sem__">Sem classificar</option>
             </select>
 
+            {/* Agrupar por — o eixo em que a lista é partida. Ver AGRUPAMENTOS. */}
+            <label className="inline-flex items-center gap-1.5 text-sm text-fysi-muted">
+              Agrupar por
+              <select
+                value={agruparPor}
+                onChange={(e) => {
+                  setAgruparPor(e.target.value as Agrupamento);
+                  // A barra de criar estava aberta numa área; noutro eixo ela
+                  // não tem lugar, e ficaria pendurada numa gaveta qualquer.
+                  setCriandoEm(null);
+                }}
+                aria-label="Agrupar por"
+                className="rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5 text-fysi-deep"
+              >
+                {(Object.keys(AGRUPAMENTOS) as Agrupamento[]).map((k) => (
+                  <option key={k} value={k}>
+                    {AGRUPAMENTOS[k].label}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setCrescente((v) => !v)}
+                title={crescente ? "Inverter a ordem das gavetas" : "Voltar à ordem normal"}
+                aria-label="Inverter a ordem das gavetas"
+                className="inline-flex items-center gap-1 rounded-[8px] border border-fysi-line bg-white px-2 py-1.5 text-fysi-deep hover:border-fysi-deep/40 transition"
+              >
+                {crescente ? "↓" : "↑"}
+              </button>
+            </label>
+
+            {/* Abrir e fechar todas de uma vez: com seis gavetas, arrumar a
+                tela uma a uma é trabalho demais para um olhar rápido. */}
+            <button
+              type="button"
+              onClick={() => {
+                const ids = gavetas.map((g) => `${agruparPor}:${g.chave}`);
+                const todasFechadas = ids.every((id) => fechadas.has(id));
+                const proximo = new Set(fechadas);
+                for (const id of ids) {
+                  if (todasFechadas) proximo.delete(id);
+                  else proximo.add(id);
+                }
+                setFechadas(proximo);
+                try {
+                  window.localStorage.setItem(
+                    "demandas:gavetas-fechadas",
+                    JSON.stringify([...proximo])
+                  );
+                } catch {
+                  // sem memória: a tela funciona do mesmo jeito nesta sessão
+                }
+              }}
+              className="inline-flex items-center rounded-[8px] border border-fysi-line bg-white px-2.5 py-1.5 text-sm text-fysi-deep hover:border-fysi-deep/40 transition"
+            >
+              {gavetas.length > 0 &&
+              gavetas.every((g) => fechadas.has(`${agruparPor}:${g.chave}`))
+                ? "Abrir todas"
+                : "Fechar todas"}
+            </button>
+
             <label className="inline-flex items-center gap-1.5 text-sm text-fysi-muted">
               Ordenar
               <select
@@ -287,66 +347,91 @@ export function AreasBoard({
         </div>
       </section>
 
-      {grupos.out
-        .filter(({ area, tarefas }) => tarefas.length > 0 || criandoEm === area.value)
-        .map(({ area, tarefas }) => (
-        <section
-          key={area.value}
-          className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-hidden"
-        >
-          <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-fysi-line">
-            <span className={`h-8 w-1.5 rounded-full ${area.barra}`} aria-hidden />
-            <h2 className="text-[0.95rem] font-semibold text-fysi-deep">
-              {area.label}
-            </h2>
-            <span className="text-xs text-fysi-muted">
-              {tarefas.length === 0
-                ? "nada aqui"
-                : `${tarefas.length} demanda${tarefas.length === 1 ? "" : "s"}`}
-            </span>
-            <button
-              type="button"
-              onClick={() =>
-                setCriandoEm((v) => (v === area.value ? null : area.value))
-              }
-              className="ml-auto inline-flex items-center rounded-full border border-fysi-line text-xs font-semibold text-fysi-deep px-3 h-7 hover:border-fysi-deep/40 transition"
+      {gavetas
+        .filter((g) => g.tarefas.length > 0 || criandoEm === g.chave)
+        .map((gaveta) => {
+          const id = `${agruparPor}:${gaveta.chave}`;
+          const fechada = fechadas.has(id);
+          // Criar dentro da gaveta só faz sentido quando a gaveta É uma área.
+          const podeCriarAqui = agruparPor === "area" && gaveta.chave !== SEM_VALOR;
+          return (
+            <section
+              key={id}
+              className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card overflow-hidden"
             >
-              {criandoEm === area.value ? "Fechar" : "+ Demanda"}
-            </button>
-          </div>
+              <div className="flex flex-wrap items-center gap-3 px-5 py-3.5 border-b border-fysi-line">
+                <span className={`h-8 w-1.5 rounded-full ${gaveta.barra}`} aria-hidden />
+                {/* O título inteiro abre e fecha: um alvo grande, não um
+                    triangulozinho de dez pixels. */}
+                <button
+                  type="button"
+                  onClick={() => alternarGaveta(id)}
+                  aria-expanded={!fechada}
+                  title={fechada ? "Abrir" : "Fechar"}
+                  className="inline-flex items-center gap-2 text-left"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    className={`h-3.5 w-3.5 text-fysi-muted transition-transform ${fechada ? "" : "rotate-90"}`}
+                    aria-hidden
+                  >
+                    <path d="M7 4l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <h2 className="text-[0.95rem] font-semibold text-fysi-deep">
+                    {gaveta.rotulo}
+                  </h2>
+                  <span className="text-xs text-fysi-muted">
+                    {gaveta.tarefas.length === 0
+                      ? "nada aqui"
+                      : `${gaveta.tarefas.length} demanda${gaveta.tarefas.length === 1 ? "" : "s"}`}
+                  </span>
+                </button>
+                {podeCriarAqui ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCriandoEm((v) => (v === gaveta.chave ? null : gaveta.chave))
+                    }
+                    className="ml-auto inline-flex items-center rounded-full border border-fysi-line text-xs font-semibold text-fysi-deep px-3 h-7 hover:border-fysi-deep/40 transition"
+                  >
+                    {criandoEm === gaveta.chave ? "Fechar" : "+ Demanda"}
+                  </button>
+                ) : null}
+              </div>
 
-          {criandoEm === area.value ? (
-            <div className="px-5 pt-4">
-              <TaskComposer
-                clientId=""
-                defaultArea={area.value}
-                areaFixa
-                defaultResponsavel={meuResponsavel}
-                lockResponsavel={lockResponsavel}
-                urlKey={urlKey}
-                placeholder={`Nova demanda de ${area.label.toLowerCase()} (Enter adiciona)`}
-                autoFocus
-                onClose={() => setCriandoEm(null)}
-              />
-            </div>
-          ) : null}
+              {criandoEm === gaveta.chave ? (
+                <div className="px-5 pt-4">
+                  <TaskComposer
+                    clientId=""
+                    defaultArea={gaveta.chave}
+                    areaFixa
+                    defaultResponsavel={meuResponsavel}
+                    lockResponsavel={lockResponsavel}
+                    urlKey={urlKey}
+                    placeholder={`Nova demanda de ${gaveta.rotulo.toLowerCase()} (Enter adiciona)`}
+                    autoFocus
+                    onClose={() => setCriandoEm(null)}
+                  />
+                </div>
+              ) : null}
 
-          {tarefas.length === 0 ? null : (
-            <ul className="divide-y divide-fysi-line">
-              {tarefas.map((t) => (
-                <LinhaDemanda
-                  key={t.id}
-                  task={t}
-                  hoje={hoje}
-                  urlKey={urlKey}
-                  onSalvo={() => router.refresh()}
-                  onProximaCriada={setProximaCriada}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-      ))}
+              {fechada || gaveta.tarefas.length === 0 ? null : (
+                <ul className="divide-y divide-fysi-line">
+                  {gaveta.tarefas.map((t) => (
+                    <LinhaDemanda
+                      key={t.id}
+                      task={t}
+                      hoje={hoje}
+                      urlKey={urlKey}
+                      onSalvo={() => router.refresh()}
+                      onProximaCriada={setProximaCriada}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
 
       {proximaCriada ? (
         <p
@@ -370,7 +455,7 @@ export function AreasBoard({
         </p>
       ) : null}
 
-      {abertasNaVista === 0 && grupos.semArea.length === 0 && !criandoEm ? (
+      {abertasNaVista === 0 && !criandoEm ? (
         <p className="text-sm text-fysi-muted px-1">
           {nomeDoFiltro
             ? `Nenhuma demanda interna com ${nomeDoFiltro} agora. Escolha uma área abaixo pra lançar a primeira.`
@@ -400,30 +485,6 @@ export function AreasBoard({
         </section>
       ) : null}
 
-      {grupos.semArea.length > 0 ? (
-        <section className="bg-white border border-dashed border-fysi-line-strong rounded-[20px] overflow-hidden">
-          <div className="flex items-center gap-3 px-5 py-3.5 border-b border-fysi-line">
-            <h2 className="text-[0.95rem] font-semibold text-fysi-deep">
-              Sem área
-            </h2>
-            <span className="text-xs text-fysi-muted">
-              {grupos.semArea.length} — escolha a área pra organizar
-            </span>
-          </div>
-          <ul className="divide-y divide-fysi-line">
-            {grupos.semArea.map((t) => (
-              <LinhaDemanda
-                key={t.id}
-                task={t}
-                hoje={hoje}
-                urlKey={urlKey}
-                onSalvo={() => router.refresh()}
-                onProximaCriada={setProximaCriada}
-              />
-            ))}
-          </ul>
-        </section>
-      ) : null}
     </div>
   );
 }
