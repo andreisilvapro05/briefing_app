@@ -47,7 +47,7 @@ export async function getLaneGroups(
   let clientsQuery = service
     .from("clients")
     .select(
-      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, responsavel, clickup_nome"
+      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, responsavel, clickup_nome, nome_exibicao"
     )
     // Arquivado não entra em nenhuma lista de trabalho: é projeto que não
     // vai acontecer (desistência, abandono). O status real de onde ele
@@ -90,10 +90,16 @@ export async function getLaneGroups(
       return {
         id: c.id,
         nome: c.nome,
-        // Nome do ClickUp na frente enquanto a migração acontece — pedido
-        // da Karine (28/09): "use o nome do ClickUp por enquanto, depois
-        // melhoramos". O nome real segue em `nome`, nada se perde.
+        /**
+         * Precedência do nome na lista: o escrito à mão ganha de tudo, o
+         * do ClickUp vem depois, o cadastro fica por último.
+         *
+         * `nome_exibicao` é o único que gente escreve e o sync nunca toca —
+         * sem ele, corrigir um nome aqui seria desfeito na próxima
+         * sincronização, em silêncio.
+         */
         empresa:
+          (c as { nome_exibicao?: string | null }).nome_exibicao?.trim() ||
           (c as { clickup_nome?: string | null }).clickup_nome?.trim() ||
           c.empresa,
         tipo: c.project_type

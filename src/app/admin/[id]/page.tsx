@@ -42,7 +42,7 @@ import type { MaterialItem } from "@/lib/materiais-cliente";
 import type { Moodboard } from "@/lib/moodboard";
 import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
-import { arquivarClienteAction } from "./actions";
+import { arquivarClienteAction, renomearProjetoAction } from "./actions";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
 import { AbrirWhatsAppButton } from "@/components/admin/abrir-whatsapp-button";
@@ -425,9 +425,42 @@ Pode ir salvando aos poucos, não precisa terminar de uma vez.`
                   <option value="outro">Outro</option>
                 </AutoSubmitSelect>
               </form>
+              {/* O H1 mostra o MESMO nome das listas, e é aqui que se
+                  corrige. A precedência é nome_exibicao > clickup_nome >
+                  empresa > nome: o escrito à mão ganha de tudo e sobrevive
+                  ao sync (Karine, 28/09: "poder ir para o cliente, alterar
+                  nome", logo depois de "Fruteb é Serigy"). */}
               <h1 className="text-[1.6rem] leading-tight font-semibold tracking-tight text-fysi-deep mt-0.5 break-words">
-                {client.empresa || client.nome}
+                {client.nome_exibicao ||
+                  client.clickup_nome ||
+                  client.empresa ||
+                  client.nome}
               </h1>
+              <form
+                action={renomearProjetoAction}
+                className="mt-1 flex flex-wrap items-center gap-2"
+              >
+                <input type="hidden" name="clientId" value={client.id} />
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                <input
+                  type="text"
+                  name="nomeExibicao"
+                  maxLength={120}
+                  defaultValue={client.nome_exibicao ?? ""}
+                  placeholder={
+                    client.clickup_nome
+                      ? `Vem do ClickUp: ${client.clickup_nome}`
+                      : "Nome que aparece nas listas"
+                  }
+                  className="flex-1 min-w-[12rem] rounded-[8px] border border-fysi-line bg-white px-2 py-1 text-xs text-fysi-deep"
+                />
+                <SubmitTextButton>Renomear</SubmitTextButton>
+                {client.nome_exibicao ? (
+                  <span className="text-[0.68rem] text-fysi-muted">
+                    apague o campo pra voltar ao nome do ClickUp
+                  </span>
+                ) : null}
+              </form>
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-fysi-muted">
                 {client.empresa && client.nome ? (
                   <span className="text-fysi-deep">{client.nome}</span>

@@ -607,26 +607,32 @@ function ClientAccordionRow({
     <div className="border-t border-fysi-line/70">
       <div className="grid grid-cols-2 md:grid-cols-[1fr_150px_72px_44px_76px_76px_52px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
         <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
-          {/* O nome é o botão de abrir as subtarefas, não só o triângulo:
-              era o que se tentava clicar. Quem quer ABRIR a ficha usa o
-              "Ver →" no fim da linha — são duas intenções diferentes e
-              agora cada uma tem seu alvo. Cliente sem subtarefa nenhuma não
-              tem o que recolher: aí o nome leva direto pra ficha. */}
+          {/* Como no ClickUp: o TRIÂNGULO expande, o NOME abre o projeto.
+              Antes o nome era o botão de expandir, porque mirar num
+              triângulo de 10px era ruim — o conserto certo era aumentar o
+              alvo do triângulo, não roubar o clique do nome. Karine
+              (28/09): "poder ir para o cliente, alterar nome". O "Ver →"
+              no fim da linha continua, pra quem já tem o hábito. */}
           {hasTarefas ? (
-            <button
-              type="button"
-              onClick={onToggle}
-              aria-expanded={isOpen}
-              className="flex items-center gap-1.5 min-w-0 text-left group/nome"
-              title={isOpen ? "Fechar subtarefas" : "Abrir subtarefas"}
-            >
-              <span className="text-fysi-muted group-hover/nome:text-fysi-deep shrink-0 w-4">
+            <>
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={isOpen}
+                aria-label={isOpen ? "Fechar subtarefas" : "Abrir subtarefas"}
+                title={isOpen ? "Fechar subtarefas" : "Abrir subtarefas"}
+                className="shrink-0 -my-1 grid h-7 w-6 place-items-center rounded-md text-fysi-muted hover:text-fysi-deep hover:bg-fysi-cream transition"
+              >
                 <Caret aberto={isOpen} />
-              </span>
-              <span className="font-medium text-fysi-deep truncate group-hover/nome:underline underline-offset-2">
+              </button>
+              <a
+                href={`/admin/${c.id}${keyParam}`}
+                title={`Abrir ${c.empresa || c.nome}`}
+                className="font-medium text-fysi-deep truncate hover:underline underline-offset-2"
+              >
                 {c.empresa || c.nome}
-              </span>
-            </button>
+              </a>
+            </>
           ) : (
             <>
               <span className="w-4 shrink-0" />

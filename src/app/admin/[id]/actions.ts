@@ -2220,3 +2220,40 @@ export async function arquivarClienteAction(formData: FormData) {
   revalidatePath("/admin/visao-geral");
   revalidatePath("/admin/quadro");
 }
+
+/**
+ * Nome que aparece nas listas.
+ *
+ * Karine (28/09): "poder ir para o cliente, alterar nome" — e logo depois
+ * "Fruteb é Serigy", que é o caso de uso exato: o nome que veio do ClickUp
+ * está errado e precisa ser corrigido sem esperar ninguém arrumar lá.
+ *
+ * Escreve em `nome_exibicao`, o único campo de nome que o sync NUNCA toca.
+ * Se escrevesse em `clickup_nome`, a próxima sincronização desfaria a
+ * correção em silêncio — mesma classe de bug do briefing sendo apagado
+ * pela reimportação. Vazio volta a mostrar o nome do ClickUp.
+ */
+export async function renomearProjetoAction(formData: FormData) {
+  const urlKey = keyParamOf(formData);
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+  await requireClientAccess(formData, clientId);
+
+  const nome = String(formData.get("nomeExibicao") ?? "").trim().slice(0, 120);
+
+  const service = createSupabaseServiceRoleClient();
+  const { error } = await service
+    .from("clients")
+    .update({ nome_exibicao: nome || null, updated_at: new Date().toISOString() })
+    .eq("id", clientId);
+  if (error) logServerError("cliente.renomear", error);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin/lista");
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/visao-geral");
+  revalidatePath("/admin/quadro");
+}
