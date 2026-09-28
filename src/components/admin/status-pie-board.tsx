@@ -408,7 +408,7 @@ export function StatusPieBoard({
           <p className="text-[0.72rem] text-fysi-muted mt-1.5 mb-3">
             {pessoaAtiva
               ? "Projetos desta pessoa. A rosca e a lista seguem o recorte."
-              : "O número conta projetos, não tarefas."}
+              : "Em \"Todos\", o número é de projetos na lista. Nos nomes, é quantos projetos aquela pessoa tem com prazo marcado."}
           </p>
         </div>
       ) : null}

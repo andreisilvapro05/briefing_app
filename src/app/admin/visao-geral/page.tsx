@@ -91,7 +91,9 @@ export default async function VisaoGeralPage({
    */
   const abertasVisiveis = ativasVisiveis.filter((t) => Boolean(t.data_vencimento));
   const semPrazo = ativasVisiveis.length - abertasVisiveis.length;
-  const abas = abasPorPessoa(ativasVisiveis, "/admin/visao-geral", keyParam, resp);
+  const abas = abasPorPessoa(ativasVisiveis, "/admin/visao-geral", keyParam, resp,
+    // A aba "Todos" conta o que a lista mostra, não o que tem prazo.
+    new Set(laneGroupsTodos.flatMap((g) => g.clients.map((c) => c.id))).size);
   const clientesDaPessoa = resp ? projetosDaPessoa(ativasVisiveis, resp) : null;
 
   const laneGroups = clientesDaPessoa

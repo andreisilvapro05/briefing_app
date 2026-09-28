@@ -50,7 +50,9 @@ export default async function AdminListaPage({
   const visiveis = todasAsTarefas.filter(
     (t) => !visibleIds || (t.client_id && visibleIds.has(t.client_id))
   );
-  const abas = abasPorPessoa(visiveis, "/admin/lista", keyParam, resp);
+  const abas = abasPorPessoa(visiveis, "/admin/lista", keyParam, resp,
+    // A aba "Todos" conta o que a lista mostra, não o que tem prazo.
+    new Set(todosOsGrupos.flatMap((g) => g.clients.map((c) => c.id))).size);
   const daPessoa = resp ? projetosDaPessoa(visiveis, resp) : null;
   const groups = daPessoa
     ? todosOsGrupos.map((g) => ({

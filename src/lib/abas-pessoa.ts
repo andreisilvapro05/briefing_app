@@ -41,11 +41,20 @@ export function respValido(valor: unknown): valor is string {
 const ehDe = (t: TarefaParaAba, pessoa: string) =>
   pessoa === SEM_RESPONSAVEL ? !t.responsavel : t.responsavel === pessoa;
 
+/**
+ * @param totalProjetos quantos projetos a LISTA mostra. Sem isso, a aba
+ * "Todos" contava só os projetos com tarefa datada e dizia "Todos 6" em
+ * cima de uma lista de 25 — dois números que se contradiziam na mesma
+ * tela (print da Karine, 28/09). A aba tem que contar o que o clique
+ * revela; o corte por prazo continua valendo nas abas de PESSOA, que é
+ * onde ele responde "o que está de fato ativo".
+ */
 export function abasPorPessoa(
   tarefas: TarefaParaAba[],
   base: string,
   keyParam: string,
-  ativo: string
+  ativo: string,
+  totalProjetos?: number
 ): ViewTabItem[] {
   const abertas = tarefas.filter(
     (t) => t.client_id && t.data_vencimento && !isClosedTaskStatus(t.status as TaskStatus)
@@ -60,7 +69,9 @@ export function abasPorPessoa(
     {
       value: "",
       label: "Todos",
-      count: new Set(abertas.map((t) => t.client_id as string)).size,
+      count:
+        totalProjetos ??
+        new Set(abertas.map((t) => t.client_id as string)).size,
       href: `${base}${keyParam}`,
     },
   ];
