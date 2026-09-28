@@ -28,6 +28,12 @@ export interface SyncResultado {
   jaEmDia: number;
   /** Vinculados a uma tarefa que não é de projeto (ex.: tarefa de briefing). */
   ignorados: number;
+  /** Nasceram agora porque existiam só no ClickUp. */
+  criados: { projeto: string; status: string }[];
+  /** Já estavam aqui sem vínculo e acabaram de ser casados com a tarefa de lá. */
+  vinculados: { projeto: string; motivo: string }[];
+  /** Existem só lá e não foram criados — com o motivo, pra resolver na mão. */
+  naoCriados: { projeto: string; motivo: string }[];
   erro?: string;
 }
 
@@ -47,6 +53,9 @@ export async function syncClickUpStatusAction(
     atualizados: [],
     jaEmDia: 0,
     ignorados: 0,
+    criados: [],
+    vinculados: [],
+    naoCriados: [],
   };
 
   const member = await getCurrentMember({ urlKey });
@@ -63,8 +72,19 @@ export async function syncClickUpStatusAction(
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
   revalidatePath("/admin");
+  // Projeto novo aparece também na lista de clientes e no quadro.
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/quadro");
 
-  return { ok: true, atualizados: r.atualizados, jaEmDia: r.jaEmDia, ignorados: r.ignorados };
+  return {
+    ok: true,
+    atualizados: r.atualizados,
+    jaEmDia: r.jaEmDia,
+    ignorados: r.ignorados,
+    criados: r.criados,
+    vinculados: r.vinculados,
+    naoCriados: r.naoCriados,
+  };
 }
 
 /* ------------------------------------------------------------------ */

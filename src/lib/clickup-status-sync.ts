@@ -1,6 +1,12 @@
 import { createSupabaseServiceRoleClient } from "./supabase/server";
 import { fetchClickUpProjectStatuses } from "./clickup";
 import { logServerError } from "./api-helpers";
+import { generateMagicSlug } from "./slug";
+import {
+  casarProjeto,
+  statusPermiteCriar,
+  type CandidatoProjeto,
+} from "./clickup-projetos-novos";
 
 /**
  * Traz do ClickUp o STATUS de cada projeto e atualiza os defasados.
@@ -23,6 +29,12 @@ export interface ResultadoStatusProjetos {
   jaEmDia: number;
   /** Vinculados a uma tarefa que não é de projeto (ex.: tarefa de briefing). */
   ignorados: number;
+  /** Existiam só no ClickUp e passaram a existir aqui. */
+  criados: { projeto: string; status: string }[];
+  /** Já existiam aqui sem vínculo e acabaram de ganhar o clickup_task_id. */
+  vinculados: { projeto: string; motivo: string }[];
+  /** Existem só lá mas não foram criados (ambíguos, arquivados de propósito). */
+  naoCriados: { projeto: string; motivo: string }[];
 }
 
 export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusProjetos> {
@@ -31,6 +43,9 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
     atualizados: [],
     jaEmDia: 0,
     ignorados: 0,
+    criados: [],
+    vinculados: [],
+    naoCriados: [],
   };
 
   let leitura: Awaited<ReturnType<typeof fetchClickUpProjectStatuses>>;
@@ -45,26 +60,39 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
   const porTaskId = new Map(leitura.statuses.map((s) => [s.taskId, s]));
 
   const service = createSupabaseServiceRoleClient();
+  /**
+   * TODOS os clientes, não só os já vinculados. Os sem vínculo entram como
+   * candidatos pra casar com uma tarefa que só existe no ClickUp — sem
+   * essa lista, "Karine Serigy" viraria um projeto novo ao lado da Serigy
+   * que já está aqui (ela entrou como "Fruteb / Sa").
+   */
   const { data, error } = await service
     .from("clients")
-    .select("id, nome, empresa, status, clickup_task_id, clickup_nome, responsavel, data_inicial, data_vencimento")
-    .not("clickup_task_id", "is", null);
+    .select(
+      "id, nome, empresa, status, clickup_task_id, clickup_nome, nome_exibicao, responsavel, data_inicial, data_vencimento, arquivado_em"
+    );
   if (error) {
     logServerError("clickup.status.clients", error);
     return { ...vazio, erro: "Não consegui ler os projetos." };
   }
 
-  const clientes = (data ?? []) as {
+  interface LinhaCliente {
     id: string;
     nome: string | null;
     empresa: string | null;
     status: string | null;
-    clickup_task_id: string;
+    clickup_task_id: string | null;
     clickup_nome: string | null;
+    nome_exibicao: string | null;
     responsavel: string | null;
     data_inicial: string | null;
     data_vencimento: string | null;
-  }[];
+    arquivado_em: string | null;
+  }
+  const todos = (data ?? []) as LinhaCliente[];
+  const clientes = todos.filter(
+    (c): c is LinhaCliente & { clickup_task_id: string } => Boolean(c.clickup_task_id)
+  );
 
   const atualizados: ResultadoStatusProjetos["atualizados"] = [];
   let jaEmDia = 0;
@@ -142,5 +170,102 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
     });
   }
 
-  return { ok: true, atualizados, jaEmDia, ignorados };
+  /* ---------------------------------------------------------------- *
+   * Projetos que existem no ClickUp e não existem aqui.
+   *
+   * Até 28/09 o sync criava TAREFA e nunca PROJETO: quem nascia lá nunca
+   * chegava aqui, e a lista do app vivia com menos gente que a do
+   * ClickUp (faltavam Marplast, Tatiana Garcia, Karine Serigy e Javier
+   * Lopes). Pedido da Karine: "crie o que não existe".
+   * ---------------------------------------------------------------- */
+  const vinculadas = new Set(clientes.map((c) => c.clickup_task_id));
+  const candidatos: CandidatoProjeto[] = todos.map((c) => ({
+    id: c.id,
+    nomes: [c.nome_exibicao, c.clickup_nome, c.empresa, c.nome],
+    clickupTaskId: c.clickup_task_id,
+    arquivado: Boolean(c.arquivado_em),
+  }));
+
+  const criados: ResultadoStatusProjetos["criados"] = [];
+  const vinculados: ResultadoStatusProjetos["vinculados"] = [];
+  const naoCriados: ResultadoStatusProjetos["naoCriados"] = [];
+  const agora = new Date().toISOString();
+
+  for (const t of leitura.statuses) {
+    if (vinculadas.has(t.taskId)) continue;
+    if (!statusPermiteCriar(t.statusApp, t.statusBruto)) continue;
+
+    const nome = t.nome.replace(/\s+/g, " ").trim();
+    const casou = casarProjeto(nome, candidatos);
+
+    if (casou.tipo === "pular") {
+      naoCriados.push({ projeto: nome, motivo: casou.motivo });
+      continue;
+    }
+
+    if (casou.tipo === "vincular") {
+      const { error: vincErr } = await service
+        .from("clients")
+        .update({
+          clickup_task_id: t.taskId,
+          clickup_nome: t.nome,
+          status: t.statusApp,
+          ...(t.responsavel ? { responsavel: t.responsavel } : {}),
+          ...(t.dataInicial ? { data_inicial: t.dataInicial } : {}),
+          ...(t.dataVencimento ? { data_vencimento: t.dataVencimento } : {}),
+          updated_at: agora,
+        })
+        .eq("id", casou.clientId);
+      if (vincErr) {
+        logServerError("clickup.status.vincular", vincErr);
+        naoCriados.push({ projeto: nome, motivo: "erro ao gravar o vínculo" });
+        continue;
+      }
+      vinculadas.add(t.taskId);
+      // Já tem dono: sai da lista de candidatos pra não casar de novo.
+      const idx = candidatos.findIndex((c) => c.id === casou.clientId);
+      if (idx >= 0) candidatos[idx] = { ...candidatos[idx], clickupTaskId: t.taskId };
+      vinculados.push({ projeto: nome, motivo: casou.motivo });
+      continue;
+    }
+
+    /**
+     * `whatsapp` e `nome` são NOT NULL no banco, e o ClickUp só tem o
+     * nome — o resto (contato, contrato, pagamento) é preenchido aqui
+     * depois. `empresa` fica vazia de propósito: todas as telas caem em
+     * `empresa || nome`, então o nome do ClickUp é o que aparece.
+     */
+    const { data: novo, error: criaErr } = await service
+      .from("clients")
+      .insert({
+        nome,
+        email: "",
+        empresa: "",
+        whatsapp: "",
+        status: t.statusApp,
+        clickup_task_id: t.taskId,
+        clickup_nome: t.nome,
+        responsavel: t.responsavel,
+        data_inicial: t.dataInicial,
+        data_vencimento: t.dataVencimento,
+        magic_slug: generateMagicSlug({ nome, empresa: null }),
+      })
+      .select("id")
+      .single();
+    if (criaErr || !novo) {
+      logServerError("clickup.status.criar", criaErr);
+      naoCriados.push({ projeto: nome, motivo: "erro ao criar o projeto" });
+      continue;
+    }
+    vinculadas.add(t.taskId);
+    candidatos.push({
+      id: (novo as { id: string }).id,
+      nomes: [nome],
+      clickupTaskId: t.taskId,
+      arquivado: false,
+    });
+    criados.push({ projeto: nome, status: t.statusApp });
+  }
+
+  return { ok: true, atualizados, jaEmDia, ignorados, criados, vinculados, naoCriados };
 }

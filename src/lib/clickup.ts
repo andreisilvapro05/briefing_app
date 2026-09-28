@@ -274,6 +274,12 @@ export interface ClickUpProjectStatus {
   nome: string;
   statusApp: string;
   /**
+   * O status como está escrito lá, em minúsculas. Guardado porque o mapa
+   * é de muitos-para-um: "recorrente" vira "a-iniciar" igual a "a iniciar",
+   * e quem decide criar projeto novo precisa distinguir os dois.
+   */
+  statusBruto: string;
+  /**
    * Responsável da tarefa-MÃE — o gestor do projeto. No ClickUp é o Andrei
    * em quase todas; quem toca a etapa aparece nas subtarefas.
    */
@@ -365,6 +371,7 @@ export async function fetchClickUpProjectStatuses(): Promise<
           taskId: t.id,
           nome: t.name,
           statusApp,
+          statusBruto: bruto,
           responsavel: donoDoClickUp(t.assignees),
           dataInicial: dataDoClickUp(t.start_date),
           dataVencimento: dataDoClickUp(t.due_date),

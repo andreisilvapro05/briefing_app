@@ -72,21 +72,19 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const sync = await sincronizarTarefasDoClickUp();
-    if (!sync.ok) {
-      // Falta de token não é erro de servidor: é configuração pendente, e
-      // devolver 500 encheria o log de alarme falso todo dia.
-      logServerError("cron.sync-clickup", new Error(sync.reason ?? "sync falhou"));
-      return NextResponse.json({ ok: false, motivo: sync.reason }, { status: 200 });
-    }
-
     /**
-     * Status do PROJETO, não só das tarefas.
+     * PROJETOS primeiro, TAREFAS depois — a ordem importa.
      *
-     * São duas rotinas separadas e o cron só chamava a primeira: o status
-     * do projeto só se atualizava quando alguém clicava no botão da Lista.
-     * Por isso a lista do app divergia da do ClickUp — "Pablo" aparecia em
-     * design lá e "a iniciar" aqui (comparação de 28/09).
+     * São duas rotinas separadas, e o cron só chamava a das tarefas: o
+     * status do projeto só se atualizava quando alguém clicava no botão da
+     * Lista. Por isso a lista do app divergia da do ClickUp — "Pablo"
+     * aparecia em design lá e "a iniciar" aqui (comparação de 28/09).
+     *
+     * E vem ANTES porque agora ela também CRIA o projeto que existe só no
+     * ClickUp. O sync de tarefas pendura cada subtarefa no cliente pelo
+     * `clickup_task_id` da tarefa-mãe: rodando depois, o projeto recém
+     * criado já chega com as etapas dele na mesma execução. Invertido, as
+     * tarefas só apareceriam no dia seguinte.
      */
     const statusProjetos = await sincronizarStatusDosProjetos();
     if (!statusProjetos.ok) {
@@ -94,6 +92,14 @@ export async function GET(request: NextRequest) {
         "cron.sync-clickup.status",
         new Error(statusProjetos.erro ?? "status falhou")
       );
+    }
+
+    const sync = await sincronizarTarefasDoClickUp();
+    if (!sync.ok) {
+      // Falta de token não é erro de servidor: é configuração pendente, e
+      // devolver 500 encheria o log de alarme falso todo dia.
+      logServerError("cron.sync-clickup", new Error(sync.reason ?? "sync falhou"));
+      return NextResponse.json({ ok: false, motivo: sync.reason }, { status: 200 });
     }
 
     // Tarefa que voltou sem dono ganha o dono padrão do tipo dela. Só toca
@@ -112,6 +118,9 @@ export async function GET(request: NextRequest) {
       semCorrespondencia: sync.semCorrespondencia,
       projetosComStatusNovo: statusProjetos.atualizados.length,
       projetosJaEmDia: statusProjetos.jaEmDia,
+      projetosCriados: statusProjetos.criados,
+      projetosVinculados: statusProjetos.vinculados,
+      projetosNaoCriados: statusProjetos.naoCriados,
       donosPreenchidos: donos.preenchidas,
       semDono: donos.restantesSemDono,
     });
