@@ -3,6 +3,9 @@ import { z } from "zod";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 import { getServerEnv } from "@/lib/env";
+import { indiceNaLinhaDoTempo } from "@/lib/etapa-pelo-status";
+import { buildTimeline } from "@/lib/project-types";
+import type { ProjectType } from "@/lib/types";
 
 /**
  * Devolve o stage atual do projeto pra um cliente, dado o clientId
@@ -51,7 +54,24 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      stageIndex: data.current_stage_index ?? 0,
+      /**
+       * A etapa que o cliente vê sai do STATUS do projeto, não de
+       * `current_stage_index`.
+       *
+       * Eram três fontes independentes pra "onde o projeto está", e esta
+       * rota lia a única que ninguém atualizava: um número que só muda se
+       * alguém lembrar. A equipe movia o projeto no quadro todo dia e o
+       * cliente seguia vendo "Onboarding". Agora mover no quadro move o
+       * que ele vê — e o valor manual continua valendo como piso, pra o
+       * app não desfazer um avanço feito à mão na frente do cliente.
+       */
+      stageIndex: indiceNaLinhaDoTempo(
+        data.status as string | null,
+        data.project_type
+          ? buildTimeline(data.project_type as ProjectType, 0).map((e) => e.titulo)
+          : [],
+        Number(data.current_stage_index) || 0
+      ),
       status: data.status,
       projectType: data.project_type,
       contratoPreenchido: !!data.contrato_preenchido_at,
