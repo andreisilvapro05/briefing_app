@@ -641,10 +641,17 @@ function ClientAccordionRow({
           {c.parado ? (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-xs uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
-              title="Sem atividade do cliente há 14+ dias"
+              title="O cliente não dá retorno há 14 dias ou mais"
             >
               <span className="h-1 w-1 rounded-full bg-amber-500" />
-              Parado
+              {/* NÃO é "Parado": esse é um dos 14 STATUS do projeto, e a
+                  linha mostrava o selo PARADO ao lado do status "A
+                  iniciar" — duas coisas diferentes com o mesmo nome
+                  (Karine, 28/09: "o status parado é um separado, né, como
+                  um status"). Este selo é derivado: 14+ dias sem o
+                  cliente responder. O status é decisão da equipe; isto é
+                  um fato sobre o cliente. */}
+              Sem retorno
             </span>
           ) : null}
           {incompleto ? (

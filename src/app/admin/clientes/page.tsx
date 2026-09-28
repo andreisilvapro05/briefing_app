@@ -377,7 +377,7 @@ export default async function AdminPage({
                         title={`Sem atividade há ${daysSince(lastActivity)} dias`}
                       >
                         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                        Parado
+                        Sem retorno
                       </span>
                     ) : null}
                   </div>
@@ -478,7 +478,7 @@ export default async function AdminPage({
                               title={`Sem atividade há ${daysSince(lastActivity)} dias`}
                             >
                               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                              Parado
+                              Sem retorno
                             </span>
                           ) : null}
                         </div>
@@ -548,7 +548,7 @@ export default async function AdminPage({
 
         <p className="text-xs text-fysi-muted mt-4">
           Mostrando {clients.length} de {totalCount} clientes. Marca de
-          &ldquo;Parado&rdquo; aparece após {STUCK_DAYS} dias sem atividade.
+          &ldquo;Sem retorno&rdquo; aparece após {STUCK_DAYS} dias sem o cliente responder — é diferente do status &ldquo;Parado&rdquo;, que é decisão da equipe.
         </p>
     </AdminShell>
   );
