@@ -10,6 +10,13 @@ export type ProjectType =
   | "landing-sem-copy"
   | "site-completo"
   | "seo"
+  /**
+   * Tráfego pago. Não é projeto de página: não tem copy, design nem
+   * implementação, e por isso não entra na lista de Projetos — sai numa
+   * visão própria. Karine (28/09): "a Carla é de tráfego, precisaremos
+   * separar uma aba para esses clientes".
+   */
+  | "trafego"
   | "outro";
 
 export interface ProjectTypeOption {

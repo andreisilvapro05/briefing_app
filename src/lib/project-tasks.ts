@@ -574,6 +574,26 @@ export const DEFAULT_PROJECT_TASKS: Record<ProjectType, string[]> = {
     "Conteúdo e link building",
     "Relatório e monitoramento",
   ],
+  /**
+   * Tráfego pago é serviço CONTÍNUO, não projeto com entrega e fim: não
+   * tem copy, design nem implementação de página. As etapas refletem o
+   * ciclo de campanha, não o fluxo de LP.
+   *
+   * Palpite explícito (28/09): a Karine disse que a Carla é de tráfego e
+   * que esses clientes precisam de lugar próprio, mas ainda não definiu as
+   * etapas. Isto é um ponto de partida pra ela corrigir na tela, não a
+   * verdade da operação.
+   */
+  trafego: [
+    "Envio Contrato",
+    "Pagamento",
+    "Acessos e pixel",
+    "Planejamento de campanha",
+    "Criativos",
+    "Subida das campanhas",
+    "Otimização",
+    "Relatório",
+  ],
   outro: ["Envio Contrato", "Pagamento", "Planejamento", "Execução", "Entrega"],
 };
 

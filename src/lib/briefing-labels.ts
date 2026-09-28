@@ -162,6 +162,7 @@ export const PROJECT_TYPE_LABELS: Record<string, string> = {
   "landing-sem-copy": "Landing Page sem copy",
   "site-completo": "Site completo",
   seo: "SEO",
+  trafego: "Tráfego pago",
   outro: "Outro serviço",
 };
 

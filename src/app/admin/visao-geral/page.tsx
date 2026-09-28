@@ -67,6 +67,23 @@ export default async function VisaoGeralPage({
   ]);
 
   /**
+   * Cliente de TRÁFEGO não entra na lista de Projetos.
+   *
+   * Karine (28/09): "a Carla é de tráfego, precisaremos separar uma aba
+   * para esses clientes" e "a Carla precisa sair dali". Tráfego é serviço
+   * contínuo — não tem copy, design nem implementação —, então ele polui
+   * um quadro cujas raias são as etapas de uma página.
+   *
+   * Aqui a Visão Geral só EXCLUI; quem conta e explica é a tela de
+   * Projetos, que é onde a pessoa vai procurar o cliente que sumiu.
+   */
+  const ehTrafego = (t: string | null) => t === "trafego";
+  const laneGroupsTodosSemTrafego = laneGroupsTodos.map((g) => ({
+    ...g,
+    clients: g.clients.filter((c) => !ehTrafego(c.projectType)),
+  }));
+
+  /**
    * Recorte por pessoa — a "Lista Karine", "Lista Andrei" do ClickUp, agora
    * também aqui. Sem isso a Visão Geral era sempre o painel da agência
    * inteira: quem quisesse ver o próprio quadro tinha que ler 43 projetos
@@ -92,15 +109,15 @@ export default async function VisaoGeralPage({
   const semPrazo = ativasVisiveis.length - abertasVisiveis.length;
   const abas = abasPorPessoa(ativasVisiveis, "/admin/visao-geral", keyParam, resp,
     // A aba "Todos" conta o que a lista mostra, não o que tem prazo.
-    new Set(laneGroupsTodos.flatMap((g) => g.clients.map((c) => c.id))).size);
+    new Set(laneGroupsTodosSemTrafego.flatMap((g) => g.clients.map((c) => c.id))).size);
   const clientesDaPessoa = resp ? projetosDaPessoa(ativasVisiveis, resp) : null;
 
   const laneGroups = clientesDaPessoa
-    ? laneGroupsTodos.map((g) => ({
+    ? laneGroupsTodosSemTrafego.map((g) => ({
         ...g,
         clients: g.clients.filter((c) => clientesDaPessoa.has(c.id)),
       }))
-    : laneGroupsTodos;
+    : laneGroupsTodosSemTrafego;
 
   /**
    * Projetos a vencer — pedido da Karine (24/09). A unidade é o projeto, e o

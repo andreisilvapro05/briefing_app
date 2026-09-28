@@ -45,6 +45,25 @@ export default async function AdminListaPage({
     listClientOptions(visibleIds),
   ]);
 
+  /**
+   * Cliente de TRÁFEGO não entra na lista de Projetos.
+   *
+   * Karine (28/09): "a Carla é de tráfego, precisaremos separar uma aba
+   * para esses clientes" e "a Carla precisa sair dali". Tráfego é serviço
+   * contínuo — não tem copy, design nem implementação —, então ele polui
+   * um quadro cujas raias são as etapas de uma página.
+   *
+   * Eles não somem: o rodapé da lista diz quantos são e leva pra Clientes.
+   */
+  const ehTrafego = (t: string | null) => t === "trafego";
+  const trafego = todosOsGrupos.flatMap((g) =>
+    g.clients.filter((c) => ehTrafego(c.projectType))
+  );
+  const todosOsGruposSemTrafego = todosOsGrupos.map((g) => ({
+    ...g,
+    clients: g.clients.filter((c) => !ehTrafego(c.projectType)),
+  }));
+
   // O mesmo filtro por pessoa da Visão Geral — pedido da Karine (23/09):
   // "o filtro deve ficar aqui e servir para as listas, e não ser uma coisa
   // separada". Vale nas duas telas que mostram projeto agrupado por status.
@@ -53,14 +72,14 @@ export default async function AdminListaPage({
   );
   const abas = abasPorPessoa(visiveis, "/admin/lista", keyParam, resp,
     // A aba "Todos" conta o que a lista mostra, não o que tem prazo.
-    new Set(todosOsGrupos.flatMap((g) => g.clients.map((c) => c.id))).size);
+    new Set(todosOsGruposSemTrafego.flatMap((g) => g.clients.map((c) => c.id))).size);
   const daPessoa = resp ? projetosDaPessoa(visiveis, resp) : null;
   const groups = daPessoa
-    ? todosOsGrupos.map((g) => ({
+    ? todosOsGruposSemTrafego.map((g) => ({
         ...g,
         clients: g.clients.filter((c) => daPessoa.has(c.id)),
       }))
-    : todosOsGrupos;
+    : todosOsGruposSemTrafego;
 
   /**
    * Escolher uma pessoa troca a visão: sai a distribuição de PROJETOS por
@@ -151,6 +170,23 @@ export default async function AdminListaPage({
           }
         />
       )}
+
+      {/* Os de tráfego não somem sem rastro: a linha diz quantos são e
+          leva pra ficha deles. Sem isso, "sumiu da lista" viraria "sumiu
+          do app" na cabeça de quem procura. */}
+      {trafego.length > 0 ? (
+        <p className="mt-3 text-xs text-fysi-muted">
+          {trafego.length} cliente{trafego.length === 1 ? "" : "s"} de tráfego
+          {trafego.length === 1 ? " não entra" : " não entram"} nesta lista —
+          tráfego é serviço contínuo, não passa pelas etapas de uma página.{" "}
+          <Link
+            href={`/admin/clientes${keyParam}`}
+            className="text-fysi-deep underline underline-offset-2"
+          >
+            Ver em Clientes →
+          </Link>
+        </p>
+      ) : null}
     </AdminShell>
   );
 }

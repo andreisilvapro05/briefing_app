@@ -26,6 +26,7 @@ export const PROJECT_TYPE_VALUES: ProjectType[] = [
   "landing-sem-copy",
   "site-completo",
   "seo",
+  "trafego",
   "outro",
 ];
 
