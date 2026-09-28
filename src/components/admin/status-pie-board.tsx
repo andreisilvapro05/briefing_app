@@ -240,9 +240,12 @@ export function StatusPieBoard({
   return (
     <div>
       {/* Pizza + legenda */}
-      <section className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-5 mb-5">
+      <section className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-5 py-4 mb-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-          <h2 className="text-[0.7rem] uppercase tracking-[0.14em] text-fysi-muted font-semibold">
+          {/* Título em caixa alta e espaçado era enfeite: a tela já se
+              chama "Projetos por status" no topo e no menu. Em caixa
+              normal ele informa sem disputar atenção com a rosca. */}
+          <h2 className="text-sm font-medium text-fysi-deep">
             Projetos por status
           </h2>
           <div className="flex items-center gap-3">
@@ -406,21 +409,21 @@ export function StatusPieBoard({
       ) : null}
 
       {abasPessoa && abasPessoa.length > 1 ? (
-        <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-4 pt-3 pb-3 mb-4">
-          {/* O rótulo existe porque sem ele a barra parecia mais uma linha
-              de navegação entre telas — e não o filtro do quadro. */}
-          <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-fysi-muted mb-1">
-            Filtrar por responsável
-          </p>
+        /* O filtro não é um assunto à parte: é o cabeçalho da lista que ele
+           recorta. Ele tinha cartão próprio, sombra própria e um rótulo em
+           caixa alta — três camadas de moldura pra uma fileira de nomes, e
+           mais uns 90px empurrando a lista pra fora da tela. Agora encosta
+           direto no painel abaixo. */
+        <div className="px-1 pt-1">
           <ViewTabs
             items={abasPessoa}
             ativo={pessoaAtiva}
             ariaLabel="Projetos por responsável"
           />
-          <p className="text-[0.7rem] text-fysi-muted mt-2">
+          <p className="text-[0.72rem] text-fysi-muted mt-1.5 mb-3">
             {pessoaAtiva
-              ? "Os projetos desta pessoa, agrupados por status — a pizza acima e as listas abaixo seguem este recorte."
-              : "O número é de projetos, não de tarefas. Escolha um nome pra ver só os projetos daquela pessoa."}
+              ? "Projetos desta pessoa. A rosca e a lista seguem o recorte."
+              : "O número conta projetos, não tarefas."}
           </p>
         </div>
       ) : null}
@@ -442,15 +445,21 @@ export function StatusPieBoard({
       ) : null}
 
       {/* Lista agrupada */}
-      <section className="flex flex-col gap-4">
+      {/* UM painel, não catorze cartões.
+          Cada raia era um cartão branco flutuante com a mesma sombra e o
+          mesmo raio — catorze molduras idênticas empilhadas, cada uma com
+          ~100px de altura pra mostrar uma linha de texto quando fechada.
+          Com quatorze status, a lista não cabia em tela nenhuma e as raias
+          vazias ocupavam o mesmo espaço visual das cheias.
+          Agora é um painel só e cada raia é uma linha, separada por fio.
+          A moldura deixa de repetir a informação "isto é um bloco" e passa
+          a dizer só o que importa: onde uma raia termina e a outra começa. */}
+      <section className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card overflow-hidden divide-y divide-fysi-line">
         {shown.map((g) => (
-          <div
-            key={g.id}
-            className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card overflow-hidden"
-          >
+          <div key={g.id}>
             <div
-              className={`flex items-center gap-3 px-5 py-3.5 ${
-                grupos.fechado(g.id) ? "" : "border-b border-fysi-line"
+              className={`flex items-center gap-3 px-5 py-2.5 transition-colors ${
+                grupos.fechado(g.id) ? "hover:bg-fysi-cream/40" : "bg-fysi-cream/30"
               }`}
             >
               {/* O cabeçalho inteiro é o alvo do clique — mirar num triângulo
@@ -464,13 +473,19 @@ export function StatusPieBoard({
                 <span className="text-fysi-muted group-hover/cab:text-fysi-deep">
                   <Caret aberto={!grupos.fechado(g.id)} />
                 </span>
+                {/* Ponto + texto no lugar da pílula sólida. Catorze blocos
+                    de cor saturada, um por raia, brigavam entre si e com o
+                    conteúdo — a cor identifica a raia, não precisa gritar.
+                    Ela continua sendo a mesma cor da fatia na rosca. */}
                 <span
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.7rem] font-semibold uppercase tracking-[0.06em] text-white"
+                  className="h-2.5 w-2.5 rounded-full shrink-0"
                   style={{ background: g.color }}
-                >
+                  aria-hidden="true"
+                />
+                <span className="text-sm font-medium text-fysi-deep truncate">
                   {g.label}
                 </span>
-                <span className="text-sm font-semibold text-fysi-deep tabular-nums">
+                <span className="text-sm text-fysi-muted tabular-nums">
                   {g.clients.length}
                 </span>
                 {g.description ? (
