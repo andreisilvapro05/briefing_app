@@ -131,7 +131,44 @@ function dataDe(ms: unknown): string | null {
   return FMT_DATA_SP.format(new Date(n));
 }
 
-/** Pagina o folder inteiro (100 por vez) — a v2 não devolve tudo de uma vez. */
+/**
+ * Os ids das listas dentro do folder de projetos.
+ *
+ * Existe porque `/api/v2/folder/{id}/task` NÃO EXISTE na API do ClickUp —
+ * tarefa pertence a LISTA, não a pasta. O sync chamava esse endereço e
+ * levava 404 em toda execução; era por isso que ele nunca trouxe nada,
+ * mesmo com o token certo configurado (medido em 27/09, chamando a rota
+ * de produção à mão).
+ */
+async function listasDoFolder(
+  token: string
+): Promise<{ ok: true; ids: string[] } | { ok: false; reason: string }> {
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://api.clickup.com/api/v2/folder/${FOLDER_ID}/list?archived=false`,
+      { headers: { Authorization: token }, cache: "no-store" }
+    );
+  } catch {
+    return { ok: false, reason: "Não consegui falar com o ClickUp." };
+  }
+  if (!res.ok) {
+    return {
+      ok: false,
+      reason: `ClickUp respondeu ${res.status} ao listar as listas da pasta ${FOLDER_ID}.`,
+    };
+  }
+  const json = (await res.json()) as { lists?: { id?: string }[] };
+  const ids = (json.lists ?? [])
+    .map((l) => l.id)
+    .filter((id): id is string => Boolean(id));
+  if (ids.length === 0) {
+    return { ok: false, reason: `A pasta ${FOLDER_ID} não tem nenhuma lista.` };
+  }
+  return { ok: true, ids };
+}
+
+/** Pagina cada lista do folder (100 por vez) — a v2 não devolve tudo de uma vez. */
 async function buscarTarefas(): Promise<
   { ok: true; tarefas: TarefaClickUp[] } | { ok: false; reason: string }
 > {
@@ -139,12 +176,16 @@ async function buscarTarefas(): Promise<
   if (!env.clickupToken)
     return { ok: false, reason: "ClickUp não configurado (falta CLICKUP_API_TOKEN)." };
 
+  const listas = await listasDoFolder(env.clickupToken);
+  if (!listas.ok) return listas;
+
   const mapa = mapaResponsaveis();
   const tarefas: TarefaClickUp[] = [];
 
+  for (const listId of listas.ids) {
   for (let page = 0; page < 30; page++) {
     const url =
-      `https://api.clickup.com/api/v2/folder/${FOLDER_ID}/task` +
+      `https://api.clickup.com/api/v2/list/${listId}/task` +
       `?subtasks=true&include_closed=true&page=${page}`;
     let res: Response;
     try {
@@ -190,6 +231,7 @@ async function buscarTarefas(): Promise<
       });
     }
     if (lote.length < 100 || json.last_page) break;
+  }
   }
 
   return { ok: true, tarefas };

@@ -298,11 +298,31 @@ export async function fetchClickUpProjectStatuses(): Promise<
     };
   }
 
+  /**
+   * `/api/v2/folder/{id}/task` NÃO EXISTE na API do ClickUp — tarefa
+   * pertence a LISTA, não a pasta. Esta função pedia esse endereço e
+   * levava 404 toda vez. Primeiro resolve as listas da pasta, depois
+   * pagina cada uma (mesmo conserto de clickup-tasks-sync.ts, 27/09).
+   */
+  const resListas = await fetch(
+    `https://api.clickup.com/api/v2/folder/${folderId}/list?archived=false`,
+    { headers: { Authorization: env.clickupToken } }
+  );
+  if (!resListas.ok) {
+    throw new Error(`ClickUp ${resListas.status}: ${await resListas.text()}`);
+  }
+  const listaIds = (
+    ((await resListas.json()) as { lists?: { id?: string }[] }).lists ?? []
+  )
+    .map((l) => l.id)
+    .filter((id): id is string => Boolean(id));
+
   const statuses: ClickUpProjectStatus[] = [];
   // A API pagina de 100 em 100; sem o laço, projeto antigo ficaria de fora.
+  for (const listId of listaIds) {
   for (let page = 0; page < 20; page++) {
     const url =
-      `https://api.clickup.com/api/v2/folder/${folderId}/task` +
+      `https://api.clickup.com/api/v2/list/${listId}/task` +
       `?include_closed=true&subtasks=false&page=${page}`;
     const res = await fetch(url, { headers: { Authorization: env.clickupToken } });
     if (!res.ok) {
@@ -318,6 +338,7 @@ export async function fetchClickUpProjectStatuses(): Promise<
       if (statusApp) statuses.push({ taskId: t.id, nome: t.name, statusApp });
     }
     if (data.last_page || (data.tasks?.length ?? 0) < 100) break;
+  }
   }
 
   return { statuses };

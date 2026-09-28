@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   getCurrentMember,
   getVisibleClientIds,
+  hasFinanceAccess,
   hasFullAccess,
   isDeveloper,
 } from "@/lib/member";
@@ -123,8 +124,24 @@ export async function getUnreadAdminNotificationsAction(
     .limit(20);
 
   const rows = (data as AdminNotificationRow[]) ?? [];
-  if (!visibleIds) return rows;
-  return rows.filter((n) => !n.client_id || visibleIds.has(n.client_id));
+  /**
+   * Aviso de dinheiro não chega pra quem não vê dinheiro.
+   *
+   * O filtro era só por CLIENTE, não por assunto: a designer ("basico")
+   * recebia "Pagamento de <empresa> — 80% recebido" no sino dos clientes
+   * dela, enquanto o menu escondia Cobranças e Contratos. Esconder a tela
+   * e entregar o valor pelo sino é o pior dos dois mundos.
+   *
+   * Achado no mapeamento de 26/09 e urgente desde 27/09, quando a Valéria
+   * e o Daniel passaram a existir como usuários de verdade.
+   */
+  const semFinanceiro = !hasFinanceAccess(member);
+  const visiveis = semFinanceiro
+    ? rows.filter((n) => n.kind !== "pagamento.recebido")
+    : rows;
+
+  if (!visibleIds) return visiveis;
+  return visiveis.filter((n) => !n.client_id || visibleIds.has(n.client_id));
 }
 
 /* ------------------------------------------------------------------ *
