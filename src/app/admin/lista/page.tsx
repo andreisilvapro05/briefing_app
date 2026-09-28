@@ -14,7 +14,8 @@ import { StatusPieBoard } from "@/components/admin/status-pie-board";
 import { ClickUpSyncButton } from "@/components/admin/clickup-sync-button";
 import { ProjetosIncompletos } from "@/components/admin/projetos-incompletos";
 import { abasPorPessoa, projetosDaPessoa, respValido } from "@/lib/abas-pessoa";
-import { listAllProjectTasks } from "@/lib/project-tasks-server";
+import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
+import { AllTasksBoard } from "@/components/admin/all-tasks-board";
 
 export const dynamic = "force-dynamic";
 
@@ -37,9 +38,10 @@ export default async function AdminListaPage({
   // `resp` entra em getLaneGroups porque as colunas Responsável/Início/
   // Vencimento/Prioridade da linha saem da tarefa DAQUELA pessoa — é o que
   // faz a "Lista Andrei" do ClickUp mostrar a data dele.
-  const [todosOsGrupos, todasAsTarefas] = await Promise.all([
+  const [todosOsGrupos, todasAsTarefas, clientOptions] = await Promise.all([
     getLaneGroups(visibleIds, resp || null),
     listAllProjectTasks(),
+    listClientOptions(visibleIds),
   ]);
 
   // O mesmo filtro por pessoa da Visão Geral — pedido da Karine (23/09):
@@ -56,6 +58,29 @@ export default async function AdminListaPage({
         clients: g.clients.filter((c) => daPessoa.has(c.id)),
       }))
     : todosOsGrupos;
+
+  /**
+   * Escolher uma pessoa troca a visão: sai a distribuição de PROJETOS por
+   * status, entram as TAREFAS dela agrupadas por status.
+   *
+   * É o que a "Lista Valéria" do ClickUp é — print dela em 28/09: linhas
+   * são as tarefas ("Design LP Pablo", "CAPAS E-BOOK PABLO"), agrupadas
+   * por status, com Responsável, Prioridade, Data inicial e Vencimento.
+   *
+   * A "Lista Andrei" parece diferente (linhas com nome de cliente) só
+   * porque as atribuições DELE são as tarefas-mãe, que no ClickUp levam o
+   * nome do cliente. Mesma visão, dados diferentes — foi o que me fez
+   * desfazer isso uma vez, achando que eram duas coisas.
+   *
+   * "Todos" segue mostrando projetos por status, que é o que o app tem de
+   * melhor que o ClickUp: lá projeto não existe como entidade.
+   */
+  const tarefasComCliente = visiveis.filter(
+    (t): t is (typeof visiveis)[number] & {
+      client: NonNullable<(typeof visiveis)[number]["client"]>;
+      client_id: string;
+    } => t.client !== null && t.client_id !== null
+  );
 
   return (
     <AdminShell active="lista" keyParam={keyParam} userEmail={member.email}
@@ -95,17 +120,33 @@ export default async function AdminListaPage({
         urlKey={urlKey ?? undefined}
       />
 
-      <StatusPieBoard
-        groups={groups}
-        keyParam={keyParam}
-        urlKey={urlKey ?? undefined}
-        novoHref={novoHref}
-        abasPessoa={abas}
-        pessoaAtiva={resp}
-        restrictToResponsavel={
-          hasTaskScopedRole(member) ? member.taskValue : undefined
-        }
-      />
+      {resp ? (
+        <AllTasksBoard
+          tasks={tarefasComCliente}
+          urlKey={urlKey ?? undefined}
+          clients={clientOptions}
+          restrictToResponsavel={
+            hasTaskScopedRole(member) ? member.taskValue : undefined
+          }
+          viewInicial={resp}
+          // As abas precisam NAVEGAR aqui: é o servidor que decide entre as
+          // duas visões, e o filtro no cliente só trocaria a URL sem
+          // recarregar — "Todos" nunca voltaria pra visão de projetos.
+          navegacao={{ base: "/admin/lista", keyParam }}
+        />
+      ) : (
+        <StatusPieBoard
+          groups={groups}
+          keyParam={keyParam}
+          urlKey={urlKey ?? undefined}
+          novoHref={novoHref}
+          abasPessoa={abas}
+          pessoaAtiva={resp}
+          restrictToResponsavel={
+            hasTaskScopedRole(member) ? member.taskValue : undefined
+          }
+        />
+      )}
     </AdminShell>
   );
 }
