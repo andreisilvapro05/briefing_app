@@ -42,12 +42,12 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
   }
   if ("skipped" in leitura) return { ...vazio, erro: leitura.reason };
 
-  const porTaskId = new Map(leitura.statuses.map((s) => [s.taskId, s.statusApp]));
+  const porTaskId = new Map(leitura.statuses.map((s) => [s.taskId, s]));
 
   const service = createSupabaseServiceRoleClient();
   const { data, error } = await service
     .from("clients")
-    .select("id, nome, empresa, status, clickup_task_id")
+    .select("id, nome, empresa, status, clickup_task_id, clickup_nome, responsavel")
     .not("clickup_task_id", "is", null);
   if (error) {
     logServerError("clickup.status.clients", error);
@@ -60,6 +60,8 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
     empresa: string | null;
     status: string | null;
     clickup_task_id: string;
+    clickup_nome: string | null;
+    responsavel: string | null;
   }[];
 
   const atualizados: ResultadoStatusProjetos["atualizados"] = [];
@@ -67,23 +69,41 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
   let ignorados = 0;
 
   for (const c of clientes) {
-    const novo = porTaskId.get(c.clickup_task_id);
-    if (!novo) {
+    const doClickUp = porTaskId.get(c.clickup_task_id);
+    if (!doClickUp) {
       ignorados++; // tarefa de briefing, ou fora do folder de projetos
       continue;
     }
+    const novo = doClickUp.statusApp;
+
+    /**
+     * Nome e gestor vêm junto, e são gravados MESMO quando o status já
+     * está em dia — senão um projeto parado no mesmo status nunca
+     * receberia o responsável (Karine, 28/09: "sempre mostra o Andrei
+     * como responsável principal, gestor de projetos").
+     */
+    const extras: Record<string, unknown> = {};
+    if (doClickUp.nome && doClickUp.nome !== c.clickup_nome) {
+      extras.clickup_nome = doClickUp.nome;
+    }
+    if (doClickUp.responsavel && doClickUp.responsavel !== c.responsavel) {
+      extras.responsavel = doClickUp.responsavel;
+    }
+
     // Estágio que só existe no app — não rebaixar.
-    if (c.status === "envio-informacoes") {
-      ignorados++;
+    const manterStatus = c.status === "envio-informacoes" || c.status === novo;
+    if (manterStatus) {
+      if (c.status === "envio-informacoes") ignorados++;
+      else jaEmDia++;
+      if (Object.keys(extras).length > 0) {
+        await service.from("clients").update(extras).eq("id", c.id);
+      }
       continue;
     }
-    if (c.status === novo) {
-      jaEmDia++;
-      continue;
-    }
+
     const { error: updErr } = await service
       .from("clients")
-      .update({ status: novo, updated_at: new Date().toISOString() })
+      .update({ ...extras, status: novo, updated_at: new Date().toISOString() })
       .eq("id", c.id);
     if (updErr) {
       logServerError("clickup.status.update", updErr);

@@ -273,6 +273,11 @@ export interface ClickUpProjectStatus {
   taskId: string;
   nome: string;
   statusApp: string;
+  /**
+   * Responsável da tarefa-MÃE — o gestor do projeto. No ClickUp é o Andrei
+   * em quase todas; quem toca a etapa aparece nas subtarefas.
+   */
+  responsavel: string | null;
 }
 
 /**
@@ -339,17 +344,58 @@ export async function fetchClickUpProjectStatuses(): Promise<
       throw new Error(`ClickUp ${res.status}: ${await res.text()}`);
     }
     const data = (await res.json()) as {
-      tasks?: { id: string; name: string; status?: { status?: string } }[];
+      tasks?: {
+        id: string;
+        name: string;
+        status?: { status?: string };
+        assignees?: { id?: number }[];
+      }[];
       last_page?: boolean;
     };
     for (const t of data.tasks ?? []) {
       const bruto = (t.status?.status ?? "").toLowerCase().trim();
       const statusApp = CLICKUP_STATUS_MAP[bruto];
-      if (statusApp) statuses.push({ taskId: t.id, nome: t.name, statusApp });
+      if (statusApp) {
+        statuses.push({
+          taskId: t.id,
+          nome: t.name,
+          statusApp,
+          responsavel: donoDoClickUp(t.assignees),
+        });
+      }
     }
     if (data.last_page || (data.tasks?.length ?? 0) < 100) break;
   }
   }
 
   return { statuses };
+}
+
+
+/**
+ * Id numérico do ClickUp → valor de TEAM_MEMBERS.
+ *
+ * Mesmo mapa de `clickup-tasks-sync.ts`; duplicado aqui porque importar
+ * de lá criaria dependência circular (aquele arquivo importa deste).
+ */
+function donoDoClickUp(assignees: { id?: number }[] | undefined): string | null {
+  const bruto = process.env.CLICKUP_MEMBER_MAP;
+  let mapa: Record<string, string> = {
+    "87402023": "valeria",
+    "49116767": "andrei",
+    "43099461": "karine",
+    "82109102": "leonardo",
+  };
+  if (bruto) {
+    try {
+      mapa = JSON.parse(bruto) as Record<string, string>;
+    } catch {
+      /* cai no padrão */
+    }
+  }
+  for (const a of assignees ?? []) {
+    const v = a?.id ? mapa[String(a.id)] : undefined;
+    if (v) return v;
+  }
+  return null;
 }

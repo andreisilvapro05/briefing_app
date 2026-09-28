@@ -47,7 +47,7 @@ export async function getLaneGroups(
   let clientsQuery = service
     .from("clients")
     .select(
-      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
+      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, responsavel, clickup_nome"
     )
     .order("created_at", { ascending: false });
   if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
@@ -86,7 +86,12 @@ export async function getLaneGroups(
       return {
         id: c.id,
         nome: c.nome,
-        empresa: c.empresa,
+        // Nome do ClickUp na frente enquanto a migração acontece — pedido
+        // da Karine (28/09): "use o nome do ClickUp por enquanto, depois
+        // melhoramos". O nome real segue em `nome`, nada se perde.
+        empresa:
+          (c as { clickup_nome?: string | null }).clickup_nome?.trim() ||
+          c.empresa,
         tipo: c.project_type
           ? PROJECT_TYPE_LABELS[c.project_type] ?? c.project_type
           : "—",
@@ -101,7 +106,19 @@ export async function getLaneGroups(
         // As colunas que o ClickUp mostra na linha do projeto. Derivadas
         // aqui, no servidor, porque as subtarefas só chegam ao navegador
         // quando o accordion é aberto — ver o comentário logo abaixo.
-        linha: linhaDoProjeto(tasks ?? [], pessoa),
+        /**
+         * O responsável do PROJETO é o gestor (clients.responsavel), não
+         * quem está com a etapa da vez. Karine (28/09): "sempre mostra o
+         * Andrei como responsável principal — gestor de projetos". Só cai
+         * pro responsável da tarefa quando o projeto ainda não tem gestor
+         * definido; as datas e a prioridade seguem vindo da tarefa, que é
+         * de onde elas existem.
+         */
+        linha: (() => {
+          const base = linhaDoProjeto(tasks ?? [], pessoa);
+          const gestor = (c as { responsavel?: string | null }).responsavel;
+          return gestor ? { ...base, responsavel: gestor } : base;
+        })(),
         // As tarefas NÃO vão no payload: o accordion busca sob demanda em
         // /api/admin/client-tasks quando é aberto. Mandar o array completo
         // de todos os clientes inflava a resposta destas telas (medido:
