@@ -278,6 +278,9 @@ export interface ClickUpProjectStatus {
    * em quase todas; quem toca a etapa aparece nas subtarefas.
    */
   responsavel: string | null;
+  /** Datas da tarefa-MÃE — o prazo do projeto, não o da etapa. */
+  dataInicial: string | null;
+  dataVencimento: string | null;
 }
 
 /**
@@ -349,6 +352,8 @@ export async function fetchClickUpProjectStatuses(): Promise<
         name: string;
         status?: { status?: string };
         assignees?: { id?: number }[];
+        start_date?: unknown;
+        due_date?: unknown;
       }[];
       last_page?: boolean;
     };
@@ -361,6 +366,8 @@ export async function fetchClickUpProjectStatuses(): Promise<
           nome: t.name,
           statusApp,
           responsavel: donoDoClickUp(t.assignees),
+          dataInicial: dataDoClickUp(t.start_date),
+          dataVencimento: dataDoClickUp(t.due_date),
         });
       }
     }
@@ -398,4 +405,26 @@ function donoDoClickUp(assignees: { id?: number }[] | undefined): string | null 
     if (v) return v;
   }
   return null;
+}
+
+
+/**
+ * Milissegundos do ClickUp → "YYYY-MM-DD" no fuso de São Paulo.
+ *
+ * O fuso importa: tarefa marcada pra depois das 21h chega aqui com o dia
+ * seguinte se a conversão for em UTC — mesmo cuidado (e mesmo motivo) do
+ * `dataDe` em clickup-tasks-sync.ts.
+ */
+const FMT_DATA_BR = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Sao_Paulo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function dataDoClickUp(valor: unknown): string | null {
+  if (valor === null || valor === undefined || valor === "") return null;
+  const n = Number(valor);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return FMT_DATA_BR.format(new Date(n));
 }

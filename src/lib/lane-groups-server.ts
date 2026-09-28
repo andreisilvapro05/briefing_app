@@ -47,7 +47,7 @@ export async function getLaneGroups(
   let clientsQuery = service
     .from("clients")
     .select(
-      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, responsavel, clickup_nome, nome_exibicao"
+      "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, responsavel, clickup_nome, nome_exibicao, data_inicial, data_vencimento"
     )
     // Arquivado não entra em nenhuma lista de trabalho: é projeto que não
     // vai acontecer (desistência, abandono). O status real de onde ele
@@ -126,8 +126,24 @@ export async function getLaneGroups(
          */
         linha: (() => {
           const base = linhaDoProjeto(tasks ?? [], pessoa);
-          const gestor = (c as { responsavel?: string | null }).responsavel;
-          return gestor ? { ...base, responsavel: gestor } : base;
+          const p = c as {
+            responsavel?: string | null;
+            data_inicial?: string | null;
+            data_vencimento?: string | null;
+          };
+          /**
+           * O que o PROJETO tem de próprio vence o que foi derivado das
+           * subtarefas. No ClickUp responsável e datas moram na tarefa-mãe,
+           * e derivar da subtarefa deixava as colunas vazias em todo
+           * projeto sem subtarefa datada — o caso dos quatro parados
+           * (Karine, 28/09: "não está igual, e as datas").
+           */
+          return {
+            ...base,
+            responsavel: p.responsavel ?? base.responsavel,
+            dataInicial: p.data_inicial ?? base.dataInicial,
+            dataVencimento: p.data_vencimento ?? base.dataVencimento,
+          };
         })(),
         // As tarefas NÃO vão no payload: o accordion busca sob demanda em
         // /api/admin/client-tasks quando é aberto. Mandar o array completo

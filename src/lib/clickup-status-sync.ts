@@ -47,7 +47,7 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
   const service = createSupabaseServiceRoleClient();
   const { data, error } = await service
     .from("clients")
-    .select("id, nome, empresa, status, clickup_task_id, clickup_nome, responsavel")
+    .select("id, nome, empresa, status, clickup_task_id, clickup_nome, responsavel, data_inicial, data_vencimento")
     .not("clickup_task_id", "is", null);
   if (error) {
     logServerError("clickup.status.clients", error);
@@ -62,6 +62,8 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
     clickup_task_id: string;
     clickup_nome: string | null;
     responsavel: string | null;
+    data_inicial: string | null;
+    data_vencimento: string | null;
   }[];
 
   const atualizados: ResultadoStatusProjetos["atualizados"] = [];
@@ -89,11 +91,35 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
     if (doClickUp.responsavel && doClickUp.responsavel !== c.responsavel) {
       extras.responsavel = doClickUp.responsavel;
     }
+    // As datas do PROJETO moram na tarefa-mãe lá. Sem isso, as colunas
+    // Início e Vencimento ficavam vazias em todo projeto cujas subtarefas
+    // não têm data — o caso dos quatro parados (28/09).
+    if (doClickUp.dataInicial && doClickUp.dataInicial !== c.data_inicial) {
+      extras.data_inicial = doClickUp.dataInicial;
+    }
+    if (doClickUp.dataVencimento && doClickUp.dataVencimento !== c.data_vencimento) {
+      extras.data_vencimento = doClickUp.dataVencimento;
+    }
 
-    // Estágio que só existe no app — não rebaixar.
-    const manterStatus = c.status === "envio-informacoes" || c.status === novo;
+    /**
+     * "Envio de informações" só existe no app, então o sync não pode
+     * REBAIXAR um projeto pra `onboarding` por causa disso. Mas preservar
+     * pra sempre era pior: projeto que entrava nesse estágio nunca mais
+     * avançava sozinho, mesmo com o ClickUp já em design.
+     *
+     * Foi o caso da Vitória (Karine, 28/09: "design da página, Vitória já
+     * enviou as informações"): ela ficou presa aqui enquanto lá já estava
+     * em design da página.
+     *
+     * Agora só segura quando o ClickUp está ATRÁS (a iniciar, onboarding);
+     * se lá já andou, o app anda junto.
+     */
+    const ANTES_DO_ENVIO = ["a-iniciar", "nem-comecou-nada", "onboarding"];
+    const seguraEnvio =
+      c.status === "envio-informacoes" && ANTES_DO_ENVIO.includes(novo);
+    const manterStatus = seguraEnvio || c.status === novo;
     if (manterStatus) {
-      if (c.status === "envio-informacoes") ignorados++;
+      if (seguraEnvio) ignorados++;
       else jaEmDia++;
       if (Object.keys(extras).length > 0) {
         await service.from("clients").update(extras).eq("id", c.id);
