@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   AREAS,
   EISENHOWER,
-  ESFORCOS,
   TASK_STATUS_GROUP,
   TASK_STATUS_INTERNO,
   TASK_STATUS_OPTIONS,

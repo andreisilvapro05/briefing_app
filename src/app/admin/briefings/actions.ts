@@ -12,6 +12,7 @@ import { logServerError } from "@/lib/api-helpers";
 import type { CustomQuestionTipo } from "@/lib/custom-questions";
 import type { TemplateQuestion } from "@/lib/briefing-templates";
 import { getBriefingTemplate } from "@/lib/briefing-templates-server";
+import { createEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
 
 /**
  * Ações da aba global "Briefings" — templates reutilizáveis.
@@ -305,4 +306,22 @@ export async function vincularBriefingAction(formData: FormData) {
 
   revalidatePath(`/admin/briefings/doc/${id}`);
   redirect(`/admin/briefings/doc/${id}${keySuffix(urlKey)}`);
+}
+
+/**
+ * Criar briefing pelo botão do topo da barra lateral do hub.
+ *
+ * Pedido da Karine (28/09): "criar um novo fácil". A action de Estruturas
+ * Iniciais já faz exatamente isto — clona o Modelo do `kind` pedido e, com
+ * kind "briefing", já volta pra /admin/briefings/doc/{id}. O que falta é o
+ * `kind`: o formulário quem monta é o EIDocumentSidebar, no cliente, e ele
+ * só manda clientId/novo/key. Daí este invólucro, em vez de um campo
+ * escondido que só este uso da barra lateral teria.
+ *
+ * Reaproveitar em vez de copiar mantém a autorização num lugar só
+ * (desenvolvedor barrado, escopo por cliente de quem não tem visão total).
+ */
+export async function criarBriefingAction(formData: FormData) {
+  formData.set("kind", "briefing");
+  await createEIDocumentAction(formData);
 }

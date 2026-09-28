@@ -5,6 +5,7 @@ import { fetchBriefingPages } from "./clickup-docs";
 import { markdownToBlocks, blockPlainText } from "./markdown-to-blocks";
 import { extrairCredenciais, type CredencialItem } from "./briefing-credenciais";
 import { casarCliente, type ClienteRef } from "./briefing-match";
+import type { EIDocumentSummary } from "./ei-documents";
 
 /**
  * O briefing como ENTIDADE PRÓPRIA, não mais como aba da ficha do cliente.
@@ -42,6 +43,13 @@ export interface BriefingResumo {
    * Em 2026-09-21 havia 23 documentos assim no hub.
    */
   igualAoModelo: boolean;
+  /**
+   * Material histórico (ex-cliente ou versão antiga da mesma página do
+   * ClickUp). A barra lateral do hub separa "ativos" de "arquivo" — sem
+   * este campo ela mostraria os dois blocos juntos, que é o que a migration
+   * 20260922120000 criou a coluna pra evitar.
+   */
+  arquivado: boolean;
   updatedAt: string;
 }
 
@@ -65,12 +73,13 @@ interface Row {
   share_enabled: boolean | null;
   share_expires_at: string | null;
   clickup_page_id: string | null;
+  arquivado: boolean | null;
   updated_at: string;
   clients: { id: string; nome: string | null; empresa: string | null } | null;
 }
 
 const COLS =
-  "id, client_id, nome, is_template, origem, ei_data, credenciais, share_token, share_enabled, share_expires_at, clickup_page_id, updated_at, clients(id, nome, empresa)";
+  "id, client_id, nome, is_template, origem, ei_data, credenciais, share_token, share_enabled, share_expires_at, clickup_page_id, arquivado, updated_at, clients(id, nome, empresa)";
 
 /**
  * Conta blocos que têm texto de verdade. É isso que distingue um briefing
@@ -92,7 +101,7 @@ function blocosDe(row: Row): PartialBlock[] {
     : [];
 }
 
-function tituloDe(row: Row): string {
+function tituloDe(row: Pick<Row, "is_template" | "nome" | "clients">): string {
   if (row.is_template) return "Modelo de briefing";
   if (row.nome?.trim()) return row.nome.trim();
   const c = row.clients;
@@ -125,6 +134,7 @@ function resumo(row: Row, assinaturaModelo?: string | null): BriefingResumo {
     preenchimento: contarPreenchimento(blocks),
     igualAoModelo:
       !row.is_template && !!assinaturaModelo && assin === assinaturaModelo,
+    arquivado: Boolean(row.arquivado),
     updatedAt: row.updated_at,
   };
 }
@@ -143,6 +153,112 @@ export async function listarBriefings(): Promise<BriefingResumo[]> {
   const modelo = rows.find((r) => r.is_template);
   const assinaturaModelo = modelo ? assinatura(blocosDe(modelo)) : null;
   return rows.map((r) => resumo(r, assinaturaModelo));
+}
+
+/**
+ * Escopo por papel aplicado à lista do hub.
+ *
+ * "básico" (designer) só vê briefing de cliente em que está marcado — e
+ * briefing AVULSO (sem cliente) fica fora, porque não há nada pra escopar
+ * nele. É mais apertado que o hub de Documentos de Briefing, que deixa o
+ * sem-cliente passar, e é de propósito: o avulso vazando foi o achado da
+ * auditoria de 2026-09-21.
+ *
+ * Mora aqui, e não dentro de cada página, porque quem repete uma regra de
+ * autorização em duas telas acaba corrigindo só uma.
+ */
+export function briefingsVisiveis<T extends { clientId: string | null }>(
+  docs: T[],
+  visibleIds: Set<string> | null
+): T[] {
+  if (!visibleIds) return docs;
+  return docs.filter((d) => d.clientId !== null && visibleIds.has(d.clientId));
+}
+
+/**
+ * Modelo, ativos, arquivo — cada bloco em ordem alfabética, que é como se
+ * procura um nome (mesma regra de listEIDocuments). A LISTA da tela segue por
+ * data, mais recente primeiro: ali a pergunta é "o que mexeu", na barra
+ * lateral é "onde está o cliente X".
+ */
+function ordenarBarraLateral(docs: EIDocumentSummary[]): EIDocumentSummary[] {
+  return docs.sort((a, b) => {
+    if (a.isTemplate !== b.isTemplate) return a.isTemplate ? -1 : 1;
+    if (a.arquivado !== b.arquivado) return a.arquivado ? 1 : -1;
+    const porTitulo = a.title.localeCompare(b.title, "pt-BR");
+    return porTitulo !== 0 ? porTitulo : b.updatedAt.localeCompare(a.updatedAt);
+  });
+}
+
+/**
+ * A lista do hub no formato da barra lateral (EIDocumentSidebar), que é
+ * compartilhada com os hubs de EI, Documentos e Em branco.
+ *
+ * Por que mapear em vez de chamar `listEIDocuments("briefing")`, como os
+ * outros hubs: lá o título é sempre o nome do CLIENTE, e aqui é o `nome` da
+ * página do ClickUp ("Briefing Sofia Rito — julho"), que é o que distingue os
+ * vários briefings de um mesmo cliente. Misturar as duas fontes dava dois
+ * nomes diferentes pro mesmo documento na mesma tela.
+ */
+export function briefingsParaBarraLateral(
+  docs: BriefingResumo[]
+): EIDocumentSummary[] {
+  return ordenarBarraLateral(
+    docs.map((d) => ({
+      id: d.id,
+      title: d.titulo,
+      isTemplate: d.isTemplate,
+      clientId: d.clientId,
+      kind: "briefing" as const,
+      updatedAt: d.updatedAt,
+      arquivado: d.arquivado,
+      referenciaEm: null,
+    }))
+  );
+}
+
+/**
+ * A mesma barra lateral, para quem NÃO precisa da lista cheia — a tela de um
+ * briefing só.
+ *
+ * Existe por causa do peso: `listarBriefings()` traz `ei_data` de todos, e
+ * cada briefing clonado do Modelo tem ~28 KB de blocos (os 23 do app tinham
+ * exatamente 28.586 bytes). Puxar ~1 MB a cada troca de documento pra
+ * desenhar uma lista de nomes deixaria a navegação lenta justamente no clique
+ * que mais se dá aqui.
+ */
+export async function listarBriefingsParaBarraLateral(
+  visibleIds: Set<string> | null
+): Promise<EIDocumentSummary[]> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ei_documents")
+    .select(
+      "id, client_id, nome, is_template, arquivado, updated_at, clients(id, nome, empresa)"
+    )
+    .eq("kind", "briefing");
+
+  type Enxuta = Pick<Row, "is_template" | "nome" | "clients"> & {
+    id: string;
+    client_id: string | null;
+    arquivado: boolean | null;
+    updated_at: string;
+  };
+
+  const docs = ((data as unknown as Enxuta[]) ?? []).map((r) => ({
+    id: r.id,
+    // O MESMO título da lista: aqui o nome da página do ClickUp vence o nome
+    // do cliente, e é ele que distingue os vários briefings de um cliente só.
+    title: tituloDe(r),
+    isTemplate: r.is_template,
+    clientId: r.client_id,
+    kind: "briefing" as const,
+    updatedAt: r.updated_at,
+    arquivado: Boolean(r.arquivado),
+    referenciaEm: null,
+  }));
+
+  return ordenarBarraLateral(briefingsVisiveis(docs, visibleIds));
 }
 
 export async function obterBriefing(id: string): Promise<BriefingCompleto | null> {
