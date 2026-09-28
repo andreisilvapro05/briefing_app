@@ -6,6 +6,7 @@ import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { AbasVisualizacao } from "@/components/admin/abas-visualizacao";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import {
   GENERAL_LANES,
@@ -72,6 +73,7 @@ export default async function AdminQuadroPage({
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
       isSocio={isAdmin(member)} hideFinance={!hasFinanceAccess(member)}>
+        <AbasVisualizacao ativa="quadro" keyParam={keyParamFirst} />
         <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
             <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">Quadro</h1>

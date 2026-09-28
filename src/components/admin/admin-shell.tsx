@@ -36,6 +36,7 @@ export type AdminSection =
   | "prioridades"
   | "visao-geral"
   | "clientes"
+  | "projetos"
   | "lista"
   | "briefings"
   | "quadro"
@@ -71,6 +72,13 @@ interface NavItem {
    * o menu encolhe.
    */
   filhos?: NavItem[];
+  /**
+   * Item que só existe pra abrir a família: o clique cai na PRIMEIRA subaba,
+   * então ele não tem tela própria. Fica fora da lista plana do mobile —
+   * dois botões pro mesmo endereço é justamente a repetição que a Karine
+   * apontou (27/09).
+   */
+  soGrupo?: boolean;
 }
 
 interface NavArea {
@@ -146,6 +154,12 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <circle cx="9" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </I>
+  ),
+  // Pasta: o guarda-chuva das três visualizações (Por status/Quadro/Tarefas).
+  projetos: (
+    <I>
+      <path d="M3 7a2 2 0 0 1 2-2h3.7l2 2.5H19a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
     </I>
   ),
   lista: (
@@ -287,6 +301,15 @@ function item(
   };
 }
 
+/**
+ * Item que é só a porta da família — sem tela própria. O href é o da
+ * PRIMEIRA subaba, por construção: assim o grupo não inventa um endereço que
+ * ninguém implementou, e mover a subaba padrão é reordenar a lista.
+ */
+function grupo(id: AdminSection, label: string, filhos: NavItem[]): NavItem {
+  return { id, label, href: filhos[0].href, icon: ICONS[id], filhos, soGrupo: true };
+}
+
 /** Todos os itens de uma área, pais e filhos, em lista plana. */
 function planos(items: NavItem[]): NavItem[] {
   return items.flatMap((it) => [it, ...(it.filhos ?? [])]);
@@ -321,7 +344,22 @@ const AREAS: NavArea[] = [
       item("meu-trabalho", "Meu Trabalho", "/admin/meu-trabalho"),
       item("visao-geral", "Visão Geral", "/admin/visao-geral"),
       item("clientes", "Clientes", "/admin/clientes"),
-      item("lista", "Lista por status", "/admin/lista"),
+      /**
+       * "Por status", "Quadro" e "Tarefas" são a MESMA coisa — os projetos e
+       * suas tarefas — vista de três jeitos. Ocupavam três itens de primeiro
+       * nível, competindo entre si como se fossem três assuntos.
+       *
+       * Pedido da Karine (27/09), com seta no print do menu: "não faz
+       * sentido ficar repetindo as mesmas coisas, deixar só o que é mais
+       * importante, e colocar diferentes visualizações". Uma linha no menu,
+       * três views — como as views de uma lista do ClickUp. As URLs não
+       * mudaram: link antigo continua abrindo onde abria.
+       */
+      grupo("projetos", "Projetos", [
+        item("lista", "Por status", "/admin/lista"),
+        item("quadro", "Quadro", "/admin/quadro"),
+        item("tarefas", "Tarefas", "/admin/tarefas"),
+      ]),
       item("briefings", "Briefings", "/admin/briefings", [
         item(
           "briefing-documentos",
@@ -333,8 +371,6 @@ const AREAS: NavArea[] = [
         // criar uma copy nova".
         item("notas", "Em branco", "/admin/notas"),
       ]),
-      item("quadro", "Quadro", "/admin/quadro"),
-      item("tarefas", "Tarefas", "/admin/tarefas"),
       item("desenvolvimento", "Desenvolvimento", "/admin/desenvolvimento"),
       item("estruturas-iniciais", "Estruturas Iniciais", "/admin/estruturas-iniciais"),
     ],
@@ -525,6 +561,16 @@ export async function AdminShell({
               <ul className="flex flex-col gap-0.5">
                 {area.items.map((it) => {
                   const isActive = it.id === active;
+                  const familiaAberta =
+                    isActive || !!it.filhos?.some((f) => f.id === active);
+                  /**
+                   * O item que é só porta da família não tem tela própria, logo
+                   * nunca é `active` — sem isto o menu ficava sem NADA aceso
+                   * enquanto se olhava uma das subabas, e a barra lateral
+                   * parecia não saber onde a pessoa está. Ele herda o aceso da
+                   * subaba: seção em destaque, subaba marcada dentro dela.
+                   */
+                  const aceso = isActive || (!!it.soGrupo && familiaAberta);
                   return (
                     <li key={it.id}>
                       <Link
@@ -532,7 +578,7 @@ export async function AdminShell({
                         aria-current={isActive ? "page" : undefined}
                         className={cn(
                           "flex items-center gap-2.5 px-2.5 py-2 rounded-[9px] text-[0.86rem] font-medium border transition",
-                          isActive
+                          aceso
                             ? "bg-fysi-deep border-fysi-deep text-fysi-cream font-semibold"
                             : "border-transparent text-fysi-deep hover:bg-fysi-cream"
                         )}
@@ -540,7 +586,7 @@ export async function AdminShell({
                         <span
                           className={cn(
                             "shrink-0",
-                            isActive ? "text-fysi-cream" : "text-fysi-muted"
+                            aceso ? "text-fysi-cream" : "text-fysi-muted"
                           )}
                         >
                           {it.icon}
@@ -549,8 +595,7 @@ export async function AdminShell({
                       </Link>
                       {/* A subaba só aparece com a família aberta: fechada,
                           o menu encolhe e o assunto ocupa uma linha só. */}
-                      {it.filhos?.length &&
-                      (isActive || it.filhos.some((f) => f.id === active)) ? (
+                      {it.filhos?.length && familiaAberta ? (
                         <ul className="mt-0.5 ml-[18px] pl-3 border-l border-fysi-line flex flex-col gap-0.5">
                           {it.filhos.map((f) => {
                             const filhoAtivo = f.id === active;
@@ -632,25 +677,31 @@ export async function AdminShell({
         {/* Nav horizontal no mobile */}
         <nav className="md:hidden border-b border-fysi-line bg-white overflow-x-auto">
           <ul className="flex gap-1 px-3 py-2 w-max">
-            {areas.flatMap((a) => planos(a.items)).map((it) => {
-              const isActive = it.id === active;
-              return (
-                <li key={it.id}>
-                  <Link
-                    href={it.href(keyParam)}
-                    className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition",
-                      isActive
-                        ? "bg-fysi-deep border-fysi-deep text-fysi-cream"
-                        : "border-fysi-line text-fysi-muted"
-                    )}
-                  >
-                    {it.icon}
-                    {it.label}
-                  </Link>
-                </li>
-              );
-            })}
+            {/* Aqui pai e filho ficam lado a lado, sem hierarquia pra
+                mostrar — então o item que é só porta da família (soGrupo)
+                repetiria o endereço da primeira subaba. */}
+            {areas
+              .flatMap((a) => planos(a.items))
+              .filter((it) => !it.soGrupo)
+              .map((it) => {
+                const isActive = it.id === active;
+                return (
+                  <li key={it.id}>
+                    <Link
+                      href={it.href(keyParam)}
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition",
+                        isActive
+                          ? "bg-fysi-deep border-fysi-deep text-fysi-cream"
+                          : "border-fysi-line text-fysi-muted"
+                      )}
+                    >
+                      {it.icon}
+                      {it.label}
+                    </Link>
+                  </li>
+                );
+              })}
           </ul>
         </nav>
 

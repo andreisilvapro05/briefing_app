@@ -5,6 +5,7 @@ import {
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
+import { AbasVisualizacao } from "@/components/admin/abas-visualizacao";
 import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
@@ -45,6 +46,7 @@ export default async function AdminTarefasPage({
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
       isSocio={isAdmin(member)} hideFinance={!hasFinanceAccess(member)}>
+      <AbasVisualizacao ativa="tarefas" keyParam={keyParamFirst} />
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">

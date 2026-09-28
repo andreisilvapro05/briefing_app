@@ -16,6 +16,7 @@ import { ProjetosIncompletos } from "@/components/admin/projetos-incompletos";
 import { abasPorPessoa, projetosDaPessoa, respValido } from "@/lib/abas-pessoa";
 import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
+import { AbasVisualizacao } from "@/components/admin/abas-visualizacao";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,7 @@ export default async function AdminListaPage({
       userPhotoUrl={member.fotoUrl}
       canEditPhoto={member.source === "supabase"}
       isSocio={isAdmin(member)} hideFinance={!hasFinanceAccess(member)}>
+      <AbasVisualizacao ativa="lista" keyParam={keyParam} />
       <header className="flex flex-wrap items-end justify-between gap-3 mb-6">
         <div>
           <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep">
