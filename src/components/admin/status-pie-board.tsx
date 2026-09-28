@@ -15,6 +15,7 @@ import {
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import { ViewTabs, type ViewTabItem } from "./view-tabs";
+import { ResumoProjeto } from "./resumo-projeto";
 import type { LinhaDoProjeto } from "@/lib/linha-do-projeto";
 import {
   DEFAULT_TASK_STATUS,
@@ -510,6 +511,8 @@ export function StatusPieBoard({
                     urlKey={urlKey}
                     keyParam={keyParam}
                     restrictToResponsavel={restrictToResponsavel}
+                    statusLabel={g.label}
+                    statusCor={g.color}
                   />
                 ))}
 
@@ -546,6 +549,8 @@ function ClientAccordionRow({
   urlKey,
   keyParam,
   restrictToResponsavel,
+  statusLabel,
+  statusCor,
 }: {
   c: LaneClient;
   isOpen: boolean;
@@ -553,7 +558,11 @@ function ClientAccordionRow({
   urlKey?: string;
   keyParam: string;
   restrictToResponsavel?: EditRestriction;
+  /** Rótulo e cor da raia — o resumo mostra o status do projeto. */
+  statusLabel: string;
+  statusCor: string;
 }) {
+  const [resumoAberto, setResumoAberto] = useState(false);
   const hasTarefas = (c.progresso?.total ?? 0) > 0;
   // Marcador discreto de projeto que nasceu pela metade (sem tipo e/ou sem
   // o checklist do modelo). Fica na própria linha pra não ter que caçar —
@@ -625,13 +634,19 @@ function ClientAccordionRow({
               >
                 <Caret aberto={isOpen} />
               </button>
-              <a
-                href={`/admin/${c.id}${keyParam}`}
-                title={`Abrir ${c.empresa || c.nome}`}
-                className="font-medium text-fysi-deep truncate hover:underline underline-offset-2"
+              {/* Clicar no nome abre um RESUMO por cima da lista, não uma
+                  tela nova. Karine (28/09): "ao clicar aparecer resuminho
+                  em pop up para não ir para outra tela, ter botão de ver
+                  detalhes cliente". Quem varre a lista quer conferir um
+                  projeto e seguir varrendo — ir e voltar perde a rolagem. */}
+              <button
+                type="button"
+                onClick={() => setResumoAberto(true)}
+                title={`Resumo de ${c.empresa || c.nome}`}
+                className="font-medium text-fysi-deep truncate text-left hover:underline underline-offset-2"
               >
                 {c.empresa || c.nome}
-              </a>
+              </button>
             </>
           ) : (
             <>
@@ -714,6 +729,25 @@ function ClientAccordionRow({
           Ver →
         </a>
       </div>
+
+      <ResumoProjeto
+        dados={
+          resumoAberto
+            ? {
+                id: c.id,
+                nome: c.empresa || c.nome || "Sem nome",
+                tipo: c.tipo,
+                statusLabel,
+                statusCor,
+                linha: c.linha,
+                progresso: c.progresso,
+                semRetorno: c.parado,
+                href: `/admin/${c.id}${keyParam}`,
+              }
+            : null
+        }
+        onFechar={() => setResumoAberto(false)}
+      />
 
       {isOpen && hasTarefas && erroCarga ? (
         <div className="pl-9 pr-5 pb-3 bg-fysi-cream/30">
