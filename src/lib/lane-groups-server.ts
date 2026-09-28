@@ -49,6 +49,10 @@ export async function getLaneGroups(
     .select(
       "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, responsavel, clickup_nome"
     )
+    // Arquivado não entra em nenhuma lista de trabalho: é projeto que não
+    // vai acontecer (desistência, abandono). O status real de onde ele
+    // parou fica guardado — ver migration 20260928160000.
+    .is("arquivado_em", null)
     .order("created_at", { ascending: false });
   if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
 

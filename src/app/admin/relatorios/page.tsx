@@ -62,6 +62,7 @@ export default async function AdminRelatoriosPage({
       .select(
         "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, como_conheceu"
       )
+      .is("arquivado_em", null)
       .order("created_at", { ascending: false });
     if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
     const { data } = await clientsQuery;

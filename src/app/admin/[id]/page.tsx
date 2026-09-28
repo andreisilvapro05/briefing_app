@@ -42,6 +42,7 @@ import type { MaterialItem } from "@/lib/materiais-cliente";
 import type { Moodboard } from "@/lib/moodboard";
 import type { EntregaDocumento } from "@/lib/entrega";
 import { DeleteClientButton } from "@/components/admin/delete-client-button";
+import { arquivarClienteAction } from "./actions";
 import { ClientPreviewButton } from "@/components/admin/client-preview-button";
 import { CopyButton } from "@/components/admin/copy-button";
 import { AbrirWhatsAppButton } from "@/components/admin/abrir-whatsapp-button";
@@ -540,6 +541,45 @@ Pode ir salvando aos poucos, não precisa terminar de uma vez.`
                     ) : null}
                     {/* O servidor só deixa apagar com acesso total; mostrar o
                         botão pra quem não pode só levava a um redirect mudo. */}
+                    {/* Arquivar vem ANTES de apagar, e com aparência mais
+                        calma: quase toda vez que se quer "sumir com o
+                        projeto" a resposta certa é arquivar, não apagar.
+                        Karine (28/09): "essa cliente desistiu do projeto —
+                        poder colocar como arquivado". */}
+                    {hasFullAccess(member) ? (
+                      <form
+                        action={arquivarClienteAction}
+                        className="border-t border-fysi-line pt-2.5 flex flex-wrap items-center gap-2"
+                      >
+                        <input type="hidden" name="clientId" value={client.id} />
+                        {urlKey ? (
+                          <input type="hidden" name="key" value={urlKey} />
+                        ) : null}
+                        {client.arquivado_em ? (
+                          <>
+                            <input type="hidden" name="desarquivar" value="1" />
+                            <span className="text-xs text-fysi-muted">
+                              Arquivado
+                              {client.arquivado_motivo
+                                ? ` — ${client.arquivado_motivo}`
+                                : ""}
+                            </span>
+                            <SubmitTextButton>Desarquivar</SubmitTextButton>
+                          </>
+                        ) : (
+                          <>
+                            <input
+                              type="text"
+                              name="motivo"
+                              maxLength={200}
+                              placeholder="Motivo (ex: desistiu)"
+                              className="flex-1 min-w-[10rem] rounded-[8px] border border-fysi-line bg-white px-2 py-1 text-xs text-fysi-deep"
+                            />
+                            <SubmitTextButton>Arquivar projeto</SubmitTextButton>
+                          </>
+                        )}
+                      </form>
+                    ) : null}
                     {hasFullAccess(member) ? (
                       <div className="border-t border-fysi-line pt-2.5">
                         <DeleteClientButton

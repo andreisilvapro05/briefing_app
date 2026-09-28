@@ -2172,3 +2172,51 @@ export async function agendarTarefasEmLoteAction(
   revalidatePath("/admin/visao-geral");
   return { ok: true, agendadas };
 }
+
+/**
+ * Arquivar / desarquivar um projeto.
+ *
+ * Karine (28/09): "essa cliente desistiu do projeto — poder colocar como
+ * arquivado".
+ *
+ * Arquivar NÃO é concluir. Desistência não é entrega: usar um dos status
+ * terminais tiraria o projeto das listas, mas ele entraria na conta de
+ * entregues e estragaria a taxa de conversão dos relatórios. Por isso é
+ * uma data própria, ortogonal ao status — o projeto guarda o status real
+ * de onde parou.
+ *
+ * Reversível de propósito: cliente que "desistiu" volta com frequência, e
+ * um arquivamento que não desfaz vira medo de arquivar.
+ */
+export async function arquivarClienteAction(formData: FormData) {
+  const urlKey = keyParamOf(formData);
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  // Mesma régua do apagar: tira o projeto da vista de todo mundo, então
+  // não é ação de quem só enxerga os próprios clientes.
+  if (!hasFullAccess(member)) {
+    redirect(`${telaInicialDe(member)}${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
+  }
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return;
+  const desarquivar = String(formData.get("desarquivar") ?? "") === "1";
+  const motivo = String(formData.get("motivo") ?? "").trim().slice(0, 200);
+
+  const service = createSupabaseServiceRoleClient();
+  const { error } = await service
+    .from("clients")
+    .update(
+      desarquivar
+        ? { arquivado_em: null, arquivado_motivo: null }
+        : { arquivado_em: new Date().toISOString(), arquivado_motivo: motivo || null }
+    )
+    .eq("id", clientId);
+  if (error) logServerError("cliente.arquivar", error);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin/lista");
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/visao-geral");
+  revalidatePath("/admin/quadro");
+}

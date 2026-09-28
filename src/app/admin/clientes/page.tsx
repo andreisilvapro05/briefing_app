@@ -124,6 +124,7 @@ export default async function AdminPage({
     .select(
       "id, nome, email, empresa, whatsapp, project_type, status, current_stage_index, briefing_submitted_at, contrato_status, pagamento_total, pagamento_pago, created_at, updated_at, last_client_activity_at, clickup_task_id"
     )
+      .is("arquivado_em", null)
     .order("created_at", { ascending: false });
 
   if (visibleIds) clientsQuery = clientsQuery.in("id", Array.from(visibleIds));
