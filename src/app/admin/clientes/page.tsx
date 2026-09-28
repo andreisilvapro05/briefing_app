@@ -374,11 +374,23 @@ export default async function AdminPage({
                     </div>
                     {stuck ? (
                       <span
-                        className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
-                        title={`Sem atividade há ${daysSince(lastActivity)} dias`}
+                        className="text-amber-500 shrink-0"
+                        title={`Sem retorno do cliente há ${daysSince(lastActivity)} dias`}
+                        aria-label={`Sem retorno do cliente há ${daysSince(lastActivity)} dias`}
                       >
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                        Sem retorno
+                        <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3 2 20h20L12 3Z" strokeLinejoin="round" />
+                <path d="M12 10v4M12 17.5v.01" />
+              </svg>
                       </span>
                     ) : null}
                   </div>
@@ -474,12 +486,20 @@ export default async function AdminPage({
                             ) : null}
                           </div>
                           {stuck ? (
-                            <span
-                              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs uppercase tracking-[0.1em] text-amber-700 font-medium shrink-0"
-                              title={`Sem atividade há ${daysSince(lastActivity)} dias`}
-                            >
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-                              Sem retorno
+                            <span className="text-amber-500 shrink-0" title="Sem retorno do cliente há 14 dias ou mais" aria-label="Sem retorno do cliente há 14 dias ou mais">
+                              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3 2 20h20L12 3Z" strokeLinejoin="round" />
+                <path d="M12 10v4M12 17.5v.01" />
+              </svg>
                             </span>
                           ) : null}
                         </div>
@@ -549,7 +569,7 @@ export default async function AdminPage({
 
         <p className="text-xs text-fysi-muted mt-4">
           Mostrando {clients.length} de {totalCount} clientes. Marca de
-          &ldquo;Sem retorno&rdquo; aparece após {STUCK_DAYS} dias sem o cliente responder — é diferente do status &ldquo;Parado&rdquo;, que é decisão da equipe.
+          O triângulo de alerta aparece após {STUCK_DAYS} dias sem o cliente responder — é diferente do status &ldquo;Parado&rdquo;, que é decisão da equipe.
         </p>
     </AdminShell>
   );

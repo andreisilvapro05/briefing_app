@@ -645,19 +645,30 @@ function ClientAccordionRow({
             </>
           )}
           {c.parado ? (
+            /* SÓ O SÍMBOLO, sem texto. Karine (28/09): "tire isso por
+               enquanto pra não confundir, deixe só um símbolo de alerta em
+               projetos que estão há muito tempo". O rótulo competia com o
+               STATUS na mesma linha e os dois pareciam dizer a mesma coisa.
+               O que ele significa continua no title, pra quem passar o
+               mouse. */
             <span
-              className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-xs uppercase tracking-[0.08em] text-amber-700 font-medium shrink-0"
+              className="text-amber-500 shrink-0"
               title="O cliente não dá retorno há 14 dias ou mais"
+              aria-label="Cliente sem retorno há 14 dias ou mais"
             >
-              <span className="h-1 w-1 rounded-full bg-amber-500" />
-              {/* NÃO é "Parado": esse é um dos 14 STATUS do projeto, e a
-                  linha mostrava o selo PARADO ao lado do status "A
-                  iniciar" — duas coisas diferentes com o mesmo nome
-                  (Karine, 28/09: "o status parado é um separado, né, como
-                  um status"). Este selo é derivado: 14+ dias sem o
-                  cliente responder. O status é decisão da equipe; isto é
-                  um fato sobre o cliente. */}
-              Sem retorno
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M12 3 2 20h20L12 3Z" strokeLinejoin="round" />
+                <path d="M12 10v4M12 17.5v.01" />
+              </svg>
             </span>
           ) : null}
           {incompleto ? (
