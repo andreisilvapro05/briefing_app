@@ -5,6 +5,7 @@ import {
   preencherDonosPadrao,
   sincronizarTarefasDoClickUp,
 } from "@/lib/clickup-tasks-sync";
+import { sincronizarStatusDosProjetos } from "@/lib/clickup-status-sync";
 
 /**
  * Cron: traz do ClickUp o que mudou lá — prazo, responsável e status das
@@ -79,6 +80,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ ok: false, motivo: sync.reason }, { status: 200 });
     }
 
+    /**
+     * Status do PROJETO, não só das tarefas.
+     *
+     * São duas rotinas separadas e o cron só chamava a primeira: o status
+     * do projeto só se atualizava quando alguém clicava no botão da Lista.
+     * Por isso a lista do app divergia da do ClickUp — "Pablo" aparecia em
+     * design lá e "a iniciar" aqui (comparação de 28/09).
+     */
+    const statusProjetos = await sincronizarStatusDosProjetos();
+    if (!statusProjetos.ok) {
+      logServerError(
+        "cron.sync-clickup.status",
+        new Error(statusProjetos.erro ?? "status falhou")
+      );
+    }
+
     // Tarefa que voltou sem dono ganha o dono padrão do tipo dela. Só toca
     // linha com responsável nulo — nunca reatribui o que já tem gente.
     const donos = await preencherDonosPadrao();
@@ -93,6 +110,8 @@ export async function GET(request: NextRequest) {
       internasCriadas: sync.internasCriadas,
       ignoradasSemPrazo: sync.ignoradasSemPrazo,
       semCorrespondencia: sync.semCorrespondencia,
+      projetosComStatusNovo: statusProjetos.atualizados.length,
+      projetosJaEmDia: statusProjetos.jaEmDia,
       donosPreenchidos: donos.preenchidas,
       semDono: donos.restantesSemDono,
     });

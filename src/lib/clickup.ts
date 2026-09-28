@@ -289,12 +289,22 @@ export async function fetchClickUpProjectStatuses(): Promise<
   { statuses: ClickUpProjectStatus[] } | { skipped: true; reason: string }
 > {
   const env = getServerEnv();
-  const folderId = process.env.CLICKUP_PROJECTS_FOLDER_ID ?? "";
-  if (!env.clickupToken || !folderId) {
+  /**
+   * Mesmo padrão de `clickup-tasks-sync.ts`: a pasta "Projetos Externos".
+   *
+   * Aqui a variável era OBRIGATÓRIA, sem padrão — então esta função vinha
+   * devolvendo "skipped" e o status do PROJETO nunca era sincronizado,
+   * mesmo com o token certo. As duas rotinas olham a mesma pasta; exigir
+   * a variável só numa delas era armadilha, e foi a razão de eu ter dito
+   * à Karine que não precisava criá-la (verdade pro sync de tarefas,
+   * falso pra este). Achado ao comparar a lista do app com a do ClickUp
+   * em 28/09.
+   */
+  const folderId = process.env.CLICKUP_PROJECTS_FOLDER_ID ?? "90110919806";
+  if (!env.clickupToken) {
     return {
       skipped: true,
-      reason:
-        "ClickUp não configurado (CLICKUP_API_TOKEN ou CLICKUP_PROJECTS_FOLDER_ID).",
+      reason: "ClickUp não configurado (falta CLICKUP_API_TOKEN).",
     };
   }
 
