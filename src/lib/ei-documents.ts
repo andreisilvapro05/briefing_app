@@ -14,7 +14,7 @@ import type { PartialBlock } from "@blocknote/core";
  * Cada kind tem no máximo 1 Modelo e no máximo 1 documento por cliente
  * (unique index em (client_id, kind) e em (kind) where is_template).
  */
-export type EIDocumentKind = "ei" | "briefing";
+export type EIDocumentKind = "ei" | "briefing" | "nota";
 
 export interface EIDocumentClientInfo {
   id: string;

@@ -43,6 +43,7 @@ export type AdminSection =
   | "desenvolvimento"
   | "estruturas-iniciais"
   | "briefing-documentos"
+  | "notas"
   | "marketing-metas"
   | "marketing-planejamento"
   | "processos"
@@ -195,6 +196,14 @@ const ICONS: Record<AdminSection, ReactNode> = {
       <path d="M9 12h6M9 16h4" />
     </I>
   ),
+  // Folha em branco com um lápis — documento que nasce vazio.
+  notas: (
+    <I>
+      <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8" />
+      <path d="M14 3l4 4v4" />
+      <path d="M20.5 13.5a1.6 1.6 0 0 1 2 2L17 21l-3 .7.7-3Z" />
+    </I>
+  ),
   conteudo: (
     <I>
       <path d="M12 20h9" />
@@ -319,6 +328,10 @@ const AREAS: NavArea[] = [
           "Documentos",
           "/admin/briefing-documentos"
         ),
+        // Documento em branco — pedido da Karine (27/09): "uma parte que eu
+        // possa criar um documento limpo pra anotar coisas, por exemplo pra
+        // criar uma copy nova".
+        item("notas", "Em branco", "/admin/notas"),
       ]),
       item("quadro", "Quadro", "/admin/quadro"),
       item("tarefas", "Tarefas", "/admin/tarefas"),

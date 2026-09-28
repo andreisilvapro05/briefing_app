@@ -15,6 +15,7 @@ export function EIDocumentSidebar({
   activeId,
   urlKey,
   clientsWithoutDoc,
+  criarDireto = false,
   basePath = "/admin/estruturas-iniciais",
   createAction,
   createLabel = "+ Nova Estrutura Inicial",
@@ -38,6 +39,12 @@ export function EIDocumentSidebar({
   basePath?: string;
   createAction: (formData: FormData) => void | Promise<void>;
   createLabel?: string;
+  /**
+   * Criação DIRETA, sem escolher cliente — é o caso do documento em branco:
+   * clicar já cria e abre, como o "+ New doc" do ClickUp. Com isso, a lista
+   * de clientes nem aparece.
+   */
+  criarDireto?: boolean;
   // Sub-abas no topo da sidebar (ex: Respostas / Documentos, no hub de
   // Briefing) — pedido do usuário 2026-09-01 pra "Documentos de Briefing"
   // ficar junto de "Briefings", não solto como área própria.
@@ -99,7 +106,16 @@ export function EIDocumentSidebar({
           placeholder="Buscar documento…"
           className="w-full rounded-[8px] border border-fysi-line bg-fysi-cream/40 text-sm px-3 py-1.5"
         />
-        {clientsWithoutDoc.length > 0 ? (
+        {criarDireto ? (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() => createFor("")}
+            className="text-sm font-medium text-fysi-deep hover:text-fysi-green text-left disabled:opacity-50"
+          >
+            {pending ? "Criando…" : createLabel}
+          </button>
+        ) : clientsWithoutDoc.length > 0 ? (
           <button
             type="button"
             onClick={() => setCreating((v) => !v)}
@@ -108,7 +124,7 @@ export function EIDocumentSidebar({
             {creating ? "Cancelar" : createLabel}
           </button>
         ) : null}
-        {creating ? (
+        {creating && !criarDireto ? (
           <div className="flex flex-col gap-1.5 rounded-[10px] border border-fysi-line bg-fysi-cream/30 p-2">
             <p className="text-xs uppercase tracking-[0.08em] text-fysi-muted px-1">
               Selecione o cliente
