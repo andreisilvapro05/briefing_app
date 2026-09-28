@@ -1417,6 +1417,45 @@ Pode ir salvando aos poucos, não precisa terminar de uma vez.`
 
         {tab === "briefing" ? (
         <>
+        {/* Link do Drive do briefing, aqui dentro.
+            O campo existe desde sempre — só que numa aba "Drive" separada,
+            na linha 1300 de uma ficha de 1500. Quem está preenchendo o
+            briefing e quer colar a pasta do cliente não vai trocar de aba
+            pra isso (Karine, 27/09: "ter local para colar link do drive").
+            É o mesmo campo e a mesma ação: salvar aqui ou lá dá no mesmo. */}
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card px-6 py-4 mb-4">
+          <form action={setDriveLinksAction} className="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="clientId" value={client.id} />
+            {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+            <label
+              htmlFor="briefing-drive"
+              className="text-sm text-fysi-deep font-medium shrink-0"
+            >
+              Pasta do cliente no Drive
+            </label>
+            <input
+              id="briefing-drive"
+              type="url"
+              name="clienteDriveLink"
+              defaultValue={client.cliente_drive_link ?? ""}
+              placeholder="Cole aqui o link da pasta"
+              className="flex-1 min-w-[16rem] rounded-[10px] border border-fysi-line bg-white px-3 py-2 text-sm text-fysi-deep focus:outline-none focus:border-fysi-deep/40"
+            />
+            <SubmitButton size="sm" variant="secondary">
+              Salvar
+            </SubmitButton>
+            {client.cliente_drive_link ? (
+              <a
+                href={client.cliente_drive_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-fysi-deep underline underline-offset-2 hover:text-fysi-green shrink-0"
+              >
+                Abrir
+              </a>
+            ) : null}
+          </form>
+        </section>
         {/* Documento de briefing — preenchido junto com o cliente durante a
             call, estilo Notion/ClickUp (mesmo editor de blocos da Estrutura
             Inicial). Pedido do usuário 2026-08-31, ver referência real em
