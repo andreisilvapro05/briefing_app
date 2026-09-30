@@ -7,6 +7,7 @@ import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { ChargeButton } from "@/components/admin/charge-button";
+import { CampoArquivo } from "@/components/admin/campo-arquivo";
 import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
 import {
   formatBRL,
@@ -745,15 +746,11 @@ function CobrancaCard({
                 WhatsApp, some na conversa, e semanas depois ninguém sabe
                 se pagou. Opcional — registrar sem o print vale mais que
                 não registrar. */}
-            <label className="flex flex-col gap-1 text-xs text-fysi-muted">
-              <span>Comprovante (opcional) — imagem ou PDF, até 4 MB</span>
-              <input
-                type="file"
-                name="comprovante"
-                accept="image/*,application/pdf"
-                className="input file:mr-3 file:rounded-full file:border-0 file:bg-fysi-deep file:px-3 file:py-1 file:text-fysi-cream file:text-xs"
-              />
-            </label>
+            <CampoArquivo
+              name="comprovante"
+              accept="image/*,application/pdf"
+              label="Comprovante (opcional) — imagem ou PDF"
+            />
             <SubmitButton size="sm" variant="secondary" pendingLabel="…">
               Registrar
             </SubmitButton>

@@ -460,7 +460,7 @@ export function AreasBoard({
         <p className="text-sm text-fysi-muted px-1">
           {nomeDoFiltro
             ? `Nenhuma demanda interna com ${nomeDoFiltro} agora. Escolha uma área abaixo pra lançar a primeira.`
-            : "Nenhuma demanda interna aberta. Escolha uma área abaixo pra lançar a primeira."}
+            : "Nenhuma demanda interna aberta. Agrupe por área e use o + Demanda da gaveta pra lançar a primeira."}
         </p>
       ) : null}
 

@@ -10,6 +10,7 @@ import {
   type PagamentoHistorico,
 } from "@/lib/cobrancas-mensais";
 import { sendDashboardWebhook } from "@/lib/dashboard-webhook";
+import { MAX_UPLOAD_BYTES } from "@/lib/uploads";
 
 /**
  * Cobranças são dado financeiro — "basico" (designer) não pode nem ver nem
@@ -30,7 +31,7 @@ async function requireFinanceAccess(formData: FormData) {
  * prefixo `cobrancas/` separa os caminhos.
  */
 const COMPROVANTES_BUCKET = "comprovantes";
-const MAX_COMPROVANTE_BYTES = 4 * 1024 * 1024;
+const MAX_COMPROVANTE_BYTES = MAX_UPLOAD_BYTES;
 const TIPOS_COMPROVANTE = ["image/", "application/pdf"];
 
 function parseMoney(raw: string): number | null {

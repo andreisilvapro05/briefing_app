@@ -1,3 +1,4 @@
+import { MAX_UPLOAD_BYTES } from "./uploads";
 /**
  * Anexos de uma demanda — o arquivo em si ou o link pra onde ele mora.
  *
@@ -25,11 +26,11 @@ export interface AnexoDemanda {
 }
 
 /**
- * Teto real de upload: a Vercel corta o corpo de uma Server Action em
- * ~4,5 MB. Prometer 10 MB como faz o comprovante seria mentira — o erro
- * aconteceria no meio do caminho, sem mensagem. Arquivo maior vai de link.
+ * O teto é o do app inteiro, com folga sob o limite de transporte da
+ * Vercel — ver src/lib/uploads.ts. Aqui ele dói menos que em outros
+ * lugares: arquivo maior tem a saída natural, que é colar o link.
  */
-export const MAX_ANEXO_BYTES = 4 * 1024 * 1024;
+export const MAX_ANEXO_BYTES = MAX_UPLOAD_BYTES;
 
 export const MAX_ANEXOS_POR_DEMANDA = 20;
 
@@ -110,3 +111,6 @@ export function humanizarTamanho(bytes: number | undefined): string {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+/** Reexportado pra a tela não precisar conhecer dois módulos. */
+export { MAX_UPLOAD_LABEL } from "./uploads";

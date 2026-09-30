@@ -5,6 +5,7 @@ import {
   humanizarTamanho,
   linkValido,
   MAX_ANEXO_BYTES,
+  MAX_UPLOAD_LABEL,
   type AnexoDemanda,
 } from "@/lib/anexos-demanda";
 import {
@@ -67,7 +68,7 @@ export function AnexosDemanda({
     // Barra aqui também, não só no servidor: mandar 20 MB pra ouvir "não"
     // do outro lado é esperar à toa por uma resposta que já se sabe.
     if (file.size > MAX_ANEXO_BYTES) {
-      setErro("Arquivo acima de 4 MB. Suba no Drive e cole o link aqui.");
+      setErro(`Arquivo acima de ${MAX_UPLOAD_LABEL}. Suba no Drive e cole o link aqui.`);
       if (arquivoRef.current) arquivoRef.current.value = "";
       return;
     }
@@ -189,7 +190,7 @@ export function AnexosDemanda({
         </label>
       </div>
       <p className="text-[0.68rem] text-fysi-muted mt-1">
-        Arquivo até 4 MB. Maior que isso, suba no Drive e cole o link.
+        {`Arquivo até ${MAX_UPLOAD_LABEL}. Maior que isso, suba no Drive e cole o link.`}
       </p>
 
       {erro ? (

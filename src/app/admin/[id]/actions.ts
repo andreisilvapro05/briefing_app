@@ -20,6 +20,11 @@ import { htmlMagicLink, sendEmail } from "@/lib/email";
 import { getServerEnv } from "@/lib/env";
 import { generateMagicSlug } from "@/lib/slug";
 import {
+  MAX_UPLOAD_BYTES,
+  MAX_UPLOAD_LABEL,
+  novoPagamentoPago,
+} from "@/lib/uploads";
+import {
   caminhoSeguro,
   lerAnexos,
   linkValido,
@@ -1907,14 +1912,12 @@ export async function deleteProjectTaskCommentAction(formData: FormData) {
 
 const COMPROVANTES_BUCKET = "comprovantes";
 /**
- * 4 MB, não 10.
- *
- * O teto de 10 MB era inalcançável: todo upload daqui passa por Server
- * Action, e a Vercel corta o corpo da requisição em ~4,5 MB — um arquivo
- * de 6 MB morria na plataforma antes de chegar nesta linha, sem mensagem
- * nenhuma pra quem estava registrando. Ver next.config.ts.
+ * Era 10 MB — inalcançável. Todo upload passa por Server Action e a
+ * Vercel corta o corpo em ~4,5 MB: um arquivo de 6 MB morria no
+ * transporte, antes de chegar nesta linha, sem mensagem nenhuma. Agora o
+ * teto é o do app inteiro, com folga sob o limite. Ver src/lib/uploads.ts.
  */
-const MAX_COMPROVANTE_BYTES = 4 * 1024 * 1024;
+const MAX_COMPROVANTE_BYTES = MAX_UPLOAD_BYTES;
 const TIPOS_COMPROVANTE = ["image/", "application/pdf"];
 
 export async function addPaymentReceiptAction(
@@ -1972,6 +1975,10 @@ export async function addPaymentReceiptAction(
     }
   }
 
+  // Soma ANTES de inserir: é ela que revela quanto do total do cliente
+  // veio de lançamento manual, e não de comprovante.
+  const somaAntes = await somarComprovantes(service, clientId);
+
   const { error: insErr } = await service.from("payment_receipts").insert({
     client_id: clientId,
     valor,
@@ -1994,15 +2001,42 @@ export async function addPaymentReceiptAction(
   // Mantém `pagamento_pago` em dia — é o número que a tela do cliente e as
   // Cobranças usam. Somar os comprovantes evita o passo manual que a equipe
   // esquecia de fazer.
-  const { data: recibos } = await service
+  await ressincronizarPagamentoPago(service, clientId, somaAntes);
+
+  revalidatePath(`/admin/${clientId}`);
+  revalidatePath("/admin/cobrancas");
+}
+
+type ServiceClient = ReturnType<typeof createSupabaseServiceRoleClient>;
+
+async function somarComprovantes(
+  service: ServiceClient,
+  clientId: string
+): Promise<number> {
+  const { data } = await service
     .from("payment_receipts")
     .select("valor")
     .eq("client_id", clientId);
-  const somaRecibos = ((recibos as { valor: number }[] | null) ?? []).reduce(
+  return ((data as { valor: number }[] | null) ?? []).reduce(
     (s, r) => s + Number(r.valor || 0),
     0
   );
+}
 
+/**
+ * Põe `clients.pagamento_pago` em dia com os comprovantes — é o número que
+ * a ficha do cliente e as Cobranças mostram, e mantê-lo à mão era o passo
+ * que a equipe esquecia.
+ *
+ * `somaAntes` tem que ser lida ANTES da mudança: a diferença entre ela e o
+ * que está gravado é a parte lançada à mão, que precisa sobreviver. Ver
+ * `novoPagamentoPago` em src/lib/uploads.ts, onde a conta está testada.
+ */
+async function ressincronizarPagamentoPago(
+  service: ServiceClient,
+  clientId: string,
+  somaAntes: number
+): Promise<void> {
   const { data: atual } = await service
     .from("clients")
     .select("pagamento_pago")
@@ -2011,23 +2045,18 @@ export async function addPaymentReceiptAction(
   const pagoAtual = Number(
     (atual as { pagamento_pago: number | null } | null)?.pagamento_pago ?? 0
   );
+  const somaDepois = await somarComprovantes(service, clientId);
+  const novo = novoPagamentoPago(pagoAtual, somaAntes, somaDepois);
+  if (Math.abs(novo - pagoAtual) < 0.005) return;
 
-  // Nunca DIMINUIR: pagamentos lançados à mão antes desta tela existir não
-  // têm comprovante e sumiriam do total se a soma virasse a verdade.
-  const novoPago = Math.max(pagoAtual, somaRecibos);
-  if (novoPago !== pagoAtual) {
-    const { error: updErr } = await service
-      .from("clients")
-      .update({
-        pagamento_pago: novoPago,
-        pagamento_atualizado_at: new Date().toISOString(),
-      })
-      .eq("id", clientId);
-    if (updErr) logServerError("comprovante.sync-pago", updErr);
-  }
-
-  revalidatePath(`/admin/${clientId}`);
-  revalidatePath("/admin/cobrancas");
+  const { error: updErr } = await service
+    .from("clients")
+    .update({
+      pagamento_pago: novo,
+      pagamento_atualizado_at: new Date().toISOString(),
+    })
+    .eq("id", clientId);
+  if (updErr) logServerError("comprovante.sync-pago", updErr);
 }
 
 export async function deletePaymentReceiptAction(
@@ -2055,11 +2084,27 @@ export async function deletePaymentReceiptAction(
     if (rmErr) logServerError("comprovante.remove-arquivo", rmErr);
   }
 
+  const somaAntes = await somarComprovantes(service, clientId);
+
   const { error: delErr } = await service
     .from("payment_receipts")
     .delete()
     .eq("id", receiptId);
-  if (delErr) logServerError("comprovante.delete", delErr);
+  if (delErr) {
+    logServerError("comprovante.delete", delErr);
+    return;
+  }
+
+  /**
+   * Apagar um comprovante DEVOLVE o valor.
+   *
+   * Isto não existia: a linha saía e `clients.pagamento_pago` ficava onde
+   * estava, porque a conta de lá só sabia subir (`Math.max`). Corrigir um
+   * comprovante lançado errado era impossível — a ficha continuava
+   * dizendo que o cliente pagou mais do que pagou, e as Cobranças
+   * deixavam de mostrar o saldo em aberto.
+   */
+  await ressincronizarPagamentoPago(service, clientId, somaAntes);
 
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin/cobrancas");
@@ -2343,7 +2388,7 @@ export async function adicionarAnexoDemandaAction(
       // O teto é da Vercel, não nosso — por isso o texto aponta a saída.
       return {
         ok: false,
-        erro: "Arquivo acima de 4 MB. Suba no Drive e cole o link aqui.",
+        erro: `Arquivo acima de ${MAX_UPLOAD_LABEL}. Suba no Drive e cole o link aqui.`,
       };
     }
     const path = `${taskId}/${Date.now()}-${caminhoSeguro(arquivo.name)}`;

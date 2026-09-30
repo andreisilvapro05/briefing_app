@@ -10,6 +10,7 @@ import {
 } from "@/app/admin/[id]/actions";
 import { SubmitButton, SubmitTextButton } from "./submit-button";
 import { Eyebrow } from "@/components/ui/pill";
+import { CampoArquivo } from "./campo-arquivo";
 
 /**
  * Comprovantes de pagamento do cliente.
@@ -186,15 +187,11 @@ export function PaymentReceipts({
           </select>
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className={rotulo}>Comprovante (print ou PDF, até 4 MB)</span>
-          <input
-            name="arquivo"
-            type="file"
-            accept="image/*,application/pdf"
-            className="text-sm text-fysi-deep file:mr-3 file:rounded-full file:border-0 file:bg-fysi-cream file:px-3 file:py-1.5 file:text-xs file:font-medium hover:file:bg-fysi-mint"
-          />
-        </label>
+        <CampoArquivo
+          name="arquivo"
+          accept="image/*,application/pdf"
+          label="Comprovante (print ou PDF)"
+        />
 
         <label className="flex flex-col gap-1 sm:col-span-2">
           <span className={rotulo}>Observação (opcional)</span>
