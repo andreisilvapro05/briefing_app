@@ -25,6 +25,7 @@ import type { ProjectTaskClient } from "@/lib/project-tasks-server";
 import { TaskComposer } from "./task-composer";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import { ViewTabs, type ViewTabItem } from "./view-tabs";
+import { naOrdemDaBarra } from "@/lib/abas-pessoa";
 import { AgendarLoteBar } from "./agendar-lote-bar";
 import type { ClientOption } from "./task-pickers";
 
@@ -47,6 +48,7 @@ export function AllTasksBoard({
   restrictToResponsavel,
   viewInicial = "",
   navegacao,
+  semAbas = false,
 }: {
   tasks: Task[];
   urlKey?: string;
@@ -67,6 +69,8 @@ export function AllTasksBoard({
    * servidor→cliente.
    */
   navegacao?: { base: string; keyParam: string };
+  /** Esconde a barra de abas — quem já a desenhou acima passa isto. */
+  semAbas?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -130,10 +134,13 @@ export function AllTasksBoard({
    * escolhida fica mesmo zerada, senão a aba some debaixo do clique.
    */
   const viewsDisponiveis = useMemo(() => {
+    // Só "Todos" tem número — as abas de pessoa são só o nome, e o Karine
+    // e o Andrei vêm na frente. Mesma regra da barra de Projetos, ver
+    // src/lib/abas-pessoa.ts.
     const lista: ViewTabItem[] = [
       { value: "", label: "Todos", count: abertasTotal.length },
     ];
-    for (const m of TEAM_MEMBERS) {
+    for (const m of naOrdemDaBarra(TEAM_MEMBERS)) {
       const count = abertasTotal.filter((t) => t.responsavel === m.value).length;
       if (count === 0 && responsavel !== m.value) continue;
       lista.push({
@@ -141,12 +148,11 @@ export function AllTasksBoard({
         label: m.label,
         iniciais: m.iniciais,
         cor: m.cor,
-        count,
       });
     }
     const orfas = abertasTotal.filter((t) => !t.responsavel).length;
     if (orfas > 0 || responsavel === SEM_DONO) {
-      lista.push({ value: SEM_DONO, label: "Sem responsável", count: orfas });
+      lista.push({ value: SEM_DONO, label: "Sem responsável" });
     }
     if (!navegacao) return lista;
     const { base, keyParam } = navegacao;
@@ -224,14 +230,19 @@ export function AllTasksBoard({
       {/* Abas de visualização — as "Lista", "Lista Karine", "Lista Andrei"
           do ClickUp. Antes isto era um <select> mais uma fileira de pílulas
           fazendo a mesma coisa em dois lugares; a aba diz de relance em qual
-          lista você está e quantas tarefas cada pessoa tem em aberto. */}
-      <div className="-mx-6 px-6 mb-5">
-        <ViewTabs
-          items={viewsDisponiveis}
-          ativo={responsavel}
-          onSelect={navegacao ? undefined : escolherView}
-        />
-      </div>
+          lista você está.
+          `semAbas` existe porque na tela de Projetos a barra já está no
+          topo, acima da lista de projetos da pessoa: duas barras iguais na
+          mesma tela dariam dois lugares pra trocar a mesma coisa. */}
+      {semAbas ? null : (
+        <div className="-mx-6 px-6 mb-5">
+          <ViewTabs
+            items={viewsDisponiveis}
+            ativo={responsavel}
+            onSelect={navegacao ? undefined : escolherView}
+          />
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>

@@ -406,10 +406,13 @@ export function StatusPieBoard({
             ativo={pessoaAtiva}
             ariaLabel="Projetos por responsável"
           />
+          {/* A legenda existia pra explicar dois números por nome. Os
+              números saíram (Karine, 30/09), e com eles a necessidade de
+              explicar — sobrou a frase que diz o que o recorte faz. */}
           <p className="text-[0.72rem] text-fysi-muted mt-1.5 mb-3">
             {pessoaAtiva
-              ? "Projetos desta pessoa. A rosca e a lista seguem o recorte."
-              : "Em \"Todos\", o número é de projetos na lista. Nos nomes, é quantos projetos aquela pessoa tem com prazo marcado."}
+              ? "Projetos sob responsabilidade desta pessoa, mais aqueles em que ela tem tarefa. A rosca e a lista seguem o recorte."
+              : "Clique num nome para ver só os projetos daquela pessoa."}
           </p>
         </div>
       ) : null}

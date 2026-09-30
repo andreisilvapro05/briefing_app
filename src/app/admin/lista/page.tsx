@@ -13,7 +13,12 @@ import { getLaneGroups } from "@/lib/lane-groups-server";
 import { StatusPieBoard } from "@/components/admin/status-pie-board";
 import { ClickUpSyncButton } from "@/components/admin/clickup-sync-button";
 import { ProjetosIncompletos } from "@/components/admin/projetos-incompletos";
-import { abasPorPessoa, projetosDaPessoa, respValido } from "@/lib/abas-pessoa";
+import {
+  abasPorPessoa,
+  projetosDaPessoa,
+  respValido,
+  SEM_RESPONSAVEL,
+} from "@/lib/abas-pessoa";
 import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
 import { AbasVisualizacao } from "@/components/admin/abas-visualizacao";
@@ -70,10 +75,18 @@ export default async function AdminListaPage({
   const visiveis = todasAsTarefas.filter(
     (t) => !visibleIds || (t.client_id && visibleIds.has(t.client_id))
   );
+  /**
+   * O dono do PROJETO, na mesma leitura que a coluna "Resp." da lista usa
+   * (`linha.responsavel`). Sem isso o recorte só enxergava tarefa, e a aba
+   * do Andrei — gestor de tudo, dono de etapa nenhuma — abria vazia.
+   */
+  const projetosComDono = todosOsGruposSemTrafego.flatMap((g) =>
+    g.clients.map((c) => ({ id: c.id, responsavel: c.linha.responsavel }))
+  );
   const abas = abasPorPessoa(visiveis, "/admin/lista", keyParam, resp,
     // A aba "Todos" conta o que a lista mostra, não o que tem prazo.
-    new Set(todosOsGruposSemTrafego.flatMap((g) => g.clients.map((c) => c.id))).size);
-  const daPessoa = resp ? projetosDaPessoa(visiveis, resp) : null;
+    projetosComDono.length, projetosComDono);
+  const daPessoa = resp ? projetosDaPessoa(visiveis, resp, projetosComDono) : null;
   const groups = daPessoa
     ? todosOsGruposSemTrafego.map((g) => ({
         ...g,
@@ -103,6 +116,13 @@ export default async function AdminListaPage({
       client_id: string;
     } => t.client !== null && t.client_id !== null
   );
+  // Só desenha o bloco de tarefas se a pessoa tiver alguma — senão o
+  // recorte do Andrei ganharia uma tabela vazia embaixo dos projetos dele.
+  const tarefasDaPessoa = resp
+    ? tarefasComCliente.filter((t) =>
+        resp === SEM_RESPONSAVEL ? !t.responsavel : t.responsavel === resp
+      )
+    : [];
 
   return (
     <AdminShell active="lista" keyParam={keyParam} userEmail={member.email}
@@ -143,33 +163,44 @@ export default async function AdminListaPage({
         urlKey={urlKey ?? undefined}
       />
 
-      {resp ? (
-        <AllTasksBoard
-          tasks={tarefasComCliente}
-          urlKey={urlKey ?? undefined}
-          clients={clientOptions}
-          restrictToResponsavel={
-            hasTaskScopedRole(member) ? member.taskValue : undefined
-          }
-          viewInicial={resp}
-          // As abas precisam NAVEGAR aqui: é o servidor que decide entre as
-          // duas visões, e o filtro no cliente só trocaria a URL sem
-          // recarregar — "Todos" nunca voltaria pra visão de projetos.
-          navegacao={{ base: "/admin/lista", keyParam }}
-        />
-      ) : (
-        <StatusPieBoard
-          groups={groups}
-          keyParam={keyParam}
-          urlKey={urlKey ?? undefined}
-          novoHref={novoHref}
-          abasPessoa={abas}
-          pessoaAtiva={resp}
-          restrictToResponsavel={
-            hasTaskScopedRole(member) ? member.taskValue : undefined
-          }
-        />
-      )}
+      {/**
+       * Escolher uma pessoa NÃO troca a tela, acrescenta.
+       *
+       * Antes trocava: saíam os projetos e entravam só as tarefas dela.
+       * Funcionava pra Valéria, que é dona de etapas, e quebrava pro
+       * Andrei — ele é o responsável dos projetos e não tem etapa
+       * nenhuma, então a lista dele vinha vazia mesmo com o avatar dele
+       * em todas as linhas (Karine, 30/09). Agora vêm os dois: os
+       * projetos sob responsabilidade dela em cima, as tarefas dela
+       * embaixo. Bloco vazio não é desenhado.
+       */}
+      <StatusPieBoard
+        groups={groups}
+        keyParam={keyParam}
+        urlKey={urlKey ?? undefined}
+        novoHref={novoHref}
+        abasPessoa={abas}
+        pessoaAtiva={resp}
+        restrictToResponsavel={
+          hasTaskScopedRole(member) ? member.taskValue : undefined
+        }
+      />
+
+      {resp && tarefasDaPessoa.length > 0 ? (
+        <div className="mt-6">
+          <AllTasksBoard
+            tasks={tarefasComCliente}
+            urlKey={urlKey ?? undefined}
+            clients={clientOptions}
+            restrictToResponsavel={
+              hasTaskScopedRole(member) ? member.taskValue : undefined
+            }
+            viewInicial={resp}
+            // A barra já está no topo, dentro do StatusPieBoard.
+            semAbas
+          />
+        </div>
+      ) : null}
 
       {/* Os de tráfego não somem sem rastro: a linha diz quantos são e
           leva pra ficha deles. Sem isso, "sumiu da lista" viraria "sumiu

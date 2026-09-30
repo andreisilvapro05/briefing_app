@@ -89,9 +89,12 @@ export default async function VisaoGeralPage({
    * inteira: quem quisesse ver o próprio quadro tinha que ler 43 projetos
    * e achar os seus no meio.
    *
-   * Um projeto entra no recorte de alguém quando tem pelo menos UMA tarefa
-   * aberta dessa pessoa. Projeto não tem responsável próprio — quem tem
-   * dono é a tarefa, e é por ela que se sabe quem está tocando o quê.
+   * Um projeto entra no recorte de alguém quando ela é a responsável DELE
+   * ou tem pelo menos uma tarefa aberta nele. A primeira metade é recente:
+   * até 28/09 projeto não tinha dono próprio, e quando passou a ter (o
+   * Andrei, gestor de projetos, vindo do ClickUp) o recorte continuou
+   * olhando só tarefa — a aba dele abria vazia com o avatar dele em toda
+   * linha.
    */
   const resp = respDaUrl;
 
@@ -100,17 +103,18 @@ export default async function VisaoGeralPage({
     .filter((t) => t.client !== null && t.client_id !== null)
     .filter((t) => !visibleIds || visibleIds.has(t.client_id as string));
 
-  /**
-   * As abas só levam em conta tarefa com PRAZO, e contam PROJETOS — ver
-   * src/lib/abas-pessoa.ts. Sem esse corte, as etapas futuras do checklist
-   * entravam na conta e "Valéria 123" não respondia nada.
-   */
   const abertasVisiveis = ativasVisiveis.filter((t) => Boolean(t.data_vencimento));
   const semPrazo = ativasVisiveis.length - abertasVisiveis.length;
+  /** Mesma leitura de dono que a coluna "Resp." da lista mostra. */
+  const projetosComDono = laneGroupsTodosSemTrafego.flatMap((g) =>
+    g.clients.map((c) => ({ id: c.id, responsavel: c.linha.responsavel }))
+  );
   const abas = abasPorPessoa(ativasVisiveis, "/admin/visao-geral", keyParam, resp,
     // A aba "Todos" conta o que a lista mostra, não o que tem prazo.
-    new Set(laneGroupsTodosSemTrafego.flatMap((g) => g.clients.map((c) => c.id))).size);
-  const clientesDaPessoa = resp ? projetosDaPessoa(ativasVisiveis, resp) : null;
+    projetosComDono.length, projetosComDono);
+  const clientesDaPessoa = resp
+    ? projetosDaPessoa(ativasVisiveis, resp, projetosComDono)
+    : null;
 
   const laneGroups = clientesDaPessoa
     ? laneGroupsTodosSemTrafego.map((g) => ({

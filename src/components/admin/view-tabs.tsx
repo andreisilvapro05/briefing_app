@@ -21,7 +21,14 @@ export interface ViewTabItem {
   iniciais?: string;
   /** Classe de fundo do avatar (bg-violet-500 etc.). */
   cor?: string;
-  count: number;
+  /**
+   * Opcional de propósito. As abas de PESSOA não têm número: a Karine
+   * mandou tirar ("não é para aparecer quantas tarefas cada um tem ali,
+   * liste os nomes"). Dois números por nome — o com prazo e o "+N sem
+   * prazo" — viraram ruído numa barra que serve pra escolher um recorte,
+   * não pra medir gente. Sobra na aba "Todos", que diz o tamanho da lista.
+   */
+  count?: number;
   /** Complemento em tom menor — ex: "+102 sem prazo". */
   nota?: string;
   /** Quando presente, a aba navega em vez de filtrar no cliente. */
@@ -62,13 +69,15 @@ export function ViewTabs({
               </span>
             ) : null}
             {item.label}
-            <span
-              className={`tabular-nums text-xs ${
-                selecionada ? "text-fysi-deep/60" : "text-fysi-muted"
-              }`}
-            >
-              {item.count}
-            </span>
+            {item.count !== undefined ? (
+              <span
+                className={`tabular-nums text-xs ${
+                  selecionada ? "text-fysi-deep/60" : "text-fysi-muted"
+                }`}
+              >
+                {item.count}
+              </span>
+            ) : null}
             {item.nota ? (
               <span
                 className="text-[0.62rem] text-fysi-muted/80 tabular-nums"
