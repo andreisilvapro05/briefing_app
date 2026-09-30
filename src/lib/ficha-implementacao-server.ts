@@ -1,4 +1,5 @@
 import { createSupabaseServiceRoleClient } from "./supabase/server";
+import { lerAnexos } from "./anexos-demanda";
 import { logServerError } from "./api-helpers";
 import {
   normalizarAcessos,
@@ -202,6 +203,7 @@ export async function listarTarefasDe(
       data_vencimento: (row.data_vencimento as string | null) ?? null,
       concluida_em: (row.concluida_em as string | null) ?? null,
       observacoes: (row.observacoes as string | null) ?? null,
+      anexos: lerAnexos(row.anexos),
       origem:
         row.origem === "manual" || row.origem === "clickup"
           ? (row.origem as "manual" | "clickup")
@@ -247,6 +249,7 @@ export async function getTarefaComCliente(
     data_vencimento: (row.data_vencimento as string | null) ?? null,
     concluida_em: (row.concluida_em as string | null) ?? null,
     observacoes: (row.observacoes as string | null) ?? null,
+    anexos: lerAnexos(row.anexos),
     origem:
       row.origem === "manual" || row.origem === "clickup"
         ? (row.origem as "manual" | "clickup")

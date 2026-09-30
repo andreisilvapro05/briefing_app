@@ -1,3 +1,4 @@
+import type { AnexoDemanda } from "./anexos-demanda";
 import type { ProjectType } from "./types";
 
 /**
@@ -528,6 +529,8 @@ export interface ProjectTask {
   concluida_em: string | null;
   observacoes: string | null;
   origem: "template" | "manual" | "clickup";
+  /** Arquivos e links pendurados na demanda — ver src/lib/anexos-demanda.ts. */
+  anexos: AnexoDemanda[];
   created_at: string;
   updated_at: string;
 }

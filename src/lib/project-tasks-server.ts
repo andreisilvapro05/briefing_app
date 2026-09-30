@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createSupabaseServiceRoleClient } from "./supabase/server";
+import { lerAnexos } from "./anexos-demanda";
 import { TASK_STATUS_GROUP, type ProjectTask, type TaskStatus } from "./project-tasks";
 
 /**
@@ -25,6 +26,8 @@ function normalizeTask(row: Record<string, unknown>): ProjectTask {
     data_vencimento: (row.data_vencimento as string | null) ?? null,
     concluida_em: (row.concluida_em as string | null) ?? null,
     observacoes: (row.observacoes as string | null) ?? null,
+    // Coluna nova: linha antiga vem sem ela, e `lerAnexos` devolve [].
+    anexos: lerAnexos(row.anexos),
     origem:
       row.origem === "manual" || row.origem === "clickup"
         ? (row.origem as "manual" | "clickup")

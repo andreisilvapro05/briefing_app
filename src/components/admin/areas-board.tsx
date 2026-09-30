@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { TaskNotes } from "./task-notes";
+import { AnexosDemanda } from "./anexos-demanda";
 import { useRouter } from "next/navigation";
 import {
   AREAS,
@@ -798,6 +799,19 @@ function LinhaDemanda({
             clientId={null}
             urlKey={urlKey}
           />
+
+          {/* Anexos (Karine, 30/09). Ficam junto da descrição, dentro do
+              mesmo painel que se abre ao clicar no nome: são as duas
+              coisas que se quer ver quando se para pra ler a demanda, e
+              na linha fechada só ocupariam espaço. */}
+          <div className="mt-3">
+            <AnexosDemanda
+              taskId={task.id}
+              anexos={task.anexos}
+              urlKey={urlKey}
+              onMudou={onSalvo}
+            />
+          </div>
         </div>
       ) : null}
     </li>

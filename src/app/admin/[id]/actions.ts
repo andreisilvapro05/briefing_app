@@ -19,6 +19,16 @@ import { createClickUpBriefingTask } from "@/lib/clickup";
 import { htmlMagicLink, sendEmail } from "@/lib/email";
 import { getServerEnv } from "@/lib/env";
 import { generateMagicSlug } from "@/lib/slug";
+import {
+  caminhoSeguro,
+  lerAnexos,
+  linkValido,
+  nomeDoLink,
+  tipoDeArquivoAceito,
+  MAX_ANEXO_BYTES,
+  MAX_ANEXOS_POR_DEMANDA,
+  type AnexoDemanda,
+} from "@/lib/anexos-demanda";
 import { parseValorBR } from "@/lib/payment-receipts";
 import {
   buildClientePayload,
@@ -2256,4 +2266,179 @@ export async function renomearProjetoAction(formData: FormData) {
   revalidatePath("/admin/clientes");
   revalidatePath("/admin/visao-geral");
   revalidatePath("/admin/quadro");
+}
+
+/* ------------------------------------------------------------------
+ * Anexos da demanda
+ *
+ * Karine (2026-09-30): "na parte de demandas ter uma parte para anexar o
+ * arquivo ou link de arquivos". Duas formas na mesma lista porque a
+ * agência trabalha das duas: a pasta do Drive é o caso comum e não tem
+ * teto de tamanho; o print que chegou no WhatsApp precisa de um lugar
+ * antes de virar pasta.
+ * ------------------------------------------------------------------ */
+
+const ANEXOS_BUCKET = "anexos-demandas";
+
+export interface AnexoResult {
+  ok: boolean;
+  erro?: string;
+}
+
+/**
+ * Anexa um link OU um arquivo à demanda. Quem pode editar a tarefa pode
+ * anexar — mesma porta de `updateProjectTaskAction` (`canEditTask`), pra
+ * não existir um caminho lateral mais frouxo que o de editar o título.
+ */
+export async function adicionarAnexoDemandaAction(
+  formData: FormData
+): Promise<AnexoResult> {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+
+  const taskId = String(formData.get("taskId") ?? "");
+  if (!taskId) return { ok: false, erro: "Demanda não identificada." };
+  if (!(await canEditTask(member, taskId))) {
+    return { ok: false, erro: "Você só anexa em demanda em que é o responsável." };
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: atual } = await service
+    .from("project_tasks")
+    .select("anexos")
+    .eq("id", taskId)
+    .maybeSingle();
+  if (!atual) return { ok: false, erro: "Demanda não encontrada." };
+
+  const anexos = lerAnexos((atual as { anexos: unknown }).anexos);
+  if (anexos.length >= MAX_ANEXOS_POR_DEMANDA) {
+    return {
+      ok: false,
+      erro: `Uma demanda guarda até ${MAX_ANEXOS_POR_DEMANDA} anexos.`,
+    };
+  }
+
+  const agora = new Date().toISOString();
+  const quem = member.name || member.email || null;
+  let novo: AnexoDemanda;
+
+  const arquivo = formData.get("arquivo");
+  if (arquivo instanceof File && arquivo.size > 0) {
+    if (!tipoDeArquivoAceito(arquivo.type)) {
+      return { ok: false, erro: "Esse tipo de arquivo não entra aqui." };
+    }
+    if (arquivo.size > MAX_ANEXO_BYTES) {
+      // O teto é da Vercel, não nosso — por isso o texto aponta a saída.
+      return {
+        ok: false,
+        erro: "Arquivo acima de 4 MB. Suba no Drive e cole o link aqui.",
+      };
+    }
+    const path = `${taskId}/${Date.now()}-${caminhoSeguro(arquivo.name)}`;
+    const bytes = new Uint8Array(await arquivo.arrayBuffer());
+    const { error: upErr } = await service.storage
+      .from(ANEXOS_BUCKET)
+      .upload(path, bytes, {
+        contentType: arquivo.type || "application/octet-stream",
+        upsert: false,
+      });
+    if (upErr) {
+      logServerError("anexo-demanda.upload", upErr);
+      return { ok: false, erro: "Não consegui subir o arquivo." };
+    }
+    novo = {
+      id: crypto.randomUUID(),
+      tipo: "arquivo",
+      path,
+      nome: arquivo.name.slice(0, 200),
+      mime: arquivo.type || undefined,
+      tamanho: arquivo.size,
+      criado_em: agora,
+      criado_por: quem,
+    };
+  } else {
+    const url = String(formData.get("url") ?? "").trim();
+    if (!linkValido(url)) {
+      return { ok: false, erro: "Cole um link que comece com http:// ou https://." };
+    }
+    const nome = String(formData.get("nome") ?? "").trim();
+    novo = {
+      id: crypto.randomUUID(),
+      tipo: "link",
+      url,
+      nome: (nome || nomeDoLink(url)).slice(0, 200),
+      criado_em: agora,
+      criado_por: quem,
+    };
+  }
+
+  const { error: escritaErr } = await service
+    .from("project_tasks")
+    .update({ anexos: [...anexos, novo], updated_at: agora })
+    .eq("id", taskId);
+  if (escritaErr) {
+    logServerError("anexo-demanda.escrita", escritaErr);
+    return { ok: false, erro: "Não consegui salvar o anexo." };
+  }
+
+  revalidatePath("/admin/demandas");
+  revalidatePath("/admin/tarefas");
+  return { ok: true };
+}
+
+/**
+ * Tira um anexo da demanda. Arquivo sai do bucket junto — deixar o objeto
+ * órfão só acumularia lixo privado que ninguém mais consegue listar.
+ */
+export async function removerAnexoDemandaAction(
+  formData: FormData
+): Promise<AnexoResult> {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+
+  const taskId = String(formData.get("taskId") ?? "");
+  const anexoId = String(formData.get("anexoId") ?? "");
+  if (!taskId || !anexoId) return { ok: false, erro: "Anexo não identificado." };
+  if (!(await canEditTask(member, taskId))) {
+    return { ok: false, erro: "Você só mexe em demanda em que é o responsável." };
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: atual } = await service
+    .from("project_tasks")
+    .select("anexos")
+    .eq("id", taskId)
+    .maybeSingle();
+  if (!atual) return { ok: false, erro: "Demanda não encontrada." };
+
+  const anexos = lerAnexos((atual as { anexos: unknown }).anexos);
+  const alvo = anexos.find((a) => a.id === anexoId);
+  if (!alvo) return { ok: true };
+
+  const { error: escritaErr } = await service
+    .from("project_tasks")
+    .update({
+      anexos: anexos.filter((a) => a.id !== anexoId),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", taskId);
+  if (escritaErr) {
+    logServerError("anexo-demanda.remover", escritaErr);
+    return { ok: false, erro: "Não consegui remover o anexo." };
+  }
+
+  // Só depois de a linha sair: se o storage falhar, sobra um objeto sem
+  // dono — ruim, mas melhor que um anexo listado cujo arquivo já sumiu.
+  if (alvo.tipo === "arquivo" && alvo.path) {
+    const { error: delErr } = await service.storage
+      .from(ANEXOS_BUCKET)
+      .remove([alvo.path]);
+    if (delErr) logServerError("anexo-demanda.storage-remover", delErr);
+  }
+
+  revalidatePath("/admin/demandas");
+  revalidatePath("/admin/tarefas");
+  return { ok: true };
 }
