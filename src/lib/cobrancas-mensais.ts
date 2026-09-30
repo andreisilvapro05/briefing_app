@@ -15,6 +15,22 @@ export interface PagamentoHistorico {
   /** "pix" | "cartao" | "boleto" | "outro" — string livre pra facilitar. */
   forma: string;
   observacao: string;
+  /**
+   * Comprovante do pagamento registrado à mão (Karine, 30/09: "na parte de
+   * cobrança, ter anexar comprovante quando é manual").
+   *
+   * Mesmo problema que os comprovantes de projeto já resolvem: o cliente
+   * manda o print no WhatsApp, ele se perde na conversa e semanas depois
+   * ninguém sabe se pagou. Opcional de propósito — registrar o recebimento
+   * vale mais que não registrar nada porque o print não estava à mão.
+   *
+   * Mora no bucket PRIVADO `comprovantes`, sob o prefixo `cobrancas/`, e é
+   * servido por rota autenticada: documento financeiro não pode ficar numa
+   * URL pública adivinhável.
+   */
+  arquivoPath?: string | null;
+  arquivoNome?: string | null;
+  arquivoTipo?: string | null;
 }
 
 export type TipoCobranca = "mensal" | "pontual";

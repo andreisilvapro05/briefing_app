@@ -24,6 +24,15 @@ async function requireFinanceAccess(formData: FormData) {
   if (!hasFinanceAccess(member)) redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
 }
 
+/**
+ * Mesmo bucket dos comprovantes de projeto — é o mesmo tipo de documento,
+ * e dois buckets para a mesma coisa só dobrariam as regras de acesso. O
+ * prefixo `cobrancas/` separa os caminhos.
+ */
+const COMPROVANTES_BUCKET = "comprovantes";
+const MAX_COMPROVANTE_BYTES = 4 * 1024 * 1024;
+const TIPOS_COMPROVANTE = ["image/", "application/pdf"];
+
 function parseMoney(raw: string): number | null {
   const cleaned = raw.trim().replace(/\./g, "").replace(",", ".");
   if (!cleaned) return null;
@@ -109,6 +118,33 @@ export async function updateCobrancaAction(formData: FormData) {
     updates.ativa = formData.get("ativa") === "1";
   }
 
+  /**
+   * Mensal ↔ pontual. Karine (30/09): "poder editar se é mensal ou
+   * pontual" — o tipo só podia ser escolhido na criação, e uma cobrança
+   * cadastrada errada só se corrigia apagando e refazendo, perdendo o
+   * histórico de pagamentos junto.
+   *
+   * Os dois tipos leem campos diferentes pra saber se está em dia (ver
+   * `statusDoMes`): mensal usa `dia_cobranca`, pontual usa
+   * `data_vencimento`. Virar pontual sem data deixaria a cobrança num
+   * limbo — sem vencimento ela nunca fica "atrasada" e some do aviso.
+   */
+  const tipo = String(formData.get("tipo") ?? "").trim();
+  if (tipo === "mensal" || tipo === "pontual") {
+    updates.tipo = tipo;
+    if (tipo === "mensal") {
+      // Vencimento é campo de pontual; mantê-lo só confundiria quem
+      // reabrisse o formulário depois.
+      updates.data_vencimento = null;
+    }
+  }
+  if (formData.has("data_vencimento")) {
+    const venc = String(formData.get("data_vencimento") ?? "").trim();
+    // Só grava quando o tipo final é pontual — senão o `null` acima perde
+    // pra um valor que a tela nem usa.
+    if (updates.tipo !== "mensal") updates.data_vencimento = venc || null;
+  }
+
   const service = createSupabaseServiceRoleClient();
   const { error: escritaErr1 } = await service.from("cobrancas_mensais").update(updates).eq("id", id);
   if (escritaErr1) logServerError("cobrancas.escrita", escritaErr1);
@@ -155,6 +191,45 @@ export async function registrarPagamentoAction(formData: FormData) {
     .maybeSingle();
   if (!cur) return;
 
+  /**
+   * Comprovante — opcional. Mesmo bucket privado dos comprovantes de
+   * projeto, sob o prefixo `cobrancas/`, servido por rota autenticada.
+   *
+   * Um anexo recusado NÃO cancela o registro: o pagamento entrou de
+   * qualquer jeito, e perder o registro inteiro porque o print era grande
+   * demais seria trocar um problema por outro pior.
+   */
+  let arquivoPath: string | null = null;
+  let arquivoNome: string | null = null;
+  let arquivoTipo: string | null = null;
+
+  const file = formData.get("comprovante");
+  if (file instanceof File && file.size > 0) {
+    const tipoOk = TIPOS_COMPROVANTE.some((t) => file.type.startsWith(t));
+    if (!tipoOk || file.size > MAX_COMPROVANTE_BYTES) {
+      logServerError(
+        "cobrancas.comprovante-invalido",
+        new Error(`tipo=${file.type} tamanho=${file.size}`)
+      );
+    } else {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120);
+      const path = `cobrancas/${id}/${Date.now()}-${safe}`;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await service.storage
+        .from(COMPROVANTES_BUCKET)
+        .upload(path, bytes, {
+          contentType: file.type || "application/octet-stream",
+          upsert: false,
+        });
+      if (upErr) logServerError("cobrancas.comprovante-upload", upErr);
+      else {
+        arquivoPath = path;
+        arquivoNome = file.name.slice(0, 200);
+        arquivoTipo = file.type || null;
+      }
+    }
+  }
+
   const historico = (cur.historico as PagamentoHistorico[] | null) ?? [];
 
   // Evita duplicar mesma referência — substitui se já existe
@@ -166,6 +241,9 @@ export async function registrarPagamentoAction(formData: FormData) {
     pagoEm: new Date().toISOString(),
     forma,
     observacao,
+    arquivoPath,
+    arquivoNome,
+    arquivoTipo,
   };
   const novoHistorico = [...filtrado, novo].sort((a, b) =>
     a.mesReferencia.localeCompare(b.mesReferencia)

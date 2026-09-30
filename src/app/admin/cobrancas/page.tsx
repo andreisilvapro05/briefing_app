@@ -24,6 +24,7 @@ import {
   updateCobrancaAction,
 } from "./actions";
 import { setPaymentAction } from "../[id]/actions";
+import { montarAReceber } from "@/lib/a-receber";
 
 export const dynamic = "force-dynamic";
 
@@ -108,10 +109,14 @@ export default async function CobrancasPage({
     })
     .filter((c) => c.falta > 0.01)
     .sort((a, b) => b.falta - a.falta);
-  const totalAReceberProjetos = projetosPendentes.reduce(
-    (s, c) => s + c.falta,
-    0
-  );
+  /**
+   * O aviso de "A receber" junta os dois lados (Karine, 30/09: "quem
+   * cliente recorrente ficar junto no aviso também pagamento pendente").
+   * Antes o saldo do projeto ficava aqui em cima e a mensalidade atrasada
+   * num cartão lá embaixo — pra saber quem devia hoje era preciso somar
+   * as duas de cabeça.
+   */
+  const aReceber = montarAReceber(projetosPendentes, todas);
 
   const contratosSemValor = (
     (contratosSemValorData as
@@ -255,24 +260,33 @@ export default async function CobrancasPage({
           </section>
         ) : null}
 
-        {/* A receber — projetos (saldos em aberto do valor do projeto) */}
+        {/* A receber — projeto E recorrente na mesma lista.
+            Karine (30/09): "quem cliente recorrente ficar junto no aviso
+            também pagamento pendente". Eram duas listas na mesma tela, e
+            responder "quem me deve hoje" exigia somar as duas de cabeça.
+            Os cartões de recorrente continuam abaixo: é lá que se registra
+            o pagamento e se edita a cobrança. Aqui é só o aviso. */}
         <section className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-5 mb-6">
           <div className="flex items-baseline justify-between gap-3 mb-3 flex-wrap">
             <div>
               <h2 className="text-lg font-semibold tracking-tight text-fysi-deep">
-                A receber — projetos
+                A receber
               </h2>
               <p className="text-xs text-fysi-muted mt-0.5">
-                Clientes com saldo em aberto no valor do projeto.
+                Saldo em aberto de projeto e mensalidade ainda não paga, na
+                mesma lista.
+                {aReceber.atrasados > 0 ? (
+                  <> {aReceber.atrasados} passou do dia de cobrança.</>
+                ) : null}
               </p>
             </div>
-            <Pill tone={totalAReceberProjetos > 0 ? "yellow" : "mint"}>
-              {formatBRL(totalAReceberProjetos)} a receber
+            <Pill tone={aReceber.total > 0 ? "yellow" : "mint"}>
+              {formatBRL(aReceber.total)} a receber
             </Pill>
           </div>
-          {projetosPendentes.length === 0 ? (
+          {aReceber.linhas.length === 0 ? (
             <p className="text-sm text-fysi-muted">
-              Nenhum projeto com saldo em aberto.
+              Ninguém com pagamento em aberto.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -280,6 +294,7 @@ export default async function CobrancasPage({
                 <thead>
                   <tr className="text-left text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted">
                     <th className="py-2 pr-3 font-medium">Cliente</th>
+                    <th className="py-2 px-3 font-medium">Origem</th>
                     <th className="py-2 px-3 font-medium text-right">Total</th>
                     <th className="py-2 px-3 font-medium text-right">Pago</th>
                     <th className="py-2 px-3 font-medium text-right">Falta</th>
@@ -287,43 +302,73 @@ export default async function CobrancasPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {projetosPendentes.map((c) => (
-                    <tr key={c.id} className="border-t border-fysi-line">
+                  {aReceber.linhas.map((l) => (
+                    <tr key={l.chave} className="border-t border-fysi-line">
                       <td className="py-2.5 pr-3">
                         <div className="font-medium text-fysi-deep truncate">
-                          {c.empresa || c.nome}
+                          {l.nome}
                         </div>
-                        {c.pagamento_observacao ? (
+                        {l.detalhe ? (
                           <div className="text-[0.7rem] text-fysi-muted truncate">
-                            {c.pagamento_observacao}
+                            {l.detalhe}
                           </div>
                         ) : null}
                       </td>
+                      <td className="py-2.5 px-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.68rem] font-medium ${
+                            l.origem === "recorrente"
+                              ? "border-sky-200 bg-sky-50 text-sky-800"
+                              : "border-fysi-line bg-fysi-cream/40 text-fysi-deep"
+                          }`}
+                        >
+                          {l.origem === "recorrente" ? "Recorrente" : "Projeto"}
+                        </span>
+                        {l.atrasado ? (
+                          <span className="ml-1.5 text-[0.68rem] font-medium text-amber-700">
+                            atrasado
+                          </span>
+                        ) : null}
+                      </td>
+                      {/* Mensalidade não tem "total combinado" nem "já pago":
+                          é o valor do mês. Traço em vez de zero, que leria
+                          como "não pagou nada de mil reais". */}
                       <td className="py-2.5 px-3 text-right tabular-nums text-fysi-deep">
-                        {formatBRL(c.total)}
+                        {l.total === null ? "—" : formatBRL(l.total)}
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums text-emerald-700">
-                        {formatBRL(c.pago)}
+                        {l.pago === null ? "—" : formatBRL(l.pago)}
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums font-semibold text-amber-700">
-                        {formatBRL(c.falta)}
+                        {formatBRL(l.falta)}
                       </td>
                       <td className="py-2.5 pl-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-2">
                           <ChargeButton
-                            nome={c.nome}
-                            valor={formatBRL(c.falta)}
-                            whatsapp={c.whatsapp}
+                            nome={l.nome}
+                            valor={formatBRL(l.falta)}
+                            whatsapp={l.whatsapp}
                             compact
                           />
-                          <a
-                            href={`/admin/${c.id}?tab=pagamentos${
-                              urlKey ? `&key=${encodeURIComponent(urlKey)}` : ""
-                            }`}
-                            className="text-xs font-medium text-fysi-deep hover:underline"
-                          >
-                            Abrir →
-                          </a>
+                          {l.origem === "projeto" ? (
+                            <a
+                              href={`/admin/${l.id}?tab=pagamentos${
+                                urlKey ? `&key=${encodeURIComponent(urlKey)}` : ""
+                              }`}
+                              className="text-xs font-medium text-fysi-deep hover:underline"
+                            >
+                              Abrir →
+                            </a>
+                          ) : (
+                            // O cartão da cobrança está logo abaixo, nesta
+                            // mesma tela — é onde se registra o pagamento.
+                            <a
+                              href={`#cobranca-${l.id}`}
+                              className="text-xs font-medium text-fysi-deep hover:underline"
+                            >
+                              Ver cobrança ↓
+                            </a>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -568,8 +613,12 @@ function CobrancaCard({
 
   return (
     <div
+      // Alvo do "Ver cobrança ↓" do aviso de A receber, que fica no topo
+      // desta mesma tela. scroll-mt deixa o cartão abaixo do cabeçalho
+      // fixo em vez de nascer colado na borda de cima.
+      id={`cobranca-${cobranca.id}`}
       className={
-        "bg-white border rounded-[16px] p-4 flex flex-col gap-3 " +
+        "scroll-mt-24 bg-white border rounded-[16px] p-4 flex flex-col gap-3 " +
         (!cobranca.ativa
           ? "border-fysi-line opacity-60"
           : status === "atrasado"
@@ -665,30 +714,46 @@ function CobrancaCard({
           </summary>
           <form
             action={registrarPagamentoAction}
-            className="mt-2 grid sm:grid-cols-4 gap-2 p-3 bg-fysi-cream/30 rounded-md"
+            className="mt-2 flex flex-col gap-2 p-3 bg-fysi-cream/30 rounded-md"
           >
             <input type="hidden" name="id" value={cobranca.id} />
             {urlKey ? (
               <input type="hidden" name="key" value={urlKey} />
             ) : null}
-            <input
-              name="mes_referencia"
-              defaultValue={refAtual}
-              placeholder="2026-06"
-              className="input"
-            />
-            <input
-              name="valor_pago"
-              defaultValue={String(cobranca.valor_mensal).replace(".", ",")}
-              placeholder="Valor"
-              className="input"
-            />
-            <select name="forma" defaultValue="pix" className="input">
-              <option value="pix">Pix</option>
-              <option value="cartao">Cartão</option>
-              <option value="boleto">Boleto</option>
-              <option value="outro">Outro</option>
-            </select>
+            <div className="grid sm:grid-cols-3 gap-2">
+              <input
+                name="mes_referencia"
+                defaultValue={refAtual}
+                placeholder="2026-06"
+                className="input"
+              />
+              <input
+                name="valor_pago"
+                defaultValue={String(cobranca.valor_mensal).replace(".", ",")}
+                placeholder="Valor"
+                className="input"
+              />
+              <select name="forma" defaultValue="pix" className="input">
+                <option value="pix">Pix</option>
+                <option value="cartao">Cartão</option>
+                <option value="boleto">Boleto</option>
+                <option value="outro">Outro</option>
+              </select>
+            </div>
+            {/* Comprovante (Karine, 30/09). Mesmo problema que os
+                comprovantes de projeto já resolvem: o print chega no
+                WhatsApp, some na conversa, e semanas depois ninguém sabe
+                se pagou. Opcional — registrar sem o print vale mais que
+                não registrar. */}
+            <label className="flex flex-col gap-1 text-xs text-fysi-muted">
+              <span>Comprovante (opcional) — imagem ou PDF, até 4 MB</span>
+              <input
+                type="file"
+                name="comprovante"
+                accept="image/*,application/pdf"
+                className="input file:mr-3 file:rounded-full file:border-0 file:bg-fysi-deep file:px-3 file:py-1 file:text-fysi-cream file:text-xs"
+              />
+            </label>
             <SubmitButton size="sm" variant="secondary" pendingLabel="…">
               Registrar
             </SubmitButton>
@@ -718,6 +783,21 @@ function CobrancaCard({
                   <span className="text-fysi-muted">
                     {new Date(h.pagoEm).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                   </span>
+                  {/* O comprovante abre por rota autenticada — o bucket é
+                      privado, então não existe link direto pro arquivo. */}
+                  {h.arquivoPath ? (
+                    <a
+                      href={`/api/admin/cobrancas/${cobranca.id}/comprovante/${h.id}${
+                        urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""
+                      }`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={h.arquivoNome ?? "Ver comprovante"}
+                      className="font-medium text-fysi-deep underline underline-offset-2 hover:no-underline"
+                    >
+                      comprovante
+                    </a>
+                  ) : null}
                   <form action={removerPagamentoAction} className="ml-auto">
                     {urlKey ? (
                       <input type="hidden" name="key" value={urlKey} />
@@ -785,6 +865,29 @@ function CobrancaCard({
                 className="input"
               />
             </div>
+            {/* Mensal ↔ pontual (Karine, 30/09). O tipo só existia na
+                criação: cadastrou errado, só dava pra apagar e refazer —
+                perdendo o histórico de pagamentos junto. */}
+            <label className="flex flex-col gap-1 text-xs text-fysi-muted">
+              <span>Tipo de cobrança</span>
+              <select
+                name="tipo"
+                defaultValue={cobranca.tipo}
+                className="input"
+              >
+                <option value="mensal">Mensal — repete todo mês</option>
+                <option value="pontual">Pontual — cobra uma vez só</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-fysi-muted">
+              <span>Vence em (só para pontual)</span>
+              <input
+                type="date"
+                name="data_vencimento"
+                defaultValue={cobranca.data_vencimento ?? ""}
+                className="input"
+              />
+            </label>
             <label className="flex items-center gap-2 text-xs">
               <input
                 type="checkbox"
