@@ -187,7 +187,7 @@ export function PaymentReceipts({
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className={rotulo}>Comprovante (print ou PDF)</span>
+          <span className={rotulo}>Comprovante (print ou PDF, até 4 MB)</span>
           <input
             name="arquivo"
             type="file"

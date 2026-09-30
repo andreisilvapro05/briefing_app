@@ -1906,7 +1906,15 @@ export async function deleteProjectTaskCommentAction(formData: FormData) {
  * ------------------------------------------------------------------ */
 
 const COMPROVANTES_BUCKET = "comprovantes";
-const MAX_COMPROVANTE_BYTES = 10 * 1024 * 1024;
+/**
+ * 4 MB, não 10.
+ *
+ * O teto de 10 MB era inalcançável: todo upload daqui passa por Server
+ * Action, e a Vercel corta o corpo da requisição em ~4,5 MB — um arquivo
+ * de 6 MB morria na plataforma antes de chegar nesta linha, sem mensagem
+ * nenhuma pra quem estava registrando. Ver next.config.ts.
+ */
+const MAX_COMPROVANTE_BYTES = 4 * 1024 * 1024;
 const TIPOS_COMPROVANTE = ["image/", "application/pdf"];
 
 export async function addPaymentReceiptAction(
@@ -1937,28 +1945,31 @@ export async function addPaymentReceiptAction(
   if (file instanceof File && file.size > 0) {
     const tipoOk = TIPOS_COMPROVANTE.some((t) => file.type.startsWith(t));
     if (!tipoOk || file.size > MAX_COMPROVANTE_BYTES) {
+      // Anexo recusado NÃO cancela o pagamento. Antes dava `return` aqui:
+      // um print grande demais fazia a tela voltar sem registrar nada e
+      // sem dizer por quê, e o valor recebido simplesmente não entrava.
       logServerError(
         "comprovante.arquivo-invalido",
         new Error(`tipo=${file.type} tamanho=${file.size}`)
       );
-      return;
+    } else {
+      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120);
+      const path = `${clientId}/${Date.now()}-${safe}`;
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await service.storage
+        .from(COMPROVANTES_BUCKET)
+        .upload(path, bytes, {
+          contentType: file.type || "application/octet-stream",
+          upsert: false,
+        });
+      // Falha de upload também não derruba o registro: o dinheiro entrou.
+      if (upErr) logServerError("comprovante.upload", upErr);
+      else {
+        arquivoPath = path;
+        arquivoNome = file.name.slice(0, 200);
+        arquivoTipo = file.type || null;
+      }
     }
-    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "-").slice(0, 120);
-    const path = `${clientId}/${Date.now()}-${safe}`;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error: upErr } = await service.storage
-      .from(COMPROVANTES_BUCKET)
-      .upload(path, bytes, {
-        contentType: file.type || "application/octet-stream",
-        upsert: false,
-      });
-    if (upErr) {
-      logServerError("comprovante.upload", upErr);
-      return;
-    }
-    arquivoPath = path;
-    arquivoNome = file.name.slice(0, 200);
-    arquivoTipo = file.type || null;
   }
 
   const { error: insErr } = await service.from("payment_receipts").insert({

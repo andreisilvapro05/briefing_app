@@ -5,7 +5,6 @@ import { TaskNotes } from "./task-notes";
 import { AnexosDemanda } from "./anexos-demanda";
 import { useRouter } from "next/navigation";
 import {
-  AREAS,
   EISENHOWER,
   TASK_STATUS_GROUP,
   TASK_STATUS_INTERNO,
@@ -160,22 +159,6 @@ export function AreasBoard({
     () => agruparDemandas(visiveis, agruparPor, crescente, ordem),
     [visiveis, agruparPor, crescente, ordem]
   );
-
-  /**
-   * Áreas sem nada no recorte atual — viram a linha compacta do rodapé.
-   *
-   * Só na visão por área: é ali que "lançar a primeira demanda de Curso" faz
-   * sentido. Agrupado por status ou por pessoa, uma gaveta vazia não é um lugar
-   * onde se cria nada.
-   */
-  const vazias =
-    agruparPor === "area"
-      ? AREAS.filter(
-          (a) =>
-            criandoEm !== a.value &&
-            (gavetas.find((g) => g.chave === a.value)?.tarefas.length ?? 0) === 0
-        )
-      : [];
 
   const totalAbertas = tasks.filter(
     (t) => TASK_STATUS_GROUP[t.status] === "ativo"
@@ -348,7 +331,25 @@ export function AreasBoard({
       </section>
 
       {gavetas
-        .filter((g) => g.tarefas.length > 0 || criandoEm === g.chave)
+        /**
+         * Agrupado por ÁREA, toda área tem gaveta — vazia inclusive.
+         *
+         * Antes a vazia sumia e virava uma pílula numa linha tracejada no
+         * rodapé, visível só nesse agrupamento. Foi assim que a Karine
+         * não achou "Ajustes técnicos" recém-criada (30/09): a área
+         * existia e não estava em lugar nenhum que se olhasse. Gaveta
+         * vazia custa uma linha e diz "nada aqui" — e traz o botão de
+         * lançar a primeira demanda junto.
+         *
+         * Nos outros eixos continua escondendo: uma gaveta por status
+         * daria dezesseis cabeçalhos vazios.
+         */
+        .filter(
+          (g) =>
+            agruparPor === "area" ||
+            g.tarefas.length > 0 ||
+            criandoEm === g.chave
+        )
         .map((gaveta) => {
           const id = `${agruparPor}:${gaveta.chave}`;
           const fechada = fechadas.has(id);
@@ -461,28 +462,6 @@ export function AreasBoard({
             ? `Nenhuma demanda interna com ${nomeDoFiltro} agora. Escolha uma área abaixo pra lançar a primeira.`
             : "Nenhuma demanda interna aberta. Escolha uma área abaixo pra lançar a primeira."}
         </p>
-      ) : null}
-
-      {/* As áreas sem nada agora — uma linha, não cinco cartões. Clicar no
-          nome abre a barra de criar naquela área. */}
-      {vazias.length > 0 ? (
-        <section className="rounded-[16px] border border-dashed border-fysi-line px-5 py-3">
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs text-fysi-muted">
-            <span>Sem nada agora{filtroPessoa ? " pra essa pessoa" : ""}:</span>
-            {vazias.map((a) => (
-              <button
-                key={a.value}
-                type="button"
-                onClick={() => setCriandoEm(a.value)}
-                title={`Lançar uma demanda de ${a.label.toLowerCase()}`}
-                className="inline-flex items-center gap-1.5 rounded-full border border-fysi-line bg-white px-2.5 py-1 text-fysi-deep hover:border-fysi-deep/40 transition"
-              >
-                <span className={`h-1.5 w-1.5 rounded-full ${a.barra}`} aria-hidden />
-                {a.label}
-              </button>
-            ))}
-          </p>
-        </section>
       ) : null}
 
     </div>
