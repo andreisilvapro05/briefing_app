@@ -466,6 +466,22 @@ export const AREAS: Area[] = [
     tom: "bg-pink-50 text-pink-800 border-pink-200",
     barra: "bg-pink-500",
   },
+  /**
+   * A gaveta do que não é de área nenhuma. Karine (30/09): "adicionar um
+   * novo tipo de área chamada ajustes técnicos, para demandas aleatórias
+   * internas".
+   *
+   * Cinza de propósito: as outras cinco são áreas do negócio e se
+   * reconhecem pela cor; esta é o resto, e uma cor forte a faria competir
+   * com elas. Fica depois delas e antes do Comercial, pra não empurrar
+   * ninguém pra fora da tela.
+   */
+  {
+    value: "ajustes-tecnicos",
+    label: "Ajustes técnicos",
+    tom: "bg-slate-50 text-slate-800 border-slate-200",
+    barra: "bg-slate-500",
+  },
   // Comercial por último, a pedido da Karine (28/09): é a gaveta mais cheia, e
   // no topo empurrava para fora da tela justamente as áreas que ela abre menos
   // — que são as que precisam ser vistas para não sumirem.

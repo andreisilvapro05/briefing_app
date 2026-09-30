@@ -6,7 +6,12 @@ import {
   agruparDemandas,
   ordenarDemandas,
 } from "../src/lib/agrupar-demandas.ts";
-import type { ProjectTask } from "../src/lib/project-tasks.ts";
+import {
+  AREAS,
+  areaDe,
+  areaLabel,
+  type ProjectTask,
+} from "../src/lib/project-tasks.ts";
 
 const d = (over: Partial<ProjectTask> = {}): ProjectTask =>
   ({
@@ -139,4 +144,39 @@ test("por prazo, quem não tem data vai para o fim", () => {
   const ordenadas = ordenarDemandas([semData, comData], "prazo");
 
   assert.deepEqual(ordenadas.map((t) => t.id), [comData.id, semData.id]);
+});
+
+test("Ajustes técnicos entra antes do Comercial, que continua por último", () => {
+  // A gaveta do trabalho interno avulso (Karine, 30/09). Se ela nascesse no
+  // topo, empurraria pra fora da tela justamente as áreas que se abre menos
+  // — o mesmo motivo que pôs Comercial no fim.
+  const gs = agruparDemandas(
+    [
+      d({ area: "comercial" }),
+      d({ area: "ajustes-tecnicos" }),
+      d({ area: "marketing" }),
+    ],
+    "area",
+    true,
+    "importancia"
+  );
+
+  assert.deepEqual(rotulos(gs), ["Marketing", "Ajustes técnicos", "Comercial"]);
+});
+
+test("toda área tem value único, rótulo e as duas classes de cor", () => {
+  // O CHECK de project_tasks.area é a outra cópia desta lista (migration
+  // 20260930120000). Área sem cor vira gaveta invisível na tela de Demandas.
+  const vistos = new Set<string>();
+  for (const a of AREAS) {
+    assert.match(a.value, /^[a-z0-9-]+$/, `value fora do padrão: ${a.value}`);
+    assert.ok(!vistos.has(a.value), `value repetido: ${a.value}`);
+    vistos.add(a.value);
+    assert.ok(a.label.trim().length > 0, `sem rótulo: ${a.value}`);
+    assert.match(a.tom, /bg-.+ text-.+ border-.+/, `tom incompleto: ${a.value}`);
+    assert.match(a.barra, /^bg-/, `barra incompleta: ${a.value}`);
+  }
+  assert.equal(areaLabel("ajustes-tecnicos"), "Ajustes técnicos");
+  assert.equal(areaLabel("inexistente"), "Sem área");
+  assert.equal(areaDe(null), null);
 });
