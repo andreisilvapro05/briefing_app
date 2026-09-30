@@ -1,11 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { resumoDasDemandas } from "@/lib/resumo-demandas";
+import { ViewTabs, type ViewTabItem } from "./view-tabs";
 import { TaskNotes } from "./task-notes";
 import { AnexosDemanda } from "./anexos-demanda";
 import { useRouter } from "next/navigation";
 import {
   EISENHOWER,
+  ESFORCOS,
   TASK_STATUS_GROUP,
   TASK_STATUS_INTERNO,
   TASK_STATUS_OPTIONS,
@@ -20,6 +23,7 @@ import {
   updateProjectTaskAction,
 } from "@/app/admin/[id]/actions";
 import { formatDiaMes } from "@/lib/datas";
+import { naOrdemDaBarra, SEM_RESPONSAVEL as SEM_DONO } from "@/lib/abas-pessoa";
 import {
   AGRUPAMENTOS,
   SEM_VALOR,
@@ -76,6 +80,16 @@ export function AreasBoard({
    */
   const [filtroStatus, setFiltroStatus] = useState("");
   const [filtroQuadrante, setFiltroQuadrante] = useState("");
+  /**
+   * Filtro por TEMPO QUE LEVA. Karine (30/09): "ter para filtrar o que é
+   * mais rápido de fazer... precisa ficar fácil de visualizar".
+   *
+   * Já dava pra AGRUPAR por esforço e pra ORDENAR por ele, mas não pra
+   * ficar só com as rápidas — que é o gesto de quem tem quinze minutos
+   * entre uma reunião e outra. Por isso são pílulas de um clique, e não
+   * mais um <select> no meio de outros três.
+   */
+  const [filtroEsforco, setFiltroEsforco] = useState("");
   const [ordem, setOrdem] = useState<"importancia" | "prazo" | "esforco">(
     "importancia"
   );
@@ -129,11 +143,17 @@ export function AreasBoard({
           ? t.filter((x) => !x.eisenhower)
           : t.filter((x) => x.eisenhower === filtroQuadrante);
     }
+    if (filtroEsforco) {
+      t =
+        filtroEsforco === "__sem__"
+          ? t.filter((x) => !x.esforco)
+          : t.filter((x) => x.esforco === filtroEsforco);
+    }
     if (!mostrarFeitas && !filtroStatus) {
       t = t.filter((x) => TASK_STATUS_GROUP[x.status] === "ativo");
     }
     return t;
-  }, [tasks, filtroPessoa, filtroStatus, filtroQuadrante, mostrarFeitas]);
+  }, [tasks, filtroPessoa, filtroStatus, filtroQuadrante, filtroEsforco, mostrarFeitas]);
 
   /**
    * Uma gaveta por área, nesta ordem. Área SEM nada no recorte atual não
@@ -173,9 +193,112 @@ export function AreasBoard({
   ).length;
   const nomeDoFiltro = TEAM_MEMBERS.find((m) => m.value === filtroPessoa)?.label;
 
+  /**
+   * O resumo do topo — "quanto tem e onde dói" antes de abrir gaveta
+   * nenhuma (Karine, 30/09: "ter visão geral nas demandas internas e por
+   * usuário também"). Lê o RECORTE, não a base inteira: escolhida uma
+   * pessoa, o resumo é o dela.
+   */
+  const resumo = useMemo(() => resumoDasDemandas(visiveis, hoje), [visiveis, hoje]);
+
+  /** As abas por pessoa — mesma barra dos Projetos: só nomes, Karine e Andrei na frente. */
+  const abasPessoa: ViewTabItem[] = useMemo(() => {
+    const abertas = tasks.filter((x) => TASK_STATUS_GROUP[x.status] === "ativo");
+    const lista: ViewTabItem[] = [
+      { value: "", label: "Todos", count: abertas.length },
+    ];
+    for (const m of naOrdemDaBarra(TEAM_MEMBERS)) {
+      const tem = abertas.some((x) => x.responsavel === m.value);
+      if (!tem && filtroPessoa !== m.value) continue;
+      lista.push({ value: m.value, label: m.label, iniciais: m.iniciais, cor: m.cor });
+    }
+    if (abertas.some((x) => !x.responsavel) || filtroPessoa === SEM_DONO) {
+      lista.push({ value: SEM_DONO, label: "Sem responsável" });
+    }
+    return lista;
+  }, [tasks, filtroPessoa]);
+
   return (
     <div className="flex flex-col gap-4">
       <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card px-5 py-4">
+        {/* Por usuário, no topo — o recorte é a primeira pergunta ("de
+            quem é esta lista?"), não mais um filtro no meio dos outros. */}
+        <div className="-mx-5 px-5 mb-4">
+          <ViewTabs
+            items={abasPessoa}
+            ativo={filtroPessoa}
+            onSelect={setFiltroPessoa}
+            ariaLabel="Demandas por responsável"
+          />
+        </div>
+
+        {/* Visão geral do recorte. Quatro números que respondem "o que
+            precisa de mim agora", e as áreas com barra proporcional. */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          <Tile rotulo="Abertas" valor={resumo.abertas} />
+          <Tile
+            rotulo="Atrasadas"
+            valor={resumo.atrasadas}
+            tom={resumo.atrasadas > 0 ? "text-red-700" : undefined}
+          />
+          <Tile rotulo="Para hoje" valor={resumo.paraHoje} />
+          <Tile rotulo="Sem prazo" valor={resumo.semPrazo} />
+        </div>
+
+        {resumo.porArea.length > 0 ? (
+          <div className="flex flex-col gap-1 mb-4">
+            {resumo.porArea.map((a) => (
+              <div key={a.value} className="flex items-center gap-2 text-xs">
+                <span className="w-44 shrink-0 truncate text-fysi-deep">
+                  {a.label}
+                </span>
+                <span className="flex-1 h-2 rounded-full bg-fysi-cream/70 overflow-hidden">
+                  <span
+                    className={`block h-full rounded-full ${a.barra}`}
+                    style={{
+                      width: `${Math.round((a.abertas / Math.max(1, resumo.maiorArea)) * 100)}%`,
+                    }}
+                  />
+                </span>
+                <span className="w-16 shrink-0 text-right tabular-nums text-fysi-muted">
+                  {a.abertas}
+                  {a.atrasadas > 0 ? (
+                    <span className="text-red-700"> · {a.atrasadas}</span>
+                  ) : null}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {/* Tempo que leva — pílulas, não select: pegar só as rápidas é um
+            gesto de um clique, pra quem tem quinze minutos livres. */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          <span className="text-xs text-fysi-muted mr-0.5">Tempo que leva</span>
+          {[
+            { value: "", label: "Qualquer" },
+            ...ESFORCOS.map((e) => ({ value: e.value, label: e.curto })),
+            { value: "__sem__", label: "Sem estimar" },
+          ].map((op) => {
+            const ativa = filtroEsforco === op.value;
+            return (
+              <button
+                key={op.value || "todos"}
+                type="button"
+                onClick={() => setFiltroEsforco(op.value)}
+                aria-pressed={ativa}
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  ativa
+                    ? "border-fysi-deep bg-fysi-deep text-fysi-cream"
+                    : "border-fysi-line bg-white text-fysi-deep hover:border-fysi-deep/40"
+                }`}
+              >
+                {op.label}
+              </button>
+            );
+          })}
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-fysi-muted">
             <strong className="font-semibold text-fysi-deep">
@@ -195,18 +318,6 @@ export function AreasBoard({
             )}
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={filtroPessoa}
-              onChange={(e) => setFiltroPessoa(e.target.value)}
-              className="rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5 text-fysi-deep"
-            >
-              <option value="">Todo mundo</option>
-              {TEAM_MEMBERS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
             <select
               value={filtroStatus}
               onChange={(e) => setFiltroStatus(e.target.value)}
@@ -794,5 +905,28 @@ function LinhaDemanda({
         </div>
       ) : null}
     </li>
+  );
+}
+
+
+/** Número grande com rótulo — os quatro do resumo do topo. */
+function Tile({
+  rotulo,
+  valor,
+  tom,
+}: {
+  rotulo: string;
+  valor: number;
+  tom?: string;
+}) {
+  return (
+    <div className="rounded-[12px] border border-fysi-line bg-fysi-cream/30 px-3 py-2">
+      <p className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+        {rotulo}
+      </p>
+      <p className={`text-xl font-semibold tabular-nums ${tom ?? "text-fysi-deep"}`}>
+        {valor}
+      </p>
+    </div>
   );
 }

@@ -18,6 +18,7 @@ import { abasPorPessoa, projetosDaPessoa, respValido } from "@/lib/abas-pessoa";
 import { ProjetosAVencer } from "@/components/admin/projetos-a-vencer";
 import { montarProjetosAVencer } from "@/lib/projetos-a-vencer";
 import { hojeEmBrasilia } from "@/lib/datas";
+import { agruparDemandas } from "@/lib/agrupar-demandas";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 /**
@@ -37,6 +38,8 @@ import { TEAM_MEMBERS } from "@/lib/project-tasks";
 export const dynamic = "force-dynamic";
 
 const TAREFAS_LIMIT = 8;
+/** Quantas demandas internas listar por área antes de resumir o resto. */
+const INTERNAS_POR_AREA = 4;
 
 /** Quantos dias à frente entram em "Projetos a vencer". */
 const JANELA_A_VENCER = 14;
@@ -98,10 +101,27 @@ export default async function VisaoGeralPage({
    */
   const resp = respDaUrl;
 
-  const ativasVisiveis = allTasks
-    .filter((t) => !isClosedTaskStatus(t.status))
+  const abertas = allTasks.filter((t) => !isClosedTaskStatus(t.status));
+
+  const ativasVisiveis = abertas
     .filter((t) => t.client !== null && t.client_id !== null)
     .filter((t) => !visibleIds || visibleIds.has(t.client_id as string));
+
+  /**
+   * Demanda INTERNA da agência — a que não pertence a cliente nenhum
+   * (curso, marketing, processos, ajustes técnicos). Karine (30/09):
+   * "pode mostrar projetos internos".
+   *
+   * Esta tela descartava tudo com `client_id` nulo, então o trabalho
+   * interno não existia aqui: nem na rosca, nem em tarefas pendentes,
+   * nem no recorte de uma pessoa. Quem escolhia o próprio nome via só
+   * metade do que tem pra fazer.
+   *
+   * Não entra na rosca de propósito: a rosca é a distribuição dos
+   * PROJETOS de cliente pelas etapas de uma página, e demanda interna
+   * não passa por elas. Vem como bloco próprio, agrupado por área.
+   */
+  const internasVisiveis = abertas.filter((t) => t.client_id === null);
 
   const abertasVisiveis = ativasVisiveis.filter((t) => Boolean(t.data_vencimento));
   const semPrazo = ativasVisiveis.length - abertasVisiveis.length;
@@ -154,6 +174,16 @@ export default async function VisaoGeralPage({
     })
     .slice(0, TAREFAS_LIMIT);
 
+  const internasDaPessoa = internasVisiveis.filter(
+    (t) => !resp || t.responsavel === resp
+  );
+  const gavetasInternas = agruparDemandas(
+    internasDaPessoa,
+    "area",
+    true,
+    "importancia"
+  ).filter((g) => g.tarefas.length > 0);
+
   return (
     <AdminShell active="visao-geral" keyParam={keyParam} userEmail={member.email}
       userName={member.name}
@@ -201,6 +231,69 @@ export default async function VisaoGeralPage({
         janelaDias={JANELA_A_VENCER}
         totalNaJanela={aVencerTodos.itens.length}
       />
+
+      {/* Demandas internas — o trabalho da agência que não é de cliente
+          nenhum (Karine, 30/09: "pode mostrar projetos internos"). Ele não
+          existia nesta tela: a leitura descartava tudo com client_id nulo,
+          então quem escolhia o próprio nome via só metade do que tem. */}
+      {gavetasInternas.length > 0 ? (
+        <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
+          <div className="flex items-baseline justify-between mb-1">
+            <Eyebrow>
+              {resp
+                ? `Demandas internas — ${TEAM_MEMBERS.find((m) => m.value === resp)?.label ?? ""}`
+                : "Demandas internas"}
+            </Eyebrow>
+            <Link
+              href={`/admin/demandas${keyParam}`}
+              className="text-xs text-fysi-deep hover:underline font-medium"
+            >
+              Ver todas →
+            </Link>
+          </div>
+          <p className="text-[0.7rem] text-fysi-muted mb-3">
+            Trabalho da agência que não pertence a projeto de cliente.
+          </p>
+          <div className="flex flex-col gap-3">
+            {gavetasInternas.map((g) => (
+              <div key={g.chave}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className={`h-3 w-1 rounded-full ${g.barra}`} aria-hidden />
+                  <span className="text-[0.78rem] font-semibold text-fysi-deep">
+                    {g.rotulo}
+                  </span>
+                  <span className="text-[0.7rem] text-fysi-muted">
+                    {g.tarefas.length}
+                  </span>
+                </div>
+                <ul className="flex flex-col gap-0.5 pl-3">
+                  {g.tarefas.slice(0, INTERNAS_POR_AREA).map((t) => (
+                    <li
+                      key={t.id}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="text-fysi-deep truncate">{t.titulo}</span>
+                      <span className="flex items-center gap-2 shrink-0 text-[0.7rem] text-fysi-muted tabular-nums">
+                        {t.responsavel ? <span>{t.responsavel}</span> : null}
+                        {t.data_vencimento ? (
+                          <span>{formatDate(t.data_vencimento)}</span>
+                        ) : (
+                          <span className="text-fysi-muted/70">sem prazo</span>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                  {g.tarefas.length > INTERNAS_POR_AREA ? (
+                    <li className="text-[0.7rem] text-fysi-muted">
+                      + {g.tarefas.length - INTERNAS_POR_AREA} em {g.rotulo.toLowerCase()}
+                    </li>
+                  ) : null}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {/* Tarefas pendentes */}
       <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
