@@ -43,7 +43,20 @@ export interface ClientForLane {
 export interface Lane {
   id: string;
   label: string;
-  tone: "slate" | "indigo" | "cyan" | "yellow" | "pink" | "violet" | "amber" | "red" | "orange" | "emerald" | "rose";
+  tone:
+    | "slate"
+    | "indigo"
+    | "cyan"
+    | "yellow"
+    | "pink"
+    | "violet"
+    | "amber"
+    | "red"
+    | "orange"
+    | "emerald"
+    | "rose"
+    | "lime"
+    | "teal";
   description?: string;
 }
 
@@ -61,6 +74,17 @@ export function statusLaneId(status: TaskStatus): string {
  * Mantém a mesma família de cor entre as duas telas (ex: "Parado" é
  * vermelho nos dois lugares) sem precisar unificar os dois sistemas.
  */
+/**
+ * VERMELHO SÓ PRO QUE É RUIM. Karine (30/09): "mudar as cores que são
+ * vermelho... deixe vermelho só para o que é ruim, existe roxo, verde,
+ * amarelo limão".
+ *
+ * Três etapas eram vermelhas e só uma é problema: "parado". As duas de
+ * validação são espera normal — o cliente está olhando o trabalho —, e
+ * pintá-las de alarme fazia a rosca parecer metade em crise. Viraram
+ * limão e teal, que ficam na mesma família de "aguardando" sem gritar, e
+ * não colidem com o violeta do design nem com o verde do concluído.
+ */
 const STATUS_TONE: Record<TaskStatus, Lane["tone"]> = {
   parado: "red",
   "nem-comecou-nada": "slate",
@@ -70,10 +94,10 @@ const STATUS_TONE: Record<TaskStatus, Lane["tone"]> = {
   "envio-informacoes": "cyan",
   "redacao-copy": "pink",
   "design-pagina": "violet",
-  "validacao-design-copy": "red",
+  "validacao-design-copy": "lime",
   "ajustes-design-copy": "amber",
   implementacao: "orange",
-  "validacao-implementacao": "red",
+  "validacao-implementacao": "teal",
   "ajuste-implementacao": "amber",
   "otimizacao-entrega": "orange",
   concluido: "emerald",
@@ -226,4 +250,8 @@ export const LANE_TONE_CLASSES: Record<Lane["tone"], { bg: string; border: strin
   orange:  { bg: "bg-orange-50",      border: "border-orange-200",        text: "text-orange-700",   dot: "bg-orange-500"       },
   emerald: { bg: "bg-fysi-mint",      border: "border-fysi-mint-vivid/40",text: "text-fysi-deep",    dot: "bg-fysi-mint-vivid"  },
   rose:    { bg: "bg-rose-50",        border: "border-rose-200",          text: "text-rose-700",     dot: "bg-rose-500"         },
+  // Validação design+copy e validação implementação: espera normal, não
+  // alarme. Ver STATUS_TONE acima.
+  lime:    { bg: "bg-lime-50",        border: "border-lime-200",          text: "text-lime-800",     dot: "bg-lime-500"         },
+  teal:    { bg: "bg-teal-50",        border: "border-teal-200",          text: "text-teal-800",     dot: "bg-teal-500"         },
 };

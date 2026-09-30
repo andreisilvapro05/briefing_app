@@ -30,6 +30,8 @@ const TONE_HEX: Record<string, string> = {
   orange: "#f97316",
   emerald: "#10b981",
   rose: "#f43f5e",
+  lime: "#84cc16",
+  teal: "#14b8a6",
 };
 
 /**

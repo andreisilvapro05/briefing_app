@@ -97,10 +97,12 @@ export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
   "envio-informacoes": "bg-cyan-50 text-cyan-700 border-cyan-200",
   "redacao-copy": "bg-pink-50 text-pink-700 border-pink-200",
   "design-pagina": "bg-violet-50 text-violet-700 border-violet-200",
-  "validacao-design-copy": "bg-red-50 text-red-700 border-red-200",
+  // Vermelho é reservado ao que é problema (ver STATUS_TONE em
+  // workflow-lanes.ts): validação é espera normal, não alarme.
+  "validacao-design-copy": "bg-lime-50 text-lime-800 border-lime-200",
   "ajustes-design-copy": "bg-amber-50 text-amber-700 border-amber-200",
   implementacao: "bg-orange-50 text-orange-700 border-orange-200",
-  "validacao-implementacao": "bg-red-50 text-red-700 border-red-200",
+  "validacao-implementacao": "bg-teal-50 text-teal-800 border-teal-200",
   "ajuste-implementacao": "bg-amber-50 text-amber-700 border-amber-200",
   "otimizacao-entrega": "bg-orange-50 text-orange-700 border-orange-200",
   concluido: "bg-emerald-50 text-emerald-700 border-emerald-200",
