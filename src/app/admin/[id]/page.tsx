@@ -11,6 +11,7 @@ import {
   isAdmin,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { LinksDoCliente } from "@/components/admin/links-do-cliente";
 import { buildTimeline } from "@/lib/project-types";
 import { blocosForProject } from "@/lib/briefing-schema";
 import {
@@ -736,6 +737,54 @@ Pode ir salvando aos poucos, não precisa terminar de uma vez.`
             </>
           ) : null}
         </section>
+
+        {/* Links e acessos — todos num lugar só (Karine, 30/09: "a ficha
+            precisa ser melhor, com as informações mais relevantes: link do
+            drive, link EI e briefing, acessos, pagamento"). Eles existiam,
+            espalhados por seis abas. */}
+        <LinksDoCliente
+          links={[
+            {
+              rotulo: "Painel do cliente",
+              href: painelLink,
+              vazio: "Sem link — gerar",
+              ondeCriar: `/admin/${client.id}?tab=geral${keySuffix}`,
+              copiavel: true,
+            },
+            {
+              rotulo: "Briefing do cliente",
+              href: painelLink ? `${painelLink}?ir=briefing` : null,
+              vazio: "Depende do painel",
+              ondeCriar: `/admin/${client.id}?tab=briefing${keySuffix}`,
+              copiavel: true,
+            },
+            {
+              rotulo: "Estrutura Inicial",
+              interno: eiDoc ? `/admin/estruturas-iniciais/${eiDoc.id}${keyParam}` : null,
+              vazio: "Ainda não criada",
+              ondeCriar: `/admin/${client.id}?tab=ei${keySuffix}`,
+            },
+            {
+              rotulo: "Drive da Fysi",
+              href: client.fysi_drive_link,
+              vazio: "Sem pasta — colar link",
+              ondeCriar: `/admin/${client.id}?tab=drive${keySuffix}`,
+            },
+            {
+              rotulo: "Drive do cliente",
+              href: client.cliente_drive_link,
+              vazio: "Sem pasta — colar link",
+              ondeCriar: `/admin/${client.id}?tab=drive${keySuffix}`,
+            },
+            {
+              rotulo: "Copy para revisão",
+              href:
+                (client as { copy_review_link?: string | null }).copy_review_link ?? null,
+              vazio: "Sem link — colar",
+              ondeCriar: `/admin/${client.id}?tab=drive${keySuffix}`,
+            },
+          ]}
+        />
 
         {/* Link de acesso pro cliente — pra mandar via WhatsApp.
             Fora do alcance do papel "basico": o link abre o painel do

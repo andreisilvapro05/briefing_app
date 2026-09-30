@@ -45,15 +45,20 @@ export interface Lane {
   label: string;
   tone:
     | "slate"
+    | "sky"
+    | "blue"
     | "indigo"
     | "cyan"
     | "yellow"
     | "pink"
     | "violet"
+    | "fuchsia"
     | "amber"
     | "red"
+    | "bordo"
     | "orange"
     | "emerald"
+    | "green"
     | "rose"
     | "lime"
     | "teal";
@@ -75,9 +80,9 @@ export function statusLaneId(status: TaskStatus): string {
  * vermelho nos dois lugares) sem precisar unificar os dois sistemas.
  */
 /**
- * VERMELHO SÓ PRO QUE É RUIM. Karine (30/09): "mudar as cores que são
- * vermelho... deixe vermelho só para o que é ruim, existe roxo, verde,
- * amarelo limão".
+ * Uma cor por etapa, sem repetir, e nada de alarme no que não é alarme.
+ * Karine (30/09), em três mensagens: "deixe vermelho só para o que é
+ * ruim", "não repita cores" e "o que for parado deixe um bordô ou cinza".
  *
  * Três etapas eram vermelhas e só uma é problema: "parado". As duas de
  * validação são espera normal — o cliente está olhando o trabalho —, e
@@ -85,22 +90,22 @@ export function statusLaneId(status: TaskStatus): string {
  * limão e teal, que ficam na mesma família de "aguardando" sem gritar, e
  * não colidem com o violeta do design nem com o verde do concluído.
  */
-const STATUS_TONE: Record<TaskStatus, Lane["tone"]> = {
-  parado: "red",
+export const STATUS_TONE: Record<TaskStatus, Lane["tone"]> = {
+  parado: "bordo",
   "nem-comecou-nada": "slate",
-  "a-iniciar": "slate",
+  "a-iniciar": "sky",
   "em-andamento": "cyan",
   onboarding: "indigo",
-  "envio-informacoes": "cyan",
+  "envio-informacoes": "blue",
   "redacao-copy": "pink",
   "design-pagina": "violet",
   "validacao-design-copy": "lime",
   "ajustes-design-copy": "amber",
   implementacao: "orange",
   "validacao-implementacao": "teal",
-  "ajuste-implementacao": "amber",
-  "otimizacao-entrega": "orange",
-  concluido: "emerald",
+  "ajuste-implementacao": "yellow",
+  "otimizacao-entrega": "fuchsia",
+  concluido: "green",
   "completo-entregue": "emerald",
 };
 
@@ -239,19 +244,24 @@ export function computeStats(clients: ClientForLane[]): ClientStats {
 }
 
 export const LANE_TONE_CLASSES: Record<Lane["tone"], { bg: string; border: string; text: string; dot: string }> = {
-  slate:   { bg: "bg-fysi-cream/40",  border: "border-fysi-line",         text: "text-fysi-deep/70", dot: "bg-fysi-muted"       },
-  indigo:  { bg: "bg-indigo-50",      border: "border-indigo-200",        text: "text-indigo-700",   dot: "bg-indigo-500"       },
-  cyan:    { bg: "bg-cyan-50",        border: "border-cyan-200",          text: "text-cyan-700",     dot: "bg-cyan-500"         },
-  yellow:  { bg: "bg-fysi-yellow/20", border: "border-fysi-yellow",       text: "text-fysi-deep",    dot: "bg-fysi-yellow"      },
-  pink:    { bg: "bg-pink-50",        border: "border-pink-200",          text: "text-pink-700",     dot: "bg-pink-500"         },
-  violet:  { bg: "bg-violet-50",      border: "border-violet-200",        text: "text-violet-700",   dot: "bg-violet-500"       },
-  amber:   { bg: "bg-amber-50",       border: "border-amber-200",         text: "text-amber-700",    dot: "bg-amber-500"        },
-  red:     { bg: "bg-red-50",         border: "border-red-200",           text: "text-red-700",      dot: "bg-red-500"          },
-  orange:  { bg: "bg-orange-50",      border: "border-orange-200",        text: "text-orange-700",   dot: "bg-orange-500"       },
-  emerald: { bg: "bg-fysi-mint",      border: "border-fysi-mint-vivid/40",text: "text-fysi-deep",    dot: "bg-fysi-mint-vivid"  },
-  rose:    { bg: "bg-rose-50",        border: "border-rose-200",          text: "text-rose-700",     dot: "bg-rose-500"         },
-  // Validação design+copy e validação implementação: espera normal, não
-  // alarme. Ver STATUS_TONE acima.
-  lime:    { bg: "bg-lime-50",        border: "border-lime-200",          text: "text-lime-800",     dot: "bg-lime-500"         },
-  teal:    { bg: "bg-teal-50",        border: "border-teal-200",          text: "text-teal-800",     dot: "bg-teal-500"         },
+  slate:   { bg: "bg-fysi-cream/40",  border: "border-fysi-line",          text: "text-fysi-deep/70", dot: "bg-fysi-muted"      },
+  sky:     { bg: "bg-sky-50",         border: "border-sky-200",            text: "text-sky-700",      dot: "bg-sky-500"         },
+  blue:    { bg: "bg-blue-50",        border: "border-blue-200",           text: "text-blue-700",     dot: "bg-blue-500"        },
+  indigo:  { bg: "bg-indigo-50",      border: "border-indigo-200",         text: "text-indigo-700",   dot: "bg-indigo-500"      },
+  cyan:    { bg: "bg-cyan-50",        border: "border-cyan-200",           text: "text-cyan-700",     dot: "bg-cyan-500"        },
+  yellow:  { bg: "bg-fysi-yellow/20", border: "border-fysi-yellow",        text: "text-fysi-deep",    dot: "bg-fysi-yellow"     },
+  pink:    { bg: "bg-pink-50",        border: "border-pink-200",           text: "text-pink-700",     dot: "bg-pink-500"        },
+  violet:  { bg: "bg-violet-50",      border: "border-violet-200",         text: "text-violet-700",   dot: "bg-violet-500"      },
+  fuchsia: { bg: "bg-fuchsia-50",     border: "border-fuchsia-200",        text: "text-fuchsia-700",  dot: "bg-fuchsia-500"     },
+  amber:   { bg: "bg-amber-50",       border: "border-amber-200",          text: "text-amber-700",    dot: "bg-amber-500"       },
+  red:     { bg: "bg-red-50",         border: "border-red-200",            text: "text-red-700",      dot: "bg-red-500"         },
+  // Bordô: "parado" continua sendo problema, sem o berro do vermelho
+  // puro. Karine (30/09): "o que for parado deixe um bordô... ou cinza".
+  bordo:   { bg: "bg-rose-50",        border: "border-rose-300",           text: "text-rose-900",     dot: "bg-rose-800"        },
+  orange:  { bg: "bg-orange-50",      border: "border-orange-200",         text: "text-orange-700",   dot: "bg-orange-500"      },
+  emerald: { bg: "bg-fysi-mint",      border: "border-fysi-mint-vivid/40", text: "text-fysi-deep",    dot: "bg-fysi-mint-vivid" },
+  green:   { bg: "bg-green-50",       border: "border-green-200",          text: "text-green-700",    dot: "bg-green-600"       },
+  rose:    { bg: "bg-rose-50",        border: "border-rose-200",           text: "text-rose-700",     dot: "bg-rose-500"        },
+  lime:    { bg: "bg-lime-50",        border: "border-lime-200",           text: "text-lime-800",     dot: "bg-lime-500"        },
+  teal:    { bg: "bg-teal-50",        border: "border-teal-200",           text: "text-teal-800",     dot: "bg-teal-500"        },
 };

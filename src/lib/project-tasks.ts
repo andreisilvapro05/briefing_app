@@ -89,23 +89,21 @@ export function isClosedTaskStatus(status: TaskStatus): boolean {
 }
 
 export const TASK_STATUS_TONE: Record<TaskStatus, string> = {
-  parado: "bg-red-50 text-red-700 border-red-200",
+  parado: "bg-rose-50 text-rose-900 border-rose-300",
   "nem-comecou-nada": "bg-fysi-cream text-fysi-muted border-fysi-line",
-  "a-iniciar": "bg-white text-fysi-deep border-fysi-line",
-  "em-andamento": "bg-sky-50 text-sky-700 border-sky-200",
+  "a-iniciar": "bg-sky-50 text-sky-700 border-sky-200",
+  "em-andamento": "bg-cyan-50 text-cyan-700 border-cyan-200",
   onboarding: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  "envio-informacoes": "bg-cyan-50 text-cyan-700 border-cyan-200",
+  "envio-informacoes": "bg-blue-50 text-blue-700 border-blue-200",
   "redacao-copy": "bg-pink-50 text-pink-700 border-pink-200",
   "design-pagina": "bg-violet-50 text-violet-700 border-violet-200",
-  // Vermelho é reservado ao que é problema (ver STATUS_TONE em
-  // workflow-lanes.ts): validação é espera normal, não alarme.
   "validacao-design-copy": "bg-lime-50 text-lime-800 border-lime-200",
   "ajustes-design-copy": "bg-amber-50 text-amber-700 border-amber-200",
   implementacao: "bg-orange-50 text-orange-700 border-orange-200",
   "validacao-implementacao": "bg-teal-50 text-teal-800 border-teal-200",
-  "ajuste-implementacao": "bg-amber-50 text-amber-700 border-amber-200",
-  "otimizacao-entrega": "bg-orange-50 text-orange-700 border-orange-200",
-  concluido: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "ajuste-implementacao": "bg-yellow-50 text-yellow-800 border-yellow-200",
+  "otimizacao-entrega": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+  concluido: "bg-green-50 text-green-700 border-green-200",
   "completo-entregue": "bg-fysi-mint/40 text-fysi-deep border-fysi-mint/60",
 };
 

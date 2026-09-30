@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   GENERAL_LANES,
   LANE_TONE_CLASSES,
+  STATUS_TONE,
   computeStats,
   isClientStuck,
   laneForClient,
@@ -12,6 +13,7 @@ import {
 import {
   DEFAULT_TASK_STATUS,
   PROJECT_STATUS_OPTIONS,
+  TASK_STATUS_TONE,
   TASK_STATUS_VALUES,
 } from "../src/lib/project-tasks.ts";
 
@@ -272,5 +274,43 @@ test("a média por mês olha os últimos 6 meses, não a vida inteira da agênci
   assert.equal(s.mediaPorMes, 0.5);
   for (const m of s.ultimosMeses) {
     assert.ok(m.label.trim().length > 0, "mês sem rótulo na série");
+  }
+});
+
+test("nenhuma cor se repete entre status — e vermelho é só do que é ruim", () => {
+  // Karine, 30/09: "não repita cores" e "deixe vermelho só para o que é
+  // ruim". Duas etapas com o mesmo tom fazem a rosca mentir: fatias
+  // diferentes viram a mesma mancha.
+  const vistos = new Map<string, string>();
+  for (const [status, tom] of Object.entries(STATUS_TONE)) {
+    const antes = vistos.get(tom);
+    assert.equal(
+      antes,
+      undefined,
+      `"${status}" repete o tom "${tom}", já usado por "${antes}"`
+    );
+    vistos.set(tom, status);
+  }
+  // "Parado" é bordô, não vermelho puro: continua lendo como problema
+  // sem ser a cor mais alta da tela (Karine, 30/09).
+  assert.equal(vistos.get("bordo"), "parado");
+  assert.equal(vistos.get("red"), undefined, "vermelho puro não é etapa de fluxo");
+});
+
+test("todo tom usado tem classe de cor e hex — sem isso a fatia some", () => {
+  for (const [status, tom] of Object.entries(STATUS_TONE)) {
+    const classes = LANE_TONE_CLASSES[tom as keyof typeof LANE_TONE_CLASSES];
+    assert.ok(classes, `tom "${tom}" (${status}) não tem classes`);
+    assert.match(classes.dot, /^bg-/);
+  }
+});
+
+test("a pílula de status existe e é única para cada status", () => {
+  const tons = new Map<string, string>();
+  for (const [status, classe] of Object.entries(TASK_STATUS_TONE)) {
+    assert.ok(classe.trim().length > 0, `${status} sem pílula`);
+    const antes = tons.get(classe);
+    assert.equal(antes, undefined, `"${status}" repete a pílula de "${antes}"`);
+    tons.set(classe, status);
   }
 });
