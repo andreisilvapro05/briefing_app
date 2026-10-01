@@ -69,7 +69,7 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
   const { data, error } = await service
     .from("clients")
     .select(
-      "id, nome, empresa, status, clickup_task_id, clickup_nome, nome_exibicao, responsavel, data_inicial, data_vencimento, arquivado_em"
+      "id, nome, empresa, status, clickup_task_id, clickup_nome, nome_exibicao, responsavel, data_inicial, data_vencimento, arquivado_em, responsavel_manual, data_inicial_manual, data_vencimento_manual"
     );
   if (error) {
     logServerError("clickup.status.clients", error);
@@ -88,6 +88,9 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
     data_inicial: string | null;
     data_vencimento: string | null;
     arquivado_em: string | null;
+    responsavel_manual: boolean | null;
+    data_inicial_manual: boolean | null;
+    data_vencimento_manual: boolean | null;
   }
   const todos = (data ?? []) as LinhaCliente[];
   const clientes = todos.filter(
@@ -116,16 +119,36 @@ export async function sincronizarStatusDosProjetos(): Promise<ResultadoStatusPro
     if (doClickUp.nome && doClickUp.nome !== c.clickup_nome) {
       extras.clickup_nome = doClickUp.nome;
     }
-    if (doClickUp.responsavel && doClickUp.responsavel !== c.responsavel) {
+    /**
+     * Campo escrito À MÃO no app não é sobrescrito.
+     *
+     * A lista virou editável em 01/10 e este sync roda todo dia às 9h:
+     * sem a trava, a edição duraria até a manhã seguinte e voltaria
+     * sozinha — pior do que não deixar editar, porque some sem avisar.
+     * Mesma ideia de `nome_exibicao`. Ver migration 20261001120000.
+     */
+    if (
+      doClickUp.responsavel &&
+      doClickUp.responsavel !== c.responsavel &&
+      !c.responsavel_manual
+    ) {
       extras.responsavel = doClickUp.responsavel;
     }
     // As datas do PROJETO moram na tarefa-mãe lá. Sem isso, as colunas
     // Início e Vencimento ficavam vazias em todo projeto cujas subtarefas
     // não têm data — o caso dos quatro parados (28/09).
-    if (doClickUp.dataInicial && doClickUp.dataInicial !== c.data_inicial) {
+    if (
+      doClickUp.dataInicial &&
+      doClickUp.dataInicial !== c.data_inicial &&
+      !c.data_inicial_manual
+    ) {
       extras.data_inicial = doClickUp.dataInicial;
     }
-    if (doClickUp.dataVencimento && doClickUp.dataVencimento !== c.data_vencimento) {
+    if (
+      doClickUp.dataVencimento &&
+      doClickUp.dataVencimento !== c.data_vencimento &&
+      !c.data_vencimento_manual
+    ) {
       extras.data_vencimento = doClickUp.dataVencimento;
     }
 

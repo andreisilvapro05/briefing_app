@@ -2498,3 +2498,69 @@ export async function removerAnexoDemandaAction(
   revalidatePath("/admin/tarefas");
   return { ok: true };
 }
+
+/**
+ * Responsável e datas DO PROJETO, editados direto na linha da lista.
+ *
+ * Karine (01/10): "precisa ser editável como é no ClickUp". A linha era
+ * só-leitura por um motivo que deixou de valer — até 28/09 o projeto não
+ * tinha esses campos e editar ali mudaria uma TAREFA escolhida por regra,
+ * sem a pessoa ver qual. Hoje a coluna mostra o campo do projeto, e é
+ * nele que isto escreve.
+ *
+ * Marca o campo como MANUAL: o sync do ClickUp roda todo dia às 9h e,
+ * sem a marca, a edição voltaria sozinha na manhã seguinte — pior que não
+ * deixar editar, porque some sem avisar. Ver migration 20261001120000.
+ *
+ * Campo apagado (valor vazio) volta a seguir o ClickUp: é como se desfaz
+ * uma edição feita por engano.
+ */
+export async function editarCampoDoProjetoAction(
+  formData: FormData
+): Promise<{ ok: boolean; erro?: string }> {
+  const urlKey = keyParamOf(formData);
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+
+  const clientId = String(formData.get("clientId") ?? "");
+  if (!clientId) return { ok: false, erro: "Projeto não identificado." };
+  await requireClientAccess(formData, clientId);
+  // Responsável e prazo do projeto são decisão de operação, não de quem
+  // está marcado numa tarefa dele — mesmo critério de `ajustarProjetoAction`.
+  if (!hasFullAccess(member)) {
+    return { ok: false, erro: "Só quem tem acesso completo ajusta o projeto." };
+  }
+
+  const campo = String(formData.get("campo") ?? "");
+  const valor = String(formData.get("valor") ?? "").trim();
+
+  const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (campo === "responsavel") {
+    if (valor && !TEAM_MEMBERS.some((m) => m.value === valor)) {
+      return { ok: false, erro: "Responsável inválido." };
+    }
+    update.responsavel = valor || null;
+    update.responsavel_manual = valor.length > 0;
+  } else if (campo === "data_inicial" || campo === "data_vencimento") {
+    if (valor && !DATE_RE.test(valor)) {
+      return { ok: false, erro: "Data inválida." };
+    }
+    update[campo] = valor || null;
+    update[`${campo}_manual`] = valor.length > 0;
+  } else {
+    return { ok: false, erro: "Campo inválido." };
+  }
+
+  const service = createSupabaseServiceRoleClient();
+  const { error } = await service.from("clients").update(update).eq("id", clientId);
+  if (error) {
+    logServerError("projeto.editar-campo", error);
+    return { ok: false, erro: "Não consegui salvar." };
+  }
+
+  revalidatePath("/admin/lista");
+  revalidatePath("/admin/visao-geral");
+  revalidatePath(`/admin/${clientId}`);
+  return { ok: true };
+}

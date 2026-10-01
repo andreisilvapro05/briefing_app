@@ -15,19 +15,19 @@ import {
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import { ViewTabs, type ViewTabItem } from "./view-tabs";
+import {
+  CelulaDataEditavel,
+  CelulaResponsavelEditavel,
+} from "./celulas-editaveis";
 import { ResumoProjeto } from "./resumo-projeto";
 import type { LinhaDoProjeto } from "@/lib/linha-do-projeto";
 import {
   DEFAULT_TASK_STATUS,
   TASK_STATUS_GROUP,
-  TEAM_MEMBERS,
   type ProjectTask,
   type TaskStatus,
 } from "@/lib/project-tasks";
 import {
-  dataEmLinguagem,
-  formatDataCurta,
-  hojeEmBrasilia,
 } from "@/lib/datas";
 import {
   faltasEmTexto,
@@ -722,9 +722,35 @@ function ClientAccordionRow({
           ) : null}
         </span>
         <CelulaPrioridade valor={c.linha.prioridade} />
-        <CelulaResponsavel valor={c.linha.responsavel} tarefa={c.linha.tarefa} />
-        <CelulaData iso={c.linha.dataInicial} rotulo="Início" />
-        <CelulaData iso={c.linha.dataVencimento} rotulo="Vencimento" alertaSeVencida />
+        {/* Editáveis na própria linha (Karine, 01/10: "precisa ser
+            editável como é no ClickUp"). Escrevem no PROJETO, não numa
+            tarefa escolhida por regra — que era o motivo de serem só
+            leitura até 28/09, quando o projeto ganhou campos próprios.
+            Quem tem papel restrito a tarefa continua só lendo. */}
+        <CelulaResponsavelEditavel
+          clientId={c.id}
+          valor={c.linha.responsavel}
+          tarefa={c.linha.tarefa}
+          urlKey={urlKey}
+          somenteLeitura={Boolean(restrictToResponsavel)}
+        />
+        <CelulaDataEditavel
+          clientId={c.id}
+          campo="data_inicial"
+          iso={c.linha.dataInicial}
+          rotulo="Início"
+          urlKey={urlKey}
+          somenteLeitura={Boolean(restrictToResponsavel)}
+        />
+        <CelulaDataEditavel
+          clientId={c.id}
+          campo="data_vencimento"
+          iso={c.linha.dataVencimento}
+          rotulo="Vencimento"
+          urlKey={urlKey}
+          alertaSeVencida
+          somenteLeitura={Boolean(restrictToResponsavel)}
+        />
         <a
           href={`/admin/${c.id}${keyParam}`}
           className="text-right text-fysi-deep font-medium hover:underline shrink-0"
@@ -833,56 +859,10 @@ function ClientAccordionRow({
 }
 
 /* ── As colunas do ClickUp na linha do projeto ───────────────────────────
-   Só leitura: a linha é um PROJETO, e quem se edita é a tarefa — o
-   accordion abaixo já tem os seletores. Editar aqui mudaria uma tarefa
-   escolhida por regra, sem a pessoa ver qual. */
-
-function CelulaResponsavel({
-  valor,
-  tarefa,
-}: {
-  valor: string | null;
-  tarefa: string | null;
-}) {
-  const m = TEAM_MEMBERS.find((x) => x.value === valor);
-  if (!m) {
-    return <span className="text-fysi-muted text-xs" title="Sem responsável">—</span>;
-  }
-  return (
-    <span
-      className={`w-6 h-6 rounded-full grid place-items-center text-[0.6rem] font-bold text-white ${m.cor}`}
-      title={tarefa ? `${m.label} — ${tarefa}` : m.label}
-    >
-      {m.iniciais}
-    </span>
-  );
-}
-
-function CelulaData({
-  iso,
-  rotulo,
-  alertaSeVencida = false,
-}: {
-  iso: string | null;
-  rotulo: string;
-  alertaSeVencida?: boolean;
-}) {
-  if (!iso) return <span className="text-fysi-muted text-xs">—</span>;
-  const hoje = hojeEmBrasilia();
-  const vencida = alertaSeVencida && iso < hoje;
-  return (
-    /* Data em linguagem, como o ClickUp: "Ontem", "Hoje", "qui". Numa
-       lista longa o que importa é a distância até hoje, não o número do
-       dia — "10/8/26" obriga a calcular, "há 2 dias" já é a resposta. A
-       data exata fica no title, pra quem precisar dela. */
-    <span
-      className={`text-xs ${vencida ? "text-red-600 font-medium" : "text-fysi-muted"}`}
-      title={`${rotulo}: ${formatDataCurta(iso)}${vencida ? " — vencida" : ""}`}
-    >
-      {dataEmLinguagem(iso, hoje)}
-    </span>
-  );
-}
+   Responsável, Início e Vencimento viraram editáveis e moraram pra
+   ./celulas-editaveis.tsx — elas escrevem no PROJETO (Karine, 01/10:
+   "precisa ser editável como é no ClickUp"). Prioridade segue só leitura:
+   ela vem da tarefa que manda no projeto agora, não do projeto. */
 
 const TOM_PRIORIDADE: Record<string, string> = {
   urgente: "text-red-600",
