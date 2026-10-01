@@ -130,3 +130,51 @@ export async function createBriefingDocumentAction(formData: FormData) {
     `/admin/briefing-documentos/${(created as { id: string }).id}${keyParam(urlKey)}`
   );
 }
+
+/**
+ * Apaga um briefing de vez.
+ *
+ * Karine (01/10): "poder excluir o briefing também". A tela acumulava
+ * duplicatas e testes — clone do Modelo criado por engano, briefing de
+ * chamada que não aconteceu — e não havia como tirá-los da lista.
+ *
+ * Apaga MESMO, não arquiva: o caso real é lixo, e um arquivo cheio de
+ * lixo é a mesma bagunça num lugar menos visível. Por isso exige acesso
+ * completo e confirmação na tela.
+ *
+ * O MODELO é protegido: ele é a origem de todo briefing novo, e apagá-lo
+ * quebraria a criação pra sempre.
+ */
+export async function excluirBriefingAction(formData: FormData) {
+  const urlKey = String(formData.get("key") ?? "") || null;
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (isDeveloper(member) || !hasFullAccess(member)) {
+    redirect(`/admin/briefings${keyParam(urlKey)}`);
+  }
+
+  const docId = String(formData.get("docId") ?? "");
+  if (!docId) return;
+
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ei_documents")
+    .select("id, kind, is_template")
+    .eq("id", docId)
+    .maybeSingle();
+  const doc = data as { kind: string; is_template: boolean } | null;
+  // Só briefing, e nunca o Modelo.
+  if (!doc || doc.kind !== "briefing" || doc.is_template) {
+    redirect(`/admin/briefings${keyParam(urlKey)}`);
+  }
+
+  const { error } = await service.from("ei_documents").delete().eq("id", docId);
+  if (error) {
+    logServerError("briefing.excluir", error);
+    redirect(`/admin/briefings/doc/${docId}${keyParam(urlKey)}`);
+  }
+
+  revalidatePath("/admin/briefings");
+  revalidatePath("/admin/briefing-documentos");
+  redirect(`/admin/briefings${keyParam(urlKey)}`);
+}

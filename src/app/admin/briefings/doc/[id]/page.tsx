@@ -15,6 +15,7 @@ import {
   isAdmin,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { excluirBriefingAction } from "@/app/admin/briefing-documentos/actions";
 import {
   listarBriefingsParaBarraLateral,
   obterBriefing,
@@ -247,6 +248,34 @@ export default async function BriefingDocPage({
                   </SubmitTextButton>
                 </form>
               )}
+            </section>
+          ) : null}
+
+          {/* ---- Apagar este briefing ----
+              Karine (01/10): "poder excluir o briefing também". A tela
+              acumulava duplicata e teste — clone do Modelo feito por
+              engano, briefing de chamada que não aconteceu — e não havia
+              como tirar da lista. Fica no fim, atrás de confirmação, e
+              nunca aparece pro Modelo: ele é a origem de todo briefing
+              novo. */}
+          {acessoTotal && !doc.isTemplate ? (
+            <section className="bg-white border border-red-200 rounded-[20px] p-5 mb-5">
+              <Eyebrow>Apagar</Eyebrow>
+              <p className="text-xs text-fysi-muted mt-1 mb-3">
+                Some de vez, com o texto e a lista de materiais junto. Não dá
+                pra desfazer.
+              </p>
+              <form action={excluirBriefingAction}>
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                <input type="hidden" name="docId" value={doc.id} />
+                <SubmitTextButton
+                  danger
+                  confirm={`Apagar “${doc.titulo}” de vez? O texto vai junto e não dá pra desfazer.`}
+                  pendingLabel="Apagando…"
+                >
+                  Apagar este briefing
+                </SubmitTextButton>
+              </form>
             </section>
           ) : null}
 
