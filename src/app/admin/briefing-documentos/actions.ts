@@ -10,6 +10,8 @@ import {
   hasFullAccess,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { generateMagicSlug } from "@/lib/slug";
+import { logServerError } from "@/lib/api-helpers";
 import { getTemplateDocument } from "@/lib/ei-documents-server";
 
 function keyParam(urlKey: string | null) {
@@ -34,7 +36,45 @@ export async function createBriefingDocumentAction(formData: FormData) {
     );
   }
 
-  const clientId = String(formData.get("clientId") ?? "");
+  let clientId = String(formData.get("clientId") ?? "");
+
+  /**
+   * Cliente que ainda não existe, criado aqui mesmo.
+   *
+   * Karine (01/10): "nem sempre tem cliente... poder adicionar eu mesmo
+   * ali o nome do cliente e já fazer o briefing com ele". O briefing de
+   * chamada costuma ser o PRIMEIRO contato — exigir que a ficha exista
+   * antes obrigava a sair da tela, cadastrar e voltar, no meio da
+   * conversa com a pessoa do outro lado.
+   *
+   * Nasce com o mínimo: nome e o slug do painel. O resto (WhatsApp,
+   * contrato, valores) entra depois, pela ficha.
+   */
+  const nomeNovo = String(formData.get("nomeNovoCliente") ?? "").trim().slice(0, 120);
+  if (!clientId && nomeNovo) {
+    // Criar cliente é escrita de operação — não de quem só tem tarefa.
+    if (!hasFullAccess(member)) {
+      redirect(`/admin/briefing-documentos${keyParam(urlKey)}`);
+    }
+    const servicoNovo = createSupabaseServiceRoleClient();
+    const { data: criado, error: erroNovo } = await servicoNovo
+      .from("clients")
+      .insert({
+        nome: nomeNovo,
+        email: "",
+        empresa: "",
+        whatsapp: "",
+        magic_slug: generateMagicSlug({ nome: nomeNovo, empresa: null }),
+      })
+      .select("id")
+      .single();
+    if (erroNovo || !criado) {
+      logServerError("briefing.criar-cliente", erroNovo);
+      redirect(`/admin/briefing-documentos${keyParam(urlKey)}`);
+    }
+    clientId = (criado as { id: string }).id;
+  }
+
   if (!clientId) return;
   if (!hasFullAccess(member)) {
     const visible = await getVisibleClientIds(member);

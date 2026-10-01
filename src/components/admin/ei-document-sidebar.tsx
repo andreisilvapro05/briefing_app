@@ -52,6 +52,7 @@ export function EIDocumentSidebar({
 }) {
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
+  const [buscaCliente, setBuscaCliente] = useState("");
   const [verArquivo, setVerArquivo] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -67,6 +68,30 @@ export function EIDocumentSidebar({
   const ativos = filtered.filter((d) => !d.arquivado);
   const arquivados = filtered.filter((d) => d.arquivado);
   const buscando = busca.length > 0;
+
+  /**
+   * Cria pra um cliente que ainda NÃO existe — o nome digitado na busca.
+   *
+   * Karine (01/10): "nem sempre tem cliente... poder adicionar eu mesmo
+   * ali o nome do cliente e já fazer o briefing com ele". O briefing de
+   * chamada costuma ser o primeiro contato: exigir a ficha antes obrigava
+   * a sair da tela no meio da conversa.
+   */
+  const filtroCliente = buscaCliente.trim().toLowerCase();
+  const clientesFiltrados = filtroCliente
+    ? clientsWithoutDoc.filter((c) =>
+        `${c.empresa ?? ""} ${c.nome ?? ""}`.toLowerCase().includes(filtroCliente)
+      )
+    : clientsWithoutDoc;
+
+  function createForNome(nome: string) {
+    const fd = new FormData();
+    fd.append("nomeNovoCliente", nome);
+    if (urlKey) fd.append("key", urlKey);
+    startTransition(async () => {
+      await createAction(fd);
+    });
+  }
 
   function createFor(clientId: string, jaTem?: boolean) {
     const fd = new FormData();
@@ -129,7 +154,30 @@ export function EIDocumentSidebar({
             <p className="text-xs uppercase tracking-[0.08em] text-fysi-muted px-1">
               Selecione o cliente
             </p>
-            {clientsWithoutDoc.map((c) => (
+            {/* Busca própria: com 45 clientes, rolar a lista inteira pra
+                achar um nome era o caminho mais lento da tela. */}
+            <input
+              type="text"
+              autoFocus
+              value={buscaCliente}
+              onChange={(e) => setBuscaCliente(e.target.value)}
+              placeholder="Buscar ou escrever um nome novo…"
+              className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5"
+            />
+            {/* Nome que não casa com ninguém vira cliente novo aqui mesmo. */}
+            {buscaCliente.trim().length >= 2 && clientesFiltrados.length === 0 ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => createForNome(buscaCliente.trim())}
+                className="text-left text-sm font-medium text-fysi-deep hover:text-fysi-green disabled:opacity-50 px-1 py-1"
+              >
+                {pending
+                  ? "Criando…"
+                  : `+ Criar cliente "${buscaCliente.trim()}" e começar`}
+              </button>
+            ) : null}
+            {clientesFiltrados.map((c) => (
               <button
                 key={c.id}
                 type="button"
