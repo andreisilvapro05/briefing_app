@@ -12,6 +12,17 @@ import {
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { LinksDoCliente } from "@/components/admin/links-do-cliente";
+import { obterCopyDoCliente } from "@/lib/copy-server";
+import {
+  COPY_LABEL,
+  COPY_PROXIMO_PASSO,
+  COPY_TOM,
+} from "@/lib/copy-documento";
+import {
+  alternarLinkDaCopyAction,
+  criarCopyAction,
+  reabrirCopyAction,
+} from "@/app/admin/copy-actions";
 import { buildTimeline } from "@/lib/project-types";
 import { blocosForProject } from "@/lib/briefing-schema";
 import {
@@ -123,6 +134,7 @@ export default async function AdminClientPage({
     "geral",
     "ei",
     "briefing",
+    "copy",
     "tarefas",
     "contrato",
     "pagamentos",
@@ -240,6 +252,15 @@ export default async function AdminClientPage({
   // "O que o cliente precisa enviar" — só na aba Briefing, que é onde o
   // painel de Materiais mora. Nas outras abas seria consulta jogada fora.
   let materiais: MaterialItem[] = [];
+  /**
+   * A copy só é lida na aba dela. Nas outras seria uma ida ao banco
+   * jogada fora — mesmo critério das outras abas pesadas.
+   */
+  // Também na "geral": o painel de Links e acessos mostra a copy, e sem
+  // isto ele cairia sempre no campo antigo de link do Drive.
+  const copyDoc =
+    tab === "copy" || tab === "geral" ? await obterCopyDoCliente(id) : null;
+
   if (tab === "briefing") {
     materiais = await listarMateriais(client.id);
   }
@@ -777,7 +798,20 @@ Pode ir salvando aos poucos, não precisa terminar de uma vez.`
               ondeCriar: `/admin/${client.id}?tab=drive${keySuffix}`,
             },
             {
-              rotulo: "Copy para revisão",
+              rotulo: "Copy da página",
+              // O link público da copy ganha do campo antigo de link do
+              // Drive: é o que o cliente abre pra aprovar dentro do app.
+              href:
+                copyDoc?.shareEnabled && copyDoc.shareToken
+                  ? `${baseUrl}/copy/${copyDoc.shareToken}`
+                  : null,
+              interno: copyDoc ? `/admin/${client.id}?tab=copy${keySuffix}` : null,
+              vazio: "Ainda não escrita",
+              ondeCriar: `/admin/${client.id}?tab=copy${keySuffix}`,
+              copiavel: true,
+            },
+            {
+              rotulo: "Copy no Drive (antigo)",
               href:
                 (client as { copy_review_link?: string | null }).copy_review_link ?? null,
               vazio: "Sem link — colar",
@@ -1104,6 +1138,104 @@ Pode ir salvando aos poucos, não precisa terminar de uma vez.`
                 >
                   Criar a partir do Modelo
                 </SubmitTextButton>
+              </form>
+            </section>
+          )
+        ) : null}
+
+        {tab === "copy" ? (
+          copyDoc ? (
+            <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <Eyebrow>Copy da página</Eyebrow>
+                  <p className="text-sm text-fysi-muted mt-1">
+                    {COPY_PROXIMO_PASSO[copyDoc.situacao]}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${COPY_TOM[copyDoc.situacao]}`}
+                >
+                  {COPY_LABEL[copyDoc.situacao]}
+                </span>
+              </div>
+
+              {/* O que o cliente escreveu ao responder. Fica acima do
+                  texto: é o que manda no próximo movimento. */}
+              {copyDoc.comentario ? (
+                <div className="mt-4 rounded-[12px] border border-fysi-line bg-fysi-cream/40 px-4 py-3">
+                  <p className="text-[0.7rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
+                    O cliente escreveu
+                  </p>
+                  <p className="text-sm text-fysi-deep mt-1">{copyDoc.comentario}</p>
+                </div>
+              ) : null}
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <form action={alternarLinkDaCopyAction}>
+                  <input type="hidden" name="clientId" value={client.id} />
+                  {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                  <SubmitButton size="sm" variant="secondary">
+                    {copyDoc.shareEnabled
+                      ? "Desligar link do cliente"
+                      : "Ligar link do cliente"}
+                  </SubmitButton>
+                </form>
+
+                {copyDoc.shareEnabled && copyDoc.shareToken ? (
+                  <>
+                    <a
+                      href={`${baseUrl}/copy/${copyDoc.shareToken}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium text-fysi-deep underline underline-offset-2"
+                    >
+                      Abrir como o cliente vê →
+                    </a>
+                    <CopyButton
+                      value={`${baseUrl}/copy/${copyDoc.shareToken}`}
+                      label="Copiar link"
+                    />
+                  </>
+                ) : null}
+
+                {/* Depois de ajustar, a resposta antiga não vale mais —
+                    senão a pílula diria "ajuste pedido" pra sempre. */}
+                {copyDoc.situacao === "aprovada" ||
+                copyDoc.situacao === "ajuste-pedido" ? (
+                  <form action={reabrirCopyAction} className="ml-auto">
+                    <input type="hidden" name="clientId" value={client.id} />
+                    {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                    <SubmitButton size="sm" variant="ghost">
+                      Nova rodada
+                    </SubmitButton>
+                  </form>
+                ) : null}
+              </div>
+
+              {/* Mesmo editor de blocos da EI e do Briefing — salva sozinho. */}
+              <div className="mt-5">
+                <EIView
+                  docId={copyDoc.id}
+                  urlKey={urlKey}
+                  initialBlocks={copyDoc.blocks}
+                  atualizadoAt={copyDoc.updatedAt}
+                />
+              </div>
+            </section>
+          ) : (
+            <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center">
+              <p className="text-fysi-deep font-medium">
+                Nenhuma copy ainda.
+              </p>
+              <p className="text-sm text-fysi-muted mt-1 max-w-md mx-auto">
+                É onde o texto da página é escrito e de onde ele vai pro
+                cliente aprovar — sem passar por link de Drive.
+              </p>
+              <form action={criarCopyAction} className="mt-4">
+                <input type="hidden" name="clientId" value={client.id} />
+                {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+                <SubmitButton size="sm">Criar a copy</SubmitButton>
               </form>
             </section>
           )

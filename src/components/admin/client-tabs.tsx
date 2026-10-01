@@ -6,6 +6,7 @@ export type ClientTab =
   | "geral"
   | "ei"
   | "briefing"
+  | "copy"
   | "tarefas"
   | "contrato"
   | "pagamentos"
@@ -23,6 +24,7 @@ const TABS: TabDef[] = [
   { id: "geral", label: "Visão geral" },
   { id: "ei", label: "EI · Estrutura inicial" },
   { id: "briefing", label: "Briefing" },
+  { id: "copy", label: "Copy" },
   { id: "tarefas", label: "Tarefas" },
   { id: "contrato", label: "Contrato" },
   { id: "pagamentos", label: "Pagamentos" },
@@ -50,6 +52,11 @@ function I({ children }: { children: ReactNode }) {
 }
 
 const ICONS: Record<ClientTab, ReactNode> = {
+  copy: (
+    <I>
+      <path d="M4 6h16M4 11h16M4 16h10" />
+    </I>
+  ),
   geral: (
     <I>
       <rect x="3" y="3" width="7" height="9" rx="1.5" />
