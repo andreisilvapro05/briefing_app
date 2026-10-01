@@ -53,6 +53,9 @@ import {
  * Deliberadamente separado de /admin/tarefas: lá é o trabalho DE PROJETO, que
  * pertence a um cliente. Misturar os dois foi o que ela pediu pra evitar.
  */
+/** Chave da barra de criação do topo — não é área nenhuma. */
+const TOPO = "__topo__";
+
 export function AreasBoard({
   tasks,
   urlKey,
@@ -65,6 +68,10 @@ export function AreasBoard({
   lockResponsavel?: boolean;
 }) {
   const router = useRouter();
+  /**
+   * Qual barra de criação está aberta: o `value` de uma área, ou TOPO —
+   * o botão geral, que não pertence a gaveta nenhuma.
+   */
   const [criandoEm, setCriandoEm] = useState<string | null>(null);
   const [mostrarFeitas, setMostrarFeitas] = useState(false);
   const [filtroPessoa, setFiltroPessoa] = useState("");
@@ -90,6 +97,16 @@ export function AreasBoard({
    * mais um <select> no meio de outros três.
    */
   const [filtroEsforco, setFiltroEsforco] = useState("");
+  /**
+   * Recorte por situação do PRAZO, ligado nos números do resumo.
+   *
+   * Karine (01/10), apontando o "4" de atrasadas: "ser clicável para ver o
+   * que está atrasado". Um número que não leva a lugar nenhum obriga a
+   * procurar as quatro na mão, no meio de trinta e cinco.
+   */
+  const [filtroPrazo, setFiltroPrazo] = useState<
+    "" | "atrasadas" | "hoje" | "sem-prazo"
+  >("");
   const [ordem, setOrdem] = useState<"importancia" | "prazo" | "esforco">(
     "importancia"
   );
@@ -143,6 +160,14 @@ export function AreasBoard({
           ? t.filter((x) => !x.eisenhower)
           : t.filter((x) => x.eisenhower === filtroQuadrante);
     }
+    if (filtroPrazo) {
+      t = t.filter((x) => {
+        if (filtroPrazo === "sem-prazo") return !x.data_vencimento;
+        if (!x.data_vencimento) return false;
+        if (filtroPrazo === "hoje") return x.data_vencimento === hoje;
+        return x.data_vencimento < hoje;
+      });
+    }
     if (filtroEsforco) {
       t =
         filtroEsforco === "__sem__"
@@ -153,7 +178,7 @@ export function AreasBoard({
       t = t.filter((x) => TASK_STATUS_GROUP[x.status] === "ativo");
     }
     return t;
-  }, [tasks, filtroPessoa, filtroStatus, filtroQuadrante, filtroEsforco, mostrarFeitas]);
+  }, [tasks, filtroPessoa, filtroStatus, filtroQuadrante, filtroEsforco, filtroPrazo, hoje, mostrarFeitas]);
 
   /**
    * Uma gaveta por área, nesta ordem. Área SEM nada no recorte atual não
@@ -235,14 +260,35 @@ export function AreasBoard({
         {/* Visão geral do recorte. Quatro números que respondem "o que
             precisa de mim agora", e as áreas com barra proporcional. */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-          <Tile rotulo="Abertas" valor={resumo.abertas} />
+          <Tile
+            rotulo="Abertas"
+            valor={resumo.abertas}
+            ativo={filtroPrazo === ""}
+            onClick={() => setFiltroPrazo("")}
+          />
           <Tile
             rotulo="Atrasadas"
             valor={resumo.atrasadas}
             tom={resumo.atrasadas > 0 ? "text-red-700" : undefined}
+            ativo={filtroPrazo === "atrasadas"}
+            onClick={() =>
+              setFiltroPrazo((v) => (v === "atrasadas" ? "" : "atrasadas"))
+            }
           />
-          <Tile rotulo="Para hoje" valor={resumo.paraHoje} />
-          <Tile rotulo="Sem prazo" valor={resumo.semPrazo} />
+          <Tile
+            rotulo="Para hoje"
+            valor={resumo.paraHoje}
+            ativo={filtroPrazo === "hoje"}
+            onClick={() => setFiltroPrazo((v) => (v === "hoje" ? "" : "hoje"))}
+          />
+          <Tile
+            rotulo="Sem prazo"
+            valor={resumo.semPrazo}
+            ativo={filtroPrazo === "sem-prazo"}
+            onClick={() =>
+              setFiltroPrazo((v) => (v === "sem-prazo" ? "" : "sem-prazo"))
+            }
+          />
         </div>
 
         {resumo.porArea.length > 0 ? (
@@ -270,6 +316,36 @@ export function AreasBoard({
             ))}
           </div>
         ) : null}
+
+        {/* Criar demanda AQUI, no topo.
+            Karine (01/10): "não achei a parte de adicionar tarefas novas".
+            O botão existia só dentro do cabeçalho de cada gaveta de área —
+            ou seja, dependia de estar agrupado por área E de achar a
+            gaveta certa primeiro. Agora a porta está onde se olha. */}
+        <div className="mb-3">
+          {criandoEm === TOPO ? (
+            <div className="rounded-[12px] border border-fysi-line bg-fysi-cream/40 p-3">
+              <TaskComposer
+                autoFocus
+                clients={[]}
+                defaultResponsavel={meuResponsavel}
+                lockResponsavel={lockResponsavel}
+                urlKey={urlKey}
+                onClose={() => setCriandoEm(null)}
+                notaInterno="Entrou na lista — escolha a área na linha dela."
+                placeholder="Nova demanda interna (Enter adiciona)"
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setCriandoEm(TOPO)}
+              className="inline-flex items-center rounded-full bg-fysi-deep text-fysi-cream text-sm font-medium px-4 py-2 hover:bg-fysi-deep/90 transition"
+            >
+              + Nova demanda
+            </button>
+          )}
+        </div>
 
         {/* Tempo que leva — pílulas, não select: pegar só as rápidas é um
             gesto de um clique, pra quem tem quinze minutos livres. */}
@@ -909,24 +985,43 @@ function LinhaDemanda({
 }
 
 
-/** Número grande com rótulo — os quatro do resumo do topo. */
+/**
+ * Número grande com rótulo — os quatro do resumo do topo, e cada um é um
+ * RECORTE: clicar em "Atrasadas 4" deixa na tela só as quatro. Clicar de
+ * novo desfaz. Um número que não leva a lugar nenhum obriga a procurar na
+ * mão (Karine, 01/10).
+ */
 function Tile({
   rotulo,
   valor,
   tom,
+  ativo = false,
+  onClick,
 }: {
   rotulo: string;
   valor: number;
   tom?: string;
+  ativo?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <div className="rounded-[12px] border border-fysi-line bg-fysi-cream/30 px-3 py-2">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={ativo}
+      title={`Ver só ${rotulo.toLowerCase()}`}
+      className={`text-left rounded-[12px] border px-3 py-2 transition ${
+        ativo
+          ? "border-fysi-deep bg-fysi-cream/70"
+          : "border-fysi-line bg-fysi-cream/30 hover:border-fysi-deep/40"
+      }`}
+    >
       <p className="text-[0.66rem] uppercase tracking-[0.1em] text-fysi-muted font-medium">
         {rotulo}
       </p>
       <p className={`text-xl font-semibold tabular-nums ${tom ?? "text-fysi-deep"}`}>
         {valor}
       </p>
-    </div>
+    </button>
   );
 }
