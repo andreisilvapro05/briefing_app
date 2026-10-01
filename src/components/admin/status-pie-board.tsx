@@ -14,11 +14,13 @@ import {
 } from "./tasks-board";
 import { inicioDoPeriodo, type Periodo } from "@/lib/date-periods";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
+import { useRouter } from "next/navigation";
 import { ViewTabs, type ViewTabItem } from "./view-tabs";
 import {
   CelulaDataEditavel,
   CelulaResponsavelEditavel,
 } from "./celulas-editaveis";
+import { AcoesDaLinha, BarraNovaTarefa } from "./acoes-da-linha";
 import { ResumoProjeto } from "./resumo-projeto";
 import type { LinhaDoProjeto } from "@/lib/linha-do-projeto";
 import {
@@ -67,6 +69,8 @@ export interface LaneClient {
   parado: boolean;
   /** Id do documento de Estrutura Inicial do cliente, se existir — vira link no painel de informações da tarefa. */
   eiDocId: string | null;
+  /** `clients.nome_exibicao` — o nome que o lápis da linha escreve. */
+  nomeExibicao: string | null;
   /** Responsável/datas/prioridade da tarefa que manda no projeto agora — as colunas do ClickUp. */
   linha: LinhaDoProjeto;
 }
@@ -614,10 +618,12 @@ function ClientAccordionRow({
     "fysi-cols-accordion",
     [262, 182, 74, 74, 92, 124, 40]
   );
+  const router = useRouter();
+  const [criandoTarefa, setCriandoTarefa] = useState(false);
 
   return (
     <div className="border-t border-fysi-line/70">
-      <div className="grid grid-cols-2 md:grid-cols-[1fr_150px_72px_44px_76px_76px_52px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
+      <div className="group grid grid-cols-2 md:grid-cols-[1fr_150px_72px_44px_76px_76px_52px] gap-x-3 gap-y-1 px-5 py-3 items-center text-sm">
         <span className="flex items-center gap-1.5 col-span-2 md:col-span-1 min-w-0">
           {/* Como no ClickUp: o TRIÂNGULO expande, o NOME abre o projeto.
               Antes o nome era o botão de expandir, porque mirar num
@@ -698,6 +704,20 @@ function ClientAccordionRow({
               Incompleto
             </span>
           ) : null}
+          {/* "+" e lápis ao passar o mouse, como no ClickUp (Karine,
+              01/10). Invisíveis até o mouse chegar pra não encher uma
+              lista de quarenta linhas de ícone — e sempre visíveis pra
+              quem navega no teclado, via focus-within. */}
+          {!restrictToResponsavel ? (
+            <AcoesDaLinha
+              clientId={c.id}
+              nome={c.empresa || c.nome || "este projeto"}
+              nomeExibicao={c.nomeExibicao ?? null}
+              urlKey={urlKey}
+              onCriou={() => router.refresh()}
+              onNovaTarefa={() => setCriandoTarefa((v) => !v)}
+            />
+          ) : null}
         </span>
         {/* As quatro colunas do ClickUp na linha do projeto — Responsável,
             Data inicial, Data de vencimento, Prioridade (print da Karine,
@@ -758,6 +778,18 @@ function ClientAccordionRow({
           Ver →
         </a>
       </div>
+
+      {/* A barra de criar mora FORA da linha: a linha é um grid, e um
+          formulário dentro de uma célula quebraria o alinhamento. */}
+      <BarraNovaTarefa
+        aberta={criandoTarefa}
+        clientId={c.id}
+        urlKey={urlKey}
+        onFechar={() => {
+          setCriandoTarefa(false);
+          router.refresh();
+        }}
+      />
 
       <ResumoProjeto
         dados={

@@ -159,6 +159,8 @@ export async function getLaneGroups(
         // de Cobranças) — e o accordion nasce fechado.
         parado: isClientStuck(c),
         eiDocId: eiDocIds.get(c.id) ?? null,
+        nomeExibicao:
+          (c as { nome_exibicao?: string | null }).nome_exibicao ?? null,
       };
     }),
   }));
