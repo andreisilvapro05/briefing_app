@@ -11,6 +11,7 @@ import {
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/api-helpers";
+import { generateMagicSlug } from "@/lib/slug";
 import { getTemplateDocument } from "@/lib/ei-documents-server";
 
 function keyParam(urlKey: string | null) {
@@ -34,10 +35,47 @@ export async function createEIDocumentAction(formData: FormData) {
     );
   }
 
-  const clientId = String(formData.get("clientId") ?? "");
+  let clientId = String(formData.get("clientId") ?? "");
   // `kind` permite reaproveitar esta action pro documento de Briefing: o
   // fluxo é o mesmo (clona o Modelo), só muda a tela de destino.
   const kind = formData.get("kind") === "briefing" ? "briefing" : "ei";
+
+  /**
+   * Cliente que ainda não existe, criado aqui mesmo.
+   *
+   * Karine (01/10): "nem sempre tem cliente... poder adicionar eu mesmo
+   * ali o nome do cliente e já fazer o briefing com ele". O briefing de
+   * chamada costuma ser o PRIMEIRO contato: exigir a ficha antes obriga a
+   * sair da tela no meio da conversa.
+   *
+   * Mora AQUI e não na action do outro hub porque é por esta que as duas
+   * telas passam — a de /admin/briefings usa `criarBriefingAction`, que
+   * só repassa pra cá. (Na primeira versão isto ficou na outra, e por
+   * isso não funcionava justamente na tela da lista de briefings.)
+   */
+  const nomeNovo = String(formData.get("nomeNovoCliente") ?? "").trim().slice(0, 120);
+  if (!clientId && nomeNovo) {
+    if (!hasFullAccess(member)) {
+      redirect(`/admin/briefings${keyParam(urlKey)}`);
+    }
+    const svc = createSupabaseServiceRoleClient();
+    const { data: criado, error: erroNovo } = await svc
+      .from("clients")
+      .insert({
+        nome: nomeNovo,
+        email: "",
+        empresa: "",
+        whatsapp: "",
+        magic_slug: generateMagicSlug({ nome: nomeNovo, empresa: null }),
+      })
+      .select("id")
+      .single();
+    if (erroNovo || !criado) {
+      logServerError("documento.criar-cliente", erroNovo);
+      redirect(`/admin/briefings${keyParam(urlKey)}`);
+    }
+    clientId = (criado as { id: string }).id;
+  }
   const destino = (docId: string) =>
     kind === "briefing"
       ? `/admin/briefings/doc/${docId}${keyParam(urlKey)}`
@@ -69,8 +107,36 @@ export async function createEIDocumentAction(formData: FormData) {
     }
   }
 
-  const template = await getTemplateDocument(kind);
-  const blocks = template?.blocks ?? [];
+  /**
+   * De QUAL modelo este documento nasce.
+   *
+   * Karine (01/10): "ter modelos de briefing de site, landing page
+   * negócio, landing page produto digital". Havia um Modelo só, e todo
+   * briefing nascia dele — site e landing de produto começam com
+   * perguntas diferentes, e apagar metade a cada chamada é trabalho
+   * jogado fora. Sem `templateId`, segue no modelo padrão de sempre.
+   */
+  const templateId = String(formData.get("templateId") ?? "").trim();
+  let blocks: unknown[] = [];
+  if (templateId) {
+    const { data: modelo } = await service
+      .from("ei_documents")
+      .select("ei_data, kind, is_template")
+      .eq("id", templateId)
+      .maybeSingle();
+    const m = modelo as
+      | { ei_data: { blocks?: unknown[] } | null; kind: string; is_template: boolean }
+      | null;
+    // Só um MODELO do mesmo tipo: sem isso, um id qualquer copiaria o
+    // documento de outro cliente pra dentro deste.
+    if (m?.is_template && m.kind === kind) {
+      blocks = Array.isArray(m.ei_data?.blocks) ? m.ei_data.blocks : [];
+    }
+  }
+  if (blocks.length === 0) {
+    const template = await getTemplateDocument(kind);
+    blocks = template?.blocks ?? [];
+  }
 
   const { data: created, error } = await service
     .from("ei_documents")

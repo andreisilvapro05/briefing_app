@@ -20,7 +20,10 @@ import {
   listarBriefingsParaBarraLateral,
   obterBriefing,
 } from "@/lib/briefings-server";
-import { listClientesParaNovoDocumento } from "@/lib/ei-documents-server";
+import {
+  listClientesParaNovoDocumento,
+  listarModelos,
+} from "@/lib/ei-documents-server";
 import { listarMateriais } from "@/lib/materiais-cliente-server";
 import { MateriaisChecklist } from "@/components/admin/materiais-checklist";
 import {
@@ -101,6 +104,8 @@ export default async function BriefingDocPage({
     clientes = (data as typeof clientes | null) ?? [];
   }
 
+  const modelosDeBriefing = await listarModelos("briefing");
+
   return (
     <AdminShell
       active="briefings"
@@ -118,6 +123,7 @@ export default async function BriefingDocPage({
           activeId={doc.id}
           urlKey={urlKey}
           clientsWithoutDoc={clientesParaCriar}
+          modelos={modelosDeBriefing}
           basePath="/admin/briefings/doc"
           createAction={criarBriefingAction}
           createLabel="+ Novo briefing"

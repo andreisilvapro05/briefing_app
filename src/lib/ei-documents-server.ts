@@ -117,11 +117,19 @@ export async function getTemplateDocumentId(
   kind: EIDocumentKind
 ): Promise<string | null> {
   const service = createSupabaseServiceRoleClient();
+  /**
+   * `.maybeSingle()` ESTOURA com mais de uma linha, e desde 01/10 existe
+   * mais de um modelo de briefing (site, landing de negócio, landing de
+   * produto). O PADRÃO é o mais antigo — o Modelo original, que todo
+   * briefing usava antes; quem quiser outro passa `templateId`.
+   */
   const { data } = await service
     .from("ei_documents")
     .select("id")
     .eq("is_template", true)
     .eq("kind", kind)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   return (data as { id: string } | null)?.id ?? null;
 }
@@ -130,11 +138,15 @@ export async function getTemplateDocument(
   kind: EIDocumentKind
 ): Promise<EIDocument | null> {
   const service = createSupabaseServiceRoleClient();
+  // Mesmo cuidado de `getTemplateDocumentId`: vários modelos existem, e
+  // o padrão é o mais antigo.
   const { data } = await service
     .from("ei_documents")
     .select(SELECT_FULL)
     .eq("is_template", true)
     .eq("kind", kind)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   if (!data) return null;
   return normalize(data as unknown as RawRow);
@@ -324,4 +336,26 @@ export async function getOrCreateClientDocument(
   if (error) logServerError("documento.criar", error);
   if (!created) return null;
   return normalize(created as unknown as RawRow);
+}
+
+/**
+ * Os MODELOS de um tipo, pra barra de criar perguntar de qual partir.
+ *
+ * Karine (01/10): "ter modelos de briefing de site, landing page negócio,
+ * landing page produto digital". O mais antigo é o padrão — é o Modelo
+ * que todo briefing usava antes de existirem os outros.
+ */
+export async function listarModelos(
+  kind: EIDocumentKind
+): Promise<{ id: string; nome: string }[]> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ei_documents")
+    .select("id, nome")
+    .eq("is_template", true)
+    .eq("kind", kind)
+    .order("created_at", { ascending: true });
+  return ((data as { id: string; nome: string | null }[] | null) ?? []).map(
+    (m) => ({ id: m.id, nome: m.nome?.trim() || "Modelo" })
+  );
 }

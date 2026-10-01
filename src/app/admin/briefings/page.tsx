@@ -18,12 +18,16 @@ import {
   listarBriefings,
   type BriefingResumo,
 } from "@/lib/briefings-server";
-import { listClientesParaNovoDocumento } from "@/lib/ei-documents-server";
+import {
+  listClientesParaNovoDocumento,
+  listarModelos,
+} from "@/lib/ei-documents-server";
 import { resumosPorCliente } from "@/lib/materiais-cliente-server";
 import { fraseResumo, type ResumoMateriais } from "@/lib/materiais-cliente";
 import {
   createBriefingTemplateAction,
   criarBriefingAction,
+  deleteBriefingTemplateAction,
   importarBriefingsAction,
 } from "./actions";
 
@@ -223,6 +227,8 @@ export default async function BriefingsPage({
         ? "Preenchidos pelo cliente"
         : "Modelos de perguntas";
 
+  const modelosDeBriefing = await listarModelos("briefing");
+
   return (
     <AdminShell
       active="briefings"
@@ -241,6 +247,7 @@ export default async function BriefingsPage({
           activeId=""
           urlKey={urlKey}
           clientsWithoutDoc={clientesParaCriar}
+          modelos={modelosDeBriefing}
           basePath="/admin/briefings/doc"
           createAction={criarBriefingAction}
           createLabel="+ Novo briefing"
@@ -520,10 +527,14 @@ export default async function BriefingsPage({
             ) : (
               <ul className="divide-y divide-fysi-line">
                 {templates.map((t) => (
-                  <li key={t.id}>
+                  /* O form de apagar fica FORA do <Link>: âncora não pode
+                     conter formulário, e o navegador desmonta a árvore se
+                     conter. Karine (01/10), sobre os quatro "teste" com
+                     zero perguntas: "está bagunçado". */
+                  <li key={t.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-fysi-cream/60 transition">
                     <Link
                       href={`/admin/briefings/${t.id}${keyParam}`}
-                      className="flex items-center gap-3 px-5 py-2.5 transition hover:bg-fysi-cream/60"
+                      className="flex min-w-0 flex-1 items-center gap-3"
                     >
                       <span className="min-w-0 flex-1 truncate text-sm font-medium text-fysi-deep">
                         {t.nome}
@@ -536,6 +547,19 @@ export default async function BriefingsPage({
                         Editar e aplicar →
                       </span>
                     </Link>
+                    <form action={deleteBriefingTemplateAction}>
+                      {urlKey ? (
+                        <input type="hidden" name="key" value={urlKey} />
+                      ) : null}
+                      <input type="hidden" name="id" value={t.id} />
+                      <SubmitTextButton
+                        danger
+                        confirm={`Apagar o modelo “${t.nome}”? Não dá pra desfazer.`}
+                        pendingLabel="…"
+                      >
+                        Apagar
+                      </SubmitTextButton>
+                    </form>
                   </li>
                 ))}
               </ul>

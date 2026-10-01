@@ -20,6 +20,7 @@ export function EIDocumentSidebar({
   createAction,
   createLabel = "+ Nova Estrutura Inicial",
   subTabs,
+  modelos = [],
 }: {
   docs: EIDocumentSummary[];
   activeId: string;
@@ -45,6 +46,12 @@ export function EIDocumentSidebar({
    * de clientes nem aparece.
    */
   criarDireto?: boolean;
+  /**
+   * Modelos disponíveis pra este tipo de documento. Com mais de um, a
+   * barra de criar pergunta de qual partir — site e landing de produto
+   * começam com perguntas diferentes (Karine, 01/10).
+   */
+  modelos?: { id: string; nome: string }[];
   // Sub-abas no topo da sidebar (ex: Respostas / Documentos, no hub de
   // Briefing) — pedido do usuário 2026-09-01 pra "Documentos de Briefing"
   // ficar junto de "Briefings", não solto como área própria.
@@ -53,6 +60,8 @@ export function EIDocumentSidebar({
   const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [buscaCliente, setBuscaCliente] = useState("");
+  /** "" = o modelo padrão (o mais antigo), que é o de sempre. */
+  const [modeloId, setModeloId] = useState("");
   const [verArquivo, setVerArquivo] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -87,6 +96,7 @@ export function EIDocumentSidebar({
   function createForNome(nome: string) {
     const fd = new FormData();
     fd.append("nomeNovoCliente", nome);
+    if (modeloId) fd.append("templateId", modeloId);
     if (urlKey) fd.append("key", urlKey);
     startTransition(async () => {
       await createAction(fd);
@@ -96,6 +106,7 @@ export function EIDocumentSidebar({
   function createFor(clientId: string, jaTem?: boolean) {
     const fd = new FormData();
     fd.append("clientId", clientId);
+    if (modeloId) fd.append("templateId", modeloId);
     // Quem já tem documento ganha um NOVO em vez de ser levado pro antigo.
     if (jaTem) fd.append("novo", "1");
     if (urlKey) fd.append("key", urlKey);
@@ -156,6 +167,23 @@ export function EIDocumentSidebar({
             </p>
             {/* Busca própria: com 45 clientes, rolar a lista inteira pra
                 achar um nome era o caminho mais lento da tela. */}
+            {/* De qual modelo parte. Só aparece com mais de um: com um
+                só, a pergunta não tem resposta errada nem certa. */}
+            {modelos.length > 1 ? (
+              <select
+                value={modeloId}
+                onChange={(e) => setModeloId(e.target.value)}
+                aria-label="Modelo de briefing"
+                className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-2 py-1.5 text-fysi-deep"
+              >
+                <option value="">Modelo padrão</option>
+                {modelos.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nome}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <input
               type="text"
               autoFocus
