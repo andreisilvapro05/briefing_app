@@ -3,6 +3,7 @@ import { Eyebrow, Pill } from "@/components/ui/pill";
 import {
   montarCaixaDoMes,
   mesesComEntrada,
+  recebimentosDeCobrancas,
   rotuloDoMes,
 } from "@/lib/caixa";
 
@@ -112,13 +113,21 @@ export default async function AdminRelatoriosPage({
     .select("valor, competencia");
   const custos = (custosData as { valor: number | null; competencia: string | null }[]) ?? [];
 
-  const meses = mesesComEntrada(recebimentos);
+  /**
+   * O caixa soma as DUAS entradas: o pagamento do projeto
+   * (`payment_receipts`) e a mensalidade recebida
+   * (`cobrancas_mensais.historico`). Lendo só a primeira, o mês fechava
+   * sem a receita recorrente — que é a mais previsível da agência.
+   */
+  const entradas = [...recebimentos, ...recebimentosDeCobrancas(cobrancas)];
+
+  const meses = mesesComEntrada(entradas);
   // Mês da URL só vale se tiver movimento; senão cai no mais recente. Um
   // ?mes= errado mostrava uma tela zerada que parecia defeito.
   const mesEscolhido =
     params.mes && meses.includes(params.mes) ? params.mes : meses[0] ?? null;
   const caixa = mesEscolhido
-    ? montarCaixaDoMes(recebimentos, custos, mesEscolhido)
+    ? montarCaixaDoMes(entradas, custos, mesEscolhido)
     : null;
 
   const entregueLaneId = statusLaneId("completo-entregue");

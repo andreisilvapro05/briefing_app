@@ -170,3 +170,42 @@ export function rotuloDoMes(mes: string): string {
   if (i < 0 || i > 11) return mes;
   return `${NOMES_DE_MES[i]} de ${m[1]}`;
 }
+
+
+/**
+ * As mensalidades recebidas, no formato do caixa.
+ *
+ * O caixa do mês lia só `payment_receipts` — o pagamento do PROJETO. A
+ * receita recorrente (SEO, manutenção, hosting) vivia noutra tabela e
+ * ficava fora da conta: o mês fechava faltando tudo que entra todo mês,
+ * justamente o que é mais previsível. Karine (26/09): "precisamos
+ * contabilizar e cruzar o caixa completo".
+ *
+ * `pagoEm` é a data do registro; mensalidade não tem o caso do cartão que
+ * cai depois, então `recebido_em` fica nulo e o caixa usa `pago_em`.
+ */
+export function recebimentosDeCobrancas(
+  cobrancas: { historico?: PagamentoDeCobranca[] | null }[]
+): Recebimento[] {
+  const out: Recebimento[] = [];
+  for (const c of cobrancas) {
+    for (const h of c.historico ?? []) {
+      if (!h?.pagoEm) continue;
+      out.push({
+        valor: h.valorPago ?? 0,
+        // ISO completo ("2026-09-23T12:00:00Z") ou só a data — o caixa
+        // compara pelo prefixo YYYY-MM, então corta aqui.
+        pago_em: String(h.pagoEm).slice(0, 10),
+        recebido_em: null,
+        forma: h.forma ?? null,
+      });
+    }
+  }
+  return out;
+}
+
+interface PagamentoDeCobranca {
+  valorPago: number;
+  pagoEm: string;
+  forma: string | null;
+}

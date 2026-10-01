@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   montarCaixaDoMes,
+  recebimentosDeCobrancas,
   mesesComEntrada,
   competenciaDe,
   rotuloDaForma,
@@ -156,5 +157,39 @@ test("a quebra por forma segue o mês em que caiu", () => {
   assert.deepEqual(
     c.porForma.map((f) => `${f.rotulo}:${f.total}`),
     ["Cartão:3000", "Pix:1000"]
+  );
+});
+
+test("a mensalidade recebida entra no caixa do mês", () => {
+  // O caixa lia só o pagamento do PROJETO: a receita recorrente (SEO,
+  // manutenção) ficava fora, e o mês fechava faltando justamente o que
+  // entra todo mês. Karine (26/09): "cruzar o caixa completo".
+  const deCobrancas = recebimentosDeCobrancas([
+    {
+      historico: [
+        { valorPago: 1000, pagoEm: "2026-09-23T12:00:00.000Z", forma: "pix" },
+        { valorPago: 400, pagoEm: "2026-08-10", forma: "boleto" },
+      ],
+    },
+  ]);
+  assert.equal(deCobrancas.length, 2);
+  assert.equal(deCobrancas[0].pago_em, "2026-09-23", "corta a hora do ISO");
+
+  const caixa = montarCaixaDoMes(
+    [{ valor: 500, pago_em: "2026-09-05", forma: "pix" }, ...deCobrancas],
+    [],
+    "2026-09"
+  );
+  assert.equal(caixa.entrou, 1500, "500 do projeto + 1000 da mensalidade");
+  assert.equal(caixa.porForma.find((f) => f.forma === "pix")?.quantidade, 2);
+});
+
+test("cobrança sem histórico, ou com registro torto, não quebra o caixa", () => {
+  assert.deepEqual(recebimentosDeCobrancas([{ historico: null }]), []);
+  assert.deepEqual(recebimentosDeCobrancas([{}]), []);
+  assert.deepEqual(
+    recebimentosDeCobrancas([{ historico: [{ valorPago: 10, pagoEm: "", forma: null }] }]),
+    [],
+    "registro sem data não entra em mês nenhum"
   );
 });
