@@ -120,7 +120,13 @@ export function EIBlockEditor({
           {saveError}
         </p>
       ) : null}
-      <BlockNoteView editor={editor} />
+      {/* `fysi-doc` dá ao documento a hierarquia que o ClickUp tinha com
+          cor — faixa no título de seção, rótulo em negrito destacado. Ver
+          globals.css; vale no editor e na página pública, pros dois lerem
+          igual. */}
+      <div className="fysi-doc">
+        <BlockNoteView editor={editor} />
+      </div>
     </div>
   );
 }

@@ -257,3 +257,102 @@ body {
     0 1px 2px rgba(4, 43, 48, 0.04),
     0 12px 32px -16px rgba(4, 43, 48, 0.12);
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Documento (briefing, EI, copy, nota) — `.fysi-doc`
+
+   Karine (01/10): "deixe o briefing mais bonito como era no ClickUp".
+
+   O que o ClickUp fazia e se perdeu: título de seção numa faixa verde e
+   cada rótulo com fundo colorido. A cor NÃO volta de lá — a API só
+   entrega texto sem formatação de cor (ver memory/limitacao_cores_
+   clickup_docs). Então a hierarquia é remontada aqui, por estilo: o
+   mesmo papel visual, com a paleta da Fysi.
+
+   Vale no editor do admin e na página pública que o cliente abre, pra
+   os dois lerem igual.
+   ───────────────────────────────────────────────────────────────────── */
+
+.fysi-doc {
+  --doc-largura: 74ch;
+}
+
+/* Linha mais solta: documento longo lido na tela cansa com line-height 1.4. */
+.fysi-doc p,
+.fysi-doc li {
+  line-height: 1.65;
+}
+
+/* Título de seção numa faixa — o papel do bloco verde do ClickUp. */
+.fysi-doc h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--fysi-deep);
+  background: rgba(191, 237, 224, 0.45);
+  border-left: 3px solid var(--fysi-mint-vivid, #4F998A);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  margin-top: 1.8em;
+  margin-bottom: 0.6em;
+}
+
+.fysi-doc h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--fysi-deep);
+  margin-top: 1.4em;
+  margin-bottom: 0.4em;
+}
+
+.fysi-doc h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--fysi-deep);
+  margin-top: 1.3em;
+  margin-bottom: 0.3em;
+}
+
+/* O primeiro título não empurra o documento pra baixo. */
+.fysi-doc h1:first-child,
+.fysi-doc h2:first-child,
+.fysi-doc h3:first-child {
+  margin-top: 0;
+}
+
+/*
+  O RÓTULO em destaque — "WhatsApp:", "E-mail:", "Horário de atendimento".
+  No ClickUp cada um tinha fundo colorido; nestes documentos o rótulo é
+  sempre o trecho em negrito, então é por ele que a cor entra.
+  `box-decoration-break` existe pro rótulo que quebra em duas linhas não
+  virar dois retângulos desencontrados.
+*/
+.fysi-doc strong,
+.fysi-doc b {
+  background: rgba(247, 230, 196, 0.55);
+  border-radius: 4px;
+  padding: 0.05em 0.25em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Negrito DENTRO de título já tem a faixa — dois fundos empilhados ficam sujos. */
+.fysi-doc h1 strong,
+.fysi-doc h2 strong,
+.fysi-doc h3 strong,
+.fysi-doc h1 b,
+.fysi-doc h2 b,
+.fysi-doc h3 b {
+  background: none;
+  padding: 0;
+}
+
+.fysi-doc a {
+  color: #2f6f62;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.fysi-doc a:hover {
+  text-decoration: none;
+}

@@ -70,7 +70,9 @@ export default async function BriefingPublicoPage({
         <MateriaisDoCliente token={token} itens={materiais} />
 
         <article className="bg-white border border-fysi-line rounded-[24px] p-6 md:p-10">
-          <BriefingReadOnly blocks={doc.blocks} />
+          <div className="fysi-doc">
+            <BriefingReadOnly blocks={doc.blocks} />
+          </div>
         </article>
 
         <p className="text-xs text-fysi-muted mt-6 text-center">

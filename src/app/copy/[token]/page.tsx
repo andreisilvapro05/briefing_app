@@ -53,7 +53,9 @@ export default async function CopyPublicaPage({
         </header>
 
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mb-6">
-          <BriefingReadOnly blocks={doc.blocks} />
+          <div className="fysi-doc">
+            <BriefingReadOnly blocks={doc.blocks} />
+          </div>
         </section>
 
         <RespostaDaCopy
