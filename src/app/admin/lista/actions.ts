@@ -20,6 +20,7 @@ import {
   tarefasFaltando,
   type AjusteProjetoState,
 } from "@/lib/projetos-incompletos";
+import { semearMateriaisPadrao } from "@/lib/materiais-cliente-server";
 import type { ProjectType } from "@/lib/types";
 
 export interface SyncResultado {
@@ -151,6 +152,19 @@ export async function ajustarProjetoAction(
     return falhar("Tipo de projeto inválido.");
   }
   const gerarChecklist = formData.get("gerarChecklist") === "on";
+  /**
+   * Semear a lista do que o cliente precisa enviar.
+   *
+   * Item 4 do processo da Karine (26/09): o envio de informações tem que
+   * viver no app, não num documento do Drive. A lista existe desde 22/09
+   * e só nasce junto com o checklist de tarefas — e quase todo projeto
+   * teve o checklist gerado antes disso, então ficou sem.
+   *
+   * É marcável à parte de propósito: a lista aparece no LINK PÚBLICO do
+   * briefing, então semear em lote, sozinho, mandaria uma lista de dez
+   * cobranças pra clientes que já entregaram tudo meses atrás.
+   */
+  const semearMateriais = formData.get("semearMateriais") === "on";
 
   const service = createSupabaseServiceRoleClient();
   const { data: clienteRow, error: leituraErr } = await service
@@ -244,8 +258,21 @@ export async function ajustarProjetoAction(
     }
   }
 
+  // 3) Lista do que o cliente precisa enviar.
+  if (semearMateriais) {
+    const r = await semearMateriaisPadrao(clientId);
+    if (!r.ok) return falhar("Não consegui criar a lista de materiais.");
+    feitos.push(
+      r.criados > 0
+        ? `lista de materiais criada (${r.criados} itens)`
+        : "lista de materiais já existia"
+    );
+  }
+
   if (feitos.length === 0) {
-    return falhar("Nada pra ajustar: escolha um tipo novo ou marque o checklist.");
+    return falhar(
+      "Nada pra ajustar: escolha um tipo novo, marque o checklist ou a lista de materiais."
+    );
   }
 
   revalidatePath("/admin/lista");

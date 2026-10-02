@@ -123,8 +123,47 @@ export interface PendenciasProjeto {
    * a conta de "ativos" subtrai esse cliente e a de tarefas o soma.
    */
   entregueComTarefaAberta: boolean;
+  /**
+   * Está numa etapa em que o cliente ainda deve material, e não existe
+   * lista do que ele precisa enviar.
+   *
+   * Karine, descrição do processo (26/09), item 4: "Envio de informações
+   * pelo cliente, hoje eu anoto sempre no documento do drive, mas seria
+   * importante isso estar no próprio briefing dentro do app para termos
+   * essa parte de fácil visualização no processo para acompanhamento pelo
+   * gestor".
+   *
+   * A lista existe no app desde 22/09, em três telas (ficha do cliente,
+   * briefing, e o link público onde o cliente marca o que mandou). Medido
+   * em 01/10: UM cliente tem lista, com 3 itens. Ela só nasce junto com o
+   * checklist de tarefas, e quase todos os projetos tiveram o checklist
+   * gerado ANTES de 26/09 — então nunca ganharam lista.
+   *
+   * Só vale nas etapas INICIAIS de propósito: num projeto em implementação
+   * ou entregue a lista não tem mais o que cobrar, e marcar todos como
+   * incompletos encheria a Lista de pílula e não daria pra ver nada.
+   */
+  semListaDeMateriais: boolean;
   totalTarefas: number;
   tamanhoModelo: number;
+}
+
+/**
+ * Etapas em que faz sentido cobrar material do cliente — as do começo,
+ * antes de design e copy. Fora delas, não ter lista não é pendência.
+ */
+export const ETAPAS_QUE_COBRAM_MATERIAL = [
+  "a-iniciar",
+  "nem-comecou-nada",
+  "onboarding",
+  "envio-informacoes",
+  "parado",
+] as const;
+
+export function cobraMaterialDoCliente(status: string | null): boolean {
+  return (ETAPAS_QUE_COBRAM_MATERIAL as readonly string[]).includes(
+    status ?? ""
+  );
 }
 
 export function pendenciasDoProjeto(projeto: {
@@ -134,6 +173,14 @@ export function pendenciasDoProjeto(projeto: {
   fechado?: boolean;
   /** Quantas tarefas seguem abertas. */
   tarefasAbertas?: number;
+  /** Status cru do projeto — decide se a lista de materiais é cobrável. */
+  status?: string | null;
+  /**
+   * Itens em `client_materials`. `undefined` = quem chamou não sabe (tela
+   * que não busca materiais), e aí a pendência não é apontada: acusar o
+   * que não se mediu é pior do que não acusar.
+   */
+  totalMateriais?: number;
 }): PendenciasProjeto {
   const tamanhoModelo = tamanhoDoModelo(projeto.projectType);
   const totalTarefas = Math.max(0, projeto.totalTarefas);
@@ -144,6 +191,11 @@ export function pendenciasDoProjeto(projeto: {
       totalTarefas > 0 && tamanhoModelo > 0 && totalTarefas * 2 < tamanhoModelo,
     entregueComTarefaAberta:
       Boolean(projeto.fechado) && (projeto.tarefasAbertas ?? 0) > 0,
+    semListaDeMateriais:
+      projeto.totalMateriais !== undefined &&
+      projeto.totalMateriais === 0 &&
+      !projeto.fechado &&
+      cobraMaterialDoCliente(projeto.status ?? null),
     totalTarefas,
     tamanhoModelo,
   };
@@ -151,7 +203,11 @@ export function pendenciasDoProjeto(projeto: {
 
 export function projetoIncompleto(p: PendenciasProjeto): boolean {
   return (
-    p.semTipo || p.semChecklist || p.checklistParcial || p.entregueComTarefaAberta
+    p.semTipo ||
+    p.semChecklist ||
+    p.checklistParcial ||
+    p.entregueComTarefaAberta ||
+    p.semListaDeMateriais
   );
 }
 
@@ -186,6 +242,9 @@ export function faltasEmTexto(p: PendenciasProjeto): string[] {
   }
   if (p.entregueComTarefaAberta) {
     faltas.push("marcado como entregue, mas com tarefa aberta");
+  }
+  if (p.semListaDeMateriais) {
+    faltas.push("sem a lista do que o cliente precisa enviar");
   }
   return faltas;
 }

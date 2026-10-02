@@ -66,6 +66,30 @@ export async function listarMateriais(clientId: string): Promise<MaterialItem[]>
 }
 
 /**
+ * Quem TEM lista, de todos os clientes, numa consulta só.
+ *
+ * A Lista por status precisa saber disso pra apontar o projeto que está em
+ * etapa inicial sem lista do que o cliente deve enviar (item 4 do processo
+ * da Karine). Traz só os ids, sem status nem título: é a tabela inteira
+ * (3 linhas em 01/10), e o que a tela precisa é "tem ou não tem".
+ */
+export async function clientesComListaDeMateriais(): Promise<Set<string>> {
+  const service = createSupabaseServiceRoleClient();
+  const { data, error } = await service
+    .from("client_materials")
+    .select("client_id");
+  if (error) {
+    // Falhar aqui não pode apagar a Lista inteira. Sem o dado, a tela não
+    // aponta a pendência — `pendenciasDoProjeto` ignora o indefinido.
+    logServerError("materiais.clientesComLista", error);
+    return new Set();
+  }
+  return new Set(
+    ((data as { client_id: string }[] | null) ?? []).map((r) => r.client_id)
+  );
+}
+
+/**
  * Resumo ("faltam 3 de 8") de VÁRIOS clientes numa consulta só — pro hub de
  * briefings, que mostra dezenas de linhas. Uma query por linha derrubaria a
  * tela.
@@ -117,14 +141,17 @@ export async function resumosPorCliente(
  */
 export async function semearMateriaisPadrao(
   clientId: string
-): Promise<{ criados: number }> {
+): Promise<{ ok: boolean; criados: number }> {
   const service = createSupabaseServiceRoleClient();
   const { data: existentes } = await service
     .from("client_materials")
     .select("id")
     .eq("client_id", clientId)
     .limit(1);
-  if (Array.isArray(existentes) && existentes.length > 0) return { criados: 0 };
+  // Já tem lista: não é falha, é o caminho idempotente.
+  if (Array.isArray(existentes) && existentes.length > 0) {
+    return { ok: true, criados: 0 };
+  }
 
   const rows = MATERIAIS_PADRAO.map((m, i) => ({
     client_id: clientId,
@@ -136,9 +163,9 @@ export async function semearMateriaisPadrao(
   const { error } = await service.from("client_materials").insert(rows);
   if (error) {
     logServerError("materiais.semear", error);
-    return { criados: 0 };
+    return { ok: false, criados: 0 };
   }
-  return { criados: rows.length };
+  return { ok: true, criados: rows.length };
 }
 
 /** Acrescenta um item no fim da lista. */

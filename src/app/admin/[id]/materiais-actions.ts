@@ -99,7 +99,12 @@ export async function semearMateriaisAction(
   const { clientId, docId } = campos(formData);
   if (!clientId) return { ok: false, erro: "Cliente não identificado." };
   await requireClientAccess(formData, clientId);
-  if (!(await semearMateriaisPadrao(clientId))) return FALHOU;
+  // ATENÇÃO: `semearMateriaisPadrao` devolve um OBJETO. O `if (!...)` que
+  // havia aqui testava a verdade do objeto, que é sempre verdadeira — a
+  // ação respondia "ok" mesmo quando o insert falhava, e a lista
+  // simplesmente não aparecia sem nenhum erro na tela.
+  const semeado = await semearMateriaisPadrao(clientId);
+  if (!semeado.ok) return FALHOU;
   revalidar(clientId, docId);
   return { ok: true };
 }

@@ -10,6 +10,7 @@ import {
 import { getTasksByClient, taskProgress } from "./project-tasks-server";
 import { linhaDoProjeto } from "./linha-do-projeto";
 import { getAllEIDocumentIdsByClient } from "./ei-documents-server";
+import { clientesComListaDeMateriais } from "./materiais-cliente-server";
 import type { LaneGroup } from "@/components/admin/status-pie-board";
 
 /**
@@ -66,17 +67,19 @@ export async function getLaneGroups(
   // As três consultas são independentes. A dos documentos de EI dependia da
   // lista de clientes só pra montar o filtro `.in()` — buscar todos de uma
   // vez (tabela pequena) tira uma ida ao banco do caminho crítico.
-  const [{ data }, tasksByClient, eiDocIds] =
+  const [{ data }, tasksByClient, eiDocIds, comListaDeMateriais] =
     visibleIds && visibleIds.size === 0
       ? [
           { data: [] },
           new Map<string, ProjectTask[]>(),
           new Map<string, string>(),
+          new Set<string>(),
         ]
       : await Promise.all([
           clientsQuery,
           getTasksByClient(),
           getAllEIDocumentIdsByClient(),
+          clientesComListaDeMateriais(),
         ]);
 
   const clients = (data as ClientForLane[]) ?? [];
@@ -161,6 +164,9 @@ export async function getLaneGroups(
         eiDocId: eiDocIds.get(c.id) ?? null,
         nomeExibicao:
           (c as { nome_exibicao?: string | null }).nome_exibicao ?? null,
+        // 0 ou 1: a tela só quer saber se a lista existe. Ver
+        // `semListaDeMateriais` em projetos-incompletos.ts.
+        totalMateriais: comListaDeMateriais.has(c.id) ? 1 : 0,
       };
     }),
   }));

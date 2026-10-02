@@ -71,6 +71,12 @@ export interface LaneClient {
   eiDocId: string | null;
   /** `clients.nome_exibicao` — o nome que o lápis da linha escreve. */
   nomeExibicao: string | null;
+  /**
+   * Itens em `client_materials`. Só a Lista por status mede isso; nas
+   * telas que não medem vem `undefined`, e aí a pendência "sem a lista do
+   * que o cliente precisa enviar" não é apontada.
+   */
+  totalMateriais?: number;
   /** Responsável/datas/prioridade da tarefa que manda no projeto agora — as colunas do ClickUp. */
   linha: LinhaDoProjeto;
 }
@@ -577,6 +583,8 @@ function ClientAccordionRow({
   const pendencias = pendenciasDoProjeto({
     projectType: c.projectType,
     totalTarefas: c.progresso?.total ?? 0,
+    status: c.status,
+    totalMateriais: c.totalMateriais,
     // "Entregue com tarefa aberta" é contradição que torta todo relatório:
     // a conta de ativos subtrai o cliente e a de tarefas o soma. São 13
     // projetos assim em 26/09.

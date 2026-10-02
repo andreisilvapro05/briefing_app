@@ -16,7 +16,8 @@ import type { LaneClient, LaneGroup } from "./status-pie-board";
 
 /**
  * Painel "Projetos incompletos" — os projetos que nasceram pela metade:
- * sem tipo de projeto e/ou sem o checklist de tarefas do modelo.
+ * sem tipo de projeto, sem o checklist de tarefas do modelo, ou (nas
+ * etapas iniciais) sem a lista do que o cliente precisa enviar.
  *
  * Por que aqui, no topo de /admin/lista: foi nesta tela que o problema
  * apareceu (coluna TIPO com "—"), é a visão central de TODOS os projetos e
@@ -49,7 +50,13 @@ interface ProjetoIncompleto {
 
 /** Quanto mais falta, mais alto — define a ordem "O que falta". */
 function peso(p: PendenciasProjeto): number {
-  return (p.semTipo ? 2 : 0) + (p.semChecklist ? 2 : 0) + (p.checklistParcial ? 1 : 0);
+  return (
+    (p.semTipo ? 2 : 0) +
+    (p.semChecklist ? 2 : 0) +
+    (p.checklistParcial ? 1 : 0) +
+    // Pesa 2: é o cliente parado esperando uma cobrança que ninguém fez.
+    (p.semListaDeMateriais ? 2 : 0)
+  );
 }
 
 function nomeDe(c: LaneClient): string {
@@ -75,6 +82,8 @@ export function ProjetosIncompletos({
         const pendencias = pendenciasDoProjeto({
           projectType: cliente.projectType,
           totalTarefas: cliente.progresso?.total ?? 0,
+          status: cliente.status,
+          totalMateriais: cliente.totalMateriais,
         });
         if (!projetoIncompleto(pendencias)) continue;
         lista.push({
@@ -111,7 +120,8 @@ export function ProjetosIncompletos({
       <section className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-5 py-3 mb-5 flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-fysi-mint-vivid shrink-0" />
         <p className="text-sm text-fysi-muted">
-          Todos os projetos têm tipo e checklist de tarefas.
+          Todos os projetos têm tipo, checklist de tarefas e — nas etapas
+          iniciais — a lista do que o cliente precisa enviar.
         </p>
       </section>
     );
@@ -142,7 +152,8 @@ export function ProjetosIncompletos({
             {incompletos.length}
           </span>
           <span className="text-[0.72rem] text-fysi-muted truncate hidden md:inline">
-            nasceram sem tipo de projeto e/ou sem o checklist de tarefas
+            falta tipo, checklist de tarefas ou a lista do que o cliente
+            precisa enviar
           </span>
         </button>
 
@@ -271,6 +282,24 @@ function LinhaIncompleta({
             />
             gerar checklist
           </label>
+
+          {/* A lista do que o cliente precisa enviar (item 4 do processo
+              da Karine). Só aparece quando falta, e nasce DESMARCADA: ela
+              é visível no link público do briefing, então criá-la é um ato
+              voltado pro cliente, não arrumação interna. */}
+          {pendencias.semListaDeMateriais ? (
+            <label
+              className="inline-flex items-center gap-1.5 text-[0.78rem] text-fysi-deep"
+              title="Cria a lista padrão (logo, fotos, textos, acessos). O cliente marca o que já mandou pelo link do briefing."
+            >
+              <input
+                type="checkbox"
+                name="semearMateriais"
+                className="h-3.5 w-3.5 rounded border-fysi-line accent-fysi-deep"
+              />
+              criar lista de materiais
+            </label>
+          ) : null}
 
           <SubmitButton size="sm" variant="secondary" pendingLabel="Ajustando…">
             Ajustar
