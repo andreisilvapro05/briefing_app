@@ -191,6 +191,53 @@ export async function obterCopyPorToken(
 }
 
 /**
+ * O que o PAINEL DO CLIENTE precisa saber sobre a copy dele.
+ *
+ * Fecha a segunda metade do item 5 da Karine (26/09): "precisa ter no app
+ * para mandar para o cliente aprovar também". A copy no app existe desde
+ * 30/09, mas o painel do cliente seguia com um botão "Revisar a copy"
+ * apontando pro LINK DO DRIVE antigo (`clients.copy_review_link`) — ou
+ * seja, ela escrevia no app e o cliente era mandado pra fora dele.
+ *
+ * Devolve só o caminho e o estado: nem o texto, nem o id do documento.
+ * Mesmas regras do link público — desligado ou vencido não vale.
+ */
+export async function copyNoPainelDoCliente(
+  clientId: string
+): Promise<{ caminho: string; situacao: SituacaoCopy } | null> {
+  const service = createSupabaseServiceRoleClient();
+  const { data, error } = await service
+    .from("ei_documents")
+    .select("share_token, share_enabled, share_expires_at, aprovado_em, ajuste_pedido_em")
+    .eq("client_id", clientId)
+    .eq("kind", "copy")
+    .maybeSingle();
+  if (error) {
+    logServerError("copy.painelDoCliente", error);
+    return null;
+  }
+  const row = data as {
+    share_token: string | null;
+    share_enabled: boolean;
+    share_expires_at: string | null;
+    aprovado_em: string | null;
+    ajuste_pedido_em: string | null;
+  } | null;
+  if (!row || !row.share_token || !row.share_enabled) return null;
+  if (row.share_expires_at && new Date(row.share_expires_at) < new Date()) {
+    return null;
+  }
+  return {
+    caminho: `/copy/${row.share_token}`,
+    situacao: situacaoDaCopy({
+      shareEnabled: row.share_enabled,
+      aprovadoEm: row.aprovado_em,
+      ajustePedidoEm: row.ajuste_pedido_em,
+    }),
+  };
+}
+
+/**
  * A resposta do cliente, vinda do link público.
  *
  * Revalida o token em vez de confiar no id que veio do formulário: sem

@@ -21,6 +21,7 @@ import {
   pullResponsesFromServer,
 } from "@/lib/briefing-store";
 import type { Cliente, ProjectType } from "@/lib/types";
+import type { SituacaoCopy } from "@/lib/copy-documento";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -32,6 +33,11 @@ export default function DashboardPage() {
   const [chamadaAgendada, setChamadaAgendada] = useState(false);
   const [fysiDriveLink, setFysiDriveLink] = useState<string | null>(null);
   const [copyReviewLink, setCopyReviewLink] = useState<string | null>(null);
+  /**
+   * Em que pé está a copy, quando ela é a do app. Null = link do Drive
+   * antigo (não dá pra saber de fora) ou copy nenhuma.
+   */
+  const [copySituacao, setCopySituacao] = useState<SituacaoCopy | null>(null);
   const [briefingSubmetido, setBriefingSubmetido] = useState(false);
   const [contratoStatus, setContratoStatus] = useState<string | null>(null);
   const [contratoSignedUrl, setContratoSignedUrl] = useState<string | null>(
@@ -110,6 +116,7 @@ export default function DashboardPage() {
           if (data?.briefingSubmetido) setBriefingSubmetido(true);
           if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
           if (data?.copyReviewLink) setCopyReviewLink(data.copyReviewLink);
+          if (data?.copySituacao) setCopySituacao(data.copySituacao);
           if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
           if (data?.contratoSignedUrl)
             setContratoSignedUrl(data.contratoSignedUrl);
@@ -142,6 +149,7 @@ export default function DashboardPage() {
         if (data?.chamadaAgendada) setChamadaAgendada(true);
         if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
         if (data?.copyReviewLink) setCopyReviewLink(data.copyReviewLink);
+        if (data?.copySituacao) setCopySituacao(data.copySituacao);
         if (data?.briefingSubmetido) setBriefingSubmetido(true);
         if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
         if (data?.contratoSignedUrl)
@@ -195,6 +203,7 @@ export default function DashboardPage() {
           }
           setFysiDriveLink(data.fysiDriveLink ?? null);
           setCopyReviewLink(data.copyReviewLink ?? null);
+          setCopySituacao(data.copySituacao ?? null);
           setContratoStatus(data.contratoStatus ?? null);
           setContratoSignedUrl(data.contratoSignedUrl ?? null);
           setContratoLinkAssinatura(data.contratoLinkAssinatura ?? null);
@@ -674,7 +683,11 @@ export default function DashboardPage() {
               </span>
             </div>
 
-            <ProjectTimeline etapas={etapas} copyReviewLink={copyReviewLink} />
+            <ProjectTimeline
+              etapas={etapas}
+              copyReviewLink={copyReviewLink}
+              copySituacao={copySituacao}
+            />
           </section>
 
           {/* Coluna direita — Status do briefing + Suporte */}

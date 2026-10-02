@@ -5,6 +5,7 @@ import { errorResponse, logServerError } from "@/lib/api-helpers";
 import { getServerEnv } from "@/lib/env";
 import { indiceNaLinhaDoTempo } from "@/lib/etapa-pelo-status";
 import { buildTimeline } from "@/lib/project-types";
+import { copyNoPainelDoCliente } from "@/lib/copy-server";
 import type { ProjectType } from "@/lib/types";
 
 /**
@@ -53,6 +54,15 @@ export async function POST(request: NextRequest) {
       return errorResponse("client-not-found", 404);
     }
 
+    /**
+     * A copy DENTRO do app, quando o link dela está ligado.
+     *
+     * Só depois de achar o cliente: uma consulta a mais em toda chamada
+     * desta rota (o painel a chama em cada carregamento) não se paga pra
+     * clientId inexistente.
+     */
+    const copyNoApp = await copyNoPainelDoCliente(parsed.clientId);
+
     return NextResponse.json({
       /**
        * A etapa que o cliente vê sai do STATUS do projeto, não de
@@ -79,7 +89,18 @@ export async function POST(request: NextRequest) {
       chamadaData: data.chamada_data,
       briefingSubmetido: !!data.briefing_submitted_at,
       fysiDriveLink: data.fysi_drive_link ?? null,
-      copyReviewLink: data.copy_review_link ?? null,
+      /**
+       * A copy do app GANHA do link do Drive quando existe e está ligada.
+       *
+       * O campo `copy_review_link` é de antes de a copy morar aqui
+       * (30/09) e segue preenchido em dois clientes, porque os projetos em
+       * andamento ainda apontam pra aquela pasta. Sem esta precedência,
+       * ela escreveria a copy no app e o cliente continuaria sendo
+       * mandado pro Drive.
+       */
+      copyReviewLink: copyNoApp?.caminho ?? data.copy_review_link ?? null,
+      /** "aguardando" | "ajuste-pedido" | "aprovada" — null quando a copy não é do app. */
+      copySituacao: copyNoApp?.situacao ?? null,
       contratoStatus: data.contrato_status ?? null,
       contratoSignedUrl: data.contrato_signed_url ?? null,
       contratoLinkAssinatura: data.contrato_link_assinatura ?? null,
