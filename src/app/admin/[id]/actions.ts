@@ -36,6 +36,10 @@ import {
 } from "@/lib/anexos-demanda";
 import { parseValorBR } from "@/lib/payment-receipts";
 import {
+  reordenarComInsercao,
+  type LinhaOrdenada,
+} from "@/lib/ordem-tarefas";
+import {
   buildClientePayload,
   sendDashboardWebhook,
 } from "@/lib/dashboard-webhook";
@@ -1172,6 +1176,28 @@ const TASK_TITLE_MAX = 200;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
+ * Próxima `ordem` no fim da lista — o lugar de sempre de uma tarefa nova.
+ * `clientId` vazio = demanda interna, que tem lista própria (client_id nulo).
+ */
+async function ordemNoFim(
+  service: ReturnType<typeof createSupabaseServiceRoleClient>,
+  clientId: string
+): Promise<number> {
+  const q = service.from("project_tasks").select("ordem");
+  const { data } = await (clientId
+    ? q.eq("client_id", clientId)
+    : q.is("client_id", null)
+  )
+    .order("ordem", { ascending: false })
+    .limit(1);
+  return (
+    (Array.isArray(data) && data.length
+      ? Number((data[0] as { ordem: number }).ordem ?? -1)
+      : -1) + 1
+  );
+}
+
+/**
  * Cria uma tarefa ad-hoc (fora do template), já com responsável, prazo e
  * prioridade — como o "+ Add task" do ClickUp. Antes só aceitava o título:
  * a tarefa nascia sem dono e sem data, e cada campo virava um segundo clique
@@ -1257,17 +1283,51 @@ export async function addProjectTaskAction(
   }
 
   const service = createSupabaseServiceRoleClient();
-  const ordemQuery = service.from("project_tasks").select("ordem");
-  const { data: maxRow } = await (clientId
-    ? ordemQuery.eq("client_id", clientId)
-    : ordemQuery.is("client_id", null)
-  )
-    .order("ordem", { ascending: false })
-    .limit(1);
-  const nextOrdem =
-    (Array.isArray(maxRow) && maxRow.length
-      ? Number((maxRow[0] as { ordem: number }).ordem ?? -1)
-      : -1) + 1;
+
+  /**
+   * `depoisDe` = criada a partir do "+" de OUTRA tarefa, e entra logo
+   * abaixo dela (Karine, 01/10: "ao passar o mouse pela tarefa ou
+   * subtarefa ter um + para adicionar uma tarefa"). Sem isso a tarefa
+   * nova caía no fim da lista — num projeto de dez etapas, vinte linhas
+   * abaixo de onde a pessoa clicou, o que parece não ter salvado.
+   *
+   * Referência que não existe mais (apagada, ou de outro cliente) não é
+   * erro: cai no fim, como sempre.
+   */
+  const depoisDe = String(formData.get("depoisDe") ?? "").trim();
+  let nextOrdem = await ordemNoFim(service, clientId);
+
+  if (depoisDe) {
+    const irmasQuery = service.from("project_tasks").select("id, ordem");
+    const { data: irmasData } = await (clientId
+      ? irmasQuery.eq("client_id", clientId)
+      : irmasQuery.is("client_id", null)
+    ).order("ordem", { ascending: true });
+    const posicao = reordenarComInsercao(
+      (irmasData as LinhaOrdenada[] | null) ?? [],
+      depoisDe
+    );
+    if (posicao) {
+      /**
+       * Abre o espaço ANTES de inserir. Na outra ordem, a tarefa nova
+       * passaria um instante empatada com a de baixo.
+       *
+       * Se mover as irmãs falhar, a tarefa nasce no FIM: posição é um
+       * detalhe, perder a tarefa não é.
+       */
+      const updates = await Promise.all(
+        posicao.mover.map((m) =>
+          service.from("project_tasks").update({ ordem: m.ordem }).eq("id", m.id)
+        )
+      );
+      const erroDeOrdem = updates.find((r) => r.error)?.error;
+      if (erroDeOrdem) {
+        logServerError("addProjectTaskAction.ordem", erroDeOrdem);
+      } else {
+        nextOrdem = posicao.ordemNova;
+      }
+    }
+  }
 
   const { data, error } = await service
     .from("project_tasks")

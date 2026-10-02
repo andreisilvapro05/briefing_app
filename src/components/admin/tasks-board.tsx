@@ -215,6 +215,14 @@ function PencilIcon() {
   );
 }
 
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
 export function TrashIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -349,6 +357,7 @@ export function TaskRow({
   clienteCell,
   drag,
   readOnly,
+  onCriouAbaixo,
 }: {
   task: ProjectTask;
   clientId: string;
@@ -359,6 +368,8 @@ export function TaskRow({
   drag?: DragHandlers;
   /** Papel "basico" só vê (não edita) tarefa de outra pessoa — server já rejeita, isso só reflete na UI. */
   readOnly?: boolean;
+  /** Avisa que uma tarefa nasceu abaixo desta — pra tela que guarda a lista em estado local. */
+  onCriouAbaixo?: () => void;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -374,6 +385,13 @@ export function TaskRow({
   const [titulo, setTitulo] = useState(task.titulo);
   const [renomeando, setRenomeando] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  /**
+   * Barra de criar tarefa LOGO ABAIXO desta — o "+" que aparece ao passar
+   * o mouse (Karine, 01/10: "ao passar o mouse pela tarefa ou subtarefa
+   * ter um + para adicionar uma tarefa"). A posição é calculada no
+   * servidor a partir de `depoisDe`; ver src/lib/ordem-tarefas.ts.
+   */
+  const [criandoAbaixo, setCriandoAbaixo] = useState(false);
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -535,16 +553,29 @@ export function TaskRow({
                   </span>
                 ) : null}
                 {readOnly ? null : (
-                  <button
-                    type="button"
-                    onClick={() => setRenomeando(true)}
-                    disabled={locked}
-                    aria-label={`Renomear "${titulo}"`}
-                    title="Renomear"
-                    className={`shrink-0 w-6 h-6 grid place-items-center rounded-md text-fysi-muted hover:text-fysi-deep hover:bg-fysi-cream transition ${HOVER_ONLY}`}
-                  >
-                    <PencilIcon />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCriandoAbaixo((v) => !v)}
+                      disabled={locked}
+                      aria-expanded={criandoAbaixo}
+                      aria-label={`Adicionar tarefa abaixo de "${titulo}"`}
+                      title="Adicionar uma tarefa logo abaixo desta"
+                      className={`shrink-0 w-6 h-6 grid place-items-center rounded-md text-fysi-muted hover:text-fysi-deep hover:bg-fysi-cream transition ${HOVER_ONLY}`}
+                    >
+                      <PlusIcon />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRenomeando(true)}
+                      disabled={locked}
+                      aria-label={`Renomear "${titulo}"`}
+                      title="Renomear"
+                      className={`shrink-0 w-6 h-6 grid place-items-center rounded-md text-fysi-muted hover:text-fysi-deep hover:bg-fysi-cream transition ${HOVER_ONLY}`}
+                    >
+                      <PencilIcon />
+                    </button>
+                  </>
                 )}
               </>
             )}
@@ -636,6 +667,24 @@ export function TaskRow({
           )}
         </td>
       </tr>
+      {criandoAbaixo && !readOnly ? (
+        <tr className="bg-fysi-mint/10 border-t border-fysi-line">
+          <td colSpan={totalCols} className="px-3 py-2">
+            <TaskComposer
+              autoFocus
+              clientId={task.client_id ?? ""}
+              depoisDe={task.id}
+              defaultResponsavel={task.responsavel ?? ""}
+              defaultArea={task.area ?? ""}
+              areaFixa={!task.client_id}
+              urlKey={urlKey}
+              onClose={() => setCriandoAbaixo(false)}
+              onCriou={onCriouAbaixo}
+              placeholder={`Nova tarefa abaixo de "${task.titulo}" (Enter adiciona)`}
+            />
+          </td>
+        </tr>
+      ) : null}
       {expanded ? (
         <tr className="bg-fysi-cream/30 border-t border-fysi-line">
           <td colSpan={totalCols} className="px-3 py-4">

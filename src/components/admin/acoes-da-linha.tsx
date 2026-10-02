@@ -113,12 +113,15 @@ export function BarraNovaTarefa({
   clientId,
   urlKey,
   meuResponsavel = "",
+  onCriou,
   onFechar,
 }: {
   aberta: boolean;
   clientId: string;
   urlKey?: string | null;
   meuResponsavel?: string;
+  /** Pra quem guarda a lista de tarefas em estado local (o accordion da Lista). */
+  onCriou?: () => void;
   onFechar: () => void;
 }) {
   if (!aberta) return null;
@@ -130,6 +133,7 @@ export function BarraNovaTarefa({
         defaultResponsavel={meuResponsavel}
         urlKey={urlKey}
         onClose={onFechar}
+        onCriou={onCriou}
         placeholder="Nova tarefa neste projeto (Enter adiciona)"
       />
     </div>

@@ -785,6 +785,7 @@ function ClientAccordionRow({
         aberta={criandoTarefa}
         clientId={c.id}
         urlKey={urlKey}
+        onCriou={() => setCarregadas(null)}
         onFechar={() => {
           setCriandoTarefa(false);
           router.refresh();
@@ -874,6 +875,10 @@ function ClientAccordionRow({
                       : undefined
                   }
                   readOnly={isReadOnlyFor(t, restrictToResponsavel)}
+                  /* As subtarefas vivem em estado local (fetch sob
+                     demanda): zerar força o useEffect a buscar de novo e a
+                     tarefa criada pelo "+" aparece na hora. */
+                  onCriouAbaixo={() => setCarregadas(null)}
                 />
               ))}
             </tbody>

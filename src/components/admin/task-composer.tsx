@@ -38,6 +38,8 @@ export function TaskComposer({
   notaInterno,
   defaultArea = "",
   areaFixa = false,
+  depoisDe,
+  onCriou,
   placeholder = "Nova tarefa (Enter adiciona)",
 }: {
   /** Cliente fixo (dentro da ficha). Sem ele, a pessoa escolhe em `clients`. */
@@ -59,6 +61,20 @@ export function TaskComposer({
   defaultArea?: string;
   /** Na tela de uma área específica, não faz sentido poder trocar. */
   areaFixa?: boolean;
+  /**
+   * Tarefa de referência: a nova entra logo ABAIXO dela, não no fim da
+   * lista. É o "+" que aparece ao passar o mouse numa tarefa (Karine,
+   * 01/10). Ver src/lib/ordem-tarefas.ts.
+   */
+  depoisDe?: string;
+  /**
+   * Chamado depois de criar, ALÉM do router.refresh(). Existe pra tela que
+   * não lê as tarefas do servidor a cada render: o accordion da Lista
+   * busca por fetch e guarda em estado local, então um refresh do router
+   * não traria a tarefa nova — ela só apareceria ao fechar e reabrir a
+   * linha, que é indistinguível de não ter salvado.
+   */
+  onCriou?: () => void;
   /** "demanda" em Demandas internas, "tarefa" nas telas de projeto. */
   placeholder?: string;
 }) {
@@ -112,6 +128,7 @@ export function TaskComposer({
       fd.append("area", area);
       fd.append("recorrencia", recorrencia);
     }
+    if (depoisDe) fd.append("depoisDe", depoisDe);
     if (urlKey) fd.append("key", urlKey);
 
     startTransition(async () => {
@@ -142,6 +159,7 @@ export function TaskComposer({
       // costuma lançar a próxima recorrente logo em seguida.
       inputRef.current?.focus();
       router.refresh();
+      onCriou?.();
     });
   }
 
