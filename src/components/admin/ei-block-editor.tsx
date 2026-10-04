@@ -13,9 +13,22 @@ import { updateEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions"
  * Editor de blocos da EI (Estrutura Inicial) — estilo Notion/ClickUp.
  * Substitui o formulário de campos fixos que existia antes: uma única
  * instância de editor serve leitura e escrita, sem toggle "Documento"/
- * "Editar". Tema Fysi aplicado via variáveis CSS do BlockNote (--bn-*),
- * não a prop `theme` (essa é só do shell @blocknote/mantine — o shell
- * shadcn usado aqui não a aceita).
+ * "Editar". Tema Fysi aplicado via variáveis CSS do BlockNote (--bn-*).
+ *
+ * ⚠️ `theme="light"` é OBRIGATÓRIO e não é preferência estética.
+ *
+ * Sem a prop, o `@blocknote/react` chama `usePrefersColorScheme()`, lê
+ * `(prefers-color-scheme: dark)` do SISTEMA e põe `data-color-scheme="dark"`
+ * na raiz do editor. Como este app não tem modo escuro nenhum (tudo é
+ * creme e branco), quem usa o computador no escuro via o documento PRETO
+ * dentro de um card branco. Karine (04/10): "o layout do briefing está
+ * preto, ruim".
+ *
+ * Um comentário antigo aqui afirmava que o shell shadcn não aceita
+ * `theme` — está errado: `@blocknote/shadcn` reexporta
+ * `React.ComponentProps<typeof BlockNoteViewRaw>`, que inclui
+ * `theme?: "light" | "dark"`. Foi essa afirmação errada que deixou o bug
+ * de pé.
  *
  * As variáveis --bn-* ficam em `:root` (globals.css), NÃO como style
  * inline num wrapper aqui — os menus flutuantes do BlockNote (cores,
@@ -125,7 +138,7 @@ export function EIBlockEditor({
           globals.css; vale no editor e na página pública, pros dois lerem
           igual. */}
       <div className="fysi-doc">
-        <BlockNoteView editor={editor} />
+        <BlockNoteView editor={editor} theme="light" />
       </div>
     </div>
   );

@@ -181,7 +181,16 @@ export default async function AdminPage({
     if (tipoFilter) sp.set("tipo", tipoFilter);
     if (urlKey) sp.set("key", urlKey);
     const qs = sp.toString();
-    return `/admin${qs ? `?${qs}` : ""}`;
+    /**
+     * `/admin/clientes`, NÃO `/admin`.
+     *
+     * Esta tela já morou em `/admin`; quando virou `/admin/clientes` as
+     * abas ficaram apontando pro endereço velho — e `/admin` hoje
+     * REDIRECIONA pra Visão Geral (ver src/app/admin/page.tsx). Resultado:
+     * clicar em "Em andamento" descartava o filtro E jogava a pessoa em
+     * outra tela. Karine (04/10): "filtros nao funcionam na aba cliente".
+     */
+    return `/admin/clientes${qs ? `?${qs}` : ""}`;
   };
 
   // Indicador de "parado": cliente em-andamento sem atividade há > 7 dias
