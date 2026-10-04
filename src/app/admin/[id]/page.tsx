@@ -207,6 +207,15 @@ export default async function AdminClientPage({
   }
 
   const byBloco = groupByBloco((responses as BriefingResponse[]) ?? []);
+  /**
+   * `field_id -> value` de TODAS as respostas, pro checklist de perguntas
+   * específicas saber o que está pendente. A tela tinha as respostas desde
+   * sempre e só as usava pra rotular texto; o que faltava era justamente
+   * dizer o que o cliente ainda não respondeu.
+   */
+  const respostasPorCampo = new Map<string, unknown>(
+    ((responses as BriefingResponse[]) ?? []).map((r) => [r.field_id, r.value])
+  );
   const filesList: BriefingFile[] = (files as BriefingFile[]) ?? [];
 
   // Credenciais de acesso do cliente (pra admin compartilhar com ele).
@@ -1914,17 +1923,18 @@ Pode ir salvando aos poucos, não precisa terminar de uma vez.`
           <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-6 mt-6 flex flex-col gap-4">
             <div>
               <h3 className="text-lg font-medium text-fysi-deep">
-                Perguntas específicas
+                Questões pendentes do cliente
               </h3>
               <p className="text-sm text-fysi-muted mt-1">
-                Perguntas sob medida pra este cliente. Aparecem como um bloco
-                extra no briefing dele.
+                Perguntas sob medida pra este cliente, com o que ele já
+                respondeu. Aparecem como um bloco extra no briefing dele.
               </p>
             </div>
             <CustomQuestionsEditor
               clientId={client.id}
               urlKey={urlKey ?? undefined}
               questions={customQuestions}
+              respostas={respostasPorCampo}
             />
           </section>
         </>
