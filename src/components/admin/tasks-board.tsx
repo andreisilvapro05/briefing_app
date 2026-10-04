@@ -2,7 +2,6 @@
 
 import {
   useCallback,
-  useEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -16,14 +15,7 @@ import {
   removeProjectTaskAction,
   updateProjectTaskAction,
   reorderProjectTasksAction,
-  getProjectTaskCommentsAction,
-  addProjectTaskCommentAction,
-  deleteProjectTaskCommentAction,
-  type ProjectTaskComment,
 } from "@/app/admin/[id]/actions";
-import { TaskNotes } from "./task-notes";
-import { extrairLinks } from "@/lib/links-de-nota";
-import { TaskLinks } from "./task-links-row";
 import {
   esforcoDe,
   quadranteDe,
@@ -37,12 +29,11 @@ import type { ProjectType } from "@/lib/types";
 import {
   AssigneePicker,
   DueDatePicker,
-  EisenhowerPicker,
-  EsforcoPicker,
   PriorityPicker,
   hojeISO,
 } from "./task-pickers";
 import { TaskComposer } from "./task-composer";
+import { TarefaCard, type CampoDaTarefa } from "./tarefa-card";
 
 /** Data (YYYY-MM-DD) já passou e a tarefa não está num status "fechado". */
 function isOverdue(dataVencimento: string, status: TaskStatus): boolean {
@@ -240,15 +231,6 @@ function LockIcon() {
   );
 }
 
-function LinkIcon() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
-      <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />
-      <path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
-    </svg>
-  );
-}
-
 interface DragHandlers {
   onDragStart: () => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -357,7 +339,7 @@ export function TaskRow({
   clienteCell,
   drag,
   readOnly,
-  onCriouAbaixo,
+  onListaMudou,
 }: {
   task: ProjectTask;
   clientId: string;
@@ -368,8 +350,12 @@ export function TaskRow({
   drag?: DragHandlers;
   /** Papel "basico" só vê (não edita) tarefa de outra pessoa — server já rejeita, isso só reflete na UI. */
   readOnly?: boolean;
-  /** Avisa que uma tarefa nasceu abaixo desta — pra tela que guarda a lista em estado local. */
-  onCriouAbaixo?: () => void;
+  /**
+   * A lista do servidor mudou por dentro desta tarefa (nasceu uma tarefa
+   * abaixo, entrou ou saiu um anexo) — pra tela que guarda as tarefas em
+   * estado local e não as relê a cada render; ver o accordion da Lista.
+   */
+  onListaMudou?: () => void;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<TaskStatus>(task.status);
@@ -384,7 +370,14 @@ export function TaskRow({
   const [esforco, setEsforco] = useState(task.esforco ?? "");
   const [titulo, setTitulo] = useState(task.titulo);
   const [renomeando, setRenomeando] = useState(false);
-  const [expanded, setExpanded] = useState(false);
+  /**
+   * A tarefa aberta como CARTÃO em cima da tela (Karine, 04/10: "ele abre
+   * como card na tela, pop up"). Substituiu a linha que se abria embaixo da
+   * tarefa — ver tarefa-card.tsx.
+   */
+  const [cardAberto, setCardAberto] = useState(false);
+  /** O botão do nome, pra devolver o foco pra ele quando o cartão fecha. */
+  const tituloBotaoRef = useRef<HTMLButtonElement>(null);
   /**
    * Barra de criar tarefa LOGO ABAIXO desta — o "+" que aparece ao passar
    * o mouse (Karine, 01/10: "ao passar o mouse pela tarefa ou subtarefa
@@ -395,9 +388,12 @@ export function TaskRow({
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function salvarTitulo() {
+  /**
+   * Grava o nome se mudou. Serve aos dois lugares que editam o mesmo
+   * estado: o lápis da linha e o título grande do cartão.
+   */
+  function confirmarTitulo() {
     const novo = titulo.trim();
-    setRenomeando(false);
     // Vazio ou igual: volta ao que estava, sem ir ao servidor.
     if (!novo || novo === task.titulo) {
       setTitulo(task.titulo);
@@ -405,6 +401,11 @@ export function TaskRow({
     }
     setTitulo(novo);
     saveField("titulo", novo, () => setTitulo(task.titulo));
+  }
+
+  function salvarTitulo() {
+    setRenomeando(false);
+    confirmarTitulo();
   }
 
   function baseFd() {
@@ -441,6 +442,45 @@ export function TaskRow({
     });
   }
 
+  /**
+   * Embala um campo pro cartão: grava otimista e DESFAZ o estado local se o
+   * servidor recusar. É o mesmo par setX/reverter que cada célula da linha
+   * repetia à mão — agora num só lugar, e o cartão não precisa conhecer
+   * `saveField`.
+   */
+  function campo<T extends string>(
+    nome: string,
+    valor: T,
+    setValor: (v: T) => void
+  ): CampoDaTarefa<T> {
+    return {
+      valor,
+      definir: (v) => {
+        const anterior = valor;
+        setValor(v);
+        saveField(nome, v, () => setValor(anterior));
+      },
+    };
+  }
+
+  /** Descrição (observacoes): digita livre, grava ao sair do campo. */
+  function confirmarDescricao() {
+    if (observacoes.trim() !== (task.observacoes ?? "")) {
+      saveField("observacoes", observacoes, () =>
+        setObservacoes(task.observacoes ?? "")
+      );
+    }
+  }
+
+  function fecharCard() {
+    setCardAberto(false);
+    // Devolve o foco pro nome da tarefa. O useFocusTrap também tenta
+    // restaurar, mas ele guarda quem tinha o foco DEPOIS do autoFocus do
+    // botão de fechar — um elemento que já saiu do DOM quando o cartão
+    // desmonta. Aqui é explícito e não depende dessa ordem.
+    tituloBotaoRef.current?.focus();
+  }
+
   function remove() {
     if (
       !window.confirm(
@@ -462,11 +502,32 @@ export function TaskRow({
         return;
       }
       router.refresh();
+      /**
+       * O accordion da Lista guarda as subtarefas em estado local (fetch
+       * sob demanda): `router.refresh()` re-renderiza o servidor mas não
+       * mexe nesse estado, então a linha apagada CONTINUAVA na tela — e
+       * parecia que o apagar não funcionou. Só fechar e reabrir a gaveta
+       * revelava. Mesma razão do `onCriou` na criação.
+       */
+      onListaMudou?.();
     });
   }
 
   const totalCols = (clienteCell ? 1 : 0) + 7;
   const locked = pending || readOnly;
+  const vencida = isOverdue(dataVencimento, status);
+
+  // Os mesmos campos servem a linha e ao cartão — um só lugar com a regra
+  // de "grava otimista, desfaz se o servidor recusar".
+  const campoStatus = campo<TaskStatus>("status", status, setStatus);
+  const campoPrioridade = campo("prioridade", prioridade, setPrioridade);
+  const campoResponsavel = campo("responsavel", responsavel, setResponsavel);
+  const campoDataInicial = campo("dataInicial", dataInicial, setDataInicial);
+  const campoDataVencimento = campo(
+    "dataVencimento",
+    dataVencimento,
+    setDataVencimento
+  );
 
   return (
     <>
@@ -530,15 +591,18 @@ export function TaskRow({
               />
             ) : (
               <>
+                {/* Um clique abre o cartão. O duplo-clique pra renomear
+                    saiu daqui: o primeiro clique já abre o cartão, então o
+                    segundo nunca chegava — quem quer renomear sem abrir usa
+                    o lápis ao lado. */}
                 <button
+                  ref={tituloBotaoRef}
                   type="button"
-                  onClick={() => setExpanded((v) => !v)}
-                  onDoubleClick={() => {
-                    if (!locked) setRenomeando(true);
-                  }}
-                  aria-expanded={expanded}
+                  onClick={() => setCardAberto(true)}
+                  aria-haspopup="dialog"
+                  aria-expanded={cardAberto}
                   className="text-left hover:underline underline-offset-2 truncate min-w-0"
-                  title={`${titulo} — clique pra ver observações e comentários`}
+                  title={`${titulo} — clique pra abrir a tarefa`}
                 >
                   {titulo}
                 </button>
@@ -585,12 +649,9 @@ export function TaskRow({
           <select
             value={status}
             disabled={locked}
-            onChange={(e) => {
-              const next = e.target.value as TaskStatus;
-              const anteriorDeStatus = status;
-              setStatus(next);
-              saveField("status", next, () => setStatus(anteriorDeStatus));
-            }}
+            onChange={(e) =>
+              campoStatus.definir(e.target.value as TaskStatus)
+            }
             className={`max-w-full rounded-full border text-xs font-medium px-2.5 py-1 cursor-pointer focus:outline-none disabled:opacity-50 ${TASK_STATUS_TONE[status]}`}
           >
             {TASK_STATUS_OPTIONS.map((o) => (
@@ -604,22 +665,14 @@ export function TaskRow({
           <PriorityPicker
             value={prioridade}
             disabled={locked}
-            onChange={(v) => {
-              const anteriorDePrioridade = prioridade;
-              setPrioridade(v);
-              saveField("prioridade", v, () => setPrioridade(anteriorDePrioridade));
-            }}
+            onChange={campoPrioridade.definir}
           />
         </td>
         <td className="px-3 py-2 overflow-hidden">
           <AssigneePicker
             value={responsavel}
             disabled={locked}
-            onChange={(v) => {
-              const anteriorDeResponsavel = responsavel;
-              setResponsavel(v);
-              saveField("responsavel", v, () => setResponsavel(anteriorDeResponsavel));
-            }}
+            onChange={campoResponsavel.definir}
           />
         </td>
         {/* Datas com o mesmo seletor da barra de criação (atalhos Hoje /
@@ -631,11 +684,7 @@ export function TaskRow({
             emptyLabel="Início"
             value={dataInicial}
             disabled={locked}
-            onChange={(v) => {
-              const anteriorDeDatainicial = dataInicial;
-              setDataInicial(v);
-              saveField("dataInicial", v, () => setDataInicial(anteriorDeDatainicial));
-            }}
+            onChange={campoDataInicial.definir}
           />
         </td>
         <td className="px-2 py-2 overflow-hidden">
@@ -644,12 +693,8 @@ export function TaskRow({
             emptyLabel="Vencimento"
             value={dataVencimento}
             disabled={locked}
-            overdue={isOverdue(dataVencimento, status)}
-            onChange={(v) => {
-              const anteriorDeDatavencimento = dataVencimento;
-              setDataVencimento(v);
-              saveField("dataVencimento", v, () => setDataVencimento(anteriorDeDatavencimento));
-            }}
+            overdue={vencida}
+            onChange={campoDataVencimento.definir}
           />
         </td>
         <td className="px-3 py-2 text-right overflow-hidden">
@@ -679,227 +724,52 @@ export function TaskRow({
               areaFixa={!task.client_id}
               urlKey={urlKey}
               onClose={() => setCriandoAbaixo(false)}
-              onCriou={onCriouAbaixo}
+              onCriou={onListaMudou}
               placeholder={`Nova tarefa abaixo de "${task.titulo}" (Enter adiciona)`}
             />
           </td>
         </tr>
       ) : null}
-      {expanded ? (
-        <tr className="bg-fysi-cream/30 border-t border-fysi-line">
-          <td colSpan={totalCols} className="px-3 py-4">
-            <div className="max-w-xl flex flex-col gap-4">
-              {/* As páginas do app ligadas a esta demanda — o equivalente às
-                  "Páginas" da tarefa no ClickUp. Antes havia só um link de
-                  Estrutura Inicial, e o briefing do cliente ficava a um
-                  passeio pelo menu de distância. */}
-              <TaskLinks clientId={task.client_id} urlKey={urlKey} />
-
-              {/* Eisenhower e tamanho ficam AQUI, não numa coluna da tabela:
-                  a linha já tem sete colunas e os dois são opcionais — a
-                  maioria das tarefas não tem nenhum dos dois. Na linha
-                  fechada aparecem como marcador discreto, só quando
-                  preenchidos. */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs uppercase tracking-[0.08em] text-fysi-muted font-medium w-full">
-                  Como decidir
-                </span>
-                <EisenhowerPicker
-                  value={eisenhower}
-                  disabled={locked}
-                  showLabel
-                  onChange={(v) => {
-                    const anterior = eisenhower;
-                    setEisenhower(v);
-                    saveField("eisenhower", v, () => setEisenhower(anterior));
-                  }}
-                />
-                <EsforcoPicker
-                  value={esforco}
-                  disabled={locked}
-                  showLabel
-                  onChange={(v) => {
-                    const anterior = esforco;
-                    setEsforco(v);
-                    saveField("esforco", v, () => setEsforco(anterior));
-                  }}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
-                  Observações da tarefa
-                </label>
-                <TaskNotes
-                  value={observacoes}
-                  disabled={locked}
-                  onChange={setObservacoes}
-                  onBlur={() => {
-                    if (observacoes.trim() !== (task.observacoes ?? ""))
-                      saveField("observacoes", observacoes, () =>
-                        setObservacoes(task.observacoes ?? "")
-                      );
-                  }}
-                  clientId={task.client_id}
-                  urlKey={urlKey}
-                />
-                {extrairLinks(observacoes).length > 0 ? (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {extrairLinks(observacoes).map((l, i) => (
-                      <a
-                        key={`${l.url}-${i}`}
-                        href={l.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-fysi-line bg-white px-2.5 py-1 text-xs text-fysi-deep hover:border-fysi-deep/40 max-w-xs"
-                      >
-                        <LinkIcon />
-                        <span className="truncate">{l.label}</span>
-                      </a>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-
-              <TaskComments taskId={task.id} clientId={clientId} urlKey={urlKey} />
-            </div>
-          </td>
-        </tr>
+      {cardAberto ? (
+        <TarefaCard
+          task={task}
+          clientId={clientId}
+          urlKey={urlKey}
+          readOnly={readOnly}
+          locked={!!locked}
+          salvando={pending}
+          erro={erroSalvar}
+          vencida={vencida}
+          /* Na visão consolidada a célula do cliente JÁ é um link com o
+             nome — vira o caminho no topo do cartão, como o breadcrumb do
+             ClickUp, sem precisar buscar o nome de novo. */
+          caminho={clienteCell}
+          campos={{
+            titulo: {
+              valor: titulo,
+              digitar: setTitulo,
+              confirmar: confirmarTitulo,
+            },
+            descricao: {
+              valor: observacoes,
+              digitar: setObservacoes,
+              confirmar: confirmarDescricao,
+            },
+            status: campoStatus,
+            prioridade: campoPrioridade,
+            responsavel: campoResponsavel,
+            dataInicial: campoDataInicial,
+            dataVencimento: campoDataVencimento,
+            eisenhower: campo("eisenhower", eisenhower, setEisenhower),
+            esforco: campo("esforco", esforco, setEsforco),
+          }}
+          onFechar={fecharCard}
+          onListaMudou={onListaMudou}
+        />
       ) : null}
     </>
   );
 }
-
-export function TaskComments({
-  taskId,
-  clientId,
-  urlKey,
-}: {
-  taskId: string;
-  clientId: string;
-  urlKey?: string;
-}) {
-  const [comments, setComments] = useState<ProjectTaskComment[] | null>(null);
-  const [body, setBody] = useState("");
-  const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let active = true;
-    getProjectTaskCommentsAction(taskId, urlKey).then((data) => {
-      if (active) setComments(data);
-    });
-    return () => {
-      active = false;
-    };
-  }, [taskId, urlKey]);
-
-  function refresh() {
-    getProjectTaskCommentsAction(taskId, urlKey).then(setComments);
-  }
-
-  function submit() {
-    const value = body.trim();
-    if (!value) return;
-    const fd = new FormData();
-    fd.append("taskId", taskId);
-    fd.append("clientId", clientId);
-    fd.append("body", value);
-    if (urlKey) fd.append("key", urlKey);
-    startTransition(async () => {
-      await addProjectTaskCommentAction(fd);
-      setBody("");
-      refresh();
-    });
-  }
-
-  function remove(commentId: string) {
-    if (!window.confirm("Excluir este comentário?")) return;
-    const fd = new FormData();
-    fd.append("commentId", commentId);
-    fd.append("clientId", clientId);
-    if (urlKey) fd.append("key", urlKey);
-    startTransition(async () => {
-      await deleteProjectTaskCommentAction(fd);
-      refresh();
-    });
-  }
-
-  return (
-    <div>
-      <label className="block text-xs uppercase tracking-[0.08em] text-fysi-muted font-medium mb-1">
-        Comentários
-      </label>
-      {comments === null ? (
-        <p className="text-xs text-fysi-muted">Carregando…</p>
-      ) : comments.length === 0 ? (
-        <p className="text-xs text-fysi-muted mb-2">Nenhum comentário ainda.</p>
-      ) : (
-        <div className="flex flex-col gap-2 mb-2 max-h-56 overflow-y-auto">
-          {comments.map((c) => (
-            <div
-              key={c.id}
-              className="group/comment bg-white border border-fysi-line rounded-[8px] px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-2 mb-0.5">
-                <span className="text-xs font-medium text-fysi-deep">
-                  {c.author}
-                </span>
-                <span className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs text-fysi-muted tabular-nums">
-                    {formatCommentDate(c.created_at)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => remove(c.id)}
-                    disabled={pending}
-                    className="text-xs text-red-700 opacity-0 group-hover/comment:opacity-100 hover:underline disabled:opacity-50"
-                  >
-                    excluir
-                  </button>
-                </span>
-              </div>
-              <p className="text-xs text-fysi-deep whitespace-pre-wrap">
-                {c.body}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="flex items-start gap-2">
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Escrever um comentário…"
-          rows={2}
-          className="flex-1 rounded-[8px] border border-fysi-line bg-white text-xs px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
-        />
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={submit}
-          disabled={pending || !body.trim()}
-        >
-          Comentar
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function formatCommentDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "America/Sao_Paulo",
-    });
-  } catch {
-    return iso;
-  }
-}
-
 
 /**
  * undefined = sem restrição (admin/avancado/legacy). null = "basico" sem

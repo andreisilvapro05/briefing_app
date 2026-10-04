@@ -24,6 +24,7 @@ export function TaskNotes({
   disabled,
   clientId,
   urlKey,
+  placeholder = "Notas, contexto e links. Digite / pra vincular uma página do app.",
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -31,6 +32,12 @@ export function TaskNotes({
   disabled?: boolean;
   clientId: string | null;
   urlKey?: string | null;
+  /**
+   * O cartão da tarefa abre com "Adicione uma descrição" (o texto do
+   * ClickUp); na lista de demandas o campo é de notas. Mesmo componente,
+   * convite diferente.
+   */
+  placeholder?: string;
 }) {
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const [menuAberto, setMenuAberto] = useState(false);
@@ -148,7 +155,7 @@ export function TaskNotes({
             if (!menuAberto) onBlur();
           }, 0);
         }}
-        placeholder="Notas, contexto e links. Digite / pra vincular uma página do app."
+        placeholder={placeholder}
         rows={3}
         className="w-full rounded-[8px] border border-fysi-line bg-white text-sm px-3 py-2 focus:outline-none focus:border-fysi-deep/40 resize-y"
       />

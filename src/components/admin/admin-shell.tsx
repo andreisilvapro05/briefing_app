@@ -38,6 +38,7 @@ export type AdminSection =
   | "clientes"
   | "projetos"
   | "lista"
+  | "ata"
   | "briefings"
   | "quadro"
   | "tarefas"
@@ -166,6 +167,14 @@ const ICONS: Record<AdminSection, ReactNode> = {
     <I>
       <path d="M8 6h13M8 12h13M8 18h13" />
       <path d="M3 6h.01M3 12h.01M3 18h.01" />
+    </I>
+  ),
+  // Linhas escritas + lápis: registro de reunião. Diferente do ícone de
+  // "Em branco" (folha + lápis), que é documento sem assunto definido.
+  ata: (
+    <I>
+      <path d="M4 6h11M4 11h11M4 16h6" />
+      <path d="M17.6 13.4a1.8 1.8 0 0 1 2.5 2.5L16 20l-3 .8.8-3Z" />
     </I>
   ),
   briefings: (
@@ -360,6 +369,17 @@ const AREAS: NavArea[] = [
         item("quadro", "Quadro", "/admin/quadro"),
         item("tarefas", "Tarefas", "/admin/tarefas"),
       ]),
+      /**
+       * Ata de acompanhamento — pedido do Andrei (gestor de projetos) via
+       * Karine (04/10). Entra logo depois das visualizações de projeto por
+       * ser sobre os mesmos projetos, um nível acima do briefing.
+       *
+       * Área central, e não aba dentro da ficha do cliente: a ata serve
+       * pra olhar a carteira inteira por data, e enterrá-la por cliente
+       * seria repetir o que a Karine já apontou uma vez — feature de
+       * gestão precisa de lugar próprio.
+       */
+      item("ata", "Atas", "/admin/ata"),
       item("briefings", "Briefings", "/admin/briefings", [
         item(
           "briefing-documentos",

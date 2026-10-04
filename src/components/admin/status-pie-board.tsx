@@ -48,6 +48,20 @@ import type { ProjectType } from "@/lib/types";
 
 export type LaneClientTask = ProjectTask;
 
+/** Tarefas de um cliente, sob demanda — ver /api/admin/client-tasks. */
+async function buscarTarefasDoCliente(
+  clientId: string,
+  urlKey?: string
+): Promise<LaneClientTask[]> {
+  const q = urlKey ? `&key=${encodeURIComponent(urlKey)}` : "";
+  const r = await fetch(
+    `/api/admin/client-tasks?clientId=${encodeURIComponent(clientId)}${q}`
+  );
+  if (!r.ok) throw new Error(String(r.status));
+  const d = (await r.json()) as { tarefas: LaneClientTask[] };
+  return d.tarefas;
+}
+
 export interface LaneClient {
   id: string;
   nome: string;
@@ -596,18 +610,13 @@ function ClientAccordionRow({
   const [carregadas, setCarregadas] = useState<LaneClientTask[] | null>(null);
   const [erroCarga, setErroCarga] = useState(false);
 
-  // Busca as subtarefas na primeira vez que a linha é aberta.
+  // Busca as tarefas na primeira vez que a linha é aberta.
   useEffect(() => {
     if (!isOpen || carregadas || !hasTarefas) return;
     let cancel = false;
-    const q = urlKey ? `&key=${encodeURIComponent(urlKey)}` : "";
-    fetch(`/api/admin/client-tasks?clientId=${encodeURIComponent(c.id)}${q}`)
-      .then((r) => {
-        if (!r.ok) throw new Error(String(r.status));
-        return r.json() as Promise<{ tarefas: LaneClientTask[] }>;
-      })
-      .then((d) => {
-        if (!cancel) setCarregadas(d.tarefas);
+    buscarTarefasDoCliente(c.id, urlKey)
+      .then((t) => {
+        if (!cancel) setCarregadas(t);
       })
       .catch(() => {
         if (!cancel) setErroCarga(true);
@@ -616,6 +625,20 @@ function ClientAccordionRow({
       cancel = true;
     };
   }, [isOpen, carregadas, hasTarefas, c.id, urlKey]);
+
+  /**
+   * Relê a lista do servidor SEM zerá-la primeiro.
+   *
+   * Antes isto era `setCarregadas(null)`, que desmontava a tabela inteira
+   * pra mostrar o esqueleto de carregamento. Com o cartão da tarefa aberto
+   * em cima dela, desmontar a tabela fecha o cartão no meio da edição —
+   * anexar um arquivo tirava a tarefa da tela.
+   */
+  function recarregarTarefas() {
+    buscarTarefasDoCliente(c.id, urlKey)
+      .then(setCarregadas)
+      .catch(() => setErroCarga(true));
+  }
 
   const { order: tarefas, dragProps } = useTaskDrag(
     carregadas ?? [],
@@ -793,7 +816,7 @@ function ClientAccordionRow({
         aberta={criandoTarefa}
         clientId={c.id}
         urlKey={urlKey}
-        onCriou={() => setCarregadas(null)}
+        onCriou={recarregarTarefas}
         onFechar={() => {
           setCriandoTarefa(false);
           router.refresh();
@@ -883,10 +906,11 @@ function ClientAccordionRow({
                       : undefined
                   }
                   readOnly={isReadOnlyFor(t, restrictToResponsavel)}
-                  /* As subtarefas vivem em estado local (fetch sob
-                     demanda): zerar força o useEffect a buscar de novo e a
-                     tarefa criada pelo "+" aparece na hora. */
-                  onCriouAbaixo={() => setCarregadas(null)}
+                  /* As tarefas vivem em estado local (fetch sob
+                     demanda): zerar força o useEffect a buscar de novo, e o
+                     que nasceu dentro do cartão (tarefa nova, anexo)
+                     aparece na hora. */
+                  onListaMudou={recarregarTarefas}
                 />
               ))}
             </tbody>

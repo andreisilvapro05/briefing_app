@@ -18,7 +18,8 @@ import {
 } from "@/app/admin/[id]/actions";
 import { useFocusTrap } from "./use-focus-trap";
 import { TaskComposer } from "./task-composer";
-import { TaskComments, TrashIcon } from "./tasks-board";
+import { TrashIcon } from "./tasks-board";
+import { TaskComments } from "./tarefa-card";
 import { hojeISO, type ClientOption } from "./task-pickers";
 import { formatDataCurta } from "@/lib/datas";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";

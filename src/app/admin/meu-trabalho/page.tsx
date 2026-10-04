@@ -7,9 +7,15 @@ import {
 import { AdminShell } from "@/components/admin/admin-shell";
 import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
 import { MyWorkBoard } from "@/components/admin/my-work-board";
+import { MeusProjetos } from "@/components/admin/meus-projetos";
 import { DayHero } from "@/components/admin/day-hero";
 import { SubmitTextButton } from "@/components/admin/submit-button";
-import { TEAM_MEMBERS, TASK_STATUS_GROUP, type TaskStatus } from "@/lib/project-tasks";
+import { TEAM_MEMBERS, TASK_STATUS_GROUP, DEFAULT_TASK_STATUS, type TaskStatus } from "@/lib/project-tasks";
+import { getLaneGroups } from "@/lib/lane-groups-server";
+import { projetosDaPessoa } from "@/lib/abas-pessoa";
+import { contarAtasPorCliente, ultimaAtaPorCliente } from "@/lib/atas-server";
+import { hojeEmBrasilia } from "@/lib/datas";
+import type { ProjetoDoMembro } from "@/lib/meus-projetos";
 
 /**
  * "Aberta" = status do grupo ativo. Antes o painel contava
@@ -59,14 +65,60 @@ export default async function MeuTrabalhoPage({
   // Carrega sempre: mesmo sem vínculo, quem tem visão da equipe precisa ver
   // quanta demanda está sem dono pra poder consertar.
   const podeVerEquipe = hasFullAccess(member);
-  const [allTasks, clientOptions] = await Promise.all([
+  // Resolvido antes do Promise.all porque três das consultas abaixo
+  // precisam dele pra montar o filtro. Pra quem tem acesso completo é
+  // imediato (devolve null sem ir ao banco).
+  const visibleIds = await getVisibleClientIds(member);
+  const [allTasks, clientOptions, grupos, ultimaAta, nAtas] = await Promise.all([
     member.taskValue || podeVerEquipe ? listAllProjectTasks() : [],
     // Opções do "+ Nova demanda" — no escopo de clientes que a pessoa vê.
-    member.taskValue
-      ? getVisibleClientIds(member).then((ids) => listClientOptions(ids))
-      : [],
+    member.taskValue ? listClientOptions(visibleIds) : [],
+    /**
+     * Os PROJETOS, pra "Meus projetos". Mesma fonte da Lista por status
+     * (getLaneGroups), com o recorte da pessoa, pra responsável e datas
+     * seguirem a mesma precedência das duas telas — o campo do projeto
+     * ganha do derivado da tarefa. Duplicar essa regra aqui seria o
+     * caminho mais curto pra as duas telas discordarem.
+     */
+    member.taskValue ? getLaneGroups(visibleIds, member.taskValue) : [],
+    member.taskValue ? ultimaAtaPorCliente(visibleIds) : new Map(),
+    member.taskValue ? contarAtasPorCliente(visibleIds) : new Map(),
   ]);
   const myTasks = allTasks.filter((t) => t.responsavel === member.taskValue);
+
+  /**
+   * Os projetos da pessoa: onde ela tem tarefa aberta com prazo OU é a
+   * responsável do projeto.
+   *
+   * A segunda metade não é detalhe: o Andrei é gestor de dezenas de
+   * projetos e dono de etapa nenhuma, então um recorte que olhasse só
+   * `project_tasks.responsavel` abriria vazio justamente pra ele — que é
+   * quem pediu esta tela.
+   */
+  const tarefasNoEscopo = allTasks.filter(
+    (t) => !visibleIds || (t.client_id && visibleIds.has(t.client_id))
+  );
+  const projetosComDono = grupos.flatMap((g) =>
+    g.clients.map((c) => ({ id: c.id, responsavel: c.linha.responsavel }))
+  );
+  const meusIds = member.taskValue
+    ? projetosDaPessoa(tarefasNoEscopo, member.taskValue, projetosComDono)
+    : new Set<string>();
+  const meusProjetos: ProjetoDoMembro[] = grupos.flatMap((g) =>
+    g.clients
+      .filter((c) => meusIds.has(c.id))
+      .map((c) => ({
+        id: c.id,
+        nome: c.empresa || c.nome || "Sem nome",
+        status: (c.status || DEFAULT_TASK_STATUS) as TaskStatus,
+        responsavel: c.linha.responsavel,
+        tarefa: c.linha.tarefa,
+        dataInicial: c.linha.dataInicial,
+        dataVencimento: c.linha.dataVencimento,
+        ataId: ultimaAta.get(c.id)?.id ?? null,
+        atas: nAtas.get(c.id) ?? 0,
+      }))
+  );
   // "Delegado": tarefas ATIVAS de outras pessoas — o que saiu da minha mão e
   // ainda está rodando. Só pra quem tem visão da equipe (admin/avançado);
   // "básico" não enxerga o trabalho dos outros.
@@ -114,15 +166,27 @@ export default async function MeuTrabalhoPage({
           </p>
         </section>
       ) : (
-        <MyWorkBoard
-          tasks={myTasks}
-          delegadas={delegadas}
-          keyParam={keyParam}
-          urlKey={urlKey}
-          clients={clientOptions}
-          meuResponsavel={member.taskValue}
-          lockResponsavel={hasTaskScopedRole(member)}
-        />
+        <>
+          {/* Os PROJETOS antes das tarefas: é o nível em que o gestor
+              pensa ("o projeto da Katlyn está em design"), e é o que
+              estava faltando nesta tela. As etapas vêm logo abaixo. */}
+          <MeusProjetos
+            projetos={meusProjetos}
+            hoje={hojeEmBrasilia()}
+            keyParam={keyParam}
+            urlKey={urlKey}
+            podeEditarCampos={podeVerEquipe}
+          />
+          <MyWorkBoard
+            tasks={myTasks}
+            delegadas={delegadas}
+            keyParam={keyParam}
+            urlKey={urlKey}
+            clients={clientOptions}
+            meuResponsavel={member.taskValue}
+            lockResponsavel={hasTaskScopedRole(member)}
+          />
+        </>
       )}
 
       {/* Painel da equipe fica DEPOIS do trabalho da pessoa: o que é meu vem

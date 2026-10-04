@@ -26,12 +26,20 @@ export function AnexosDemanda({
   anexos,
   urlKey,
   onMudou,
+  somenteLeitura = false,
 }: {
   taskId: string;
   anexos: AnexoDemanda[];
   urlKey?: string | null;
   /** A lista vem do servidor: sem isto, o anexo novo só apareceria no F5. */
   onMudou: () => void;
+  /**
+   * Papel "basico" na demanda de outra pessoa: vê os anexos, não mexe. O
+   * servidor já recusa (canEditTask), isto só evita oferecer o que vai
+   * levar "não" — formulário que não grava é pior do que formulário que
+   * não existe.
+   */
+  somenteLeitura?: boolean;
 }) {
   const [pendente, startTransition] = useTransition();
   const [erro, setErro] = useState<string | null>(null);
@@ -137,61 +145,71 @@ export function AnexosDemanda({
                     {humanizarTamanho(a.tamanho)}
                   </span>
                 ) : null}
-                <button
-                  type="button"
-                  disabled={pendente}
-                  onClick={() => remover(a)}
-                  aria-label={`Tirar "${a.nome}"`}
-                  className="ml-auto shrink-0 text-fysi-muted/70 hover:text-red-700 transition disabled:opacity-50"
-                >
-                  <IconeX />
-                </button>
+                {somenteLeitura ? null : (
+                  <button
+                    type="button"
+                    disabled={pendente}
+                    onClick={() => remover(a)}
+                    aria-label={`Tirar "${a.nome}"`}
+                    className="ml-auto shrink-0 text-fysi-muted/70 hover:text-red-700 transition disabled:opacity-50"
+                  >
+                    <IconeX />
+                  </button>
+                )}
               </li>
             );
           })}
         </ul>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="url"
-          value={url}
-          disabled={pendente}
-          onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              anexarLink();
-            }
-          }}
-          placeholder="Cole o link da pasta ou do arquivo"
-          className={`${campo} flex-1 min-w-[16rem]`}
-        />
-        <button
-          type="button"
-          disabled={pendente || !url.trim()}
-          onClick={anexarLink}
-          className="rounded-full border border-fysi-line bg-white px-3 py-1.5 text-sm text-fysi-deep hover:border-fysi-deep/40 transition disabled:opacity-50"
-        >
-          Anexar link
-        </button>
-        <label className="rounded-full border border-fysi-line bg-white px-3 py-1.5 text-sm text-fysi-deep hover:border-fysi-deep/40 transition cursor-pointer">
-          {pendente ? "Enviando…" : "Subir arquivo"}
-          <input
-            ref={arquivoRef}
-            type="file"
-            disabled={pendente}
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) anexarArquivo(f);
-            }}
-          />
-        </label>
-      </div>
-      <p className="text-[0.68rem] text-fysi-muted mt-1">
-        {`Arquivo até ${MAX_UPLOAD_LABEL}. Maior que isso, suba no Drive e cole o link.`}
-      </p>
+      {somenteLeitura ? (
+        anexos.length === 0 ? (
+          <p className="text-sm text-fysi-muted">Nenhum anexo.</p>
+        ) : null
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="url"
+              value={url}
+              disabled={pendente}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  anexarLink();
+                }
+              }}
+              placeholder="Cole o link da pasta ou do arquivo"
+              className={`${campo} flex-1 min-w-[16rem]`}
+            />
+            <button
+              type="button"
+              disabled={pendente || !url.trim()}
+              onClick={anexarLink}
+              className="rounded-full border border-fysi-line bg-white px-3 py-1.5 text-sm text-fysi-deep hover:border-fysi-deep/40 transition disabled:opacity-50"
+            >
+              Anexar link
+            </button>
+            <label className="rounded-full border border-fysi-line bg-white px-3 py-1.5 text-sm text-fysi-deep hover:border-fysi-deep/40 transition cursor-pointer">
+              {pendente ? "Enviando…" : "Subir arquivo"}
+              <input
+                ref={arquivoRef}
+                type="file"
+                disabled={pendente}
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) anexarArquivo(f);
+                }}
+              />
+            </label>
+          </div>
+          <p className="text-[0.68rem] text-fysi-muted mt-1">
+            {`Arquivo até ${MAX_UPLOAD_LABEL}. Maior que isso, suba no Drive e cole o link.`}
+          </p>
+        </>
+      )}
 
       {erro ? (
         <p className="text-xs text-red-700 mt-1" role="alert">
