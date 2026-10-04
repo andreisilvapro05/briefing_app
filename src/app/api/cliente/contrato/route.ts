@@ -100,8 +100,29 @@ export async function POST(request: NextRequest) {
     );
 
     if (found) {
-      clientId = found.id;
-      existingEmail = found.email ?? null;
+      /**
+       * ⚠️ NÃO devolve sessão, e NÃO escreve por cima.
+       *
+       * Até 04/10 este ramo fazia `clientId = found.id` e seguia: no fim da
+       * rota o payload `client` saía com o id do cliente ENCONTRADO, e o
+       * front chamava `hydrateCliente(...)` → localStorage → /dashboard.
+       * Ou seja: qualquer pessoa que soubesse o WhatsApp de um cliente
+       * entrava no painel dele — contrato assinado em PDF, valores pagos,
+       * documento de entrega com senhas, briefing inteiro. E o UPDATE mais
+       * abaixo ainda sobrescrevia e-mail, CPF e endereço da vítima.
+       *
+       * O número de WhatsApp de uma empresa é semipúblico; não serve de
+       * segredo. Quem já é cliente entra pelo /entrar, que pede código.
+       *
+       * A deduplicação continua: o registro NÃO é duplicado, só não vira
+       * sessão. Ver `jaEraCliente` lá embaixo.
+       */
+      return NextResponse.json({
+        ok: true,
+        isNewClient: false,
+        jaEraCliente: true,
+        client: null,
+      });
     } else {
       const baseInsert = {
         nome,
@@ -169,8 +190,8 @@ export async function POST(request: NextRequest) {
 
   const emailWasEmpty = !existingEmail;
 
+
   const updatePayload: Record<string, unknown> = {
-    email: parsed.email,
     empresa: parsed.empresa,
     endereco: parsed.endereco,
     cep: parsed.cep,
@@ -188,6 +209,20 @@ export async function POST(request: NextRequest) {
   if (parsed.project_type) {
     updatePayload.project_type = parsed.project_type;
   }
+
+  /**
+   * O e-mail só é gravado quando o cliente ainda NÃO tem um.
+   *
+   * Esta rota não tem autenticação: o `clientId` vem do corpo do pedido.
+   * Trocar o e-mail de um cliente redireciona o magic link dele (/entrar,
+   * /api/auth/login) pro endereço de quem mandou — era tomada de conta
+   * completa com um `curl`. Cliente que precisa corrigir o e-mail faz
+   * isso pela equipe, na ficha.
+   */
+  if (emailWasEmpty) {
+    (updatePayload as Record<string, unknown>).email = parsed.email;
+  }
+
 
   let { error } = await service
     .from("clients")

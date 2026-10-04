@@ -4,8 +4,22 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { EntregaViewer } from "@/components/entrega-viewer";
 import { EntregaPrintButton } from "@/components/entrega-print-button";
 import type { EntregaDocumento } from "@/lib/entrega";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Link por slug não é pra virar resultado de busca.
+ *
+ * `/b/[token]` e `/copy/[token]` já tinham isso; estas três não. A de
+ * entrega é a pior: ela renderiza `entrega_documento`, que guarda SENHA
+ * de WordPress/cPanel/Registro.br em texto claro — o `mask` do CopyRow só
+ * esconde na tela, o valor está no HTML servido.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 
 /**
  * Página PÚBLICA compartilhável do Documento de Entrega de Projeto (DEP).

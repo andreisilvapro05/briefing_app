@@ -11,6 +11,7 @@ import {
 } from "@/lib/cobrancas-mensais";
 import { sendDashboardWebhook } from "@/lib/dashboard-webhook";
 import { MAX_UPLOAD_BYTES } from "@/lib/uploads";
+import { parseValorBR } from "@/lib/payment-receipts";
 
 /**
  * Cobranças são dado financeiro — "basico" (designer) não pode nem ver nem
@@ -34,10 +35,22 @@ const COMPROVANTES_BUCKET = "comprovantes";
 const MAX_COMPROVANTE_BYTES = MAX_UPLOAD_BYTES;
 const TIPOS_COMPROVANTE = ["image/", "application/pdf"];
 
+/**
+ * Valor em reais vindo do formulário.
+ *
+ * ⚠️ A versão anterior fazia `.replace(/\./g, "")` — apagava TODO ponto,
+ * inclusive o decimal. Quem digitasse "1500.50" cadastrava uma cobrança de
+ * **R$ 150.050,00**: cem vezes o valor, inflando MRR, "A receber" e o Caixa.
+ * Só quem digitava com vírgula escapava.
+ *
+ * `parseValorBR` (payment-receipts.ts) já resolvia isso e é o que Custos e
+ * Comprovantes usam: o ponto só é tratado como separador de milhar quando
+ * vem seguido de exatamente 3 dígitos. Passou a ser a única regra de
+ * dinheiro do app.
+ */
 function parseMoney(raw: string): number | null {
-  const cleaned = raw.trim().replace(/\./g, "").replace(",", ".");
-  if (!cleaned) return null;
-  const n = Number(cleaned);
+  if (!raw.trim()) return null;
+  const n = parseValorBR(raw);
   if (!Number.isFinite(n) || n <= 0) return null;
   return Math.round(n * 100) / 100;
 }

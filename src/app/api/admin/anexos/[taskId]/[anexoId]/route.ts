@@ -1,5 +1,9 @@
 import { type NextRequest } from "next/server";
-import { getCurrentMember, getVisibleClientIds } from "@/lib/member";
+import {
+  getCurrentMember,
+  getVisibleClientIds,
+  hasFullAccess,
+} from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { errorResponse, logServerError } from "@/lib/api-helpers";
 import { lerAnexos } from "@/lib/anexos-demanda";
@@ -26,16 +30,37 @@ export async function GET(
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("project_tasks")
-    .select("client_id, anexos")
+    .select("client_id, anexos, responsavel")
     .eq("id", taskId)
     .maybeSingle();
 
-  const tarefa = data as { client_id: string | null; anexos: unknown } | null;
+  const tarefa = data as {
+    client_id: string | null;
+    anexos: unknown;
+    responsavel: string | null;
+  } | null;
   if (!tarefa) return errorResponse("nao-encontrado", 404);
 
   if (tarefa.client_id) {
     const visibleIds = await getVisibleClientIds(member);
     if (visibleIds && !visibleIds.has(tarefa.client_id)) {
+      return errorResponse("forbidden", 403);
+    }
+  } else {
+    /**
+     * Demanda INTERNA (sem cliente) não tem ficha pra servir de escopo, e
+     * até 04/10 isso virava "sem checagem nenhuma": o `if` acima era
+     * pulado inteiro e bastava estar logado. É justamente onde a agência
+     * pendura planilha de custo, contrato e documento interno — e o
+     * desenvolvedor, que nem vê a tela de Meu Trabalho, baixava o arquivo
+     * pela rota direta.
+     *
+     * Mesma regra de `canAccessTaskClient`: acesso completo, ou ser o dono
+     * da demanda.
+     */
+    const dono =
+      !!member.taskValue && tarefa.responsavel === member.taskValue;
+    if (!hasFullAccess(member) && !dono) {
       return errorResponse("forbidden", 403);
     }
   }

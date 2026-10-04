@@ -988,6 +988,26 @@ export async function addCustomQuestionAction(formData: FormData) {
 }
 
 /**
+ * Resolve o cliente DONO da pergunta lendo o banco, e autoriza por ele.
+ *
+ * O `clientId` do formulário não serve de escopo: é o atacante quem o
+ * escreve. Até 04/10 as duas ações abaixo faziam `requireClientAccess`
+ * com o id do form e depois gravavam com `.eq("id", questionId)` puro —
+ * então bastava mandar o `questionId` de um cliente e o `clientId` de
+ * outro (ou omitir o `clientId`, caindo num ramo que só exigia estar
+ * logado) pra editar e apagar pergunta de qualquer cliente da agência.
+ */
+async function clienteDaPergunta(questionId: string): Promise<string | null> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("client_custom_questions")
+    .select("client_id")
+    .eq("id", questionId)
+    .maybeSingle();
+  return (data as { client_id: string | null } | null)?.client_id ?? null;
+}
+
+/**
  * Perguntas específicas do cliente — edita uma pergunta existente.
  */
 export async function updateCustomQuestionAction(formData: FormData) {
@@ -995,17 +1015,18 @@ export async function updateCustomQuestionAction(formData: FormData) {
   const clientId = String(formData.get("clientId") ?? "");
   const { label, hint, tipo, opcoes } = parseCustomQuestionFields(formData);
   if (!questionId || !label) return;
-  if (clientId) await requireClientAccess(formData, clientId);
-  else {
-    const urlKey = keyParamOf(formData);
-    if (!(await getCurrentMember({ urlKey }))) redirect("/admin/login");
-  }
+  // O dono sai do BANCO, não do formulário.
+  const dono = await clienteDaPergunta(questionId);
+  if (!dono) return;
+  await requireClientAccess(formData, dono);
 
   const service = createSupabaseServiceRoleClient();
   const { error: escritaErr } = await service
     .from("client_custom_questions")
     .update({ label, hint: hint || null, tipo, opcoes })
-    .eq("id", questionId);
+    .eq("id", questionId)
+    // Cinto e suspensório: mesmo autorizado, a escrita é presa ao dono.
+    .eq("client_id", dono);
   if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   if (clientId) revalidatePath(`/admin/${clientId}`);
@@ -1071,17 +1092,16 @@ export async function deleteCustomQuestionAction(formData: FormData) {
   const questionId = String(formData.get("questionId") ?? "");
   const clientId = String(formData.get("clientId") ?? "");
   if (!questionId) return;
-  if (clientId) await requireClientAccess(formData, clientId);
-  else {
-    const urlKey = keyParamOf(formData);
-    if (!(await getCurrentMember({ urlKey }))) redirect("/admin/login");
-  }
+  const dono = await clienteDaPergunta(questionId);
+  if (!dono) return;
+  await requireClientAccess(formData, dono);
 
   const service = createSupabaseServiceRoleClient();
   const { error: escritaErr } = await service
     .from("client_custom_questions")
     .delete()
-    .eq("id", questionId);
+    .eq("id", questionId)
+    .eq("client_id", dono);
   if (escritaErr) logServerError("cliente.escrita", escritaErr);
 
   if (clientId) revalidatePath(`/admin/${clientId}`);

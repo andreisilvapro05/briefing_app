@@ -8,6 +8,13 @@
 
 :root {
   /* Paleta oficial */
+  /*
+    Este app NÃO tem modo escuro. Sem esta linha, tudo que o navegador
+    pinta sozinho — <select> nativo, fundo de autofill, scrollbar, picker
+    de data — segue o sistema e fica escuro dentro de telas creme. É a
+    mesma raiz do briefing que aparecia preto (ver ei-block-editor.tsx).
+  */
+  color-scheme: light;
   --fysi-deep: #042B30;
   --fysi-cream: #F7F6F4;
   --fysi-green: #4F998A;
@@ -274,44 +281,71 @@ body {
    ───────────────────────────────────────────────────────────────────── */
 
 .fysi-doc {
-  --doc-largura: 74ch;
+  /*
+    MEDIDA DE LINHA. Esta variável existia aqui desde 01/10 e NUNCA era
+    usada — o documento corria de ponta a ponta do card, e numa tela larga
+    a linha passava de 140 caracteres. É o maior problema de leitura que
+    um texto longo pode ter: o olho perde o começo da linha seguinte.
+
+    68ch é a faixa confortável pra português (palavras mais longas que o
+    inglês). Fica numa variável porque o editor e a página pública têm
+    larguras de card diferentes e podem querer afrouxar.
+  */
+  --doc-largura: 68ch;
+  color: var(--fysi-deep);
+  font-size: 1rem;
 }
 
 /* Linha mais solta: documento longo lido na tela cansa com line-height 1.4. */
 .fysi-doc p,
 .fysi-doc li {
-  line-height: 1.65;
+  line-height: 1.7;
+  max-width: var(--doc-largura);
+}
+
+.fysi-doc p {
+  margin-bottom: 0.85em;
 }
 
 /* Título de seção numa faixa — o papel do bloco verde do ClickUp. */
 .fysi-doc h2 {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  line-height: 1.35;
   color: var(--fysi-deep);
   background: rgba(191, 237, 224, 0.45);
-  border-left: 3px solid var(--fysi-mint-vivid, #4F998A);
+  border-left: 3px solid var(--fysi-mint-vivid, #8DE2C5);
   border-radius: 8px;
   padding: 0.45rem 0.7rem;
-  margin-top: 1.8em;
-  margin-bottom: 0.6em;
+  margin-top: 2em;
+  margin-bottom: 0.7em;
+  max-width: var(--doc-largura);
 }
 
 .fysi-doc h1 {
-  font-size: 1.5rem;
+  font-size: 1.6rem;
   font-weight: 600;
   letter-spacing: -0.02em;
+  line-height: 1.2;
   color: var(--fysi-deep);
-  margin-top: 1.4em;
-  margin-bottom: 0.4em;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
 }
 
+/*
+  h3 é RÓTULO de subseção, não um título menor — por isso versalete e
+  espaçamento de letra em vez de só diminuir o corpo. Sem isso ele ficava
+  a 0.95rem, quase igual ao parágrafo, e a hierarquia sumia.
+*/
 .fysi-doc h3 {
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--fysi-deep);
-  margin-top: 1.3em;
-  margin-bottom: 0.3em;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fysi-muted);
+  margin-top: 1.6em;
+  margin-bottom: 0.4em;
 }
 
 /* O primeiro título não empurra o documento pra baixo. */
@@ -330,7 +364,8 @@ body {
 */
 .fysi-doc strong,
 .fysi-doc b {
-  background: rgba(247, 230, 196, 0.55);
+  font-weight: 600;
+  background: rgba(247, 230, 196, 0.5);
   border-radius: 4px;
   padding: 0.05em 0.25em;
   box-decoration-break: clone;
@@ -346,6 +381,85 @@ body {
 .fysi-doc h3 b {
   background: none;
   padding: 0;
+}
+
+/*
+  LISTAS. O BlockNote desenha ul/ol de verdade; sem regra nenhuma elas
+  herdavam o reset do Tailwind e vinham SEM marcador e SEM recuo — uma
+  lista de materiais virava um bloco de linhas soltas, indistinguível de
+  parágrafos. O marcador ganha a cor verde pra servir de guia de leitura.
+*/
+.fysi-doc ul,
+.fysi-doc ol {
+  max-width: var(--doc-largura);
+  padding-left: 1.35em;
+  margin-bottom: 0.9em;
+}
+.fysi-doc ul { list-style: disc; }
+.fysi-doc ol { list-style: decimal; }
+.fysi-doc li { margin-bottom: 0.3em; }
+.fysi-doc li::marker {
+  color: var(--fysi-green, #4F998A);
+}
+/* Lista aninhada: círculo vazado, pra distinguir do nível de cima. */
+.fysi-doc ul ul { list-style: circle; margin-top: 0.3em; }
+
+/*
+  CITAÇÃO — no briefing é onde entra a fala do cliente ("ele disse que
+  quer passar seriedade"). Merece destaque diferente do negrito, que já
+  está ocupado pelos rótulos.
+*/
+.fysi-doc blockquote {
+  max-width: var(--doc-largura);
+  border-left: 3px solid var(--fysi-line-strong, #D4D4CE);
+  padding-left: 0.9rem;
+  margin: 1.1em 0;
+  color: var(--fysi-muted);
+  font-style: italic;
+}
+
+/* Separador discreto: o padrão do navegador é uma barra cinza grossa. */
+.fysi-doc hr {
+  max-width: var(--doc-largura);
+  border: 0;
+  border-top: 1px solid var(--fysi-line, #E5E5E0);
+  margin: 2em 0;
+}
+
+/* Trecho literal — senha, domínio, trecho de código, nome de arquivo. */
+.fysi-doc code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875em;
+  background: var(--fysi-cream, #F7F6F4);
+  border: 1px solid var(--fysi-line, #E5E5E0);
+  border-radius: 4px;
+  padding: 0.1em 0.3em;
+}
+
+/* Tabela: o padrão vinha sem borda e as colunas colavam umas nas outras. */
+.fysi-doc table {
+  border-collapse: collapse;
+  margin: 1.2em 0;
+  font-size: 0.95em;
+}
+.fysi-doc th,
+.fysi-doc td {
+  border: 1px solid var(--fysi-line, #E5E5E0);
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+.fysi-doc th {
+  background: var(--fysi-cream, #F7F6F4);
+  font-weight: 600;
+  color: var(--fysi-deep);
+}
+
+.fysi-doc img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  margin: 1em 0;
 }
 
 .fysi-doc a {

@@ -2,8 +2,22 @@ import { notFound } from "next/navigation";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { ClientHydrator } from "@/components/client-hydrator";
 import type { ProjectType } from "@/lib/types";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * Link por slug não é pra virar resultado de busca.
+ *
+ * `/b/[token]` e `/copy/[token]` já tinham isso; estas três não. A de
+ * entrega é a pior: ela renderiza `entrega_documento`, que guarda SENHA
+ * de WordPress/cPanel/Registro.br em texto claro — o `mask` do CopyRow só
+ * esconde na tela, o valor está no HTML servido.
+ */
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
+
 
 export default async function PainelPage({
   params,

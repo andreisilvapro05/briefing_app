@@ -91,6 +91,22 @@ const getCurrentMemberCached = cache(async function getCurrentMemberUncached(
           .eq("auth_user_id", user.id)
           .maybeSingle();
         const member = row as TeamMemberRow | null;
+        /**
+         * ⚠️ Membro DESATIVADO devolve null aqui mesmo — não cai pros
+         * caminhos legados abaixo.
+         *
+         * Antes, `if (member?.active)` só tratava o ativo: o inativo
+         * escapava pelo lado e virava `legacyMember()`, que tem
+         * `role: "admin"` e passa em `hasFullAccess`. Quem fosse desativado
+         * em /admin/membros GANHAVA acesso de sócio (Financeiro, Custos,
+         * Cobranças, Chaves API) se o navegador ainda tivesse o cookie
+         * `fysi-admin` — que vale 30 dias. Era o oposto do que a tela
+         * promete ("desativado perde acesso").
+         *
+         * Existir linha em team_members decide; não existir linha é que
+         * segue pro login por senha compartilhada.
+         */
+        if (member && !member.active) return null;
         if (member?.active) {
           return {
             id: member.id,
