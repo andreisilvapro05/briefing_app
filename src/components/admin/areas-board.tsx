@@ -149,9 +149,23 @@ export function AreasBoard({
   const [proximaCriada, setProximaCriada] = useState<string | null>(null);
   const hoje = hojeISO();
 
-  const visiveis = useMemo(() => {
+  const semFiltroDePrazo = useMemo(() => {
     let t = tasks;
-    if (filtroPessoa) t = t.filter((x) => x.responsavel === filtroPessoa);
+    if (filtroPessoa) {
+      /**
+       * `SEM_DONO` é a string "__sem__", não um nome de pessoa.
+       *
+       * Comparar literal (`responsavel === "__sem__"`) nunca casava com
+       * nada: a aba "Sem responsável" só aparece quando EXISTEM demandas
+       * sem dono, e abria vazia justamente por isso — prometia exatamente
+       * o que não entregava. É o mesmo predicado que /admin/tarefas e
+       * /admin/lista já usam.
+       */
+      t =
+        filtroPessoa === SEM_DONO
+          ? t.filter((x) => !x.responsavel)
+          : t.filter((x) => x.responsavel === filtroPessoa);
+    }
     if (filtroStatus) t = t.filter((x) => x.status === filtroStatus);
     if (filtroQuadrante) {
       // "Sem classificar" é um recorte útil: é o que ninguém decidiu ainda.
@@ -159,14 +173,6 @@ export function AreasBoard({
         filtroQuadrante === "__sem__"
           ? t.filter((x) => !x.eisenhower)
           : t.filter((x) => x.eisenhower === filtroQuadrante);
-    }
-    if (filtroPrazo) {
-      t = t.filter((x) => {
-        if (filtroPrazo === "sem-prazo") return !x.data_vencimento;
-        if (!x.data_vencimento) return false;
-        if (filtroPrazo === "hoje") return x.data_vencimento === hoje;
-        return x.data_vencimento < hoje;
-      });
     }
     if (filtroEsforco) {
       t =
@@ -178,7 +184,27 @@ export function AreasBoard({
       t = t.filter((x) => TASK_STATUS_GROUP[x.status] === "ativo");
     }
     return t;
-  }, [tasks, filtroPessoa, filtroStatus, filtroQuadrante, filtroEsforco, filtroPrazo, hoje, mostrarFeitas]);
+  }, [tasks, filtroPessoa, filtroStatus, filtroQuadrante, filtroEsforco, mostrarFeitas]);
+
+  /**
+   * O recorte final, agora com o filtro de prazo.
+   *
+   * Ele mora FORA de `semFiltroDePrazo` porque os quatro números do topo
+   * (Abertas / Atrasadas / Para hoje / Sem prazo) são calculados sobre
+   * aquele — senão eles se autofiltravam: clicar em "Atrasadas" zerava
+   * "Para hoje" e "Sem prazo" e fazia "Abertas" mostrar só as atrasadas.
+   * O painel que existe pra dizer ONDE DÓI parava de dizer no instante em
+   * que era usado.
+   */
+  const visiveis = useMemo(() => {
+    if (!filtroPrazo) return semFiltroDePrazo;
+    return semFiltroDePrazo.filter((x) => {
+      if (filtroPrazo === "sem-prazo") return !x.data_vencimento;
+      if (!x.data_vencimento) return false;
+      if (filtroPrazo === "hoje") return x.data_vencimento === hoje;
+      return x.data_vencimento < hoje;
+    });
+  }, [semFiltroDePrazo, filtroPrazo, hoje]);
 
   /**
    * Uma gaveta por área, nesta ordem. Área SEM nada no recorte atual não
@@ -216,7 +242,10 @@ export function AreasBoard({
   const abertasNaVista = visiveis.filter(
     (t) => TASK_STATUS_GROUP[t.status] === "ativo"
   ).length;
-  const nomeDoFiltro = TEAM_MEMBERS.find((m) => m.value === filtroPessoa)?.label;
+  const nomeDoFiltro =
+    filtroPessoa === SEM_DONO
+      ? "sem responsável"
+      : TEAM_MEMBERS.find((m) => m.value === filtroPessoa)?.label;
 
   /**
    * O resumo do topo — "quanto tem e onde dói" antes de abrir gaveta
@@ -224,7 +253,10 @@ export function AreasBoard({
    * usuário também"). Lê o RECORTE, não a base inteira: escolhida uma
    * pessoa, o resumo é o dela.
    */
-  const resumo = useMemo(() => resumoDasDemandas(visiveis, hoje), [visiveis, hoje]);
+  const resumo = useMemo(
+    () => resumoDasDemandas(semFiltroDePrazo, hoje),
+    [semFiltroDePrazo, hoje]
+  );
 
   /** As abas por pessoa — mesma barra dos Projetos: só nomes, Karine e Andrei na frente. */
   const abasPessoa: ViewTabItem[] = useMemo(() => {
@@ -327,7 +359,14 @@ export function AreasBoard({
             <div className="rounded-[12px] border border-fysi-line bg-fysi-cream/40 p-3">
               <TaskComposer
                 autoFocus
-                clients={[]}
+                /**
+                 * `clientId=""` significa INTERNO. Sem ele, `cliente`
+                 * nasce `null` e o primeiro Enter morria em "Escolha o
+                 * cliente" — numa tela de demandas internas, com a lista
+                 * de clientes vazia. O composer de dentro da gaveta já
+                 * passava; só o do topo não.
+                 */
+                clientId=""
                 defaultResponsavel={meuResponsavel}
                 lockResponsavel={lockResponsavel}
                 urlKey={urlKey}
@@ -643,7 +682,12 @@ export function AreasBoard({
         </p>
       ) : null}
 
-      {abertasNaVista === 0 && !criandoEm ? (
+      {/* Com `filtroStatus` ligado (ex.: "Concluído"), a lista vem cheia
+          mas `abertasNaVista` é 0 — e a tela dizia "Nenhuma demanda
+          interna aberta" embaixo de dezenas de linhas. Quem manda sobre o
+          vazio é o que está à vista. */}
+      {(filtroStatus ? visiveis.length === 0 : abertasNaVista === 0) &&
+      !criandoEm ? (
         <p className="text-sm text-fysi-muted px-1">
           {nomeDoFiltro
             ? `Nenhuma demanda interna com ${nomeDoFiltro} agora. Escolha uma área abaixo pra lançar a primeira.`

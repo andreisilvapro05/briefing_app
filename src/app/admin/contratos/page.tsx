@@ -194,13 +194,16 @@ export default async function ContractsPage({
           }
         />
 
+        {/* `vis` entra em todos os otherParams: sem ele, quem estava em
+            ?vis=tabela voltava pro quadro a cada clique num filtro — o
+            alternador preservava os filtros, o caminho inverso não. */}
         <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 mb-6 flex flex-col gap-3">
           <FilterPillRow
             label="Status"
             urlKey={urlKey}
             paramName="status"
             current={params.status ?? ""}
-            otherParams={{ periodo: params.periodo, tipo: params.tipo }}
+            otherParams={{ periodo: params.periodo, tipo: params.tipo, vis: params.vis }}
             options={[
               { value: "", label: "Todos" },
               { value: "pendente", label: "Pendente" },
@@ -214,7 +217,7 @@ export default async function ContractsPage({
             urlKey={urlKey}
             paramName="tipo"
             current={params.tipo ?? ""}
-            otherParams={{ status: params.status, periodo: params.periodo }}
+            otherParams={{ status: params.status, periodo: params.periodo, vis: params.vis }}
             options={[
               { value: "", label: "Todos" },
               ...Object.entries(PROJECT_TYPE_LABELS).map(([value, label]) => ({
@@ -228,7 +231,7 @@ export default async function ContractsPage({
             urlKey={urlKey}
             paramName="periodo"
             current={params.periodo ?? ""}
-            otherParams={{ status: params.status, tipo: params.tipo }}
+            otherParams={{ status: params.status, tipo: params.tipo, vis: params.vis }}
             options={[
               { value: "", label: "Todo o período" },
               { value: "mes", label: "Este mês" },

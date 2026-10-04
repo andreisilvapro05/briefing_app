@@ -10,6 +10,7 @@ import {
   projetoIncompleto,
   type PendenciasProjeto,
 } from "@/lib/projetos-incompletos";
+import { TASK_STATUS_GROUP, type TaskStatus } from "@/lib/project-tasks";
 import { SubmitButton } from "./submit-button";
 import { Caret, useGruposColapsados } from "./use-grupos-colapsados";
 import type { LaneClient, LaneGroup } from "./status-pie-board";
@@ -54,6 +55,7 @@ function peso(p: PendenciasProjeto): number {
     (p.semTipo ? 2 : 0) +
     (p.semChecklist ? 2 : 0) +
     (p.checklistParcial ? 1 : 0) +
+    (p.entregueComTarefaAberta ? 2 : 0) +
     // Pesa 2: é o cliente parado esperando uma cobrança que ninguém fez.
     (p.semListaDeMateriais ? 2 : 0)
   );
@@ -79,11 +81,26 @@ export function ProjetosIncompletos({
     const lista: ProjetoIncompleto[] = [];
     for (const g of groups) {
       for (const cliente of g.clients) {
+        /**
+         * `fechado` e `tarefasAbertas` também — faltavam aqui.
+         *
+         * Sem eles, `entregueComTarefaAberta` era SEMPRE falso neste
+         * painel: a linha da Lista ganhava a pílula "Incompleto" com o
+         * aviso "marcado como entregue, mas com tarefa aberta", e o painel
+         * que existe pra resolver isso não listava o projeto. Se fosse o
+         * único furado, o painel ainda exibia o verdinho "Todos os
+         * projetos têm tipo, checklist...".
+         */
+        const fechado =
+          TASK_STATUS_GROUP[cliente.status as TaskStatus] === "fechado";
         const pendencias = pendenciasDoProjeto({
           projectType: cliente.projectType,
           totalTarefas: cliente.progresso?.total ?? 0,
           status: cliente.status,
           totalMateriais: cliente.totalMateriais,
+          fechado,
+          tarefasAbertas:
+            (cliente.progresso?.total ?? 0) - (cliente.progresso?.fechadas ?? 0),
         });
         if (!projetoIncompleto(pendencias)) continue;
         lista.push({

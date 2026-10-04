@@ -133,13 +133,31 @@ export default async function AdminPage({
     clientsQuery = clientsQuery.in("status", CLOSED_STATUSES);
   if (tipoFilter) clientsQuery = clientsQuery.eq("project_type", tipoFilter);
   if (q) {
-    // Busca por nome, e-mail ou empresa (case-insensitive)
-    clientsQuery = clientsQuery.or(
-      `nome.ilike.%${q}%,email.ilike.%${q}%,empresa.ilike.%${q}%`
-    );
+    /**
+     * Busca por nome, e-mail ou empresa (sem diferenciar maiúscula).
+     *
+     * O termo é LIMPO antes de entrar no `.or()`: vírgula separa as
+     * condições do PostgREST e `()` as delimitam, então buscar
+     * "Souza, Maria" ou "Fulano (teste)" partia a expressão ao meio e a
+     * tela mostrava "Erro ao carregar clientes". `%` e `_` viravam
+     * curinga sem querer. Aspas e barra saem porque quebram o literal.
+     */
+    const termo = q.replace(/[,()"\\%_]/g, " ").trim();
+    if (termo) {
+      clientsQuery = clientsQuery.or(
+        `nome.ilike."%${termo}%",email.ilike."%${termo}%",empresa.ilike."%${termo}%"`
+      );
+    }
   }
 
-  let totalsQuery = service.from("clients").select("status", { count: "exact" });
+  // `.is("arquivado_em", null)` igual à lista: sem ele, as pílulas do topo
+  // ("Todos 43", "Em andamento 23") contavam projeto arquivado e nunca
+  // fechavam com a tabela abaixo — que é exatamente a cara de "o filtro não
+  // funcionou".
+  let totalsQuery = service
+    .from("clients")
+    .select("status", { count: "exact" })
+    .is("arquivado_em", null);
   if (visibleIds) totalsQuery = totalsQuery.in("id", Array.from(visibleIds));
 
   // As três consultas são independentes — em série somavam 3 idas ao banco

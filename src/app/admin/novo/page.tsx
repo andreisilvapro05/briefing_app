@@ -112,7 +112,9 @@ export default async function NovoClientePage({
               Criar cliente
             </SubmitButton>
             <Link
-              href={`/admin${keyParam}`}
+              /* `/admin` redireciona pra Visão Geral: quem desistiu de criar
+                 perdia o filtro e a rolagem da lista. Volta pra lista. */
+              href={`/admin/clientes${keyParam}`}
               className="text-sm text-fysi-muted hover:text-fysi-deep"
             >
               Cancelar
