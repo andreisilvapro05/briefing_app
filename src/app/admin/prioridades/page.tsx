@@ -93,12 +93,20 @@ export default async function PrioridadesPage({
     const service = createSupabaseServiceRoleClient();
     const { data } = await service
       .from("clients")
-      .select("id, nome, empresa, project_type, status, last_client_activity_at, created_at");
+      // Era a única leitura de `clients` sem este filtro: projeto arquivado
+      // reaparecia aqui, quase sempre no quadrante "Ou retoma, ou fecha",
+      // pedindo decisão sobre algo que já foi encerrado.
+      .select(
+        "id, nome, empresa, nome_exibicao, clickup_nome, project_type, status, last_client_activity_at, created_at"
+      )
+      .is("arquivado_em", null);
     const linhas =
       (data as {
         id: string;
         nome: string | null;
         empresa: string | null;
+        nome_exibicao: string | null;
+        clickup_nome: string | null;
         project_type: string | null;
         status: string | null;
         last_client_activity_at: string | null;
@@ -108,7 +116,14 @@ export default async function PrioridadesPage({
     projetos = montarMatrizProjetos(
       linhas.map((c) => ({
         id: c.id,
-        nome: c.empresa?.trim() || c.nome?.trim() || "Sem nome",
+        // Mesma precedência da Lista: o nome escrito à mão ganha de tudo,
+        // senão um projeto renomeado pelo lápis aparece aqui com o antigo.
+        nome:
+          c.nome_exibicao?.trim() ||
+          c.clickup_nome?.trim() ||
+          c.empresa?.trim() ||
+          c.nome?.trim() ||
+          "Sem nome",
         tipo: c.project_type
           ? (PROJECT_TYPE_LABELS[c.project_type as keyof typeof PROJECT_TYPE_LABELS] ??
             c.project_type)

@@ -27,7 +27,7 @@ export interface TarefaComProjeto {
   /** Status da própria tarefa. */
   status: TaskStatus;
   /** `null` = demanda interna da agência, que não tem projeto. */
-  client: { status?: string | null } | null;
+  client: { status?: string | null; arquivado_em?: string | null } | null;
 }
 
 /**
@@ -36,7 +36,17 @@ export interface TarefaComProjeto {
  * Demanda interna não tem projeto — e nunca é descartada por esta regra.
  */
 export function projetoFechado(tarefa: TarefaComProjeto): boolean {
-  const status = tarefa.client?.status;
+  if (!tarefa.client) return false;
+  /**
+   * ARQUIVADO conta como fechado aqui.
+   *
+   * Arquivar é "este projeto não vai acontecer" (desistência). A Lista, o
+   * Quadro e os Relatórios já descartavam, mas as TAREFAS seguiam no
+   * trabalho de todo mundo — a Balen Susin está arquivada com 11 tarefas
+   * abertas, e o status dela é "parado", que não é um status fechado.
+   */
+  if (tarefa.client.arquivado_em) return true;
+  const status = tarefa.client.status;
   if (!status) return false;
   return TASK_STATUS_GROUP[status as TaskStatus] === "fechado";
 }

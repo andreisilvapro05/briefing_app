@@ -23,10 +23,41 @@ import {
  * contexto de como era antes.
  */
 
+/**
+ * O nome que a tela mostra, com a precedência que o app inteiro usa:
+ * escrito à mão > ClickUp > empresa > cadastro.
+ *
+ * Existe aqui porque estava escrito à mão em `lane-groups-server.ts` e em
+ * nenhum outro lugar — a matriz de Prioridades e o Quadro imprimiam `nome`
+ * cru, então um projeto renomeado pelo lápis aparecia com o nome antigo
+ * nessas duas telas.
+ */
+export function nomeDoProjeto(c: {
+  nome?: string | null;
+  empresa?: string | null;
+  nome_exibicao?: string | null;
+  clickup_nome?: string | null;
+}): string {
+  return (
+    c.nome_exibicao?.trim() ||
+    c.clickup_nome?.trim() ||
+    c.empresa?.trim() ||
+    c.nome?.trim() ||
+    "Sem nome"
+  );
+}
+
 export interface ClientForLane {
   id: string;
   nome: string;
   empresa: string | null;
+  /**
+   * Os dois nomes que vencem o cadastro: o escrito à mão pelo lápis e o
+   * que veio do ClickUp. Sem eles, cada tela derivava o nome do seu jeito
+   * e o mesmo projeto aparecia com nomes diferentes em abas diferentes.
+   */
+  nome_exibicao?: string | null;
+  clickup_nome?: string | null;
   project_type: ProjectType | null;
   status: string | null;
   current_stage_index: number | null;

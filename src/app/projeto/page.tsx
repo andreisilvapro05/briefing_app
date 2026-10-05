@@ -39,9 +39,30 @@ export default function EscolhaFluxoPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ clientId: updated.id, projectType: selected }),
-      }).catch(() => {
-        // best-effort — a navegação segue mesmo se falhar
-      });
+      })
+        .then(async (r) => {
+          /**
+           * 409 = a EQUIPE já tinha definido o tipo, e o servidor recusou
+           * a troca.
+           *
+           * O tipo já foi gravado no localStorage uma linha acima (é o que
+           * faz a tela seguir adiante). Sem este trecho o cliente ficaria
+           * com um tipo LOCAL diferente do real e veria a timeline errada
+           * até alguém notar. Aqui o que o servidor diz vence.
+           */
+          if (r.status === 409) {
+            const corpo = (await r.json().catch(() => null)) as {
+              projectType?: string | null;
+            } | null;
+            if (corpo?.projectType) {
+              setProjectType(corpo.projectType as ProjectType);
+            }
+          }
+        })
+        .catch(() => {
+          // Rede caiu: o tipo fica no localStorage e a equipe pode definir
+          // pela ficha. Não trava a navegação.
+        });
     }
     setTimeout(() => router.push("/dashboard"), 250);
   }

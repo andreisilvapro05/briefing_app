@@ -59,3 +59,25 @@ test("soTrabalhoAtivo filtra a lista inteira", () => {
   ];
   assert.equal(soTrabalhoAtivo(lista).length, 3);
 });
+
+test("projeto ARQUIVADO também sai, mesmo com status aberto", () => {
+  // A Balen Susin está arquivada (desistiu) com 11 tarefas abertas, e o
+  // status dela é "parado" — que NÃO é um status fechado. Sem olhar
+  // `arquivado_em`, as 11 continuavam no trabalho de todo mundo.
+  const arquivada: TarefaComProjeto = {
+    status: "a-iniciar",
+    client: { status: "parado", arquivado_em: "2026-09-30T12:00:00Z" },
+  };
+  assert.equal(projetoFechado(arquivada), true);
+  assert.equal(ehTrabalhoAtivo(arquivada), false);
+});
+
+test("não arquivado e em andamento continua passando", () => {
+  assert.equal(
+    ehTrabalhoAtivo({
+      status: "a-iniciar",
+      client: { status: "parado", arquivado_em: null },
+    }),
+    true
+  );
+});

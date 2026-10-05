@@ -44,10 +44,32 @@ export async function POST(request: NextRequest) {
 
   const { data: existing } = await service
     .from("clients")
-    .select("id")
+    .select("id, project_type")
     .eq("id", parsed.clientId)
     .maybeSingle();
   if (!existing) return errorResponse("client-not-found", 404);
+
+  /**
+   * O CLIENTE só escolhe quando a equipe ainda NÃO escolheu.
+   *
+   * Esta rota não tem autenticação e `/projeto` é uma URL comum: até aqui
+   * ela gravava por cima do que a equipe tinha definido, sem avisar
+   * ninguém e sem reajustar `current_stage_index` (o lado do admin faz
+   * esse clamp; aqui não havia). Equipe definia "SEO", o cliente abria
+   * /projeto e escolhia "Outro" — a timeline dele mudava e a agência só
+   * descobria por acaso.
+   *
+   * Já definido devolve 409 em vez de 403: não é falta de permissão, é
+   * conflito de estado, e a tela sabe dizer "a equipe já definiu o seu
+   * tipo de projeto".
+   */
+  const jaDefinido = (existing as { project_type: string | null }).project_type;
+  if (jaDefinido) {
+    return NextResponse.json(
+      { ok: false, motivo: "ja-definido", projectType: jaDefinido },
+      { status: 409 }
+    );
+  }
 
   const { error } = await service
     .from("clients")

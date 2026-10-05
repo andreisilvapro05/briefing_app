@@ -55,11 +55,12 @@ export interface ProjectTaskClient {
   nome: string | null;
   empresa: string | null;
   /**
-   * Status do PROJETO. Vem junto pra as telas de trabalho saberem
-   * descartar tarefa aberta de projeto já entregue — ver
+   * Status do PROJETO e se ele foi arquivado. Vêm junto pra as telas de
+   * trabalho descartarem tarefa aberta de projeto que já acabou — ver
    * src/lib/trabalho-ativo.ts.
    */
   status?: string | null;
+  arquivado_em?: string | null;
 }
 
 /**
@@ -80,7 +81,7 @@ export const listAllProjectTasks = cache(async function listAllProjectTasksUncac
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("project_tasks")
-    .select("*, clients(id, nome, empresa, status)")
+    .select("*, clients(id, nome, empresa, status, arquivado_em)")
     .order("data_vencimento", { ascending: true, nullsFirst: false });
 
   // Sem `.filter(row => row.clients)`: demanda interna (sem cliente) é

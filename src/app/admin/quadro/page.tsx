@@ -12,6 +12,7 @@ import {
   GENERAL_LANES,
   LANE_TONE_CLASSES,
   laneForClient,
+  nomeDoProjeto,
   type ClientForLane,
 } from "@/lib/workflow-lanes";
 export const dynamic = "force-dynamic";
@@ -42,7 +43,7 @@ export default async function AdminQuadroPage({
     let query = service
       .from("clients")
       .select(
-        "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
+        "id, nome, empresa, nome_exibicao, clickup_nome, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at"
       )
       .is("arquivado_em", null)
       .order("created_at", { ascending: false });
@@ -223,15 +224,21 @@ function ClientCard({
     ? PROJECT_TYPE_LABELS[client.project_type] ?? client.project_type
     : null;
 
+  const nomeDoCard = nomeDoProjeto(client);
+
   return (
     <Link
       href={`/admin/${client.id}${keyParam}`}
       className="block bg-white rounded-[10px] border border-fysi-line p-2.5 hover:border-fysi-deep/40 transition group"
     >
+      {/* Mesma precedência de nome da Lista. O Quadro imprimia `nome`
+          cru: renomear um projeto pelo lápis gravava e revalidava esta
+          tela, e ela seguia mostrando o nome antigo — o mesmo projeto com
+          dois nomes em duas abas da mesma visão. */}
       <div className="text-sm font-medium text-fysi-deep truncate">
-        {client.nome}
+        {nomeDoCard}
       </div>
-      {client.empresa && client.empresa !== client.nome ? (
+      {client.empresa && client.empresa !== nomeDoCard ? (
         <div className="text-[0.7rem] text-fysi-muted truncate">
           {client.empresa}
         </div>

@@ -3,6 +3,7 @@ import { PROJECT_TYPE_LABELS } from "./briefing-labels";
 import { DEFAULT_TASK_STATUS, type ProjectTask } from "./project-tasks";
 import {
   GENERAL_LANES,
+  nomeDoProjeto,
   isClientStuck,
   laneForClient,
   type ClientForLane,
@@ -108,10 +109,7 @@ export async function getLaneGroups(
          * sem ele, corrigir um nome aqui seria desfeito na próxima
          * sincronização, em silêncio.
          */
-        empresa:
-          (c as { nome_exibicao?: string | null }).nome_exibicao?.trim() ||
-          (c as { clickup_nome?: string | null }).clickup_nome?.trim() ||
-          c.empresa,
+        empresa: nomeDoProjeto(c),
         tipo: c.project_type
           ? PROJECT_TYPE_LABELS[c.project_type] ?? c.project_type
           : "—",
