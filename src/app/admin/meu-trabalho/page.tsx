@@ -6,6 +6,7 @@ import {
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
+import { soTrabalhoAtivo } from "@/lib/trabalho-ativo";
 import { MyWorkBoard } from "@/components/admin/my-work-board";
 import { MeusProjetos } from "@/components/admin/meus-projetos";
 import { DayHero } from "@/components/admin/day-hero";
@@ -95,7 +96,12 @@ export default async function MeuTrabalhoPage({
    * `project_tasks.responsavel` abriria vazio justamente pra ele — que é
    * quem pediu esta tela.
    */
-  const tarefasNoEscopo = allTasks.filter(
+  /**
+   * Tarefa aberta de projeto JÁ ENTREGUE fica de fora das telas de
+   * trabalho. Karine (04/10), vendo a Marplast aqui: "ali não deve
+   * aparecer". Ver src/lib/trabalho-ativo.ts — nada é apagado, some só
+   * daqui. */
+  const tarefasNoEscopo = soTrabalhoAtivo(allTasks).filter(
     (t) => !visibleIds || (t.client_id && visibleIds.has(t.client_id))
   );
   const projetosComDono = grupos.flatMap((g) =>

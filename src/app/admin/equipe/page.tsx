@@ -8,6 +8,7 @@ import {
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
+import { soTrabalhoAtivo } from "@/lib/trabalho-ativo";
 import {
   AREAS,
   TASK_STATUS_GROUP,
@@ -53,7 +54,10 @@ export default async function EquipePage({
   const keyParam = urlKey ? `?key=${encodeURIComponent(urlKey)}` : "";
   if (!hasFullAccess(member)) redirect(`/admin/meu-trabalho${keyParam}`);
 
-  const todas = await listAllProjectTasks();
+  /* Tarefa aberta de projeto JÁ ENTREGUE fica de fora das telas de
+     trabalho (Karine, 04/10: "ali não deve aparecer"). Ver
+     src/lib/trabalho-ativo.ts — nada é apagado, some só daqui. */
+  const todas = soTrabalhoAtivo(await listAllProjectTasks());
   const hoje = hojeSP();
 
   const porPessoa = TEAM_MEMBERS.map((m) => {

@@ -7,6 +7,7 @@ import { AdminShell } from "@/components/admin/admin-shell";
 import { AllTasksBoard } from "@/components/admin/all-tasks-board";
 import { AbasVisualizacao } from "@/components/admin/abas-visualizacao";
 import { listAllProjectTasks, listClientOptions } from "@/lib/project-tasks-server";
+import { soTrabalhoAtivo } from "@/lib/trabalho-ativo";
 import { TEAM_MEMBERS } from "@/lib/project-tasks";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,10 @@ export default async function AdminTarefasPage({
   // Esta tela é "todas as subtarefas de produção", agrupadas por cliente.
   // Demanda interna (sem cliente) não tem lugar aqui — ela aparece em
   // "Meu Trabalho", que é organizado por pessoa.
-  const comCliente = allTasks.filter(
+  /* Tarefa aberta de projeto JÁ ENTREGUE fica de fora das telas de
+     trabalho (Karine, 04/10: "ali não deve aparecer"). Ver
+     src/lib/trabalho-ativo.ts — nada é apagado, some só daqui. */
+  const comCliente = soTrabalhoAtivo(allTasks).filter(
     (t): t is (typeof allTasks)[number] & {
       client: NonNullable<(typeof allTasks)[number]["client"]>;
       client_id: string;

@@ -54,6 +54,12 @@ export interface ProjectTaskClient {
   id: string;
   nome: string | null;
   empresa: string | null;
+  /**
+   * Status do PROJETO. Vem junto pra as telas de trabalho saberem
+   * descartar tarefa aberta de projeto já entregue — ver
+   * src/lib/trabalho-ativo.ts.
+   */
+  status?: string | null;
 }
 
 /**
@@ -74,7 +80,7 @@ export const listAllProjectTasks = cache(async function listAllProjectTasksUncac
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("project_tasks")
-    .select("*, clients(id, nome, empresa)")
+    .select("*, clients(id, nome, empresa, status)")
     .order("data_vencimento", { ascending: true, nullsFirst: false });
 
   // Sem `.filter(row => row.clients)`: demanda interna (sem cliente) é

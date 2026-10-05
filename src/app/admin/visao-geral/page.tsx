@@ -8,6 +8,7 @@ import {
 import { AdminShell } from "@/components/admin/admin-shell";
 import { getLaneGroups } from "@/lib/lane-groups-server";
 import { listAllProjectTasks } from "@/lib/project-tasks-server";
+import { soTrabalhoAtivo } from "@/lib/trabalho-ativo";
 import {
   TASK_STATUS_OPTIONS,
   TASK_STATUS_TONE,
@@ -101,7 +102,13 @@ export default async function VisaoGeralPage({
    */
   const resp = respDaUrl;
 
-  const abertas = allTasks.filter((t) => !isClosedTaskStatus(t.status));
+  /* Tarefa aberta de projeto JÁ ENTREGUE fica de fora das contas de
+     trabalho (Karine, 04/10: "ali não deve aparecer"). Eram 24 projetos
+     entregues com 158 tarefas abertas — a conta de "tarefas pendentes da
+     equipe" era ficção. Ver src/lib/trabalho-ativo.ts. */
+  const abertas = soTrabalhoAtivo(allTasks).filter(
+    (t) => !isClosedTaskStatus(t.status)
+  );
 
   const ativasVisiveis = abertas
     .filter((t) => t.client !== null && t.client_id !== null)
