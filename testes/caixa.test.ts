@@ -8,6 +8,14 @@ import {
   rotuloDaForma,
   rotuloDoMes,
 } from "../src/lib/caixa.ts";
+import {
+  diaNoMes,
+  mesRef,
+  somaDoMes,
+  statusDoMes,
+  type CobrancaMensal,
+  type PagamentoHistorico,
+} from "../src/lib/cobrancas-mensais.ts";
 
 const r = (valor: number | string | null, pago_em: string | null, forma: string | null) => ({
   valor, pago_em, forma,
@@ -192,4 +200,82 @@ test("cobrança sem histórico, ou com registro torto, não quebra o caixa", () 
     [],
     "registro sem data não entra em mês nenhum"
   );
+});
+
+/* ── Fuso e pagamento parcial (04/10) ──────────────────────────────── */
+
+test("mesRef usa Brasília: 30/09 às 22h BRT ainda é setembro", () => {
+  // 2026-10-01T01:00Z = 2026-09-30 22:00 em Brasília. Com getMonth() do
+  // servidor (UTC na Vercel) isso virava "2026-10" e o pix caía no mês
+  // errado.
+  assert.equal(mesRef(new Date("2026-10-01T01:00:00Z")), "2026-09");
+  assert.equal(mesRef(new Date("2026-10-01T04:00:00Z")), "2026-10");
+});
+
+test("diaNoMes também é de Brasília", () => {
+  assert.equal(diaNoMes(new Date("2026-10-01T01:00:00Z")), 30);
+  assert.equal(diaNoMes(new Date("2026-10-01T04:00:00Z")), 1);
+});
+
+const cob5050 = (historico: PagamentoHistorico[]): CobrancaMensal =>
+  ({
+    id: "x",
+    client_id: null,
+    nome: "SEO",
+    empresa: null,
+    whatsapp: null,
+    email: null,
+    valor_mensal: 1500,
+    dia_cobranca: 5,
+    descricao: null,
+    ativa: true,
+    data_inicio: "2026-01-01",
+    data_fim: null,
+    tipo: "mensal",
+    data_vencimento: null,
+    historico,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  }) as CobrancaMensal;
+
+const lanc = (mes: string, valor: number): PagamentoHistorico => ({
+  id: `${mes}-${valor}`,
+  mesReferencia: mes,
+  valorPago: valor,
+  pagoEm: "2026-09-10T12:00:00Z",
+  forma: "pix",
+  observacao: "",
+  arquivoPath: null,
+  arquivoNome: null,
+  arquivoTipo: null,
+});
+
+test("50/50 no mesmo mês: a primeira metade NÃO quita a cobrança", () => {
+  const ref = new Date("2026-09-20T15:00:00Z");
+  const metade = cob5050([lanc("2026-09", 750)]);
+  assert.equal(somaDoMes(metade, "2026-09"), 750);
+  assert.equal(statusDoMes(metade, ref), "atrasado");
+
+  const inteiro = cob5050([lanc("2026-09", 750), lanc("2026-09", 750)]);
+  assert.equal(somaDoMes(inteiro, "2026-09"), 1500);
+  assert.equal(statusDoMes(inteiro, ref), "pago");
+});
+
+test("centavos de float não impedem a quitação", () => {
+  const c = cob5050([lanc("2026-09", 500.1), lanc("2026-09", 999.9)]);
+  assert.equal(statusDoMes(c, new Date("2026-09-20T15:00:00Z")), "pago");
+});
+
+test("pontual com pagamento parcial continua em aberto", () => {
+  const base = cob5050([lanc("2026-09", 1500)]);
+  const pontual = {
+    ...base,
+    tipo: "pontual" as const,
+    valor_mensal: 3000,
+    data_vencimento: "2026-12-31",
+  };
+  assert.equal(statusDoMes(pontual, new Date("2026-09-20T15:00:00Z")), "a_cobrar");
+
+  const quitado = { ...pontual, historico: [lanc("2026-09", 3000)] };
+  assert.equal(statusDoMes(quitado, new Date("2026-09-20T15:00:00Z")), "pago");
 });

@@ -75,9 +75,68 @@ export interface CobrancaMensalForm {
  * Formato de mês de referência usado nas cobranças (YYYY-MM).
  */
 export function mesRef(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
+  /**
+   * ⚠️ FUSO DE BRASÍLIA, não o do servidor.
+   *
+   * A Vercel roda em UTC e não há `TZ` no vercel.json. Com
+   * `date.getMonth()`, um pix recebido dia 30 às 22h de Brasília
+   * (= dia 1 às 01h UTC) era gravado com referência do MÊS SEGUINTE: o
+   * valor sumia do mês certo, "Marcar pago hoje" apontava pro mês errado
+   * e o mês de verdade ficava eternamente atrasado.
+   *
+   * Vale pros 3 pontos do app que derivam "hoje" (ver `diaNoMes`): das
+   * 21h à meia-noite, servidor e realidade discordavam.
+   */
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+  })
+    .format(date)
+    .slice(0, 7);
+}
+
+/** O dia do mês em Brasília — mesma razão de `mesRef`. */
+export function diaNoMes(date: Date): number {
+  return Number(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+    }).format(date)
+  );
+}
+
+/** A data de hoje em Brasília, YYYY-MM-DD. */
+export function hojeEmBrasilia(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+/**
+ * Quanto foi pago num mês de referência — SOMANDO os lançamentos.
+ *
+ * Existe porque 50/50 no mesmo mês é caso real da agência (entrada no pix
+ * + saldo no cartão). Olhar só "existe algum lançamento?" fazia a primeira
+ * metade quitar a cobrança inteira.
+ */
+export function somaDoMes(c: CobrancaMensal, ref: string): number {
+  return c.historico
+    .filter((h) => h.mesReferencia === ref)
+    .reduce((t, h) => t + Number(h.valorPago || 0), 0);
+}
+
+/** Tudo que já entrou numa cobrança pontual, somado. */
+export function somaTotal(c: CobrancaMensal): number {
+  return c.historico.reduce((t, h) => t + Number(h.valorPago || 0), 0);
+}
+
+/** Centavos não acumulam sujeira de float na comparação com o valor devido. */
+function cobre(pago: number, devido: number): boolean {
+  return Math.round(pago * 100) >= Math.round(devido * 100) - 1;
 }
 
 /**
@@ -104,7 +163,14 @@ export function statusDoMes(
   if (!c.ativa) return "pago";
 
   if (c.tipo === "pontual") {
-    if (c.historico.length > 0) return "pago";
+    /**
+     * SOMA, não "existe algum lançamento".
+     *
+     * Uma taxa pontual de R$ 3.000 com R$ 1.500 de entrada registrados
+     * saía de "A receber" como quitada, e os outros R$ 1.500 sumiam da
+     * lista de quem deve.
+     */
+    if (cobre(somaTotal(c), c.valor_mensal)) return "pago";
     if (!c.data_vencimento) return "a_cobrar";
     const venc = new Date(c.data_vencimento);
     return refDate > venc ? "atrasado" : "a_cobrar";
@@ -112,9 +178,9 @@ export function statusDoMes(
 
   // Mensal — padrão
   const ref = mesRef(refDate);
-  const pago = c.historico.some((h) => h.mesReferencia === ref);
-  if (pago) return "pago";
-  const hoje = refDate.getDate();
+  // Idem: 50/50 no mesmo mês só quita quando as duas metades entram.
+  if (cobre(somaDoMes(c, ref), c.valor_mensal)) return "pago";
+  const hoje = diaNoMes(refDate);
   return hoje < c.dia_cobranca ? "a_cobrar" : "atrasado";
 }
 

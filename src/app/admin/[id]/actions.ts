@@ -509,19 +509,34 @@ export async function setPaymentAction(formData: FormData) {
       ? parcelasCru
       : null;
 
+  /**
+   * Só grava o que o FORMULÁRIO MANDOU.
+   *
+   * O atalho "Definir" de /admin/cobrancas envia apenas `clientId` e
+   * `pagamentoTotal`. Com `pago ?? 0` e os `null` diretos, um clique ali
+   * ZERAVA `pagamento_pago` e apagava arranjo, forma, entrada e parcelas —
+   * justamente os campos criados em 26/09 pra separar pix de parcelado.
+   * Um cliente com R$ 1.200 de entrada já lançada por comprovante voltava
+   * a dever o valor cheio, sem nenhum aviso.
+   *
+   * `formData.has()` distingue "mandou vazio" (apaga) de "não mandou"
+   * (preserva) — coisa que `?? 0` e `?? null` não conseguem.
+   */
+  const patch: Record<string, unknown> = {
+    pagamento_total: total,
+    pagamento_atualizado_at: new Date().toISOString(),
+  };
+  if (formData.has("pagamentoPago")) patch.pagamento_pago = pago ?? 0;
+  if (formData.has("pagamentoObservacao")) patch.pagamento_observacao = obs || null;
+  if (formData.has("pagamentoArranjo")) patch.pagamento_arranjo = arranjo;
+  if (formData.has("pagamentoForma")) patch.pagamento_forma = formaCombinada;
+  if (formData.has("pagamentoEntrada")) patch.pagamento_entrada = entrada;
+  if (formData.has("pagamentoParcelas")) patch.pagamento_parcelas = parcelas;
+
   const service = createSupabaseServiceRoleClient();
   const { error: escritaErr } = await service
     .from("clients")
-    .update({
-      pagamento_total: total,
-      pagamento_pago: pago ?? 0,
-      pagamento_observacao: obs || null,
-      pagamento_arranjo: arranjo,
-      pagamento_forma: formaCombinada,
-      pagamento_entrada: entrada,
-      pagamento_parcelas: parcelas,
-      pagamento_atualizado_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq("id", clientId);
   if (escritaErr) logServerError("cliente.escrita", escritaErr);
 

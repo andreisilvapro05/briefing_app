@@ -246,8 +246,20 @@ export async function registrarPagamentoAction(formData: FormData) {
 
   const historico = (cur.historico as PagamentoHistorico[] | null) ?? [];
 
-  // Evita duplicar mesma referência — substitui se já existe
-  const filtrado = historico.filter((h) => h.mesReferencia !== mes);
+  /**
+   * ACRESCENTA, nunca substitui.
+   *
+   * O código anterior filtrava fora tudo com a mesma `mesReferencia`
+   * ("evita duplicar — substitui se já existe"). Mas 50/50 no mesmo mês é
+   * caso real da agência: entrada no pix, saldo no cartão. O segundo
+   * lançamento APAGAVA o primeiro — o valor sumia do histórico e do Caixa,
+   * e o comprovante da primeira metade ficava órfão no bucket, sem link.
+   *
+   * Quem decide se a cobrança está quitada agora é a SOMA do mês
+   * (`statusDoMes` em cobrancas-mensais.ts), não a existência de um
+   * lançamento qualquer.
+   */
+  const filtrado = historico;
   const novo: PagamentoHistorico = {
     id: crypto.randomUUID(),
     mesReferencia: mes,
@@ -370,7 +382,17 @@ export async function marcarPagoEsteMesAction(formData: FormData) {
 
   const ref = mesRef(new Date());
   const historico = (cur.historico as PagamentoHistorico[] | null) ?? [];
-  if (historico.some((h) => h.mesReferencia === ref)) {
+  const devido = Number(cur.valor_mensal) || 0;
+  const jaPago = historico
+    .filter((h) => h.mesReferencia === ref)
+    .reduce((t, h) => t + Number(h.valorPago || 0), 0);
+  /**
+   * Com 50/50, "Marcar pago este mês" agora COMPLETA o que falta em vez de
+   * recusar porque já existe lançamento no mês. Só não faz nada quando o
+   * mês já está coberto.
+   */
+  const falta = Math.round((devido - jaPago) * 100) / 100;
+  if (falta <= 0) {
     revalidatePath("/admin/cobrancas");
     return;
   }
@@ -378,7 +400,7 @@ export async function marcarPagoEsteMesAction(formData: FormData) {
   const novo: PagamentoHistorico = {
     id: crypto.randomUUID(),
     mesReferencia: ref,
-    valorPago: Number(cur.valor_mensal),
+    valorPago: falta,
     pagoEm: new Date().toISOString(),
     forma: "pix",
     observacao: "",

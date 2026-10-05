@@ -192,6 +192,7 @@ export function computeStats(clients: ClientForLane[]): ClientStats {
   const porStatus = new Map<string, number>();
   let receitaTotal = 0;
   let receitaPaga = 0;
+  let receitaPendente = 0;
   const parados: ClientForLane[] = [];
 
   clients.forEach((c) => {
@@ -205,6 +206,23 @@ export function computeStats(clients: ClientForLane[]): ClientStats {
 
     if (c.pagamento_total) receitaTotal += Number(c.pagamento_total);
     if (c.pagamento_pago) receitaPaga += Number(c.pagamento_pago);
+    /**
+     * O pendente é somado POR CLIENTE, com piso em zero.
+     *
+     * `receitaTotal - receitaPaga` subtraía globalmente: um cliente com
+     * `pago` maior que `total` gerava saldo negativo que ABATIA a dívida
+     * dos outros. Não é hipótese — em 04/10, JUNIO CESAR ADVOGADOS tinha
+     * total 1.600 e pago 3.200 (um comprovante contado duas vezes), e
+     * esses R$ 1.600 a mais escondiam dívida real de outros clientes no
+     * "Pendente" dos Relatórios.
+     *
+     * É a mesma conta que /admin/cobrancas já fazia (`a-receber.ts`), que
+     * por isso mostrava um número diferente da mesma coisa.
+     */
+    receitaPendente += Math.max(
+      0,
+      Number(c.pagamento_total ?? 0) - Number(c.pagamento_pago ?? 0)
+    );
 
     if (isClientStuck(c)) parados.push(c);
   });
@@ -236,7 +254,7 @@ export function computeStats(clients: ClientForLane[]): ClientStats {
     porStatus,
     receitaTotal,
     receitaPaga,
-    receitaPendente: receitaTotal - receitaPaga,
+    receitaPendente,
     parados,
     mediaPorMes,
     ultimosMeses: meses.map(({ label, count }) => ({ label, count })),
