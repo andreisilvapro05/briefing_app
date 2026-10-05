@@ -29,6 +29,8 @@ import { MateriaisChecklist } from "@/components/admin/materiais-checklist";
 import {
   compartilharBriefingAction,
   criarBriefingAction,
+  duplicarBriefingAction,
+  renomearBriefingAction,
   revogarCompartilhamentoAction,
   vincularBriefingAction,
 } from "../../actions";
@@ -177,6 +179,46 @@ export default async function BriefingDocPage({
                 ) : null}
               </div>
             </div>
+
+            {/* RENOMEAR e DUPLICAR, no cabeçalho (Karine, 04/10: "poder
+                duplicar, poder editar"). Antes o briefing não tinha nome
+                próprio: a lista mostrava o nome do CLIENTE em todos, e
+                vários clientes têm dois ou três — era impossível saber
+                qual era qual sem abrir um por um. */}
+            {acessoTotal && !doc.isTemplate ? (
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <form
+                  action={renomearBriefingAction}
+                  className="flex items-center gap-1.5"
+                >
+                  {urlKey ? (
+                    <input type="hidden" name="key" value={urlKey} />
+                  ) : null}
+                  <input type="hidden" name="docId" value={doc.id} />
+                  <input
+                    name="nome"
+                    defaultValue={doc.nome ?? ""}
+                    maxLength={160}
+                    placeholder={doc.titulo}
+                    aria-label="Nome deste briefing"
+                    title="Dê um nome a este briefing. Em branco, volta a mostrar o nome do cliente."
+                    className="w-52 rounded-[10px] border border-fysi-line bg-white px-2.5 py-1.5 text-sm text-fysi-deep placeholder:text-fysi-muted"
+                  />
+                  <SubmitTextButton pendingLabel="Salvando…">
+                    Renomear
+                  </SubmitTextButton>
+                </form>
+                <form action={duplicarBriefingAction}>
+                  {urlKey ? (
+                    <input type="hidden" name="key" value={urlKey} />
+                  ) : null}
+                  <input type="hidden" name="docId" value={doc.id} />
+                  <SubmitTextButton pendingLabel="Duplicando…">
+                    Duplicar
+                  </SubmitTextButton>
+                </form>
+              </div>
+            ) : null}
           </header>
 
           {/* ---- Link público ---- */}

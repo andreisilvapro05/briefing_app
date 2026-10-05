@@ -13,6 +13,7 @@ import type { CustomQuestionTipo } from "@/lib/custom-questions";
 import type { TemplateQuestion } from "@/lib/briefing-templates";
 import { getBriefingTemplate } from "@/lib/briefing-templates-server";
 import { createEIDocumentAction } from "@/app/admin/estruturas-iniciais/actions";
+import { eiDocumentTitle, nomeDaCopia } from "@/lib/ei-documents";
 
 /**
  * Ações da aba global "Briefings" — templates reutilizáveis.
@@ -210,7 +211,17 @@ export async function applyTemplateToClientAction(formData: FormData) {
   if (insErr) logServerError("briefings.aplicar-template", insErr);
 
   revalidatePath(`/admin/${clientId}`);
-  redirect(`/admin/${clientId}${keySuffix(urlKey)}#briefing`);
+  /**
+   * `?tab=briefing`, não `#briefing`.
+   *
+   * A ficha escolhe a aba pela QUERY STRING; não existe nenhum
+   * `id="briefing"` no app pra âncora pegar. Quem aplicava um modelo de
+   * perguntas a um cliente caía na aba "geral" e não via o resultado —
+   * justamente o que esta função existe pra mostrar.
+   */
+  redirect(
+    `/admin/${clientId}${keySuffix(urlKey) ? `${keySuffix(urlKey)}&` : "?"}tab=briefing`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -324,4 +335,130 @@ export async function vincularBriefingAction(formData: FormData) {
 export async function criarBriefingAction(formData: FormData) {
   formData.set("kind", "briefing");
   await createEIDocumentAction(formData);
+}
+
+/**
+ * Renomear um briefing.
+ *
+ * Karine (04/10): "poder editar". Até aqui o briefing NÃO tinha nome
+ * próprio editável — `eiDocumentTitle` sempre mostrava o nome do cliente,
+ * então os três briefings da mesma pessoa apareciam idênticos na lista.
+ *
+ * Nome vazio APAGA o nome próprio e devolve o título pro nome do cliente,
+ * que é o padrão. É o jeito de desfazer sem um segundo botão.
+ */
+export async function renomearBriefingAction(formData: FormData) {
+  const urlKey = (formData.get("key") as string | null) ?? null;
+  const id = String(formData.get("docId") ?? "").trim();
+  const nome = String(formData.get("nome") ?? "").trim().slice(0, 160);
+
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+  if (!id) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+
+  const service = createSupabaseServiceRoleClient();
+  const { error } = await service
+    .from("ei_documents")
+    .update({ nome: nome || null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("kind", "briefing");
+  if (error) logServerError("briefing.renomear", error);
+
+  revalidatePath("/admin/briefings");
+  revalidatePath(`/admin/briefings/doc/${id}`);
+  redirect(`/admin/briefings/doc/${id}${keySuffix(urlKey)}`);
+}
+
+/**
+ * Duplicar um briefing — com o conteúdo, não só a casca.
+ *
+ * Karine (04/10): "poder duplicar". O caso real é o segundo projeto do
+ * mesmo cliente: aproveita-se o que já foi levantado e muda-se o que é
+ * novo. Criar do Modelo em branco jogaria fora justamente a parte cara.
+ *
+ * O que NÃO vai junto, de propósito:
+ *   - `share_token` / `share_enabled`: o link que o cliente já tem aponta
+ *     pro briefing ORIGINAL. Herdar o token faria duas páginas
+ *     responderem pelo mesmo endereço.
+ *   - `is_template`: cópia de modelo nasce documento comum, senão o app
+ *     passaria a ter dois "Modelo" e `getTemplateDocument` ficaria
+ *     ambíguo — armadilha que já quebrou a criação de briefing uma vez.
+ *   - `credenciais`: senha de cliente não se multiplica por engano.
+ */
+export async function duplicarBriefingAction(formData: FormData) {
+  const urlKey = (formData.get("key") as string | null) ?? null;
+  const id = String(formData.get("docId") ?? "").trim();
+
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (!hasFullAccess(member)) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+  if (!id) redirect(`/admin/briefings${keySuffix(urlKey)}`);
+
+  const service = createSupabaseServiceRoleClient();
+  const { data: origemRow, error: erroLeitura } = await service
+    .from("ei_documents")
+    .select("id, client_id, nome, is_template, kind, ei_data, clients(nome, empresa)")
+    .eq("id", id)
+    .eq("kind", "briefing")
+    .maybeSingle();
+  if (erroLeitura || !origemRow) {
+    logServerError("briefing.duplicar.leitura", erroLeitura);
+    redirect(`/admin/briefings${keySuffix(urlKey)}`);
+  }
+  const origem = origemRow as unknown as {
+    client_id: string | null;
+    nome: string | null;
+    is_template: boolean;
+    ei_data: { blocks?: unknown[] } | null;
+    clients: { nome: string | null; empresa: string | null } | null;
+  };
+
+  // Os nomes já usados — pra cópia da cópia virar "(cópia 2)" e não
+  // colidir. Entre os do MESMO cliente; documento avulso compara com os
+  // avulsos.
+  const irmasQuery = service
+    .from("ei_documents")
+    .select("nome, is_template, clients(nome, empresa)")
+    .eq("kind", "briefing");
+  const { data: irmas } = await (origem.client_id
+    ? irmasQuery.eq("client_id", origem.client_id)
+    : irmasQuery.is("client_id", null));
+
+  const tituloOrigem = eiDocumentTitle({
+    isTemplate: origem.is_template,
+    nome: origem.nome,
+    client: origem.clients,
+  });
+  const usados = ((irmas as unknown as {
+    nome: string | null;
+    is_template: boolean;
+    clients: { nome: string | null; empresa: string | null } | null;
+  }[] | null) ?? []).map((r) =>
+    eiDocumentTitle({
+      isTemplate: r.is_template,
+      nome: r.nome,
+      client: r.clients,
+    })
+  );
+
+  const { data: criado, error: erroInsert } = await service
+    .from("ei_documents")
+    .insert({
+      client_id: origem.client_id,
+      kind: "briefing",
+      nome: nomeDaCopia(tituloOrigem, usados),
+      ei_data: { blocks: origem.ei_data?.blocks ?? [] },
+    })
+    .select("id")
+    .single();
+  if (erroInsert || !criado) {
+    logServerError("briefing.duplicar", erroInsert);
+    redirect(`/admin/briefings/doc/${id}${keySuffix(urlKey)}`);
+  }
+
+  revalidatePath("/admin/briefings");
+  redirect(
+    `/admin/briefings/doc/${(criado as { id: string }).id}${keySuffix(urlKey)}`
+  );
 }

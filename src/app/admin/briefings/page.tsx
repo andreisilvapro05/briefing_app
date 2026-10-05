@@ -38,7 +38,18 @@ type Aba = "documentos" | "respostas" | "modelos";
 const ABAS: { id: Aba; label: string }[] = [
   { id: "documentos", label: "Briefings" },
   { id: "respostas", label: "Preenchidos" },
-  { id: "modelos", label: "Modelos" },
+  /**
+   * "Perguntas extras", não "Modelos".
+   *
+   * A palavra "Modelo" já significa outra coisa no app: o DOCUMENTO-modelo
+   * (`ei_documents.is_template`), que é o que a estrela marca na barra
+   * lateral e o que o seletor oferece ao criar um briefing. Esta aba é de
+   * `briefing_templates`, que é um conjunto de PERGUNTAS copiado pro
+   * cliente — outra tabela, outro fluxo, outro resultado. Duas coisas com
+   * o mesmo nome na mesma tela é metade da bagunça que a Karine apontou
+   * em 04/10.
+   */
+  { id: "modelos", label: "Perguntas extras" },
 ];
 
 type Filtro = "todos" | "compartilhados" | "avulsos" | "vazios";

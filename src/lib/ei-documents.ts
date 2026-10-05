@@ -58,16 +58,47 @@ export interface EIDocument {
 }
 
 /**
- * Título exibido: "Modelo" pro documento-modelo, empresa/nome do cliente
- * pros demais (derivado ao vivo do cliente — evita título desatualizado
- * se o cliente for renomeado depois).
+ * Título exibido, em ordem de precedência:
+ *   1. o NOME escrito à mão (quando existe);
+ *   2. "Modelo", pro documento-modelo;
+ *   3. empresa/nome do cliente, derivado ao vivo.
+ *
+ * ⚠️ O nome à mão vinha ANTES de tudo e era IGNORADO quando havia cliente:
+ * `if (doc.client) return doc.client.empresa` vinha primeiro. Na prática,
+ * todos os briefings do mesmo cliente apareciam na lista com o MESMO
+ * título — e vários clientes têm dois ou três (projetos diferentes, meses
+ * diferentes). Era impossível saber qual era qual sem abrir um por um.
+ * Karine (04/10): "está bagunçado".
+ *
+ * O cliente continua sendo o padrão: quem não nomeia nada segue vendo o
+ * nome dele, atualizado ao vivo se a ficha for renomeada.
  */
 export function eiDocumentTitle(doc: {
   isTemplate: boolean;
   nome: string | null;
-  client: EIDocumentClientInfo | null;
+  /**
+   * Só nome e empresa: pedir `EIDocumentClientInfo` inteiro obrigava quem
+   * chama a inventar `fysiDriveLink`/`clienteDriveLink` que a função nem
+   * olha — e inventar campo pra satisfazer tipo é como se escreve um bug.
+   */
+  client: { nome: string | null; empresa: string | null } | null;
 }): string {
+  const proprio = doc.nome?.trim();
+  if (proprio) return proprio;
   if (doc.isTemplate) return "Modelo";
   if (doc.client) return doc.client.empresa || doc.client.nome || "Sem título";
-  return doc.nome || "Sem título";
+  return "Sem título";
+}
+
+/** Nome da cópia: "Briefing" → "Briefing (cópia)" → "Briefing (cópia 2)". */
+export function nomeDaCopia(titulo: string, jaExistentes: string[]): string {
+  const base = titulo.replace(/\s*\(cópia(?: \d+)?\)\s*$/i, "").trim();
+  const usados = new Set(jaExistentes.map((n) => n.trim().toLowerCase()));
+  const primeiro = `${base} (cópia)`;
+  if (!usados.has(primeiro.toLowerCase())) return primeiro;
+  for (let i = 2; i < 100; i++) {
+    const tentativa = `${base} (cópia ${i})`;
+    if (!usados.has(tentativa.toLowerCase())) return tentativa;
+  }
+  return `${base} (cópia ${Date.now()})`;
 }

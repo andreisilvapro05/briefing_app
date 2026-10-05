@@ -238,7 +238,7 @@ export function BriefingTemplateBuilder({
       {/* Nome + salvar */}
       <div className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card p-4 flex flex-col gap-3">
         <Input
-          label="Nome do briefing"
+          label="Nome deste conjunto de perguntas"
           value={nome}
           onChange={(e) => {
             setNome(e.target.value);
@@ -252,7 +252,7 @@ export function BriefingTemplateBuilder({
             onClick={save}
             disabled={pending || !nome.trim()}
           >
-            {pending ? "Salvando…" : "Salvar briefing"}
+            {pending ? "Salvando…" : "Salvar perguntas"}
           </Button>
           {saved && !pending ? (
             <span className="text-sm text-fysi-green font-medium">

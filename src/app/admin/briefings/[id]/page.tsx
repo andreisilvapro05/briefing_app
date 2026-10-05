@@ -65,7 +65,7 @@ export default async function BriefingTemplatePage({
                 ← Todos os briefings
               </Link>
               <div className="mt-2">
-                <Eyebrow>Montar briefing</Eyebrow>
+                <Eyebrow>Montar perguntas extras</Eyebrow>
                 <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight text-fysi-deep mt-1">
                   {template!.nome}
                 </h1>
@@ -91,7 +91,7 @@ export default async function BriefingTemplatePage({
               <input type="hidden" name="id" value={template!.id} />
               <SubmitTextButton
                 danger
-                confirm="Excluir este briefing? As perguntas dele somem pra todo mundo."
+                confirm="Excluir este conjunto de perguntas? Ele some pra todo mundo."
                 pendingLabel="Excluindo…"
               >
                 Excluir este briefing

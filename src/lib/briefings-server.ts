@@ -27,6 +27,12 @@ import type { EIDocumentSummary } from "./ei-documents";
 export interface BriefingResumo {
   id: string;
   titulo: string;
+  /**
+   * O nome escrito à mão, cru — `titulo` já é o derivado (cai no nome do
+   * cliente quando este é nulo). A tela de renomear precisa do cru pra não
+   * gravar o nome do cliente como se fosse escolha de alguém.
+   */
+  nome: string | null;
   clientId: string | null;
   clienteNome: string | null;
   isTemplate: boolean;
@@ -123,6 +129,7 @@ function resumo(row: Row, assinaturaModelo?: string | null): BriefingResumo {
   return {
     id: row.id,
     titulo: tituloDe(row),
+    nome: row.nome,
     clientId: row.client_id,
     clienteNome: row.clients
       ? row.clients.empresa?.trim() || row.clients.nome?.trim() || null

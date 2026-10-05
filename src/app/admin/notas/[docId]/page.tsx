@@ -60,10 +60,17 @@ export default async function NotaPage({
           createAction={criarNotaAction}
           createLabel="+ Novo documento em branco"
           subTabs={[
-            { label: "Respostas", href: `/admin/briefings${kp}`, active: false },
+            /* "Respostas" é uma ABA do hub, não a raiz dele: sem o
+               `?aba=respostas` isto caía na lista de Briefings. E
+               "Documentos" saiu junto com o hub duplicado. */
             {
-              label: "Documentos",
-              href: `/admin/briefing-documentos${kp}`,
+              label: "Briefings",
+              href: `/admin/briefings${kp}`,
+              active: false,
+            },
+            {
+              label: "Preenchidos",
+              href: `/admin/briefings${kp ? `${kp}&` : "?"}aba=respostas`,
               active: false,
             },
             { label: "Em branco", href: `/admin/notas${kp}`, active: true },

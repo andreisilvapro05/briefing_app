@@ -381,11 +381,11 @@ const AREAS: NavArea[] = [
        */
       item("ata", "Atas", "/admin/ata"),
       item("briefings", "Briefings", "/admin/briefings", [
-        item(
-          "briefing-documentos",
-          "Documentos",
-          "/admin/briefing-documentos"
-        ),
+        /* "Documentos" (/admin/briefing-documentos) SAIU: era um segundo
+           hub listando exatamente os mesmos briefings, com outro conjunto
+           de botões e um "criar novo" que abria documento diferente.
+           Karine (04/10): "está bagunçado". O endereço ainda existe, só
+           redirecionando — há links antigos por aí. */
         // Documento em branco — pedido da Karine (27/09): "uma parte que eu
         // possa criar um documento limpo pra anotar coisas, por exemplo pra
         // criar uma copy nova".
