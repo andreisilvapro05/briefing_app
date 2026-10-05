@@ -193,3 +193,41 @@ test("respValido recusa o que não é recorte", () => {
   assert.ok(!respValido(undefined));
   assert.ok(!respValido(""));
 });
+
+/* ── "Meus projetos" vs "projetos em que encosto" (04/10) ──────────── */
+
+test('escopo "gestor" ignora as tarefas — só quem gerencia', () => {
+  // Karine (04/10): "completo a copy só, não é para aparecer como meu
+  // projeto". Ela é dona da etapa de copy em quase todo projeto; pela
+  // união, os 24 viravam "meus projetos" dela.
+  const tarefas = [
+    {
+      client_id: "p1",
+      responsavel: "karine",
+      status: "a-iniciar",
+      data_vencimento: "2026-10-10",
+    },
+  ];
+  const projetos = [
+    { id: "p1", responsavel: "andrei" },
+    { id: "p2", responsavel: "karine" },
+  ];
+
+  const gestor = projetosDaPessoa(tarefas, "karine", projetos, "gestor");
+  assert.deepEqual([...gestor], ["p2"]);
+
+  // O padrão continua unindo — é o que o FILTRO da Lista precisa.
+  const qualquer = projetosDaPessoa(tarefas, "karine", projetos);
+  assert.deepEqual([...qualquer].sort(), ["p1", "p2"]);
+});
+
+test('escopo "gestor" segue valendo pra quem não tem tarefa nenhuma', () => {
+  // O Andrei é gestor de 36 projetos e dono de etapa nenhuma — o caso que
+  // originou a união. No escopo de gestor ele continua vendo os dele.
+  const projetos = [
+    { id: "p1", responsavel: "andrei" },
+    { id: "p2", responsavel: "andrei" },
+  ];
+  const r = projetosDaPessoa([], "andrei", projetos, "gestor");
+  assert.equal(r.size, 2);
+});

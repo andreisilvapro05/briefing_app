@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await service
       .from("clients")
       .select(
-        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at, fysi_drive_link, copy_review_link, contrato_status, contrato_signed_url, contrato_link_assinatura, pagamento_total, pagamento_pago, pagamento_observacao, pagamento_atualizado_at, entrega_documento, entrega_finalizada_at"
+        "current_stage_index, status, project_type, contrato_preenchido_at, chamada_agendada_at, chamada_data, briefing_submitted_at, fysi_drive_link, copy_review_link, contrato_status, contrato_signed_url, contrato_link_assinatura, pagamento_total, pagamento_pago, pagamento_observacao, pagamento_atualizado_at, entrega_documento, entrega_finalizada_at, arquivado_em"
       )
       .eq("id", parsed.clientId)
       .maybeSingle();
@@ -83,6 +83,15 @@ export async function POST(request: NextRequest) {
         Number(data.current_stage_index) || 0
       ),
       status: data.status,
+      /**
+       * Projeto ENCERRADO (o cliente desistiu e a equipe arquivou).
+       *
+       * Nenhum consumidor do lado do cliente olhava `arquivado_em`: quem
+       * desistia continuava com o painel inteiro pedindo CNPJ pra Pix e
+       * dizendo "faltam 3 itens pra gente seguir com o seu projeto". A
+       * equipe arquivava justamente pra parar de tocar o projeto.
+       */
+      arquivado: Boolean(data.arquivado_em),
       projectType: data.project_type,
       contratoPreenchido: !!data.contrato_preenchido_at,
       chamadaAgendada: !!data.chamada_agendada_at,

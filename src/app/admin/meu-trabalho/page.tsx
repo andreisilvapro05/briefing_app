@@ -107,8 +107,21 @@ export default async function MeuTrabalhoPage({
   const projetosComDono = grupos.flatMap((g) =>
     g.clients.map((c) => ({ id: c.id, responsavel: c.linha.responsavel }))
   );
+  /**
+   * "Meus projetos" = os que EU GERENCIO, não aqueles em que tenho uma
+   * tarefa. Karine (04/10): "completo a copy só, não é para aparecer como
+   * meu projeto".
+   *
+   * As tarefas dela nesses projetos continuam logo abaixo, em "Pendente" —
+   * o que sai daqui é só a afirmação de que o PROJETO é dela.
+   */
   const meusIds = member.taskValue
-    ? projetosDaPessoa(tarefasNoEscopo, member.taskValue, projetosComDono)
+    ? projetosDaPessoa(
+        tarefasNoEscopo,
+        member.taskValue,
+        projetosComDono,
+        "gestor"
+      )
     : new Set<string>();
   const meusProjetos: ProjetoDoMembro[] = grupos.flatMap((g) =>
     g.clients

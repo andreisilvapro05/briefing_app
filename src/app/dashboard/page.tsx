@@ -38,6 +38,8 @@ export default function DashboardPage() {
    * antigo (não dá pra saber de fora) ou copy nenhuma.
    */
   const [copySituacao, setCopySituacao] = useState<SituacaoCopy | null>(null);
+  /** Projeto encerrado: o cliente desistiu e a equipe arquivou. */
+  const [arquivado, setArquivado] = useState(false);
   const [briefingSubmetido, setBriefingSubmetido] = useState(false);
   const [contratoStatus, setContratoStatus] = useState<string | null>(null);
   const [contratoSignedUrl, setContratoSignedUrl] = useState<string | null>(
@@ -117,6 +119,7 @@ export default function DashboardPage() {
           if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
           if (data?.copyReviewLink) setCopyReviewLink(data.copyReviewLink);
           if (data?.copySituacao) setCopySituacao(data.copySituacao);
+          setArquivado(Boolean(data?.arquivado));
           if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
           if (data?.contratoSignedUrl)
             setContratoSignedUrl(data.contratoSignedUrl);
@@ -150,6 +153,7 @@ export default function DashboardPage() {
         if (data?.fysiDriveLink) setFysiDriveLink(data.fysiDriveLink);
         if (data?.copyReviewLink) setCopyReviewLink(data.copyReviewLink);
         if (data?.copySituacao) setCopySituacao(data.copySituacao);
+        setArquivado(Boolean(data?.arquivado));
         if (data?.briefingSubmetido) setBriefingSubmetido(true);
         if (data?.contratoStatus) setContratoStatus(data.contratoStatus);
         if (data?.contratoSignedUrl)
@@ -204,6 +208,7 @@ export default function DashboardPage() {
           setFysiDriveLink(data.fysiDriveLink ?? null);
           setCopyReviewLink(data.copyReviewLink ?? null);
           setCopySituacao(data.copySituacao ?? null);
+          setArquivado(Boolean(data?.arquivado));
           setContratoStatus(data.contratoStatus ?? null);
           setContratoSignedUrl(data.contratoSignedUrl ?? null);
           setContratoLinkAssinatura(data.contratoLinkAssinatura ?? null);
@@ -241,6 +246,12 @@ export default function DashboardPage() {
         ? buildTimeline(cliente.projectType, serverStageIndex)
         : [],
     [cliente, serverStageIndex]
+  );
+
+  /** A etapa em que o projeto está agora — o que o cliente quer saber. */
+  const etapaAtual = useMemo(
+    () => etapas.find((e) => e.status === "em-andamento") ?? null,
+    [etapas]
   );
 
   function handleSair() {
@@ -472,6 +483,45 @@ export default function DashboardPage() {
 
   const primeiroNome = cliente.nome.split(" ")[0];
 
+  /**
+   * Projeto ENCERRADO — tela única, no lugar do painel inteiro.
+   *
+   * Nenhum consumidor do lado do cliente olhava `arquivado_em`: quem
+   * desistia continuava vendo "Dados pra contrato · IMPORTANTE", o CNPJ
+   * pra Pix e "faltam 3 itens pra gente seguir com o seu projeto". A
+   * equipe arquiva justamente pra PARAR de tocar o projeto — e o painel
+   * seguia cobrando em nome dela.
+   */
+  if (arquivado) {
+    return (
+      <Shell tone="cream" sectionLabel="03 · Painel do projeto">
+        <ContentFrame size="xl">
+          <section className="bg-white border border-fysi-line rounded-[24px] p-8 md:p-10 max-w-2xl">
+            <Eyebrow>Painel · {cliente.empresa}</Eyebrow>
+            <h1 className="fysi-display text-3xl md:text-4xl mt-2">
+              Olá, {primeiroNome}.
+            </h1>
+            <p className="text-fysi-muted text-base leading-relaxed mt-4">
+              Este projeto está encerrado no nosso sistema, então não há mais
+              nada pendente do seu lado.
+            </p>
+            <p className="text-fysi-muted text-base leading-relaxed mt-3">
+              Se foi engano, ou se você quiser retomar, é só falar com a gente
+              pelo WhatsApp — a conversa continua de onde parou.
+            </p>
+            <button
+              type="button"
+              onClick={handleSair}
+              className="mt-6 text-xs text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
+            >
+              Sair deste painel
+            </button>
+          </section>
+        </ContentFrame>
+      </Shell>
+    );
+  }
+
   // Computa progresso real a partir das respostas em localStorage.
   const blocosDoProjeto = blocosForProject(cliente.projectType!);
   const blocosTotal = blocosDoProjeto.length;
@@ -498,9 +548,25 @@ export default function DashboardPage() {
             <h1 className="fysi-display text-3xl md:text-4xl">
               Olá, {primeiroNome}.
             </h1>
+            {/* A etapa de verdade, não uma frase fixa.
+                Até 04/10 esta linha dizia "Você está na primeira etapa do
+                projeto" SEMPRE — independente do andamento. Um cliente em
+                implementação lia que estava no começo. Karine (26/09): "a
+                parte de visualização das etapas pelo cliente é falha no
+                dashboard dele". */}
             <p className="text-fysi-muted text-base leading-relaxed max-w-xl">
-              Você está na primeira etapa do projeto. Abaixo está a timeline
-              completa e o status do briefing.
+              {etapaAtual ? (
+                <>
+                  Seu projeto está em{" "}
+                  <strong className="text-fysi-deep font-medium">
+                    {etapaAtual.titulo}
+                  </strong>{" "}
+                  — etapa {etapaAtual.numero} de {etapas.length}. Abaixo está a
+                  timeline completa e o status do briefing.
+                </>
+              ) : (
+                "Abaixo está a timeline completa e o status do briefing."
+              )}
             </p>
           </div>
 

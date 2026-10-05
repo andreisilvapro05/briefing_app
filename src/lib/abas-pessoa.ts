@@ -176,13 +176,32 @@ export function projetosSemPrazoDe(
 export function projetosDaPessoa(
   tarefas: TarefaParaAba[],
   pessoa: string,
-  projetos: ProjetoParaAba[] = []
+  projetos: ProjetoParaAba[] = [],
+  /**
+   * `"gestor"` = só os projetos em que a pessoa é a RESPONSÁVEL, ignorando
+   * as tarefas.
+   *
+   * Karine (04/10): "completo a copy só, não é para aparecer como meu
+   * projeto". Ela é a dona da etapa de copy em quase todo projeto da
+   * agência — pela regra de união, os 24 viravam "meus projetos" dela em
+   * Meu Trabalho, o que não diz nada.
+   *
+   * O padrão (`"qualquer"`) continua unindo as duas coisas, porque é o que
+   * o FILTRO por pessoa da Lista e da Visão Geral precisa: lá a pergunta é
+   * "em que projetos essa pessoa encosta", e foi pra isso que a união foi
+   * criada (o Andrei é gestor de 36 projetos e dono de etapa nenhuma).
+   *
+   * São duas perguntas diferentes com a mesma cara — ver
+   * [[trap_dono_projeto_vs_dono_tarefa]].
+   */
+  escopo: "qualquer" | "gestor" = "qualquer"
 ): Set<string> {
   const out = new Set<string>();
   for (const p of projetos) {
     const dele = pessoa === SEM_RESPONSAVEL ? !p.responsavel : p.responsavel === pessoa;
     if (dele) out.add(p.id);
   }
+  if (escopo === "gestor") return out;
   for (const t of tarefas) {
     if (
       t.client_id &&

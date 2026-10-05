@@ -87,21 +87,62 @@ export function EIBlockEditor({
     }
   }
 
-  // Autosave debounced 800ms após a última edição — mesmo padrão do
-  // formulário de campos fixos que este componente substitui. Ignora o
-  // disparo inicial do onChange no mount (o próprio BlockNote dispara um
-  // onChange ao montar mesmo sem edição do usuário).
+  /**
+   * Autosave 800ms depois da ÚLTIMA tecla.
+   *
+   * ⚠️ O código anterior não tinha debounce nenhum, apesar do comentário
+   * dizer que tinha. O `clearTimeout` estava no retorno do callback do
+   * `editor.onChange`, e o BlockNote IGNORA o que esse callback devolve —
+   * só o retorno do `onChange` em si (a função de desinscrição) é usado.
+   * Resultado: cada tecla agendava o próprio `save()`, disparando N Server
+   * Actions concorrentes. Como a ordem de chegada não é garantida, uma
+   * resposta atrasada podia gravar um documento MAIS ANTIGO por cima do
+   * mais novo — perda de texto silenciosa.
+   *
+   * Agora o timer é único (useRef): cada mudança cancela o anterior.
+   */
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasMountedRef = useRef(false);
+  const saveRef = useRef(save);
+  /**
+   * `save` fecha sobre estado e muda a cada render; o efeito de baixo roda
+   * uma vez só (depende de `editor`), então ele precisa alcançar a versão
+   * atual. A escrita vai num efeito, não no corpo do componente: o lint do
+   * React Compiler proíbe tocar em ref durante o render.
+   */
   useEffect(() => {
-    return editor.onChange(() => {
+    saveRef.current = save;
+  });
+
+  useEffect(() => {
+    const desinscrever = editor.onChange(() => {
+      // O BlockNote dispara um onChange ao montar, sem edição do usuário.
       if (!hasMountedRef.current) {
         hasMountedRef.current = true;
         return;
       }
-      const timeout = setTimeout(save, 800);
-      return () => clearTimeout(timeout);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        saveRef.current();
+      }, 800);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    return () => {
+      /**
+       * Salva o que estiver pendente ANTES de desmontar.
+       *
+       * Sem isto, quem digitava e clicava na lateral dentro de 800ms
+       * perdia o que escreveu — e a tela ainda mostrava "Salvo em <data
+       * antiga>", sem avisar nada.
+       */
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+        saveRef.current();
+      }
+      desinscrever?.();
+    };
   }, [editor]);
 
   return (
