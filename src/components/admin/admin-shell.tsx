@@ -39,6 +39,7 @@ export type AdminSection =
   | "projetos"
   | "lista"
   | "ata"
+  | "prova"
   | "briefings"
   | "quadro"
   | "tarefas"
@@ -175,6 +176,13 @@ const ICONS: Record<AdminSection, ReactNode> = {
     <I>
       <path d="M4 6h11M4 11h11M4 16h6" />
       <path d="M17.6 13.4a1.8 1.8 0 0 1 2.5 2.5L16 20l-3 .8.8-3Z" />
+    </I>
+  ),
+  // Selo/medalha: a prova é o que ficou provado de um projeto entregue.
+  prova: (
+    <I>
+      <circle cx="12" cy="9" r="5" />
+      <path d="M8.5 13.5 7 21l5-2.5L17 21l-1.5-7.5" />
     </I>
   ),
   briefings: (
@@ -380,6 +388,12 @@ const AREAS: NavArea[] = [
        * gestão precisa de lugar próprio.
        */
       item("ata", "Atas", "/admin/ata"),
+      /**
+       * Banco de prova — PRD de 05/10. Área central, perto de Atas e das
+       * visualizações de projeto: a prova nasce de um projeto ENTREGUE, e
+       * o que ela alimenta (conteúdo, proposta) é a ponta seguinte.
+       */
+      item("prova", "Prova", "/admin/prova"),
       item("briefings", "Briefings", "/admin/briefings", [
         /* "Documentos" (/admin/briefing-documentos) SAIU: era um segundo
            hub listando exatamente os mesmos briefings, com outro conjunto

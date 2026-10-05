@@ -6,6 +6,7 @@ import { Shell, ContentFrame } from "@/components/layout/shell";
 import { Eyebrow, Pill } from "@/components/ui/pill";
 import { ProjectTimeline } from "@/components/timeline/project-timeline";
 import { MeusMateriaisCard } from "@/components/meus-materiais-card";
+import { DepoimentoCard } from "@/components/depoimento-card";
 import { MateriaisPendentesCard } from "@/components/materiais-pendentes-card";
 import { EntregaViewer } from "@/components/entrega-viewer";
 import type { EntregaDocumento } from "@/lib/entrega";
@@ -426,7 +427,13 @@ export default function DashboardPage() {
               clientes — o cliente nunca teve como vê-la. */}
           {cliente.id ? (
             <div className="mb-8">
-              <MateriaisPendentesCard clientId={cliente.id} />
+              <>
+                <MateriaisPendentesCard clientId={cliente.id} />
+                {/* "Como foi trabalhar com a Fysi" — só aparece quando a
+                    equipe abriu a prova deste projeto. Ver
+                    src/components/depoimento-card.tsx. */}
+                <DepoimentoCard clientId={cliente.id} />
+              </>
             </div>
           ) : null}
 
@@ -837,7 +844,13 @@ export default function DashboardPage() {
             </section>
 
             {cliente.id ? (
-              <MateriaisPendentesCard clientId={cliente.id} />
+              <>
+                <MateriaisPendentesCard clientId={cliente.id} />
+                {/* "Como foi trabalhar com a Fysi" — só aparece quando a
+                    equipe abriu a prova deste projeto. Ver
+                    src/components/depoimento-card.tsx. */}
+                <DepoimentoCard clientId={cliente.id} />
+              </>
             ) : null}
 
             {/* Meus materiais — visão rápida do que o cliente já enviou */}
