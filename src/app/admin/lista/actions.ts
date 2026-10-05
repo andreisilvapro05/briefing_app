@@ -9,6 +9,7 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { sincronizarStatusDosProjetos } from "@/lib/clickup-status-sync";
 import { logServerError } from "@/lib/api-helpers";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
+import { maxStageIndexDe } from "@/lib/project-types";
 import {
   DEFAULT_PROJECT_TASKS,
   DEFAULT_TASK_STATUS,
@@ -104,12 +105,8 @@ const STATUS_INICIAL_DA_TAREFA: Partial<Record<string, TaskStatus>> = {
   "Informações Iniciais": "envio-informacoes",
 };
 
-/** Timeline mais curta por tipo — mesmo clamp do setProjectTypeAction. */
-function maxStageIndex(projectType: ProjectType): number {
-  if (projectType === "landing-sem-copy") return 4;
-  if (projectType === "outro") return 3;
-  return 5;
-}
+/** Timeline mais curta por tipo — derivado da própria timeline. */
+const maxStageIndex = maxStageIndexDe;
 
 /**
  * Completa um projeto que nasceu pela metade: define o tipo e/ou gera as

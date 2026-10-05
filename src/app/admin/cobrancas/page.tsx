@@ -65,6 +65,11 @@ export default async function CobrancasPage({
   let clientesPagQuery = service
     .from("clients")
     .select("id, nome, empresa, whatsapp, pagamento_total, pagamento_pago, pagamento_observacao")
+    // Arquivado é projeto que NÃO vai acontecer (desistência): continuava
+    // somando em "A receber" e reaparecendo em "Contratos sem valor",
+    // enquanto Relatórios → Receita já filtrava — as duas telas mostravam
+    // números diferentes. Era a única leitura de `clients` sem o filtro.
+    .is("arquivado_em", null)
     .gt("pagamento_total", 0);
   if (visibleIds)
     clientesPagQuery = clientesPagQuery.in("id", Array.from(visibleIds));
@@ -74,6 +79,7 @@ export default async function CobrancasPage({
   let semValorQuery = service
     .from("clients")
     .select("id, nome, empresa, contrato_dados")
+    .is("arquivado_em", null)
     .not("autentique_document_id", "is", null)
     .or("pagamento_total.is.null,pagamento_total.eq.0");
   if (visibleIds) semValorQuery = semValorQuery.in("id", Array.from(visibleIds));

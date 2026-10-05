@@ -760,6 +760,10 @@ function ClientAccordionRow({
             clientId={c.id}
             status={c.status || DEFAULT_TASK_STATUS}
             urlKey={urlKey}
+            /* Era o único controle da linha sem este corte: a designer
+               movia o projeto inteiro (e a timeline do cliente junto) sem
+               poder mudar responsável nem data. */
+            somenteLeitura={Boolean(restrictToResponsavel)}
           />
           {c.progresso && c.progresso.total > 0 ? (
             <button

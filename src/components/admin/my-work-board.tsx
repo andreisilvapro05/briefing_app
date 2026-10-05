@@ -795,10 +795,24 @@ export function MyWorkBoard({
         // Recusa do servidor volta como { ok: false }, não como exceção —
         // sem esta checagem o valor recusado ficava na tela até recarregar.
         const r = await updateProjectTaskAction(fd);
-        if (!r.ok) desfazer();
+        if (!r.ok) {
+          desfazer();
+          return;
+        }
       } catch {
         desfazer();
+        return;
       }
+      /**
+       * Faltava este refresh.
+       *
+       * As listas desta tela vêm do SERVIDOR recortadas por pessoa
+       * ("Pendente" é minha, "Delegado" é de quem eu passei). Sem recarregar,
+       * passar uma demanda pra outra pessoa deixava o cartão na MINHA lista,
+       * com o avatar dela — e os contadores de "Demandas da equipe", que são
+       * renderizados no servidor, nem mexiam. Parecia que não tinha passado.
+       */
+      router.refresh();
     });
   }
 

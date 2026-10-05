@@ -35,6 +35,28 @@ export const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
     hasCopyStep: false,
   },
   {
+    /**
+     * ⚠️ FALTAVA AQUI — e era o que travava o painel da cliente de tráfego.
+     *
+     * `trafego` existe no union de `ProjectType` (types.ts) e no CHECK do
+     * banco desde a migration 20260928120000 (pedido da Karine: "Carla é de
+     * tráfego, precisaremos separar uma aba para esses clientes"), mas
+     * nunca entrou nesta lista. O painel do cliente usa
+     * `PROJECT_TYPE_OPTIONS` pra decidir se CONHECE o tipo: não achando,
+     * devolvia pra tela "o que você contratou com a Fysi?" — que manda de
+     * volta pro painel. Loop eterno, com "Carregando…" na tela.
+     *
+     * Era a ÚNICA cliente de tráfego do app (Carla's Cleaning Service), e
+     * ela não conseguia ver o projeto desde 28/09.
+     */
+    id: "trafego",
+    title: "Tráfego pago",
+    description:
+      "Campanhas, criativos e otimização contínua. Acompanhamento mensal.",
+    durationLabel: "Mensal",
+    hasCopyStep: false,
+  },
+  {
     id: "outro",
     title: "Outro serviço",
     description:
@@ -43,6 +65,27 @@ export const PROJECT_TYPE_OPTIONS: ProjectTypeOption[] = [
     hasCopyStep: false,
   },
 ];
+
+/** O valor é um tipo de projeto que o app conhece? */
+export function ehProjectTypeConhecido(valor: string): valor is ProjectType {
+  return PROJECT_TYPE_OPTIONS.some((o) => o.id === valor);
+}
+
+/**
+ * Último índice de etapa válido para um tipo de projeto.
+ *
+ * DERIVADO da própria timeline, de propósito. O número estava escrito à
+ * mão em DOIS lugares (`setProjectTypeAction` e `maxStageIndex` da Lista),
+ * com formatos diferentes, e os dois diziam 5 pra qualquer tipo que não
+ * fosse `landing-sem-copy` ou `outro` — então `trafego`, que tem 5 etapas,
+ * ganhava limite 5 e o painel do cliente podia marcar TUDO como concluído.
+ *
+ * Com isto, acrescentar um tipo novo não exige lembrar de um terceiro
+ * lugar: o limite sai da timeline que ele mesmo define.
+ */
+export function maxStageIndexDe(projectType: ProjectType): number {
+  return Math.max(0, buildTimeline(projectType, 0).length - 1);
+}
 
 /**
  * Timeline de etapas mostrada ao cliente no dashboard.
@@ -199,6 +242,55 @@ export function buildTimeline(
         titulo: "Entrega",
         prazo: "Final",
         atividades: ["Revisão, ajustes finais e documentação"],
+        status: "pendente",
+      },
+    ];
+  } else if (projectType === "trafego") {
+    /**
+     * Tráfego é CONTÍNUO, não um projeto com entrega final: a timeline
+     * reflete o ciclo mensal. Sem este ramo, cairia no `else` e a cliente
+     * veria "Prévia visual no Figma" e "Documento de entrega" — etapas que
+     * não existem no serviço dela.
+     */
+    etapas = [
+      onboarding,
+      {
+        numero: 0,
+        titulo: "Estratégia de campanha",
+        prazo: "3–5 dias úteis",
+        atividades: [
+          "Definição de público e oferta",
+          "Estrutura de campanhas e orçamento",
+          "Configuração de pixel e conversões",
+        ],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Criativos",
+        prazo: "5 dias úteis",
+        atividades: ["Produção de peças e variações", "Textos dos anúncios"],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Veiculação e otimização",
+        prazo: "Contínuo",
+        atividades: [
+          "Subida das campanhas",
+          "Testes e ajuste de verba",
+          "Otimização por resultado",
+        ],
+        status: "pendente",
+      },
+      {
+        numero: 0,
+        titulo: "Relatório mensal",
+        prazo: "Mensal",
+        atividades: [
+          "Resultados por campanha",
+          "Custo por resultado e próximos passos",
+        ],
         status: "pendente",
       },
     ];

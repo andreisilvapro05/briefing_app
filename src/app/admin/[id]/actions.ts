@@ -36,6 +36,10 @@ import {
 } from "@/lib/anexos-demanda";
 import { parseValorBR } from "@/lib/payment-receipts";
 import {
+  ehProjectTypeConhecido,
+  maxStageIndexDe,
+} from "@/lib/project-types";
+import {
   reordenarComInsercao,
   type LinhaOrdenada,
 } from "@/lib/ordem-tarefas";
@@ -278,15 +282,16 @@ export async function setStageAction(formData: FormData) {
  */
 export async function setProjectTypeAction(formData: FormData) {
   const clientId = String(formData.get("clientId") ?? "");
-  const projectType = String(formData.get("projectType") ?? "");
-  const allowed = [
-    "landing-com-copy",
-    "landing-sem-copy",
-    "site-completo",
-    "seo",
-    "outro",
-  ];
-  if (!clientId || !allowed.includes(projectType)) return;
+  const projectTypeCru = String(formData.get("projectType") ?? "");
+  /**
+   * A lista vem de PROJECT_TYPE_OPTIONS, não escrita à mão.
+   *
+   * Era a TERCEIRA cópia da mesma lista no app e, como as outras duas,
+   * ficou pra trás quando `trafego` foi criado em 28/09 — o que impedia
+   * marcar um projeto como tráfego pela ficha do cliente.
+   */
+  if (!clientId || !ehProjectTypeConhecido(projectTypeCru)) return;
+  const projectType = projectTypeCru;
   await requireClientAccess(formData, clientId);
 
   const service = createSupabaseServiceRoleClient();
@@ -295,12 +300,7 @@ export async function setProjectTypeAction(formData: FormData) {
   // pra não deixar current_stage_index fora da faixa — senão a timeline do
   // cliente aparece 100% concluída indevidamente. Mesma lógica de maxIndex
   // do setStageAction.
-  const maxIndex =
-    projectType === "landing-sem-copy"
-      ? 4
-      : projectType === "outro"
-        ? 3
-        : 5;
+  const maxIndex = maxStageIndexDe(projectType);
   const { data: current } = await service
     .from("clients")
     .select("current_stage_index")
@@ -929,18 +929,43 @@ export async function setClientStatusAction(formData: FormData) {
   const status = String(formData.get("status") ?? "");
   // Lista de PROJETO, não a geral: "em-andamento" é só de demanda interna e
   // o CHECK de clients.status o recusa.
-  if (!clientId || !PROJECT_STATUS_VALUES.includes(status as TaskStatus)) return;
-  await requireClientAccess(formData, clientId);
+  if (!clientId || !PROJECT_STATUS_VALUES.includes(status as TaskStatus)) {
+    return { ok: false as const, erro: "Status inválido." };
+  }
+  const member = await requireClientAccess(formData, clientId);
+  /**
+   * Mover o status do PROJETO é decisão de operação, não de quem tem uma
+   * tarefa nele.
+   *
+   * O status do projeto é o que alimenta a timeline que o CLIENTE vê no
+   * painel dele (ver `indiceNaLinhaDoTempo`). O papel "basico" (a designer)
+   * passava em `requireClientAccess` só por estar marcada numa tarefa e
+   * conseguia mover o projeto inteiro — enquanto não podia mudar nem o
+   * responsável nem a data da linha, que exigem `hasFullAccess`. Era a
+   * única incoerência da linha da Lista.
+   */
+  if (!hasFullAccess(member)) {
+    return {
+      ok: false as const,
+      erro: "Só quem tem acesso completo muda o status do projeto.",
+    };
+  }
 
   const service = createSupabaseServiceRoleClient();
   const { error: escritaErr } = await service
     .from("clients")
     .update({ status })
     .eq("id", clientId);
-  if (escritaErr) logServerError("cliente.escrita", escritaErr);
+  if (escritaErr) {
+    logServerError("cliente.escrita", escritaErr);
+    return { ok: false as const, erro: "Não consegui salvar o status." };
+  }
 
   revalidatePath(`/admin/${clientId}`);
   revalidatePath("/admin");
+  revalidatePath("/admin/lista");
+  revalidatePath("/admin/visao-geral");
+  return { ok: true as const };
 }
 
 /** Lê label/hint/tipo/opcoes do formulário de pergunta específica. */

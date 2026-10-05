@@ -21,24 +21,49 @@ export function StatusChanger({
   clientId,
   status,
   urlKey,
+  somenteLeitura = false,
 }: {
   clientId: string;
   status: string;
   urlKey?: string;
+  /** Papel com escopo por tarefa só lê — o servidor também recusa. */
+  somenteLeitura?: boolean;
 }) {
   const router = useRouter();
   const [current, setCurrent] = useState(status);
+  const [erro, setErro] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function change(next: string) {
     if (next === current) return;
+    const anterior = current;
     setCurrent(next);
+    setErro(null);
     const fd = new FormData();
     fd.append("clientId", clientId);
     fd.append("status", next);
     if (urlKey) fd.append("key", urlKey);
     startTransition(async () => {
-      await setClientStatusAction(fd);
+      /**
+       * Reverte quando o servidor recusa.
+       *
+       * A action devolvia `void` e só logava: um status que não salvou
+       * ficava pintado na tela indefinidamente, porque `router.refresh()`
+       * re-renderiza o servidor mas não mexe neste `useState` (a linha não
+       * é remontada — a key é o id do cliente). Só um F5 revelava.
+       */
+      try {
+        const r = await setClientStatusAction(fd);
+        if (!r.ok) {
+          setCurrent(anterior);
+          setErro(r.erro);
+          return;
+        }
+      } catch {
+        setCurrent(anterior);
+        setErro("Não consegui salvar. Confira a conexão.");
+        return;
+      }
       // Re-renderiza a página atual (força-dinâmica) pra o item reagrupar
       // na hora — ex: na Lista por status, muda de grupo ao trocar o status.
       router.refresh();
@@ -52,15 +77,18 @@ export function StatusChanger({
     // max-w-full/min-w-0: a largura natural de um <select> é a da opção mais
     // longa ("Validação implementação"), que estourava a coluna de 150px da
     // Lista — a pílula ficava cortada no meio, com o canto direito quadrado.
-    <span className="relative inline-flex max-w-full min-w-0" title={rotulo}>
+    <span
+      className="relative inline-flex max-w-full min-w-0"
+      title={erro ?? rotulo}
+    >
       <select
         value={current}
         onChange={(e) => change(e.target.value)}
-        disabled={pending}
+        disabled={pending || somenteLeitura}
         aria-label="Alterar status"
         className={`w-full min-w-0 truncate appearance-none rounded-full border text-xs font-medium pl-3 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-fysi-deep/30 disabled:opacity-50 ${
           TASK_STATUS_TONE[current as TaskStatus] ?? TASK_STATUS_TONE[DEFAULT_TASK_STATUS]
-        }`}
+        } ${erro ? "ring-1 ring-red-400" : ""}`}
       >
         {PROJECT_STATUS_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
