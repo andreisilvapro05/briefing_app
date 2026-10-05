@@ -1,23 +1,30 @@
 import type { PartialBlock } from "@blocknote/core";
 import { createSupabaseServiceRoleClient } from "./supabase/server";
 import { DEFAULT_TASK_STATUS, type TaskStatus } from "./project-tasks";
-import { dataDaAta, nomeDoClienteDaAta, type AtaResumo } from "./atas";
+import {
+  dataDaAta,
+  nomeDoClienteDaAta,
+  type AtaResumo,
+  type LinhaDaAta,
+} from "./atas";
 
 /**
  * Leitura das atas de acompanhamento (service-role). Separado de `atas.ts`
  * pelo mesmo motivo de `project-tasks-server.ts`: aquele arquivo é puro e
  * testável, este puxa o Supabase (que puxa `next/headers`).
  *
- * As atas são `ei_documents` com `kind = 'ata'` — ver a migration
- * 20261004120000 pro porquê. O que este arquivo faz de diferente dos
- * helpers de `ei-documents-server.ts` é trazer o CLIENTE com `status` e
- * `arquivado_em`, que é de onde sai o "some dali quando finaliza".
+ * UMA ATA = UMA REUNIÃO, com vários clientes dentro (Karine, 05/10: "não é
+ * pra ser individual de cada cliente, e sim tudo num documento só"). O
+ * documento é `ei_documents` com `kind='ata'` e `client_id` NULO; cada
+ * cliente dentro dela é uma linha em `ata_linhas`. Ver a migration
+ * 20261005120000.
+ *
+ * O STATUS nunca é copiado: vem de `clients.status` em toda leitura. É o
+ * que faz "mudou pra finalizado, some dali" funcionar sem escrita nenhuma.
  */
 
 const CLIENTE_COLS =
   "id, nome, empresa, nome_exibicao, clickup_nome, status, arquivado_em";
-
-const SELECT_LISTA = `id, client_id, observacao, arquivado, referencia_em, created_at, updated_at, clients(${CLIENTE_COLS})`;
 
 interface ClienteDaAta {
   id: string;
@@ -29,75 +36,124 @@ interface ClienteDaAta {
   arquivado_em: string | null;
 }
 
-interface LinhaDeAta {
+interface RowAta {
   id: string;
-  client_id: string | null;
-  observacao: string | null;
+  nome: string | null;
   arquivado: boolean | null;
   referencia_em: string | null;
   created_at: string;
   updated_at: string;
-  clients: ClienteDaAta | null;
   ei_data?: { blocks?: unknown[] } | null;
 }
 
-/**
- * Linha do banco → `AtaResumo`. Devolve `null` pra ata sem cliente: a ata
- * é "o acompanhamento DESTE cliente" (o pedido começa em "nome cliente"),
- * e uma órfã na tela seria uma linha sem título que ninguém sabe abrir.
- * `client_id` é nullable na tabela porque a Nota avulsa usa a mesma coluna.
- */
-function normalizar(row: LinhaDeAta): AtaResumo | null {
+interface RowLinha {
+  id: string;
+  ata_id: string;
+  client_id: string;
+  observacao: string | null;
+  ordem: number;
+  clients: ClienteDaAta | null;
+}
+
+function linhaDe(row: RowLinha): LinhaDaAta | null {
   const c = row.clients;
-  if (!c || !row.client_id) return null;
+  // Sem cliente não há linha: o FK é NOT NULL, então isto só acontece se o
+  // join falhar — e uma linha sem nome na ata seria um registro mudo.
+  if (!c) return null;
   return {
     id: row.id,
     clientId: row.client_id,
     cliente: nomeDoClienteDaAta(c),
     statusProjeto: (c.status || DEFAULT_TASK_STATUS) as TaskStatus,
     observacao: row.observacao,
-    data: dataDaAta(row.referencia_em, row.created_at),
-    atualizadoEm: row.updated_at,
-    arquivada: Boolean(row.arquivado),
+    ordem: row.ordem,
     projetoArquivado: Boolean(c.arquivado_em),
   };
 }
 
+function ataDe(row: RowAta, linhas: LinhaDaAta[]): AtaResumo {
+  return {
+    id: row.id,
+    titulo: row.nome?.trim() || "Ata sem título",
+    data: dataDaAta(row.referencia_em, row.created_at),
+    atualizadoEm: row.updated_at,
+    arquivada: Boolean(row.arquivado),
+    linhas,
+  };
+}
+
 /**
- * Todas as atas que este membro pode ver.
+ * Busca as linhas de várias atas de uma vez.
  *
- * @param visibleIds escopo por cliente (getVisibleClientIds). `null` =
- * acesso total; Set vazio = não vê nenhuma (não é "vê todas").
+ * Uma consulta só, e não uma por ata: a lista mostra todas as atas com a
+ * contagem de clientes de cada, e N+1 aqui seria uma ida ao banco por
+ * reunião da história da agência.
  */
-export async function listarAtas(
+async function linhasDasAtas(
+  ataIds: string[],
   visibleIds?: Set<string> | null
-): Promise<AtaResumo[]> {
-  if (visibleIds && visibleIds.size === 0) return [];
+): Promise<Map<string, LinhaDaAta[]>> {
+  const mapa = new Map<string, LinhaDaAta[]>();
+  if (ataIds.length === 0) return mapa;
 
   const service = createSupabaseServiceRoleClient();
   let q = service
+    .from("ata_linhas")
+    .select(`id, ata_id, client_id, observacao, ordem, clients(${CLIENTE_COLS})`)
+    .in("ata_id", ataIds)
+    .order("ordem", { ascending: true });
+  /**
+   * O escopo por cliente recorta as LINHAS, não a ata.
+   *
+   * A ata é da agência inteira; quem só vê três clientes deve ver a mesma
+   * reunião com três linhas, não deixar de ver a reunião. Esconder a ata
+   * inteira faria o "básico" achar que não houve reunião.
+   */
+  if (visibleIds) q = q.in("client_id", Array.from(visibleIds));
+
+  const { data } = await q;
+  for (const row of (data as unknown as RowLinha[] | null) ?? []) {
+    const l = linhaDe(row);
+    if (!l) continue;
+    const atual = mapa.get(row.ata_id);
+    if (atual) atual.push(l);
+    else mapa.set(row.ata_id, [l]);
+  }
+  return mapa;
+}
+
+/** Todas as atas, mais recente primeiro, já com os clientes de cada uma. */
+export async function listarAtas(
+  visibleIds?: Set<string> | null
+): Promise<AtaResumo[]> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
     .from("ei_documents")
-    .select(SELECT_LISTA)
+    .select("id, nome, arquivado, referencia_em, created_at, updated_at")
     .eq("kind", "ata")
     // A ordenação final é do `ordenarPorData` (que usa o DIA em Brasília,
     // não o timestamp cru). Esta aqui só evita que o banco devolva em
     // ordem arbitrária, o que faria a lista dançar entre dois carregamentos.
     .order("referencia_em", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
-  if (visibleIds) q = q.in("client_id", Array.from(visibleIds));
 
-  const { data } = await q;
-  return ((data as unknown as LinhaDeAta[]) ?? [])
-    .map(normalizar)
-    .filter((a): a is AtaResumo => a !== null);
+  const rows = (data as unknown as RowAta[] | null) ?? [];
+  const linhas = await linhasDasAtas(
+    rows.map((r) => r.id),
+    visibleIds
+  );
+  return rows.map((r) => ataDe(r, linhas.get(r.id) ?? []));
 }
 
 export interface AtaCompleta extends AtaResumo {
   blocks: PartialBlock[];
 }
 
-/** Uma ata, com os blocos do documento. `null` se não existe ou não é ata. */
-export async function getAta(ataId: string): Promise<AtaCompleta | null> {
+/** Uma ata, com os clientes e os blocos do documento. */
+export async function getAta(
+  ataId: string,
+  visibleIds?: Set<string> | null
+): Promise<AtaCompleta | null> {
   const service = createSupabaseServiceRoleClient();
   // Por id (chave primária), então `.maybeSingle()` não corre o risco de
   // estourar com várias linhas — o `kind` no where é o que impede abrir
@@ -105,17 +161,16 @@ export async function getAta(ataId: string): Promise<AtaCompleta | null> {
   // mesma tabela.
   const { data } = await service
     .from("ei_documents")
-    .select(`${SELECT_LISTA}, ei_data`)
+    .select("id, nome, arquivado, referencia_em, created_at, updated_at, ei_data")
     .eq("id", ataId)
     .eq("kind", "ata")
     .maybeSingle();
   if (!data) return null;
 
-  const row = data as unknown as LinhaDeAta;
-  const resumo = normalizar(row);
-  if (!resumo) return null;
+  const row = data as unknown as RowAta;
+  const linhas = await linhasDasAtas([ataId], visibleIds);
   return {
-    ...resumo,
+    ...ataDe(row, linhas.get(ataId) ?? []),
     blocks: Array.isArray(row.ei_data?.blocks)
       ? (row.ei_data.blocks as PartialBlock[])
       : [],
@@ -123,16 +178,11 @@ export async function getAta(ataId: string): Promise<AtaCompleta | null> {
 }
 
 /**
- * A ata mais recente de cada cliente — pro espaço do membro poder levar
- * direto pra ela em vez de só oferecer "criar".
+ * A ata mais recente em que cada cliente aparece — pro espaço do membro
+ * levar direto pra ela em vez de só oferecer "criar".
  *
  * Só as ATIVAS: mandar a pessoa pra uma ata arquivada seria abrir o
  * arquivo achando que é o registro corrente.
- *
- * Em JS, e não com `.maybeSingle()` por cliente: com várias atas por
- * cliente (que é o pedido) o `.maybeSingle()` ESTOURA, e seria uma
- * consulta por projeto na tela. Uma consulta ordenada + primeiro-ganha
- * resolve as duas coisas.
  */
 export async function ultimaAtaPorCliente(
   visibleIds?: Set<string> | null
@@ -141,36 +191,49 @@ export async function ultimaAtaPorCliente(
   if (visibleIds && visibleIds.size === 0) return mapa;
 
   const service = createSupabaseServiceRoleClient();
-  let q = service
+  const { data: atasRows } = await service
     .from("ei_documents")
-    .select("id, client_id, referencia_em, created_at")
+    .select("id, referencia_em, created_at")
     .eq("kind", "ata")
     .eq("arquivado", false)
-    .not("client_id", "is", null)
     .order("referencia_em", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false });
-  if (visibleIds) q = q.in("client_id", Array.from(visibleIds));
 
-  const { data } = await q;
-  for (const row of (data as
-    | {
-        id: string;
-        client_id: string;
-        referencia_em: string | null;
-        created_at: string;
-      }[]
-    | null) ?? []) {
-    // Primeiro-ganha: a consulta já veio da mais recente pra mais antiga.
-    if (mapa.has(row.client_id)) continue;
-    mapa.set(row.client_id, {
-      id: row.id,
-      data: dataDaAta(row.referencia_em, row.created_at),
-    });
+  const atas = (atasRows as RowAta[] | null) ?? [];
+  if (atas.length === 0) return mapa;
+
+  let q = service
+    .from("ata_linhas")
+    .select("ata_id, client_id")
+    .in(
+      "ata_id",
+      atas.map((a) => a.id)
+    );
+  if (visibleIds) q = q.in("client_id", Array.from(visibleIds));
+  const { data: linhasRows } = await q;
+
+  const porAta = new Map<string, string[]>();
+  for (const l of (linhasRows as { ata_id: string; client_id: string }[] | null) ??
+    []) {
+    const atual = porAta.get(l.ata_id);
+    if (atual) atual.push(l.client_id);
+    else porAta.set(l.ata_id, [l.client_id]);
+  }
+
+  // Primeiro-ganha: `atas` já veio da mais recente pra mais antiga.
+  for (const a of atas) {
+    for (const clientId of porAta.get(a.id) ?? []) {
+      if (mapa.has(clientId)) continue;
+      mapa.set(clientId, {
+        id: a.id,
+        data: dataDaAta(a.referencia_em, a.created_at),
+      });
+    }
   }
   return mapa;
 }
 
-/** Quantas atas cada cliente tem (ativas) — o "3 atas" da linha do projeto. */
+/** Em quantas atas ativas cada cliente aparece — o "3 atas" da linha. */
 export async function contarAtasPorCliente(
   visibleIds?: Set<string> | null
 ): Promise<Map<string, number>> {
@@ -178,14 +241,16 @@ export async function contarAtasPorCliente(
   if (visibleIds && visibleIds.size === 0) return mapa;
 
   const service = createSupabaseServiceRoleClient();
-  let q = service
+  const { data: atasRows } = await service
     .from("ei_documents")
-    .select("client_id")
+    .select("id")
     .eq("kind", "ata")
-    .eq("arquivado", false)
-    .not("client_id", "is", null);
-  if (visibleIds) q = q.in("client_id", Array.from(visibleIds));
+    .eq("arquivado", false);
+  const ids = ((atasRows as { id: string }[] | null) ?? []).map((a) => a.id);
+  if (ids.length === 0) return mapa;
 
+  let q = service.from("ata_linhas").select("client_id").in("ata_id", ids);
+  if (visibleIds) q = q.in("client_id", Array.from(visibleIds));
   const { data } = await q;
   for (const row of (data as { client_id: string }[] | null) ?? []) {
     mapa.set(row.client_id, (mapa.get(row.client_id) ?? 0) + 1);
@@ -194,13 +259,13 @@ export async function contarAtasPorCliente(
 }
 
 /**
- * Clientes que podem receber uma ata nova: os projetos VIVOS.
+ * Clientes que podem ser puxados pra dentro de uma ata: os projetos VIVOS.
  *
- * Projeto arquivado (desistência) fica de fora — abrir ata de
- * acompanhamento num projeto que não vai acontecer é criar uma linha que
- * nasce no arquivo. Projeto finalizado CONTINUA na lista: reunião de
- * fechamento e pós-entrega existem, e a ata dela vai pro arquivo na hora,
- * onde é fácil de achar.
+ * Projeto arquivado (desistência) fica de fora — pôr numa ata de
+ * acompanhamento um projeto que não vai acontecer é criar uma linha que
+ * nasce encerrada. Projeto finalizado CONTINUA na lista: reunião de
+ * fechamento e pós-entrega existem; a linha dele entra já no bloco das
+ * encerradas, onde é fácil de achar.
  */
 export async function clientesParaAta(
   visibleIds?: Set<string> | null
@@ -225,19 +290,42 @@ export async function clientesParaAta(
 }
 
 /**
- * O `client_id` real de uma ata, direto do banco.
+ * Os clientes que JÁ estão numa ata, do banco.
  *
- * Toda escrita passa por aqui: o `clientId` que vier num FormData é do
- * navegador, e autorizar com ele seria deixar quem monta um POST escolher
- * o cliente em que tem acesso pra editar a ata de outro.
+ * Toda escrita de linha passa por aqui: o `clientId` que vier num FormData
+ * é do navegador, e autorizar com ele seria deixar quem monta um POST
+ * escolher o cliente em que tem acesso pra mexer na linha de outro.
  */
-export async function clienteDaAta(ataId: string): Promise<string | null> {
+export async function clientesDaAta(ataId: string): Promise<Set<string>> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ata_linhas")
+    .select("client_id")
+    .eq("ata_id", ataId);
+  return new Set(
+    ((data as { client_id: string }[] | null) ?? []).map((r) => r.client_id)
+  );
+}
+
+/** O cliente de UMA linha, do banco — pra autorizar a edição dela. */
+export async function clienteDaLinha(linhaId: string): Promise<string | null> {
+  const service = createSupabaseServiceRoleClient();
+  const { data } = await service
+    .from("ata_linhas")
+    .select("client_id")
+    .eq("id", linhaId)
+    .maybeSingle();
+  return (data as { client_id: string } | null)?.client_id ?? null;
+}
+
+/** A ata existe mesmo? (E é uma ata, não uma EI aberta por esta tela.) */
+export async function ataExiste(ataId: string): Promise<boolean> {
   const service = createSupabaseServiceRoleClient();
   const { data } = await service
     .from("ei_documents")
-    .select("client_id")
+    .select("id")
     .eq("id", ataId)
     .eq("kind", "ata")
     .maybeSingle();
-  return (data as { client_id: string | null } | null)?.client_id ?? null;
+  return Boolean(data);
 }

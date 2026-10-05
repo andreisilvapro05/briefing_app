@@ -10,17 +10,10 @@ import {
 } from "@/lib/member";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { SubmitButton } from "@/components/admin/submit-button";
-import { StatusChanger } from "@/components/admin/status-changer";
 import { ViewTabs } from "@/components/admin/view-tabs";
 import { hojeEmBrasilia } from "@/lib/datas";
-import {
-  agruparPorData,
-  motivoDeArquivo,
-  resumoDaObservacao,
-  separarAtas,
-  MOTIVO_LABEL,
-} from "@/lib/atas";
-import { clientesParaAta, listarAtas } from "@/lib/atas-server";
+import { agruparPorData, contarAtivas, separarAtas, separarLinhas } from "@/lib/atas";
+import { listarAtas } from "@/lib/atas-server";
 import { criarAtaAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -28,14 +21,13 @@ export const dynamic = "force-dynamic";
 /**
  * Atas de acompanhamento — a tela do gestor de projetos.
  *
- * Karine (04/10), pelo Andrei: "ter uma parte de ata para o Andrei usar
- * (...) e quando ele muda o status do cliente para finalizado some dali.
- * precisa ter os documentos por datas".
+ * UMA ATA = UMA REUNIÃO, com vários clientes dentro. Karine (05/10): "não
+ * é pra ser individual de cada cliente, e sim tudo num documento só, poder
+ * puxar todos os clientes dentro de um mesmo documento". O gesto do Andrei
+ * é sentar uma vez e passar por todos os projetos.
  *
- * A lista é agrupada por DIA, mais recente primeiro — a data é o eixo do
- * pedido, não um detalhe de ordenação. O status de cada linha é o do
- * CLIENTE, editável ali mesmo: mudar pra "Completo | Entregue" tira a ata
- * da aba "Em andamento" na hora, sem apagar nada (ela passa pra "Arquivo").
+ * A lista é agrupada por DIA, mais recente primeiro — "precisa ter os
+ * documentos por datas" é o eixo do pedido, não um detalhe de ordenação.
  */
 export default async function AtasPage({
   searchParams,
@@ -54,10 +46,7 @@ export default async function AtasPage({
   if (isDeveloper(member)) redirect(`${telaInicialDe(member)}${kp}`);
 
   const visibleIds = await getVisibleClientIds(member);
-  const [atas, clientes] = await Promise.all([
-    listarAtas(visibleIds),
-    clientesParaAta(visibleIds),
-  ]);
+  const atas = await listarAtas(visibleIds);
 
   const { ativas, arquivadas } = separarAtas(atas);
   const verArquivo = params.ver === "arquivo";
@@ -83,9 +72,9 @@ export default async function AtasPage({
           Atas de acompanhamento
         </h1>
         <p className="text-fysi-muted text-sm mt-1 max-w-2xl">
-          O registro de cada reunião de projeto, por data. O status é o do
-          projeto — mudar pra concluído tira a ata desta lista e manda pro
-          arquivo, sem apagar nada.
+          Uma ata por reunião, com todos os projetos dentro. O status de cada
+          um é o do projeto: quando vira concluído, aquele cliente sai da
+          lista da ata — sem apagar o que foi anotado.
         </p>
       </header>
 
@@ -95,7 +84,7 @@ export default async function AtasPage({
         </p>
       ) : null}
 
-      <NovaAta clientes={clientes} urlKey={urlKey} hoje={hoje} />
+      <NovaAta urlKey={urlKey} hoje={hoje} />
 
       <div className="mb-4">
         <ViewTabs
@@ -125,8 +114,8 @@ export default async function AtasPage({
           </p>
           <p className="text-sm text-fysi-muted max-w-md mx-auto">
             {verArquivo
-              ? "Aqui ficam as atas de projeto finalizado, de projeto arquivado e as que alguém tirou da frente à mão."
-              : "Escolha um cliente acima pra abrir a primeira ata. Cada reunião vira uma ata com a sua data."}
+              ? "Aqui ficam as atas que alguém tirou da frente à mão."
+              : "Abra a ata da reunião acima. Dentro dela você puxa os clientes, um a um."}
           </p>
         </section>
       ) : (
@@ -144,34 +133,25 @@ export default async function AtasPage({
               </h2>
               <ul className="flex flex-col gap-2">
                 {g.atas.map((a) => {
-                  const motivo = motivoDeArquivo(a);
+                  const emAndamento = contarAtivas(a);
+                  const encerrados = a.linhas.length - emAndamento;
                   return (
                     <li
                       key={a.id}
                       className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-4 py-3"
                     >
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <Link
                           href={`/admin/ata/${a.id}${kp}`}
                           className="font-medium text-fysi-deep hover:underline min-w-0 truncate"
                         >
-                          {a.cliente}
+                          {a.titulo}
                         </Link>
-                        {/* O status do PROJETO, editável aqui: é a troca
-                            que faz a ata sair da lista, e pedir pra abrir
-                            outra tela pra isso é o caminho mais longo. */}
-                        <div className="shrink-0 max-w-[12rem]">
-                          <StatusChanger
-                            clientId={a.clientId}
-                            status={a.statusProjeto}
-                            urlKey={urlKey ?? undefined}
-                          />
-                        </div>
-                        {motivo ? (
-                          <span className="shrink-0 text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted border border-fysi-line rounded-full px-2 py-0.5">
-                            {MOTIVO_LABEL[motivo]}
-                          </span>
-                        ) : null}
+                        <span className="text-xs text-fysi-muted tabular-nums shrink-0">
+                          {emAndamento}{" "}
+                          {emAndamento === 1 ? "projeto" : "projetos"}
+                          {encerrados > 0 ? ` · ${encerrados} encerrado${encerrados === 1 ? "" : "s"}` : ""}
+                        </span>
                         <Link
                           href={`/admin/ata/${a.id}${kp}`}
                           className="ml-auto shrink-0 text-xs text-fysi-muted hover:text-fysi-deep underline underline-offset-2"
@@ -179,13 +159,17 @@ export default async function AtasPage({
                           abrir ata →
                         </Link>
                       </div>
-                      {a.observacao ? (
-                        <p className="text-sm text-fysi-muted mt-1.5">
-                          {resumoDaObservacao(a.observacao)}
+                      {/* Os nomes de quem está na ata, pra reconhecer a
+                          reunião sem abrir. */}
+                      {a.linhas.length > 0 ? (
+                        <p className="text-sm text-fysi-muted mt-1.5 truncate">
+                          {separarLinhas(a.linhas)
+                            .ativas.map((l) => l.cliente)
+                            .join(" · ") || "Todos os projetos desta ata já encerraram."}
                         </p>
                       ) : (
                         <p className="text-sm text-fysi-muted/70 mt-1.5 italic">
-                          Sem observação.
+                          Nenhum cliente puxado ainda.
                         </p>
                       )}
                     </li>
@@ -201,57 +185,34 @@ export default async function AtasPage({
 }
 
 /**
- * Abrir uma ata nova. Fica no topo e sempre aberta (não atrás de um
- * "+ Nova"): é a ação da tela, e a ata costuma ser escrita durante ou
+ * Abrir a ata de uma reunião. Fica no topo e sempre aberta (não atrás de
+ * um "+ Nova"): é a ação da tela, e a ata costuma ser escrita durante ou
  * logo depois da reunião — um clique a menos importa aí.
+ *
+ * Não pede cliente: os clientes entram DENTRO da ata, que é o pedido.
  *
  * O `SubmitButton` (useFormStatus) é filho do `<form>`, como manda o
  * padrão do projeto: é o que desabilita o botão e evita a ata duplicada
  * por clique duplo.
  */
-function NovaAta({
-  clientes,
-  urlKey,
-  hoje,
-}: {
-  clientes: { id: string; label: string }[];
-  urlKey: string | null;
-  hoje: string;
-}) {
-  if (clientes.length === 0) {
-    return (
-      <p className="text-sm text-fysi-muted bg-white border border-dashed border-fysi-line rounded-[16px] px-4 py-3 mb-5">
-        Nenhum projeto ativo pra abrir ata. Projeto arquivado não recebe ata
-        nova.
-      </p>
-    );
-  }
-
+function NovaAta({ urlKey, hoje }: { urlKey: string | null; hoje: string }) {
   return (
     <form
       action={criarAtaAction}
       className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-4 mb-5 flex flex-wrap items-end gap-3"
     >
       {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-      <label className="flex flex-col gap-1 min-w-[12rem] flex-1">
+      <label className="flex flex-col gap-1 min-w-[14rem] flex-[2]">
         <span className="text-xs uppercase tracking-[0.08em] text-fysi-muted font-semibold">
-          Cliente
+          Título da reunião
         </span>
-        <select
-          name="clientId"
-          required
-          defaultValue=""
+        <input
+          type="text"
+          name="titulo"
+          maxLength={160}
+          placeholder="Reunião de segunda"
           className="rounded-[10px] border border-fysi-line bg-fysi-cream/40 text-sm px-3 py-2 text-fysi-deep"
-        >
-          <option value="" disabled>
-            Escolha o projeto…
-          </option>
-          {clientes.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-        </select>
+        />
       </label>
       <label className="flex flex-col gap-1">
         <span className="text-xs uppercase tracking-[0.08em] text-fysi-muted font-semibold">
@@ -260,20 +221,8 @@ function NovaAta({
         {/* Começa em hoje: a ata quase sempre é da reunião que acabou. */}
         <input
           type="date"
-          name="data"
+          name="dia"
           defaultValue={hoje}
-          className="rounded-[10px] border border-fysi-line bg-fysi-cream/40 text-sm px-3 py-2 text-fysi-deep"
-        />
-      </label>
-      <label className="flex flex-col gap-1 min-w-[14rem] flex-[2]">
-        <span className="text-xs uppercase tracking-[0.08em] text-fysi-muted font-semibold">
-          Observação (opcional)
-        </span>
-        <input
-          type="text"
-          name="observacao"
-          maxLength={2000}
-          placeholder="O que ficou combinado, em uma linha"
           className="rounded-[10px] border border-fysi-line bg-fysi-cream/40 text-sm px-3 py-2 text-fysi-deep"
         />
       </label>

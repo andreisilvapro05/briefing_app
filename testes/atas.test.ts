@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   agruparPorData,
+  contarAtivas,
   dataDaAta,
   diaParaReferencia,
   diaValido,
@@ -11,23 +12,35 @@ import {
   resumoDaObservacao,
   rotuloDoDia,
   separarAtas,
+  separarLinhas,
   type AtaResumo,
+  type LinhaDaAta,
 } from "../src/lib/atas.ts";
 
+/** Um CLIENTE dentro de uma ata. */
+const linha = (id: string, extra: Partial<LinhaDaAta> = {}): LinhaDaAta => ({
+  id,
+  clientId: `c-${id}`,
+  cliente: "Cliente",
+  statusProjeto: "design-pagina",
+  observacao: null,
+  ordem: 0,
+  projetoArquivado: false,
+  ...extra,
+});
+
+/** Uma ATA: a reunião de uma data, com clientes dentro. */
 const ata = (
   id: string,
   data: string,
   extra: Partial<AtaResumo> = {}
 ): AtaResumo => ({
   id,
-  clientId: `c-${id}`,
-  cliente: "Cliente",
-  statusProjeto: "design-pagina",
-  observacao: null,
+  titulo: `Reunião ${id}`,
   data,
   atualizadoEm: `${data}T10:00:00Z`,
   arquivada: false,
-  projetoArquivado: false,
+  linhas: [],
   ...extra,
 });
 
@@ -35,47 +48,70 @@ const ata = (
 /* O pedido central: projeto finalizado some da lista, sem ser apagado   */
 /* --------------------------------------------------------------------- */
 
-test("projeto finalizado tira a ata da visão principal, sem apagar", () => {
-  const atas = [
-    ata("a", "2026-10-04"),
-    ata("b", "2026-10-03", { statusProjeto: "completo-entregue" }),
-    ata("c", "2026-10-02", { statusProjeto: "concluido" }),
-  ];
-  const { ativas, arquivadas } = separarAtas(atas);
-  assert.deepEqual(ativas.map((x) => x.id), ["a"]);
-  // As duas continuam existindo — só mudaram de aba.
-  assert.deepEqual(arquivadas.map((x) => x.id), ["b", "c"]);
-  assert.equal(ativas.length + arquivadas.length, atas.length);
+test("projeto finalizado sai da lista DA ATA, sem ser apagado", () => {
+  // Uma reunião com três projetos; dois terminaram desde então.
+  const a = ata("reuniao", "2026-10-04", {
+    linhas: [
+      linha("x", { ordem: 0 }),
+      linha("y", { ordem: 1, statusProjeto: "completo-entregue" }),
+      linha("z", { ordem: 2, statusProjeto: "concluido" }),
+    ],
+  });
+  const { ativas, encerradas } = separarLinhas(a.linhas);
+  assert.deepEqual(ativas.map((l) => l.id), ["x"]);
+  // As duas continuam na ata — a ata é registro do que foi dito naquele dia.
+  assert.deepEqual(encerradas.map((l) => l.id), ["y", "z"]);
+  assert.equal(ativas.length + encerradas.length, a.linhas.length);
+  assert.equal(contarAtivas(a), 1);
 });
 
-test("motivo de arquivo: o gesto explícito ganha do derivado", () => {
-  assert.equal(motivoDeArquivo(ata("a", "2026-10-04")), null);
+test("as linhas saem na ordem em que foram puxadas", () => {
+  const a = ata("r", "2026-10-04", {
+    linhas: [linha("c", { ordem: 2 }), linha("a", { ordem: 0 }), linha("b", { ordem: 1 })],
+  });
+  assert.deepEqual(separarLinhas(a.linhas).ativas.map((l) => l.id), ["a", "b", "c"]);
+});
+
+test("motivo: finalizado e projeto arquivado são motivos diferentes", () => {
+  // Um acabou bem, o outro não vai acontecer — a tela precisa distinguir.
+  assert.equal(motivoDeArquivo(linha("x")), null);
   assert.equal(
-    motivoDeArquivo(ata("a", "2026-10-04", { statusProjeto: "concluido" })),
+    motivoDeArquivo(linha("x", { statusProjeto: "concluido" })),
     "finalizado"
   );
   assert.equal(
-    motivoDeArquivo(ata("a", "2026-10-04", { projetoArquivado: true })),
+    motivoDeArquivo(linha("x", { projetoArquivado: true })),
     "projeto-arquivado"
   );
-  // Arquivada à mão num projeto finalizado: mostra a decisão da pessoa, não
-  // o status — senão o "Devolver à lista" apareceria sem explicação.
+  // Desistência ganha: é o fato mais forte sobre o projeto.
   assert.equal(
     motivoDeArquivo(
-      ata("a", "2026-10-04", { arquivada: true, statusProjeto: "concluido" })
+      linha("x", { projetoArquivado: true, statusProjeto: "concluido" })
     ),
-    "manual"
+    "projeto-arquivado"
   );
 });
 
-test("status ativo em qualquer etapa mantém a ata na lista", () => {
-  for (const s of ["parado", "a-iniciar", "onboarding", "otimizacao-entrega"] as const) {
+test("status ativo em qualquer etapa mantém o cliente na ata", () => {
+  for (const st of ["parado", "a-iniciar", "onboarding", "otimizacao-entrega"] as const) {
     assert.equal(
-      motivoDeArquivo(ata("a", "2026-10-04", { statusProjeto: s })),
+      motivoDeArquivo(linha("x", { statusProjeto: st })),
       null,
-      `${s} não deveria arquivar`
+      `${st} não deveria encerrar`
     );
   }
+});
+
+test("a ata só sai da lista quando alguém a arquiva à mão", () => {
+  // Diferente da LINHA: a ata inteira não some porque os projetos dela
+  // terminaram — ela é o registro daquela reunião.
+  const comTudoEncerrado = ata("r", "2026-10-04", {
+    linhas: [linha("y", { statusProjeto: "concluido" })],
+  });
+  const arquivadaAMao = ata("m", "2026-10-03", { arquivada: true });
+  const { ativas, arquivadas } = separarAtas([comTudoEncerrado, arquivadaAMao]);
+  assert.deepEqual(ativas.map((x) => x.id), ["r"]);
+  assert.deepEqual(arquivadas.map((x) => x.id), ["m"]);
 });
 
 /* --------------------------------------------------------------------- */
@@ -94,13 +130,12 @@ test("mesma data: a mexida mais recentemente vem antes", () => {
   assert.deepEqual(ordenarPorData([velha, nova]).map((x) => x.id), ["nova", "velha"]);
 });
 
-test("várias atas do mesmo cliente em datas diferentes viram grupos diferentes", () => {
-  const mesmoCliente = { clientId: "katlyn", cliente: "Katlyn Adv" };
+test("reuniões em datas diferentes viram grupos diferentes", () => {
   const grupos = agruparPorData(
     [
-      ata("hoje", "2026-10-04", mesmoCliente),
-      ata("semana", "2026-09-27", mesmoCliente),
-      ata("ontem", "2026-10-03", mesmoCliente),
+      ata("hoje", "2026-10-04"),
+      ata("semana", "2026-09-27"),
+      ata("ontem", "2026-10-03"),
     ],
     "2026-10-04"
   );

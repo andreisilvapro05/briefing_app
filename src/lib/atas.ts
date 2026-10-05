@@ -24,26 +24,44 @@ import {
  * migration 20261004120000.
  */
 
-/** Uma ata como as telas a leem. O status vem do CLIENTE, nunca da ata. */
-export interface AtaResumo {
+/**
+ * UM CLIENTE dentro de uma ata.
+ *
+ * Karine (05/10): "a parte de ata não é pra ser individual de cada
+ * cliente, e sim tudo num documento só, poder puxar todos os clientes
+ * dentro de um mesmo documento". O gesto real do Andrei é sentar uma vez
+ * (a reunião) e passar por todos os projetos — uma ata por cliente
+ * obrigaria a abrir 24 documentos pra fazer a reunião de uma semana.
+ */
+export interface LinhaDaAta {
   id: string;
   clientId: string;
-  /** Nome que se lê na lista — ver `nomeDoClienteDaAta`. */
+  /** Nome que se lê na linha — ver `nomeDoClienteDaAta`. */
   cliente: string;
   /**
    * `clients.status` lido na hora. Não há cópia do status na ata de
    * propósito: duas cópias divergem no dia em que o sync do ClickUp mexer
-   * numa e não na outra.
+   * numa e não na outra — e é isso que faz "mudou pra finalizado, some
+   * dali" funcionar sem escrita nenhuma.
    */
   statusProjeto: TaskStatus;
   observacao: string | null;
+  ordem: number;
+  /** O PROJETO foi arquivado (desistência) — `clients.arquivado_em`. */
+  projetoArquivado: boolean;
+}
+
+/** Uma ata: a REUNIÃO de uma data, com vários clientes dentro. */
+export interface AtaResumo {
+  id: string;
+  /** O que a pessoa escreveu no topo ("Reunião de segunda"). */
+  titulo: string;
   /** Dia da ata, YYYY-MM-DD (ver `dataDaAta`). */
   data: string;
   atualizadoEm: string;
-  /** Arquivada À MÃO, uma a uma (`ei_documents.arquivado`). */
+  /** Arquivada À MÃO (`ei_documents.arquivado`). */
   arquivada: boolean;
-  /** O PROJETO foi arquivado (desistência) — `clients.arquivado_em`. */
-  projetoArquivado: boolean;
+  linhas: LinhaDaAta[];
 }
 
 /**
@@ -63,43 +81,69 @@ export const MOTIVO_LABEL: Record<MotivoDeArquivo, string> = {
 };
 
 /**
- * O gesto explícito vem primeiro: quem arquivou à mão escolheu isso, e
- * mostrar "projeto finalizado" no lugar esconderia a decisão da pessoa.
+ * Por que ESTA LINHA saiu da visão principal da ata. `null` = está nela.
+ *
+ * O pedido, literal: "quando ele muda o status do cliente para finalizado
+ * some dali". "Finalizado" aqui é o grupo "fechado" da taxonomia
+ * (Concluído e Completo | Entregue) — ver project-tasks.ts.
+ *
+ * Projeto arquivado (desistência) sai pelo mesmo motivo prático, mas é um
+ * motivo DIFERENTE, e a tela precisa distinguir: um acabou bem, o outro
+ * não vai acontecer.
  */
-export function motivoDeArquivo(a: AtaResumo): MotivoDeArquivo | null {
-  if (a.arquivada) return "manual";
-  if (a.projetoArquivado) return "projeto-arquivado";
-  // O pedido, literal: "quando ele muda o status do cliente para
-  // finalizado some dali". "Finalizado" aqui é o grupo "fechado" da
-  // taxonomia (Concluído e Completo | Entregue) — ver project-tasks.ts.
-  if (isClosedTaskStatus(a.statusProjeto)) return "finalizado";
+export function motivoDeArquivo(l: LinhaDaAta): MotivoDeArquivo | null {
+  if (l.projetoArquivado) return "projeto-arquivado";
+  if (isClosedTaskStatus(l.statusProjeto)) return "finalizado";
   return null;
 }
 
-export interface SeparacaoDeAtas {
-  /** O que o Andrei vê quando abre a tela. */
-  ativas: AtaResumo[];
-  /** Nada foi apagado: segue acessível na aba do arquivo. */
-  arquivadas: AtaResumo[];
+export interface SeparacaoDeLinhas {
+  /** O que o Andrei vê quando abre a ata. */
+  ativas: LinhaDaAta[];
+  /** Nada foi apagado: segue visível, recolhido, no fim da ata. */
+  encerradas: LinhaDaAta[];
 }
 
 /**
- * Parte as atas em "em andamento" e "arquivadas", já na ordem de leitura
- * (mais recente primeiro).
+ * Parte as linhas de UMA ata entre "em andamento" e "encerradas", na
+ * ordem em que foram postas na ata.
+ *
+ * As encerradas continuam existindo: a ata é registro do que foi dito
+ * naquela reunião, e apagar a linha de um projeto que terminou reescreve
+ * o passado.
  */
+export function separarLinhas(linhas: LinhaDaAta[]): SeparacaoDeLinhas {
+  const ativas: LinhaDaAta[] = [];
+  const encerradas: LinhaDaAta[] = [];
+  for (const l of [...linhas].sort((x, y) => x.ordem - y.ordem)) {
+    (motivoDeArquivo(l) === null ? ativas : encerradas).push(l);
+  }
+  return { ativas, encerradas };
+}
+
+export interface SeparacaoDeAtas {
+  ativas: AtaResumo[];
+  /** Arquivadas à mão. */
+  arquivadas: AtaResumo[];
+}
+
+/** Parte as atas entre as da visão principal e as arquivadas à mão. */
 export function separarAtas(atas: AtaResumo[]): SeparacaoDeAtas {
   const ativas: AtaResumo[] = [];
   const arquivadas: AtaResumo[] = [];
-  for (const a of atas) {
-    (motivoDeArquivo(a) === null ? ativas : arquivadas).push(a);
-  }
+  for (const a of atas) (a.arquivada ? arquivadas : ativas).push(a);
   return { ativas: ordenarPorData(ativas), arquivadas: ordenarPorData(arquivadas) };
+}
+
+/** Quantos clientes a ata ainda acompanha — o que se lê na lista. */
+export function contarAtivas(a: AtaResumo): number {
+  return separarLinhas(a.linhas).ativas.length;
 }
 
 /**
  * Mais recente primeiro. Desempate pelo `updated_at` (também descendente):
- * com duas atas do mesmo cliente no mesmo dia, a que foi mexida agora é a
- * que a pessoa está usando.
+ * com duas atas do mesmo dia, a que foi mexida agora é a que a pessoa
+ * está usando.
  *
  * Não reordena o array recebido — a tela costuma usar a lista original
  * depois, pra contar.
@@ -124,9 +168,8 @@ export interface GrupoDeAtas {
  * documentos por datas" é o eixo central do pedido, não um detalhe de
  * ordenação.
  *
- * Várias atas do mesmo cliente em datas diferentes caem em grupos
- * diferentes, que é justamente o que se quer: a ata de hoje não substitui
- * a da semana passada, ela vem depois dela.
+ * A ata de hoje não substitui a da semana passada: ela vem depois dela,
+ * no grupo do próprio dia.
  */
 export function agruparPorData(atas: AtaResumo[], hoje: string): GrupoDeAtas[] {
   const grupos: GrupoDeAtas[] = [];
