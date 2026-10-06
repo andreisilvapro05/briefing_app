@@ -32,6 +32,11 @@ export function StatusChanger({
   const router = useRouter();
   const [current, setCurrent] = useState(status);
   const [erro, setErro] = useState<string | null>(null);
+  /**
+   * Salvou no app, mas não chegou ao ClickUp. É AVISO, não erro: a
+   * mudança valeu. Âmbar, não vermelho — vermelho é pro que deu errado.
+   */
+  const [aviso, setAviso] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function change(next: string) {
@@ -39,6 +44,7 @@ export function StatusChanger({
     const anterior = current;
     setCurrent(next);
     setErro(null);
+    setAviso(null);
     const fd = new FormData();
     fd.append("clientId", clientId);
     fd.append("status", next);
@@ -57,6 +63,19 @@ export function StatusChanger({
         if (!r.ok) {
           setCurrent(anterior);
           setErro(r.erro);
+          return;
+        }
+        /**
+         * Salvou aqui, mas não chegou ao ClickUp.
+         *
+         * NÃO reverte: registrar no app continua valendo mais do que não
+         * registrar. Mas precisa aparecer — senão o cron das 9h traz o
+         * status antigo de volta e parece que a mudança nunca aconteceu,
+         * que é exatamente a reclamação da Karine (06/10).
+         */
+        if (r.avisoClickUp) {
+          setAviso(r.avisoClickUp);
+          router.refresh();
           return;
         }
       } catch {
@@ -79,7 +98,7 @@ export function StatusChanger({
     // Lista — a pílula ficava cortada no meio, com o canto direito quadrado.
     <span
       className="relative inline-flex max-w-full min-w-0"
-      title={erro ?? rotulo}
+      title={erro ?? aviso ?? rotulo}
     >
       <select
         value={current}
@@ -88,7 +107,7 @@ export function StatusChanger({
         aria-label="Alterar status"
         className={`w-full min-w-0 truncate appearance-none rounded-full border text-xs font-medium pl-3 pr-6 py-1 cursor-pointer focus:outline-none focus:ring-1 focus:ring-fysi-deep/30 disabled:opacity-50 ${
           TASK_STATUS_TONE[current as TaskStatus] ?? TASK_STATUS_TONE[DEFAULT_TASK_STATUS]
-        } ${erro ? "ring-1 ring-red-400" : ""}`}
+        } ${erro ? "ring-1 ring-red-400" : aviso ? "ring-1 ring-amber-400" : ""}`}
       >
         {PROJECT_STATUS_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>

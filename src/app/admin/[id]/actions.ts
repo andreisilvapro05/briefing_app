@@ -15,7 +15,10 @@ import {
   type Member,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
-import { createClickUpBriefingTask } from "@/lib/clickup";
+import {
+  atualizarStatusNoClickUp,
+  createClickUpBriefingTask,
+} from "@/lib/clickup";
 import { htmlMagicLink, sendEmail } from "@/lib/email";
 import { getServerEnv } from "@/lib/env";
 import { generateMagicSlug } from "@/lib/slug";
@@ -952,6 +955,12 @@ export async function setClientStatusAction(formData: FormData) {
   }
 
   const service = createSupabaseServiceRoleClient();
+  const { data: antes } = await service
+    .from("clients")
+    .select("clickup_task_id")
+    .eq("id", clientId)
+    .maybeSingle();
+
   const { error: escritaErr } = await service
     .from("clients")
     .update({ status })
@@ -965,6 +974,39 @@ export async function setClientStatusAction(formData: FormData) {
   revalidatePath("/admin");
   revalidatePath("/admin/lista");
   revalidatePath("/admin/visao-geral");
+
+  /**
+   * ESCREVE DE VOLTA NO CLICKUP — senão a mudança é desfeita amanhã.
+   *
+   * Karine (06/10): "se eu coloco algo como feito no app não está
+   * sincronizando com o ClickUp" e "aí sempre que todo dia o ClickUp
+   * atualiza fica errado". O sync era de mão única e o cron das 9h grava
+   * `clients.status` com o valor de lá: marcar concluído aqui durava até
+   * a manhã seguinte.
+   *
+   * Só pra projeto VINCULADO: sem `clickup_task_id` não há o que atualizar,
+   * e o cron também não vai reverter nada (ele só mexe em quem tem
+   * vínculo).
+   *
+   * A falha NÃO desfaz a mudança no app: se o ClickUp está fora do ar,
+   * registrar aqui continua valendo mais que não registrar. Mas ela é DITA,
+   * com o aviso de que o cron vai reverter — é a única forma honesta
+   * enquanto não houver uma coluna pra marcar "pendente de envio" e deixar
+   * o próprio cron reenviar.
+   */
+  const taskId = (antes as { clickup_task_id: string | null } | null)
+    ?.clickup_task_id;
+  if (taskId) {
+    const r = await atualizarStatusNoClickUp(taskId, status);
+    if (!r.ok) {
+      logServerError("cliente.status.clickup", new Error(r.motivo));
+      return {
+        ok: true as const,
+        avisoClickUp: `Salvei aqui, mas não consegui atualizar o ClickUp: ${r.motivo} Mude lá também, senão a sincronização de amanhã traz o status antigo de volta.`,
+      };
+    }
+  }
+
   return { ok: true as const };
 }
 

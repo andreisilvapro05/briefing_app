@@ -9,6 +9,7 @@ import {
   isFileField,
   valueLabel,
 } from "./briefing-labels";
+import { statusParaClickUp } from "./clickup-status-reverso";
 
 /**
  * Cria a tarefa do briefing na lista correta do ClickUp.
@@ -434,4 +435,70 @@ function dataDoClickUp(valor: unknown): string | null {
   const n = Number(valor);
   if (!Number.isFinite(n) || n <= 0) return null;
   return FMT_DATA_BR.format(new Date(n));
+}
+
+export type ResultadoEscrita =
+  | { ok: true; statusEscrito: string }
+  | { ok: false; motivo: string };
+
+/**
+ * Escreve o status de volta no ClickUp — o caminho que não existia.
+ *
+ * Karine (06/10): "se eu coloco algo como feito no app não está
+ * sincronizando com o ClickUp" e "aí sempre que todo dia o ClickUp
+ * atualiza fica errado". O sync era de mão única, e o cron das 9h
+ * reescrevia a edição dela com o valor antigo de lá. Não era falta de
+ * sincronia: era a edição sendo DESFEITA.
+ *
+ * Tenta os nomes na ordem de `statusParaClickUp`: o da pasta de projetos
+ * primeiro, os das listas internas como reserva. O ClickUp recusa com 400
+ * um status que não existe na lista daquela tarefa, e é isso que distingue
+ * as duas.
+ */
+export async function atualizarStatusNoClickUp(
+  taskId: string,
+  statusApp: string
+): Promise<ResultadoEscrita> {
+  const env = getServerEnv();
+  if (!env.clickupToken) {
+    return { ok: false, motivo: "ClickUp não configurado (falta CLICKUP_API_TOKEN)." };
+  }
+
+  const candidatos = statusParaClickUp(statusApp);
+  if (candidatos.length === 0) {
+    return {
+      ok: false,
+      motivo: `"${statusApp}" só existe no app — o ClickUp não tem esse status.`,
+    };
+  }
+
+  let ultimoErro = "";
+  for (const nome of candidatos) {
+    let res: Response;
+    try {
+      res = await fetch(`https://api.clickup.com/api/v2/task/${taskId}`, {
+        method: "PUT",
+        headers: {
+          Authorization: env.clickupToken,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: nome }),
+      });
+    } catch {
+      return { ok: false, motivo: "Não consegui falar com o ClickUp agora." };
+    }
+
+    if (res.ok) return { ok: true, statusEscrito: nome };
+
+    const texto = await res.text().catch(() => "");
+    ultimoErro = `${res.status} ${texto}`.slice(0, 200);
+    /**
+     * 400 costuma ser "status não existe nesta lista" — vale tentar o
+     * próximo candidato. Qualquer outro código (401 token, 404 tarefa
+     * apagada, 5xx) não melhora tentando de novo com outro nome.
+     */
+    if (res.status !== 400) break;
+  }
+
+  return { ok: false, motivo: `O ClickUp recusou (${ultimoErro}).` };
 }
