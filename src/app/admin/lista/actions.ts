@@ -7,6 +7,10 @@ import {
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { sincronizarStatusDosProjetos } from "@/lib/clickup-status-sync";
+import {
+  diagnosticarClickUp,
+  type DiagnosticoClickUp,
+} from "@/lib/clickup";
 import { logServerError } from "@/lib/api-helpers";
 import { PROJECT_TYPE_LABELS } from "@/lib/briefing-labels";
 import { maxStageIndexDe } from "@/lib/project-types";
@@ -279,4 +283,25 @@ export async function ajustarProjetoAction(
   revalidatePath(`/admin/${clientId}`);
 
   return { ok: true, mensagem: feitos.join(" · "), clientId };
+}
+
+/**
+ * Testa a ponte com o ClickUp e diz ONDE ela está quebrada.
+ *
+ * Karine (06/10): "não deu certo, não está atualizando no ClickUp". O
+ * token vive só no Vercel e a resposta da API não aparece em lugar nenhum
+ * da tela — sem isto, cada hipótese custa uma ida e volta com ela.
+ */
+export async function diagnosticarClickUpAction(
+  urlKey: string | null
+): Promise<DiagnosticoClickUp | { erro: string }> {
+  const member = await getCurrentMember({ urlKey });
+  if (!member) return { erro: "Faça login de novo." };
+  if (!hasFullAccess(member)) return { erro: "Sem permissão." };
+  try {
+    return await diagnosticarClickUp();
+  } catch (err) {
+    logServerError("clickup.diagnostico", err);
+    return { erro: "O teste quebrou. Veja os logs do servidor." };
+  }
 }

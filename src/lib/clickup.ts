@@ -502,3 +502,124 @@ export async function atualizarStatusNoClickUp(
 
   return { ok: false, motivo: `O ClickUp recusou (${ultimoErro}).` };
 }
+
+export interface DiagnosticoClickUp {
+  temToken: boolean;
+  /** Conseguiu LER a pasta de projetos? */
+  leituraOk: boolean;
+  leituraErro?: string;
+  projetosLidos: number;
+  /** Conseguiu ESCREVER num projeto de teste? */
+  escritaOk: boolean;
+  escritaErro?: string;
+  /** Qual tarefa foi usada no teste de escrita, pra ela conferir lá. */
+  escritaEm?: string;
+  /** Os nomes de status que a tarefa de teste aceita, como o ClickUp os escreve. */
+  statusDaLista?: string[];
+  /** Nomes que o app tenta escrever e a lista NÃO tem — a causa mais provável. */
+  statusQueNaoExistem?: string[];
+}
+
+/**
+ * Diz ONDE a ponte com o ClickUp está quebrada, em vez de só falhar.
+ *
+ * Karine (06/10): "não deu certo, não está atualizando no ClickUp". Daqui
+ * eu não enxergo nem o token (vive só no Vercel) nem a resposta da API, e
+ * adivinhar custa uma ida e volta por tentativa. Isto responde as três
+ * perguntas de uma vez: tem token? consegue ler? consegue escrever?
+ *
+ * A quarta resposta é a mais útil: os nomes de status que a LISTA aceita,
+ * como o ClickUp os escreve. O app escreve "completo| entregue"; se lá
+ * estiver "Completo | Entregue" (com espaço antes da barra), a escrita
+ * leva 400 e nada acontece — e essa diferença é invisível de qualquer
+ * outro lugar.
+ *
+ * NÃO MUDA NADA de verdade: o teste de escrita regrava o status que a
+ * tarefa JÁ TEM.
+ */
+export async function diagnosticarClickUp(): Promise<DiagnosticoClickUp> {
+  const env = getServerEnv();
+  if (!env.clickupToken) {
+    return {
+      temToken: false,
+      leituraOk: false,
+      projetosLidos: 0,
+      escritaOk: false,
+      escritaErro: "Falta CLICKUP_API_TOKEN no Vercel.",
+    };
+  }
+
+  const leitura = await fetchClickUpProjectStatuses();
+  if ("skipped" in leitura) {
+    return {
+      temToken: true,
+      leituraOk: false,
+      leituraErro: leitura.reason,
+      projetosLidos: 0,
+      escritaOk: false,
+    };
+  }
+
+  const alvo = leitura.statuses[0];
+  if (!alvo) {
+    return {
+      temToken: true,
+      leituraOk: true,
+      projetosLidos: 0,
+      escritaOk: false,
+      escritaErro: "Nenhum projeto na pasta do ClickUp pra testar a escrita.",
+    };
+  }
+
+  // Os status que a LISTA dessa tarefa aceita — é a resposta que explica
+  // o 400 quando o nome não bate exatamente.
+  let statusDaLista: string[] | undefined;
+  try {
+    const r = await fetch(`https://api.clickup.com/api/v2/task/${alvo.taskId}`, {
+      headers: { Authorization: env.clickupToken },
+    });
+    if (r.ok) {
+      const t = (await r.json()) as {
+        status?: { status?: string };
+        list?: { id?: string };
+      };
+      if (t.list?.id) {
+        const rl = await fetch(
+          `https://api.clickup.com/api/v2/list/${t.list.id}`,
+          { headers: { Authorization: env.clickupToken } }
+        );
+        if (rl.ok) {
+          const l = (await rl.json()) as { statuses?: { status: string }[] };
+          statusDaLista = (l.statuses ?? []).map((s) => s.status);
+        }
+      }
+    }
+  } catch {
+    // Diagnóstico não pode quebrar por causa de um detalhe do diagnóstico.
+  }
+
+  // Regrava o MESMO status: confirma a permissão de escrita sem mexer em nada.
+  const escrita = await atualizarStatusNoClickUp(alvo.taskId, alvo.statusApp);
+
+  const tentados = statusParaClickUp(alvo.statusApp);
+  const naoExistem =
+    statusDaLista && statusDaLista.length > 0
+      ? tentados.filter(
+          (n) =>
+            !statusDaLista.some(
+              (s) => s.toLowerCase().trim() === n.toLowerCase().trim()
+            )
+        )
+      : undefined;
+
+  return {
+    temToken: true,
+    leituraOk: true,
+    projetosLidos: leitura.statuses.length,
+    escritaOk: escrita.ok,
+    escritaErro: escrita.ok ? undefined : escrita.motivo,
+    escritaEm: alvo.nome,
+    statusDaLista,
+    statusQueNaoExistem: naoExistem,
+  };
+}
