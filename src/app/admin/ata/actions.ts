@@ -14,7 +14,12 @@ import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
 import { logServerError } from "@/lib/api-helpers";
 import { hojeEmBrasilia } from "@/lib/datas";
 import { diaParaReferencia, diaValido } from "@/lib/atas";
-import { ataExiste, clienteDaLinha, clientesDaAta } from "@/lib/atas-server";
+import {
+  ataExiste,
+  clienteDaLinha,
+  clientesDaAta,
+  clientesParaAta,
+} from "@/lib/atas-server";
 
 /**
  * Escritas da ata de acompanhamento.
@@ -84,14 +89,20 @@ function revalidarAtas(ataId: string | null) {
 }
 
 /**
- * Abre uma ata nova — uma reunião, numa data, ainda sem cliente nenhum.
+ * Abre uma ata nova JÁ COM OS PROJETOS ATIVOS dentro.
  *
- * Os clientes entram depois, pelo "+ Puxar cliente" de dentro da ata. É o
- * gesto real: abre-se a ata da segunda e vai-se passando pelos projetos.
+ * Karine (07/10): "deve ficar mais simples... já pré-listar aqui os
+ * clientes principais". A primeira versão nascia vazia e exigia puxar
+ * cliente por cliente num seletor — com 25 projetos ativos, isso é 25
+ * idas ao menu antes de escrever a primeira linha.
+ *
+ * A reunião de acompanhamento passa pelos projetos que estão ANDANDO, e o
+ * app já sabe quais são. Quem não entrou na conversa sai pelo "✕" da
+ * linha; quem faltou entra pelo seletor, que continua existindo.
  */
 export async function criarAtaAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
-  await exigirAcessoDeGestao(urlKey);
+  const member = await exigirAcessoDeGestao(urlKey);
 
   const diaCru = String(formData.get("dia") ?? "").trim();
   const dia = diaValido(diaCru) ? diaCru : hojeEmBrasilia();
@@ -120,6 +131,24 @@ export async function criarAtaAction(formData: FormData) {
   }
 
   const ataId = (data as { id: string }).id;
+
+  /**
+   * Pré-lista os projetos ATIVOS, na ordem em que a Lista os mostra.
+   *
+   * `clientesParaAta` já exclui arquivado (desistência). Projeto finalizado
+   * entra, mas cai direto no bloco das encerradas pela regra do status —
+   * então a lista que aparece é só o que está em andamento.
+   */
+  const ativos = await clientesParaAta(await getVisibleClientIds(member));
+  if (ativos.length > 0) {
+    const { error: erroLinhas } = await service.from("ata_linhas").insert(
+      ativos.map((c, i) => ({ ata_id: ataId, client_id: c.id, ordem: i }))
+    );
+    // Falhar aqui não pode impedir a ata de existir: ela abre vazia e os
+    // clientes entram pelo seletor, que continua lá.
+    if (erroLinhas) logServerError("ata.pre-listar", erroLinhas);
+  }
+
   revalidarAtas(ataId);
   redirect(`/admin/ata/${ataId}${keyParam(urlKey)}`);
 }
@@ -188,28 +217,58 @@ export async function puxarClienteAction(formData: FormData) {
   redirect(`/admin/ata/${ataId}${keyParam(urlKey)}`);
 }
 
-/** A observação daquele cliente nesta reunião. */
-export async function salvarObservacaoAction(formData: FormData) {
+/**
+ * Salva TODAS as observações da ata de uma vez.
+ *
+ * Karine (07/10): "deve ficar mais simples". Antes havia um formulário e
+ * um botão "Salvar" por linha — numa ata de 25 projetos, 25 botões e 25
+ * recarregamentos de página pra escrever uma ata. A reunião é um gesto só:
+ * passa-se pelos projetos anotando, e salva-se no fim.
+ *
+ * O campo de cada linha é `obs:<linhaId>`. O id vem do formulário, mas o
+ * CLIENTE de cada linha é lido do banco antes de escrever — e linha que
+ * não é desta ata é descartada.
+ */
+export async function salvarObservacoesAction(formData: FormData) {
   const urlKey = String(formData.get("key") ?? "") || null;
   const ataId = String(formData.get("ataId") ?? "").trim();
-  const linhaId = String(formData.get("linhaId") ?? "").trim();
-  if (!linhaId) redirect(`/admin/ata${keyParam(urlKey)}`);
-
-  // O cliente sai do BANCO, pelo id da linha — nunca do formulário.
-  const clientId = await clienteDaLinha(linhaId);
-  if (!clientId) redirect(`/admin/ata${keyParam(urlKey)}`);
-  await exigirAcessoAoCliente(clientId, urlKey);
-
-  const observacao = String(formData.get("observacao") ?? "").trim().slice(0, 4000);
+  if (!ataId || !(await ataExiste(ataId))) {
+    redirect(`/admin/ata${keyParam(urlKey)}`);
+  }
+  const member = await getCurrentMember({ urlKey });
+  if (!member) redirect("/admin/login");
+  if (isDeveloper(member)) {
+    redirect(`${telaInicialDe(member)}${keyParam(urlKey)}`);
+  }
+  const visiveis = hasFullAccess(member) ? null : await getVisibleClientIds(member);
 
   const service = createSupabaseServiceRoleClient();
-  const { error } = await service
+  // As linhas REAIS desta ata, do banco — é o que impede um formulário
+  // adulterado de escrever na linha de outra reunião.
+  const { data: linhasRows } = await service
     .from("ata_linhas")
-    .update({ observacao: observacao || null, updated_at: new Date().toISOString() })
-    .eq("id", linhaId);
-  if (error) logServerError("ata.observacao", error);
+    .select("id, client_id")
+    .eq("ata_id", ataId);
+  const linhas = (linhasRows as { id: string; client_id: string }[] | null) ?? [];
 
-  revalidarAtas(ataId || null);
+  const agora = new Date().toISOString();
+  await Promise.all(
+    linhas.map(async (l) => {
+      if (visiveis && !visiveis.has(l.client_id)) return;
+      const campo = formData.get(`obs:${l.id}`);
+      // Campo ausente = a linha não estava na tela (ex.: recolhida). Não
+      // mexe — ausente não é o mesmo que apagado.
+      if (campo === null) return;
+      const observacao = String(campo).trim().slice(0, 4000);
+      const { error } = await service
+        .from("ata_linhas")
+        .update({ observacao: observacao || null, updated_at: agora })
+        .eq("id", l.id);
+      if (error) logServerError("ata.observacoes", error);
+    })
+  );
+
+  revalidarAtas(ataId);
   redirect(`/admin/ata/${ataId}${keyParam(urlKey)}`);
 }
 

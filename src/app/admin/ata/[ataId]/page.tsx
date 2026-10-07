@@ -29,7 +29,7 @@ import {
   puxarClienteAction,
   removerClienteDaAtaAction,
   salvarCabecalhoDaAtaAction,
-  salvarObservacaoAction,
+  salvarObservacoesAction,
 } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -176,51 +176,53 @@ export default async function AtaPage({
         </p>
       )}
 
-      {/* ---- Os clientes da reunião ---- */}
+      {/* ---- Os clientes da reunião ----
+          UM formulário pra todas as observações, não um por linha: a
+          reunião é um gesto só (passa-se pelos projetos anotando e salva-se
+          no fim). Antes eram 25 botões "Salvar" e 25 recarregamentos pra
+          escrever uma ata. Karine (07/10): "deve ficar mais simples". */}
       {ata.linhas.length === 0 ? (
         <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-8 text-center mb-6">
-          <p className="text-fysi-deep font-medium mb-1">Ata ainda vazia</p>
+          <p className="text-fysi-deep font-medium mb-1">Ata sem projeto</p>
           <p className="text-sm text-fysi-muted max-w-md mx-auto">
-            Puxe acima os projetos que entraram nesta reunião. Cada um vira uma
-            linha com o status dele e um campo de observação.
+            Puxe acima os projetos que entraram nesta reunião.
           </p>
         </section>
       ) : (
-        <ul className="flex flex-col gap-2 mb-6">
-          {ativas.map((l) => (
-            <LinhaCliente
-              key={l.id}
-              linha={l}
-              ataId={ata.id}
-              urlKey={urlKey}
-              podeRemover={acessoTotal}
-            />
-          ))}
-        </ul>
-      )}
+        <form action={salvarObservacoesAction} className="mb-6">
+          {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
+          <input type="hidden" name="ataId" value={ata.id} />
 
-      {/* Encerrados: saíram da lista principal pelo STATUS, não foram
-          apagados. A ata é registro do que foi dito na reunião — apagar a
-          linha de um projeto que terminou reescreve o passado. */}
-      {encerradas.length > 0 ? (
-        <details className="mb-6">
-          <summary className="cursor-pointer text-sm text-fysi-muted hover:text-fysi-deep select-none">
-            {encerradas.length} projeto{encerradas.length === 1 ? "" : "s"} que
-            já encerrou nesta ata
-          </summary>
-          <ul className="flex flex-col gap-2 mt-2">
-            {encerradas.map((l) => (
-              <LinhaCliente
-                key={l.id}
-                linha={l}
-                ataId={ata.id}
-                urlKey={urlKey}
-                podeRemover={acessoTotal}
-              />
+          <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card divide-y divide-fysi-line overflow-hidden">
+            {ativas.map((l) => (
+              <LinhaCliente key={l.id} linha={l} urlKey={urlKey} />
             ))}
-          </ul>
-        </details>
-      ) : null}
+          </div>
+
+          {/* Encerrados: saíram da lista pelo STATUS, não foram apagados.
+              A ata é registro do que foi dito na reunião — apagar a linha
+              de um projeto que terminou reescreve o passado. */}
+          {encerradas.length > 0 ? (
+            <details className="mt-3">
+              <summary className="cursor-pointer text-sm text-fysi-muted hover:text-fysi-deep select-none">
+                {encerradas.length} projeto{encerradas.length === 1 ? "" : "s"}{" "}
+                que já encerrou
+              </summary>
+              <div className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card divide-y divide-fysi-line overflow-hidden mt-2">
+                {encerradas.map((l) => (
+                  <LinhaCliente key={l.id} linha={l} urlKey={urlKey} />
+                ))}
+              </div>
+            </details>
+          ) : null}
+
+          <div className="flex justify-end mt-3">
+            <SubmitButton pendingLabel="Salvando…">
+              Salvar observações
+            </SubmitButton>
+          </div>
+        </form>
+      )}
 
       {/* ---- O documento: "um google docs, mas melhorado" ---- */}
       <EIView
@@ -257,70 +259,71 @@ export default async function AtaPage({
 }
 
 /**
- * Um cliente dentro da ata: nome, status do projeto (editável aqui — é a
- * troca que faz a linha sair da lista) e a observação da reunião.
+ * Um cliente dentro da ata, em UMA linha: nome, status, observação e o "✕".
+ *
+ * ⚠️ O "✕" usa `formAction`, não um `<form>` próprio: esta linha mora
+ * DENTRO do formulário que salva todas as observações, e HTML não permite
+ * formulário dentro de formulário — o de dentro simplesmente não submete.
+ * `formAction` num botão manda aquele clique pra outra action, sem segundo
+ * formulário.
+ *
+ * O rótulo virou só o símbolo porque "Tirar da ata" quebrava em quatro
+ * linhas verticais na coluna estreita (print da Karine, 07/10). O que ele
+ * faz continua no `title` e no `aria-label`.
  */
 function LinhaCliente({
   linha,
-  ataId,
   urlKey,
-  podeRemover,
 }: {
   linha: LinhaDaAta;
-  ataId: string;
   urlKey: string | null;
-  podeRemover: boolean;
 }) {
   const motivo = motivoDeArquivo(linha);
   return (
-    <li className="bg-white border border-fysi-line rounded-[16px] shadow-fysi-card px-4 py-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <Link
-          href={`/admin/${linha.clientId}${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`}
-          className="font-medium text-fysi-deep hover:underline min-w-0 truncate"
-        >
-          {linha.cliente}
-        </Link>
-        <div className="shrink-0 max-w-[12rem]">
-          <StatusChanger
-            clientId={linha.clientId}
-            status={linha.statusProjeto}
-            urlKey={urlKey ?? undefined}
-          />
-        </div>
-        {motivo ? (
-          <span className="shrink-0 text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted border border-fysi-line rounded-full px-2 py-0.5">
-            {MOTIVO_LABEL[motivo]}
-          </span>
-        ) : null}
-        {podeRemover ? (
-          <form action={removerClienteDaAtaAction} className="ml-auto shrink-0">
-            {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-            <input type="hidden" name="ataId" value={ataId} />
-            <input type="hidden" name="linhaId" value={linha.id} />
-            <DeleteButton label="Tirar da ata" what={linha.cliente} />
-          </form>
-        ) : null}
+    <div className="px-4 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+      <Link
+        href={`/admin/${linha.clientId}${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`}
+        className="font-medium text-fysi-deep hover:underline truncate w-40 shrink-0"
+        title={linha.cliente}
+      >
+        {linha.cliente}
+      </Link>
+
+      <div className="shrink-0 w-44">
+        <StatusChanger
+          clientId={linha.clientId}
+          status={linha.statusProjeto}
+          urlKey={urlKey ?? undefined}
+        />
       </div>
 
-      <form
-        action={salvarObservacaoAction}
-        className="mt-2 flex flex-wrap items-end gap-2"
+      {motivo ? (
+        <span className="shrink-0 text-[0.68rem] uppercase tracking-[0.08em] text-fysi-muted border border-fysi-line rounded-full px-2 py-0.5">
+          {MOTIVO_LABEL[motivo]}
+        </span>
+      ) : null}
+
+      <input
+        type="text"
+        name={`obs:${linha.id}`}
+        defaultValue={linha.observacao ?? ""}
+        maxLength={4000}
+        placeholder="O que ficou combinado"
+        aria-label={`Observação de ${linha.cliente}`}
+        className="flex-1 min-w-[12rem] rounded-[10px] border border-fysi-line bg-fysi-cream/40 text-sm px-3 py-1.5 text-fysi-deep"
+      />
+
+      <button
+        type="submit"
+        formAction={removerClienteDaAtaAction}
+        name="linhaId"
+        value={linha.id}
+        aria-label={`Tirar ${linha.cliente} desta ata`}
+        title="Tirar este projeto da ata"
+        className="shrink-0 h-7 w-7 grid place-items-center rounded-md text-fysi-muted hover:text-red-700 hover:bg-red-50 transition"
       >
-        {urlKey ? <input type="hidden" name="key" value={urlKey} /> : null}
-        <input type="hidden" name="ataId" value={ataId} />
-        <input type="hidden" name="linhaId" value={linha.id} />
-        <textarea
-          name="observacao"
-          defaultValue={linha.observacao ?? ""}
-          rows={2}
-          maxLength={4000}
-          placeholder="O que ficou combinado para este projeto"
-          aria-label={`Observação de ${linha.cliente}`}
-          className="flex-1 min-w-[16rem] rounded-[10px] border border-fysi-line bg-fysi-cream/40 text-sm px-3 py-2 text-fysi-deep"
-        />
-        <SubmitTextButton pendingLabel="Salvando…">Salvar</SubmitTextButton>
-      </form>
-    </li>
+        ✕
+      </button>
+    </div>
   );
 }
