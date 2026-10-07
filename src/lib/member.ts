@@ -126,22 +126,35 @@ const getCurrentMemberCached = cache(async function getCurrentMemberUncached(
     }
   }
 
+  /**
+   * Caminhos 2 e 3 são o login de ANTES das contas individuais: senha
+   * compartilhada (cookie) e `?key=` na URL. Os dois devolvem
+   * `legacyMember`, que tem role "admin" — então quem os usa entra como
+   * sócio, qualquer que seja o papel dele em /admin/membros.
+   *
+   * Karine (06/10): "preciso de uma conta para cada usuário". Enquanto
+   * isto existir, a conta individual da designer e do desenvolvedor não
+   * vale nada: basta digitar a senha de todo mundo. Desliga-se com
+   * `ADMIN_SHARED_LOGIN=off` no Vercel.
+   */
+  let env: ReturnType<typeof getServerEnv> | null = null;
+  try {
+    env = getServerEnv();
+  } catch {
+    return null;
+  }
+  if (!env.loginCompartilhado) return null;
+
   // Caminho 2: cookie de sessão admin (login por senha compartilhada).
   if (await hasValidAdminSession()) {
     return legacyMember("password-legacy");
   }
 
   // Caminho 3: chave passada como query param (?key=...).
-  if (opts?.urlKey) {
-    let env: ReturnType<typeof getServerEnv>;
-    try {
-      env = getServerEnv();
-    } catch {
-      return null;
-    }
-    if (env.adminPassword && opts.urlKey === env.adminPassword) {
-      return legacyMember("url-key-legacy");
-    }
+  // `adminPassword` vazio em produção (sem a variável no Vercel) nunca
+  // casa — é o que faz o login compartilhado falhar fechado.
+  if (opts?.urlKey && env.adminPassword && opts.urlKey === env.adminPassword) {
+    return legacyMember("url-key-legacy");
   }
 
   return null;

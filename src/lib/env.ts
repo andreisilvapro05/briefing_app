@@ -69,9 +69,34 @@ export function getServerEnv() {
     // enquanto aguarda Cloudflare. NÃO use em produção real com tráfego.
     bypassCaptcha:
       (process.env.BYPASS_CAPTCHA ?? "").toLowerCase() === "true",
-    // Senha compartilhada do painel admin. Default fysi-2026 só pra dev —
-    // SEMPRE setar via env em produção (e remover esse default).
-    adminPassword: process.env.ADMIN_PASSWORD ?? "fysi-2026",
+    /**
+     * Senha compartilhada do painel admin — o login de ANTES das contas
+     * individuais.
+     *
+     * ⚠️ O default "fysi-2026" vale só FORA de produção. Ele estava valendo
+     * em qualquer ambiente, e este repositório é PÚBLICO: sem
+     * `ADMIN_PASSWORD` no Vercel, qualquer pessoa que lesse o código
+     * entrava no painel como sócia. Em produção, sem a variável, o login
+     * compartilhado simplesmente não existe (falha fechado).
+     */
+    adminPassword:
+      process.env.ADMIN_PASSWORD ??
+      (process.env.NODE_ENV === "production" ? "" : "fysi-2026"),
+    /**
+     * O login por senha compartilhada ainda está ligado?
+     *
+     * Karine (06/10): "preciso de uma conta para cada usuário". As contas
+     * individuais existem desde 31/08 (/admin/membros), mas quem digita a
+     * senha compartilhada vira `legacyMember`, que tem role "admin" e passa
+     * em `hasFullAccess` — ou seja, a designer e o desenvolvedor entram
+     * como sócios e o papel individual deles não vale nada.
+     *
+     * Fica LIGADO por padrão pra ninguém ser trancado do lado de fora por
+     * um deploy. Pra desligar, `ADMIN_SHARED_LOGIN=off` no Vercel, depois
+     * de confirmar em /admin/membros que todo mundo tem conta própria.
+     */
+    loginCompartilhado:
+      (process.env.ADMIN_SHARED_LOGIN ?? "on").toLowerCase() !== "off",
     // Código de acesso global do cliente (telefone + código pra reentrar no
     // briefing de qualquer aparelho). Default só pra dev — SEMPRE setar
     // CLIENT_ACCESS_CODE via env em produção.

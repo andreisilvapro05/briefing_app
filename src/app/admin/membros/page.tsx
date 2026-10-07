@@ -8,6 +8,7 @@ import {
   type MemberRole,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { getServerEnv } from "@/lib/env";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { AutoSubmitSelect } from "@/components/admin/auto-submit-select";
 import { SubmitButton, SubmitTextButton } from "@/components/admin/submit-button";
@@ -41,6 +42,17 @@ export default async function MembrosPage({
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
+  /**
+   * O login por senha compartilhada ainda está aberto? Ver
+   * `loginCompartilhado` em src/lib/env.ts — é o que decide se a conta
+   * individual de cada pessoa realmente limita o que ela vê.
+   */
+  let loginCompartilhadoLigado = true;
+  try {
+    loginCompartilhadoLigado = getServerEnv().loginCompartilhado;
+  } catch {
+    // Sem env (dev sem .env): o aviso aparece, que é o lado seguro.
+  }
   const member = await getCurrentMember({ urlKey });
   if (!member) redirect("/admin/login");
   if (!isAdmin(member)) redirect(`/admin${urlKey ? `?key=${encodeURIComponent(urlKey)}` : ""}`);
@@ -98,6 +110,44 @@ export default async function MembrosPage({
           qualquer aparelho, sem depender do e-mail.
         </p>
       </div>
+
+      {/* ---- O login compartilhado anula a conta individual ----
+          Karine (06/10): "preciso de uma conta para cada usuário". As
+          contas existem nesta tela desde 31/08, mas quem digita a senha
+          compartilhada vira admin, qualquer que seja o papel dele aqui —
+          então o recorte da designer e do desenvolvedor não vale nada
+          enquanto esse caminho estiver aberto. */}
+      {loginCompartilhadoLigado ? (
+        <section className="bg-amber-50/70 border border-amber-200 rounded-[20px] p-5 mb-6">
+          <Eyebrow>A senha compartilhada ainda funciona</Eyebrow>
+          <p className="text-sm text-fysi-deep mt-2">
+            Quem entra com a senha antiga do painel vira <strong>sócio</strong>,
+            mesmo tendo papel de designer ou desenvolvedor aqui. Enquanto ela
+            existir, as contas individuais desta tela não limitam ninguém.
+          </p>
+          <p className="text-sm text-fysi-muted mt-2">
+            Quando todo mundo abaixo já tiver conta própria e senha,
+            desligue-a: no Vercel, variável{" "}
+            <code className="bg-white border border-fysi-line rounded px-1">
+              ADMIN_SHARED_LOGIN
+            </code>{" "}
+            com valor{" "}
+            <code className="bg-white border border-fysi-line rounded px-1">
+              off
+            </code>
+            . Os links antigos com <code>?key=</code> param de funcionar junto
+            — é o mesmo caminho.
+          </p>
+        </section>
+      ) : (
+        <section className="bg-fysi-mint/30 border border-fysi-mint rounded-[20px] p-5 mb-6">
+          <Eyebrow>Só conta individual</Eyebrow>
+          <p className="text-sm text-fysi-deep mt-2">
+            A senha compartilhada está desligada. Cada pessoa entra com a conta
+            dela, e o papel definido aqui é o que vale.
+          </p>
+        </section>
+      )}
 
       {/* Convidar novo membro */}
       <section className="bg-white border border-fysi-line rounded-[20px] shadow-fysi-card p-5 mb-6">
