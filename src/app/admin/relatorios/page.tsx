@@ -19,6 +19,9 @@ import { getCurrentMember, getVisibleClientIds, hasFinanceAccess,
   isAdmin,
 } from "@/lib/member";
 import { createSupabaseServiceRoleClient } from "@/lib/supabase/server";
+import { montarLinhas } from "@/lib/origem-dos-clientes";
+import { OrigemDosClientes } from "@/components/admin/origem-dos-clientes";
+import { ViewTabs } from "@/components/admin/view-tabs";
 import {
   statsCobrancas,
   formatBRL as formatBRLCobrancas,
@@ -36,12 +39,19 @@ import {
 export const dynamic = "force-dynamic";
 
 /** ClientForLane + o campo que só esta página usa (não faz parte do contrato de lane). */
-type ClientWithOrigem = ClientForLane & { como_conheceu: string | null };
+type ClientWithOrigem = ClientForLane & {
+  como_conheceu: string | null;
+  /** Pro relatório de origem — ver src/lib/origem-dos-clientes.ts. */
+  nome_exibicao: string | null;
+  clickup_nome: string | null;
+  email: string | null;
+  whatsapp: string | null;
+};
 
 export default async function AdminRelatoriosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ key?: string; mes?: string }>;
+  searchParams: Promise<{ key?: string; mes?: string; aba?: string }>;
 }) {
   const params = await searchParams;
   const urlKey = params.key ?? null;
@@ -61,7 +71,7 @@ export default async function AdminRelatoriosPage({
     let clientsQuery = service
       .from("clients")
       .select(
-        "id, nome, empresa, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, como_conheceu"
+        "id, nome, empresa, nome_exibicao, clickup_nome, email, whatsapp, project_type, status, current_stage_index, briefing_submitted_at, contrato_preenchido_at, chamada_agendada_at, contrato_status, pagamento_total, pagamento_pago, last_client_activity_at, created_at, como_conheceu"
       )
       .is("arquivado_em", null)
       .order("created_at", { ascending: false });
@@ -153,6 +163,17 @@ export default async function AdminRelatoriosPage({
   const origemEntries = Array.from(porOrigem.entries()).sort((a, b) => b[1] - a[1]);
   const maxOrigem = Math.max(1, ...origemEntries.map(([, n]) => n));
 
+  /**
+   * Aba "Origem" — de onde veio cada cliente que fechou, com data.
+   *
+   * Karine (08/10). Vive numa aba, e não mais uma seção empilhada, porque
+   * esta tela já tem caixa, pipeline, conversão, receita e saúde: a
+   * sexta seção rolando junto seria invisível, e esta é pra ser aberta
+   * com uma pergunta na cabeça ("vale seguir no Instagram?").
+   */
+  const abaOrigem = params.aba === "origem";
+  const linhasDeOrigem = montarLinhas(clients);
+
   return (
     <AdminShell active="relatorios" keyParam={keyParamFirst} userEmail={member.email}
       userName={member.name}
@@ -170,6 +191,30 @@ export default async function AdminRelatoriosPage({
             <Pill tone="muted">{stats.total} clientes</Pill>
           </div>
         </header>
+
+        <div className="mb-5">
+          <ViewTabs
+            ariaLabel="Seção do relatório"
+            ativo={abaOrigem ? "origem" : ""}
+            items={[
+              {
+                value: "",
+                label: "Visão geral",
+                href: `/admin/relatorios${keyParamFirst}`,
+              },
+              {
+                value: "origem",
+                label: "Origem dos clientes",
+                count: linhasDeOrigem.filter((l) => l.fechouEm).length,
+                href: `/admin/relatorios${keyParamFirst}${keyParamFirst ? "&" : "?"}aba=origem`,
+              },
+            ]}
+          />
+        </div>
+
+        {abaOrigem ? <OrigemDosClientes linhas={linhasDeOrigem} /> : null}
+        {abaOrigem ? null : (
+          <>
 
         {/* Caixa do mês — o que ENTROU, por forma de pagamento. */}
         {caixa ? (
@@ -670,6 +715,8 @@ export default async function AdminRelatoriosPage({
             </div>
           </section>
         ) : null}
+          </>
+        )}
     </AdminShell>
   );
 }
