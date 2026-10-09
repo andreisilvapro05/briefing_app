@@ -128,8 +128,21 @@ export async function updateCobrancaAction(formData: FormData) {
   const descricao = String(formData.get("descricao") ?? "").trim();
   updates.descricao = descricao || null;
 
+  /**
+   * ⚠️ CAIXA DESMARCADA NÃO É ENVIADA. Este era o bug.
+   *
+   * Karine (09/10), com print: "não funciona... desativar". Com
+   * `formData.has("ativa")`, desmarcar a caixa fazia o campo sumir do
+   * envio, o `if` não entrava, e `ativa` ficava como estava — dava pra
+   * LIGAR uma cobrança, nunca desligar. E a tela dizia "Salvo ✓".
+   *
+   * O formulário agora manda um hidden "0" ANTES da caixa, então o campo
+   * existe sempre. Marcada, chegam os dois valores — por isso
+   * `getAll().includes("1")` e não `get()`, que devolveria o primeiro
+   * ("0") e inverteria tudo.
+   */
   if (formData.has("ativa")) {
-    updates.ativa = formData.get("ativa") === "1";
+    updates.ativa = formData.getAll("ativa").includes("1");
   }
 
   /**

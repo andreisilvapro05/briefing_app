@@ -883,7 +883,20 @@ function CobrancaCard({
               </select>
             </label>
             <label className="flex flex-col gap-1 text-xs text-fysi-muted">
-              <span>Vence em (só para pontual)</span>
+              {/* A data é campo de PONTUAL. Com o tipo em "Mensal" a
+                  action a apaga de propósito (quem manda no vencimento
+                  mensal é o dia do mês) — mas o campo editável dava a
+                  entender que ela seria guardada, e ela sumia no salvar.
+                  Karine (09/10): "não funciona ativar data". */}
+              <span>
+                Vence em
+                {cobranca.tipo === "mensal" ? (
+                  <span className="text-amber-700">
+                    {" "}
+                    — só vale se você mudar o tipo pra Pontual
+                  </span>
+                ) : null}
+              </span>
               <input
                 type="date"
                 name="data_vencimento"
@@ -892,6 +905,11 @@ function CobrancaCard({
               />
             </label>
             <label className="flex items-center gap-2 text-xs">
+              {/* O hidden "0" vem ANTES da caixa pra o campo existir mesmo
+                  desmarcado — caixa desmarcada não é enviada, e sem isto
+                  só dava pra LIGAR a cobrança, nunca desligar. A action lê
+                  com getAll().includes("1"). */}
+              <input type="hidden" name="ativa" value="0" />
               <input
                 type="checkbox"
                 name="ativa"

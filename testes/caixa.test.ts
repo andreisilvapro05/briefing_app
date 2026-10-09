@@ -279,3 +279,23 @@ test("pontual com pagamento parcial continua em aberto", () => {
   const quitado = { ...pontual, historico: [lanc("2026-09", 3000)] };
   assert.equal(statusDoMes(quitado, new Date("2026-09-20T15:00:00Z")), "pago");
 });
+
+/* ── Caixa desmarcada não é enviada (bug de 09/10) ─────────────────── */
+
+test("desmarcar Ativa desliga a cobrança — era impossível antes", () => {
+  // O formulário manda um hidden "0" ANTES da caixa. Desmarcada, chega só
+  // o "0"; marcada, chegam "0" e "1". Por isso a leitura é
+  // getAll().includes("1") — `get()` devolveria o primeiro ("0") e
+  // inverteria tudo.
+  const desmarcada = new FormData();
+  desmarcada.append("ativa", "0");
+  assert.equal(desmarcada.getAll("ativa").includes("1"), false);
+  assert.equal(desmarcada.has("ativa"), true, "o campo precisa existir");
+
+  const marcada = new FormData();
+  marcada.append("ativa", "0");
+  marcada.append("ativa", "1");
+  assert.equal(marcada.getAll("ativa").includes("1"), true);
+  // A armadilha: `get` pega o primeiro.
+  assert.equal(marcada.get("ativa"), "0");
+});
