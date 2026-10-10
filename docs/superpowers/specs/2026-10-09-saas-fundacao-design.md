@@ -407,3 +407,61 @@ cota que esta fase já cria.
 4. **O mercado escolhido é o do produto de referência.** Decisão dela,
    registrada: a aposta é o diferencial de intake, não a paridade de
    funcionalidade.
+
+---
+
+## O que a implementação mudou deste desenho
+
+Escrito depois de construir, em 09/10. Desenho que não registra onde errou
+vira ficção.
+
+**1. Três tabelas sem `org_id`, não uma.** Eu havia prometido que só `plans`
+seria exceção. São três, e as outras duas são inevitáveis:
+
+- `orgs` — **é** o inquilino: o `id` dela já é o `org_id` de todas as outras.
+- `profiles` — espelho de `auth.users`, que a chave anônima não pode ler (ela
+  guarda hash de senha e o dado de todo mundo). Sem este espelho, a tela de
+  equipe não tem o e-mail dos colegas. A pessoa existe antes de pertencer a
+  qualquer organização e pode pertencer a várias, então `org_id` não cabe;
+  quem limita a leitura é `compartilha_org()`.
+
+A tabela `profiles` não estava no desenho. Quem a trouxe foi a primeira tela
+que precisou mostrar um nome.
+
+**2. O dono não é único — é "pelo menos um".** O desenho dizia "único por
+organização" e, na linha seguinte, "a última linha de dono é protegida por
+trigger". As duas coisas juntas não fazem sentido. Ficou a segunda, que é a
+útil: dois sócios podem ser donos, e o trigger garante que nunca sobre zero.
+A troca é por `transferir_posse`, que promove e rebaixa numa transação —
+soltos, o trigger barraria o primeiro dos dois updates.
+
+**3. As policies são escritas uma por uma.** Eu havia gerado as 20 policies
+de configuração num laço `do ... execute format(...)`: cinco linhas em vez de
+vinte comandos. Tive que desfazer, porque policy criada dinamicamente é
+invisível pro parser — e portanto invisível pro teste que deveria pegar a
+tabela desprotegida. A economia de linhas custava a garantia inteira.
+
+**4. O convite não sai por e-mail ainda.** A Fase 1 não tem provedor de
+e-mail, e inventar um seria custo antes da hora. O gestor copia o link e
+manda. O token já é de uso único, vale 7 dias e só funciona pro e-mail
+convidado — o que muda depois é só quem aperta o botão de enviar.
+
+**5. O `cobertura-rls` saiu melhor do que o prometido.** Ele roda **sem
+banco**: lê as migrations com o parser do próprio Postgres e falha se
+existir tabela sem `org_id`, sem RLS, sem policy, ou com operação
+descoberta. Então ele roda na CI de toda alteração, não só quando alguém se
+lembra de levantar um banco. Foi ele que me obrigou a declarar as três
+exceções do item 1 — eu tinha esquecido `orgs`.
+
+**6. O teste de vazamento está escrito e NÃO foi executado.** Ele precisa de
+banco descartável, e a máquina onde isto foi construído não tem Docker, nem
+CLI do Supabase, nem `psql`. São 11 testes que ficam PULADOS com aviso na
+saída. **Pular não é passar**: até alguém rodar isso contra um banco de
+verdade, o isolamento está verificado na forma e não no comportamento.
+
+## Estado em 09/10/2026
+
+Repo `projeto-saas`, primeiro commit. 43 testes (32 passando, 11 pulados),
+`tsc` limpo, `eslint` limpo, `next build` passando com 13 rotas. A migration
+foi validada com o parser do Postgres, incluindo os corpos em PL/pgSQL, mas
+**nunca foi aplicada a banco nenhum**.
